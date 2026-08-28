@@ -2,23 +2,54 @@
 
 （这一行留给一句话说清楚这台机器是什么。）
 
-## 外面只有三个文件
+## 外面这三个是给人看的
 
 | 文件 | 是什么 |
 | --- | --- |
 | `README.md` | 这份。 |
-| `config.yaml` | 这台机器的配置。路径**一律相对这个文件所在的目录**，不是相对 cwd —— 从别的地方启动也开同一个库。 |
+| `config.yaml` | **整个程序唯一一份配置**。路径一律相对这个文件所在的目录，不是相对 cwd —— 从仓库里任何一个子目录启动，开的都是同一个库。 |
 | `.env` | 号和钥匙。**不进版本库**（见 `.gitignore`），只在这台机器上。 |
 
-别的东西都在子目录里。
+## 目录
+
+```
+config.yaml        唯一一份配置
+app/               程序本体
+  package.json     依赖也只有这一份
+  src/
+    main.ts        入口：读配置 → 起库和接口 → 管停机
+    H2H/           状态。库 + 对外接口
+    engine/        读 → 处理 → 写 的循环
+    install/       装的时候把表预建出来
+    tui/           终端界面
+docs/              给人看的
+examples/          给人看的
+data/              运行时产物，不进版本库
+```
 
 ## 跑
 
-主要用 TypeScript。Node 24 直接吃 `.ts`，不用编译步骤：
+```
+cd app
+bun install
+bun start          # bun src/main.ts
+```
+
+**运行时是 Bun**，直接吃 `.ts`，没有编译步骤。sqlite 用它自带的 `bun:sqlite`。
+
+## 打包
 
 ```
-node --version   # v24.14.0
+cd app && bun run build
 ```
+
+出在 `dist/`，单文件，目标机器不用装任何运行时：win-x64 / mac-arm64 / mac-x64
+一台机器上一次全出。把 `config.yaml` 放在可执行文件旁边就行。
+
+`bun run verify` = 类型 + 三个包一起过。
+
+**没有一个 native 依赖**，所以能从 Windows 一次交叉编译出 mac 的。新依赖进来先过两道闸：
+不许是 native（一引进来交叉编译当场废），不许绑死运行时。
 
 ## `.env` 里要有什么
 

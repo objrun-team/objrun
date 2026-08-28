@@ -1,0 +1,194 @@
+{
+  "_": "表的声明。这是数据 —— 装载器不认得下面任何一个名字。形状以 docs/tables.md 为准。",
+
+  "tables": [
+    {
+      "name": "handle",
+      "_": "一行 = 一个可调用的东西。库里只有名字，真函数在进程内的注册表里。",
+      "columns": [
+        { "name": "name", "type": "text", "notnull": true, "_": "系统内是句柄名，系统外是接口" },
+        { "name": "expect_ms", "type": "integer", "notnull": true, "_": "预期多久，超过判死" }
+      ],
+      "pk": ["name"]
+    },
+    {
+      "name": "api",
+      "_": "一行由「读哪个环境变量上的 key」+「调用的模型」定。密钥不进库。",
+      "columns": [
+        { "name": "key_env", "type": "text", "notnull": true },
+        { "name": "model", "type": "text", "notnull": true },
+        { "name": "handle", "type": "text", "notnull": true, "_": "→ handle.name" },
+        { "name": "modes", "type": "text", "notnull": true, "_": "取值在 mode 表登记" }
+      ],
+      "pk": ["key_env", "model"]
+    },
+    {
+      "name": "mode",
+      "_": "登记有哪些模式。",
+      "columns": [
+        { "name": "name", "type": "text", "notnull": true },
+        { "name": "note", "type": "text" }
+      ],
+      "pk": ["name"]
+    },
+    {
+      "name": "cycle",
+      "_": "任务周期表。一行 = 一个模式里的一个周期。内核流转的依据。",
+      "columns": [
+        { "name": "mode", "type": "text", "notnull": true, "_": "1 是哪个模式" },
+        { "name": "cycle", "type": "text", "notnull": true, "_": "2 这个模式里的哪个周期" },
+        { "name": "max_units", "type": "integer", "notnull": true, "_": "3 最大允许几个执行单位" },
+        { "name": "from", "type": "text", "notnull": true, "_": "4 一般从表里哪几行来。JSON 列表" },
+        { "name": "next", "type": "text", "notnull": true, "_": "5 一般下一个是表里哪几行。JSON 列表" },
+        { "name": "infer", "type": "text", "notnull": true, "_": "6 推断函数 → handle.name。4、5 决定它" }
+      ],
+      "pk": ["mode", "cycle"]
+    },
+    {
+      "name": "task",
+      "_": "任务主表。一行 = 一个任务的头节点。",
+      "columns": [
+        { "name": "id", "type": "text", "notnull": true },
+        { "name": "mode", "type": "text", "notnull": true, "_": "→ cycle.mode，也定了明细在哪张子表" },
+        { "name": "place", "type": "text", "notnull": true, "_": "→ workplace.place" },
+        { "name": "state", "type": "text", "notnull": true, "_": "从子表推出来再更新" }
+      ],
+      "pk": ["id"]
+    },
+    {
+      "name": "agent",
+      "_": "一行 = 一个智能体（爆炸开的 agent card）。",
+      "columns": [
+        { "name": "name", "type": "text", "notnull": true },
+        { "name": "config", "type": "text", "_": "配置文件地址" },
+        { "name": "apis", "type": "text", "notnull": true, "_": "JSON 列表，每项 [key_env, model]" },
+        { "name": "unit", "type": "text", "notnull": true, "_": "执行单元句柄 → handle.name" },
+        { "name": "state", "type": "text", "notnull": true }
+      ],
+      "pk": ["name"]
+    },
+    {
+      "name": "workplace",
+      "_": "登记干活的地方。不是套表。",
+      "columns": [
+        { "name": "place", "type": "text", "notnull": true, "_": "带层级的地址串" },
+        { "name": "forward", "type": "integer", "notnull": true, "_": "是否把工具转发过去" },
+        { "name": "tools", "type": "text", "notnull": true, "_": "白名单。JSON 列表，每项带 policy" },
+        { "name": "usable", "type": "integer", "notnull": true, "_": "登记的可用性，不是探活" }
+      ],
+      "pk": ["place"]
+    },
+    {
+      "name": "rule",
+      "_": "规则。可能是外部注册进来的，行是随时会加的。",
+      "columns": [
+        { "name": "identity", "type": "text", "notnull": true, "_": "→ handle.name" },
+        { "name": "does", "type": "text", "notnull": true },
+        { "name": "params", "type": "text", "notnull": true, "_": "JSON" },
+        { "name": "writes", "type": "text", "notnull": true, "_": "声明会动哪张表怎么动。JSON" },
+        { "name": "access", "type": "text", "_": "外部规则够着库的办法。JSON，密钥只存环境变量名" },
+        { "name": "scope", "type": "text", "notnull": true, "_": "只能动哪些行。结构化匹配式，不用 SQL 片段" }
+      ],
+      "pk": ["identity"]
+    },
+    {
+      "name": "trigger",
+      "_": "什么时候轮到我。rule / skill / tool 共用。一行 = 一个条件项。",
+      "columns": [
+        { "name": "owner_kind", "type": "text", "notnull": true },
+        { "name": "owner", "type": "text", "notnull": true },
+        { "name": "group", "type": "integer", "notnull": true, "_": "同组 and，组间 or" },
+        { "name": "dim", "type": "text", "notnull": true, "_": "agent / task / cycle / chain" },
+        { "name": "key", "type": "text", "notnull": true, "_": "chain 维度留空串" },
+        { "name": "op", "type": "text", "notnull": true },
+        { "name": "value", "type": "text", "notnull": true }
+      ],
+      "pk": ["owner_kind", "owner", "group", "dim", "key", "value"]
+    },
+    {
+      "name": "tool",
+      "_": "一行 = 一个工具。name 是给模型看的名字，也是 workplace 白名单引用的那个。",
+      "columns": [
+        { "name": "name", "type": "text", "notnull": true },
+        { "name": "identity", "type": "text", "notnull": true, "_": "→ handle.name" },
+        { "name": "does", "type": "text", "notnull": true, "_": "给模型看的描述" },
+        { "name": "params", "type": "text", "notnull": true, "_": "给模型看的参数 schema" },
+        { "name": "access", "type": "text" },
+        { "name": "usable", "type": "integer", "notnull": true }
+      ],
+      "pk": ["name"],
+      "unique": [["identity"]]
+    },
+    {
+      "name": "skill",
+      "_": "一行 = 一个 skill。模型不挑它，是按条件塞进去的。",
+      "columns": [
+        { "name": "identity", "type": "text", "notnull": true, "_": "→ handle.name" },
+        { "name": "does", "type": "text", "notnull": true },
+        { "name": "params", "type": "text", "notnull": true },
+        { "name": "body", "type": "text", "_": "动态生成的留空，由句柄现给" },
+        { "name": "role", "type": "text", "notnull": true },
+        { "name": "usable", "type": "integer", "notnull": true }
+      ],
+      "pk": ["identity"]
+    },
+    {
+      "name": "msg_kind",
+      "_": "登记消息类型。加一种 = 加一行，别的表不动。",
+      "columns": [
+        { "name": "name", "type": "text", "notnull": true },
+        { "name": "note", "type": "text" }
+      ],
+      "pk": ["name"]
+    }
+  ],
+
+  "templates": [
+    {
+      "_": "任务子表：任务周期表里有几个 mode 就建几张。",
+      "pattern": "task_{}",
+      "source": { "table": "cycle", "column": "mode" },
+      "columns": [
+        { "name": "task", "type": "text", "notnull": true },
+        { "name": "cycle", "type": "text", "notnull": true },
+        { "name": "unit", "type": "integer", "notnull": true },
+        { "name": "from_cycle", "type": "text" },
+        { "name": "from_unit", "type": "integer" },
+        { "name": "agent", "type": "text", "notnull": true },
+        { "name": "instance", "type": "text", "notnull": true },
+        { "name": "place", "type": "text", "notnull": true },
+        { "name": "at", "type": "integer", "notnull": true },
+        { "name": "done", "type": "integer", "notnull": true }
+      ],
+      "pk": ["task", "cycle", "unit"]
+    },
+    {
+      "_": "智能体上下文表：agent 表里有几个智能体就建几张。",
+      "pattern": "agent_{}_ctx",
+      "source": { "table": "agent", "column": "name" },
+      "columns": [
+        { "name": "instance", "type": "text", "notnull": true },
+        { "name": "task", "type": "text", "notnull": true },
+        { "name": "unit", "type": "integer", "notnull": true },
+        { "name": "place", "type": "text", "notnull": true },
+        { "name": "done", "type": "integer", "notnull": true }
+      ],
+      "pk": ["instance", "unit"]
+    },
+    {
+      "_": "智能体消息表：从上下文表展开。装的是完整上下文，不只是压进去的那半边。",
+      "pattern": "agent_{}_msg",
+      "source": { "table": "agent", "column": "name" },
+      "columns": [
+        { "name": "instance", "type": "text", "notnull": true },
+        { "name": "unit", "type": "integer", "notnull": true },
+        { "name": "seq", "type": "integer", "notnull": true },
+        { "name": "role", "type": "text", "notnull": true },
+        { "name": "kind", "type": "text", "notnull": true },
+        { "name": "body", "type": "text", "notnull": true },
+        { "name": "at", "type": "integer", "notnull": true }
+      ],
+      "pk": ["instance", "unit", "seq"]
+    }
+  ]
+}
