@@ -22,6 +22,7 @@ import { publish, type Publish } from "./tasks/publish.ts";
 import { seedKinds } from "./msg/deliver.ts";
 import { registerTree } from "./tree/dfs.ts";
 import { check, explain } from "./trigger/check.ts";
+import { checkData } from "./trigger/data.ts";
 import { Places, registerTools } from "./tools/register.ts";
 
 const cfg = readConfig();
@@ -96,6 +97,14 @@ app.log.info(
 // 触发条件：不跑系统就把全部条件过一遍。**写错的典型后果是静默不生效** ——
 // 那条规则永远不触发而系统照常跑，所以这一步不是调试功能，是能不能用的前提。
 app.get(`${cfg.api.prefix}/trigger/check`, async () => ({ problems: check(app.store.ro) }));
+
+// 整库过一遍：条件写得对不对 + 数据互相对不对得上。
+// 「谁都不接而且不报错」是这一类问题的通名 —— 任务躺在库里状态永远是 open，
+// 没人知道为什么。这个口就是拿来问的。
+app.get(`${cfg.api.prefix}/check`, async () => ({
+  trigger: check(app.store.ro),
+  data: checkData(app.store.ro, registry),
+}));
 
 // 没命中的时候逐条说清哪一条没过，**带上实际取到的值** —— 只说「没匹配」的话，
 // 人得自己猜是词写错了还是那段文本里根本没有。
@@ -174,6 +183,11 @@ const bad = check(app.store.ro);
 if (bad.length) {
   app.log.warn(`触发条件有 ${bad.length} 处不对：`);
   for (const b of bad.slice(0, 10)) app.log.warn(`  ${b.owner_kind} ${b.owner} 第 ${b.group} 组：${b.why}`);
+}
+const badData = checkData(app.store.ro, registry);
+if (badData.length) {
+  app.log.warn(`库里有 ${badData.length} 处对不上：`);
+  for (const b of badData.slice(0, 10)) app.log.warn(`  ${b.what}：${b.why}`);
 }
 
 kernel.start();
