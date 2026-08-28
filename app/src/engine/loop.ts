@@ -415,14 +415,27 @@ export class Kernel {
     this.#restate(p.task, p.sub);
   }
 
-  /** 主表那个大状态从子表推出来，不单独维护。 */
+  /**
+   * 主表那个大状态从子表推出来，不单独维护。取值是那四态：
+   *
+   * | 子表长什么样 | 那就是 |
+   * | --- | --- |
+   * | 一个执行单位都没有 | `open` —— 待领取 |
+   * | 有没干完的 | `claimed` —— 有人在干 |
+   * | 全干完了 | `done` |
+   *
+   * `failed` 推不出来 —— 它是**判定**的结果，不是数出来的。等验证函数那一块
+   * 落地了由它显式写。现在硬凑一个的话，那一列就开始说谎。
+   */
   #restate(task: string, sub: string): void {
     const got = one(this.#store.ro, `select count(*) as n, coalesce(sum(done), 0) as d from "${sub}" where task = ?`, [
       task,
     ])!;
     const n = Number(got.n);
     const d = Number(got.d);
-    run(this.#store.rw, `update task set state = ? where id = ?`, [n === 0 ? "空" : d === n ? "完了" : "跑着", task]);
+    const now = one(this.#store.ro, `select state from task where id = ?`, [task]);
+    if (String(now?.state ?? "") === "failed") return; // 判过失败的不许被数回去
+    run(this.#store.rw, `update task set state = ? where id = ?`, [n === 0 ? "open" : d === n ? "done" : "claimed", task]);
   }
 
   /**

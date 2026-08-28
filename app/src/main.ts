@@ -15,6 +15,7 @@ import { readConfig } from "./H2H/config.ts";
 import { build } from "./H2H/server.ts";
 import { install } from "./install/index.ts";
 import { registerVendors } from "./llm/index.ts";
+import { publish, type Publish } from "./tasks/publish.ts";
 import { Places, registerTools } from "./tools/register.ts";
 
 const cfg = readConfig();
@@ -54,6 +55,25 @@ app.log.info(
     ["dashscope", "qwen-max", "chat,tools"],
   ]).join("、")}`,
 );
+
+// 重装：灌完声明（新模式、新智能体）之后让子表长出来。幂等，随时能打。
+app.post(`${cfg.api.prefix}/install`, async () => {
+  const r = install(app.store.rw);
+  return { create: r.create, ok: r.ok.length, extra: r.extra };
+});
+
+// 发任务：**外面往系统里放活，只走这一个口。**
+// 不用进代码 import 库才能发布任务 —— 对系统的操作停留在 HTTP 这一层。
+app.post(`${cfg.api.prefix}/tasks`, async (req, reply) => {
+  try {
+    const r = publish(app.store.rw, req.body as Publish);
+    wake();
+    return reply.code(201).send(r);
+  } catch (e) {
+    // 发布这一路的拒收都是「这道题根本别发布」，是请求的问题不是系统的问题。
+    return reply.code(400).send({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
 
 // 停机：先不收新请求，等在途的走完；超时就硬停 —— 不设上限的话，
 // 一个挂住的请求能把整个进程钉在那儿。

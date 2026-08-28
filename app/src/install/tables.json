@@ -145,10 +145,55 @@
           "_": "→ workplace.place"
         },
         {
+          "name": "source",
+          "type": "text",
+          "_": "谁发的：user / agent / world / eacn。**这是准入判据**，不是元数据",
+          "notnull": true
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "_": "自然语言的任务描述。内核透明，怎么解读是智能体的事",
+          "notnull": true
+        },
+        {
+          "name": "created_at",
+          "type": "integer",
+          "_": "创建挂钟，元数据",
+          "notnull": true
+        },
+        {
+          "name": "workdir",
+          "type": "text",
+          "_": "这个场所里的落脚路径。空 = 那台机器上的 cwd"
+        },
+        {
+          "name": "claimed_by",
+          "type": "text",
+          "_": "当前持有者。空 = 无主"
+        },
+        {
+          "name": "result",
+          "type": "text",
+          "_": "收尾答案。done / failed 的时候才有"
+        },
+        {
+          "name": "max_branches",
+          "type": "integer",
+          "_": "同时最多开几条分支",
+          "notnull": true
+        },
+        {
+          "name": "solve_seconds",
+          "type": "integer",
+          "_": "求解时长上限，秒",
+          "notnull": true
+        },
+        {
           "name": "state",
           "type": "text",
           "notnull": true,
-          "_": "从子表推出来再更新"
+          "_": "现在怎样：open / claimed / done / failed。**从子表推出来再更新**"
         }
       ],
       "pk": [
