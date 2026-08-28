@@ -37,6 +37,16 @@ export function domainText(d: Domain): string {
 
 /** 解析值域。**写别的一律拒** —— 值域是封闭的。 */
 export function parseDomain(text: unknown): Domain {
+  // 封存区里存的是**解析过的**值域，读回来得认得它自己 —— 不认的话
+  // seal → open 这一趟就断了，而断在读回来那一刻，离出错的地方很远。
+  if (text !== null && typeof text === "object") {
+    const d = text as { kind?: unknown; width?: unknown };
+    if (d.kind === "bool") return BOOL;
+    if (d.kind === "bool[]" && Number.isInteger(d.width) && Number(d.width) >= 1) {
+      return { kind: "bool[]", width: Number(d.width) };
+    }
+    throw new Error(`不认得的值域：${JSON.stringify(text)}`);
+  }
   const s = String(text ?? "").trim();
   if (s === "bool") return BOOL;
   const m = /^bool\[(\d+)\]$/.exec(s);

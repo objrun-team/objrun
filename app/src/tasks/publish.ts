@@ -47,6 +47,8 @@ export interface Publish {
   source: Source;
   description: string;
   maxBranches?: number;
+  /** 同一个父底下判死几个兄弟就回退到更上层换方向。 */
+  maxDeadSiblings?: number;
   solveSeconds?: number;
   /**
    * 验证函数 `G` —— 「这个任务算不算做成了」的标准。
@@ -184,12 +186,12 @@ ${JSON.stringify(p.objective, null, 2)}` : p.description;
     run(
       db,
       `insert into task (id, mode, place, source, description, created_at, workdir, objective, readable,
-                         claimed_by, result, max_branches, solve_seconds, state)
-       values (?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, ?, ?, 'open')`,
+                         claimed_by, result, max_branches, max_dead_siblings, solve_seconds, state)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, ?, ?, ?, 'open')`,
       [
         p.id, p.mode, p.place, p.source, description, now, p.workdir ?? "",
         g ? "sealed" : null, g ? (p.readable ? 1 : 0) : null,
-        p.maxBranches ?? 2, p.solveSeconds ?? 1800,
+        p.maxBranches ?? 2, p.maxDeadSiblings ?? 3, p.solveSeconds ?? 1800,
       ],
     );
     run(

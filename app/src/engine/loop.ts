@@ -212,9 +212,31 @@ export class Kernel {
     }
   }
 
-  /** 超时的报出来。**不写新列** —— 「死了」是算出来的，不是存着的。 */
+  /**
+   * 超时的报出来。**不写新列** —— 「死了」是算出来的，不是存着的。
+   *
+   * 两层时限，管的不是一件事：
+   *
+   * - **单元级**：`now - at > expect_ms`，这一步卡住了
+   * - **任务级**：`now - created_at > solve_seconds`，整道题超时了 —— 树再怎么长
+   *   也该收工。没有这一层的话，一棵不停开兄弟的树能一直长下去
+   */
   #reap(rows: Pending[]): void {
     const now = Date.now();
+    for (const t of all(
+      this.#store.ro,
+      `select id, created_at, solve_seconds from task where state not in ('done','failed')`,
+    ) as { id: string; created_at: number; solve_seconds: number }[]) {
+      if (now - Number(t.created_at) <= Number(t.solve_seconds) * 1000) continue;
+      const key = `任务超时\u0000${t.id}`;
+      if (this.#cried.has(key)) continue;
+      this.#cried.add(key);
+      this.#log.warn(`任务 ${t.id} 超时：跑了 ${Math.round((now - Number(t.created_at)) / 1000)}s，上限 ${t.solve_seconds}s`);
+      run(this.#store.rw, `update task set state = 'failed', result = ? where id = ?`, [
+        JSON.stringify({ pass: 0, why: `超过 solve_seconds=${t.solve_seconds}s` }),
+        t.id,
+      ]);
+    }
     for (const r of rows) {
       const cap = this.#expectSafe(r);
       if (cap === null || now - r.at <= cap) continue;
@@ -370,15 +392,39 @@ export class Kernel {
    *
    * **候选（第 4、5 列）决定了用哪个推断函数**，推断函数只在候选里挑一个。
    * 挑出候选之外的东西 → 当场炸，不许它自由发挥。
+   *
+   * 推断函数可以回三种形状：
+   *
+   * | 回什么 | 意思 |
+   * | --- | --- |
+   * | `null` | 到此为止 |
+   * | `"周期名"` | 走那个周期，**从当前这一行接** |
+   * | `{to, from_cycle, from_unit, status}` | 走那个周期，**从指定那一行接**；顺带给当前这一行盖个终止状态 |
+   *
+   * 第三种是给树用的：判死之后要在**同一个父**底下开兄弟，回退时要接到**祖先**上 ——
+   * 都不是「从当前行接」。内核只认这个形状，不认得「兄弟」「回退」是什么意思。
    */
   async #infer(p: Pending, facts: Facts, result: unknown): Promise<void> {
     const cyc = facts.cycle as { next: string; infer: string };
     const next = JSON.parse(String(cyc.next)) as string[];
 
-    const picked = next.length === 0 ? null : await this.#reg.get(String(cyc.infer)).call({ ...facts, next, result });
-    const to = picked == null ? null : String(picked);
+    // 递给推断函数的除了 facts，还有「我是哪一行」—— 开兄弟和回退都要照着树走。
+    const picked =
+      next.length === 0
+        ? null
+        : await this.#reg.get(String(cyc.infer)).call({ ...facts, next, result, sub: p.sub, unit: p.unit });
+    const said = picked !== null && typeof picked === "object" ? (picked as Record<string, unknown>) : null;
+    const to = picked == null ? null : said ? (said.to == null ? null : String(said.to)) : String(picked);
+    // **「没说」和「说了是根」是两回事**：没说 = 从当前这一行接；
+    // 说了 `null` = 挂在根上（那一行没有父）。混成一个的话，根节点的兄弟会
+    // 挂到根自己身上 —— 树看着长了，形状是错的，而且不报错。
+    const saidFrom = said !== null && "from_cycle" in said;
+    const fromCycle = saidFrom ? (said!.from_cycle == null ? null : String(said!.from_cycle)) : p.cycle;
+    const fromUnit = saidFrom ? (said!.from_unit == null ? null : Number(said!.from_unit)) : p.unit;
+    const status = said && said.status != null ? String(said.status) : null;
 
-    run(this.#store.rw, `update "${p.sub}" set done = 1 where task = ? and cycle = ? and unit = ?`, [
+    run(this.#store.rw, `update "${p.sub}" set done = 1, status = ? where task = ? and cycle = ? and unit = ?`, [
+      status,
       p.task,
       p.cycle,
       p.unit,
@@ -409,7 +455,7 @@ export class Kernel {
           this.#store.rw,
           `insert into "${p.sub}" (task, cycle, unit, from_cycle, from_unit, agent, instance, place, at, done)
            values (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-          [p.task, to, unit, p.cycle, p.unit, p.agent, p.instance, p.place, Date.now()],
+          [p.task, to, unit, fromCycle, fromUnit, p.agent, p.instance, p.place, Date.now()],
         );
         // 智能体那边同一件事的另一半，跟着开 —— 两边要能对咬
         run(

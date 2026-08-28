@@ -19,6 +19,7 @@ import { registerVendors } from "./llm/index.ts";
 import { evaluate } from "./objective/run.ts";
 import { openSealed } from "./objective/store.ts";
 import { publish, type Publish } from "./tasks/publish.ts";
+import { registerTree } from "./tree/dfs.ts";
 import { Places, registerTools } from "./tools/register.ts";
 
 const cfg = readConfig();
@@ -67,6 +68,10 @@ const kernel = new Kernel(app.store, app.log, registry, {
   },
 });
 wake = () => kernel.wake();
+
+// 树的控制流：派生 / 判死开兄弟 / 回退。它是个推断函数，不是内核的一部分 ——
+// 换一种搜索策略就是换一个 infer 句柄，内核一个字不动。
+app.log.info(`树：${registerTree(app.store.rw, registry, sealed).join("、")}`);
 
 // 基础工具：注册进内核（它才持有得住函数），同时把给模型看的那几样落进 tool 表。
 // 注册进去的函数只负责**转发** —— 按 workplace 决定这一次在哪儿跑。

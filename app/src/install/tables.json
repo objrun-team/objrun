@@ -194,6 +194,12 @@
           "notnull": true
         },
         {
+          "name": "max_dead_siblings",
+          "type": "integer",
+          "notnull": true,
+          "_": "同一个父底下判死几个兄弟就回退到更上层换方向"
+        },
+        {
           "name": "solve_seconds",
           "type": "integer",
           "_": "求解时长上限，秒",
@@ -558,6 +564,11 @@
           "name": "at",
           "type": "integer",
           "notnull": true
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "_": "终止状态：reached / dead_failed / dead_below_bar。**出生即定不回改**；空 = 还在跑"
         },
         {
           "name": "done",
