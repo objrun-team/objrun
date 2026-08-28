@@ -190,10 +190,19 @@ export class Kernel {
         this.#push(p, String(s.role), "skill", text(body));
       }
 
-      // 这一轮挂上的工具、该让它知道的规则 —— 都是查出来的，内核不认得名字
-      const tools = fire(this.#store.ro, "tool", facts)
-        .map((n) => one(this.#store.ro, `select * from tool where name = ? and usable = 1`, [n]))
-        .filter((t): t is Row => t !== null);
+      // 这一轮挂上的工具 = **系统工具 ∪ trigger 命中的**。
+      // 系统工具（读写那一组）谁一上来都有，不看条件 —— 不这么分的话，
+      // 按「一条条件都没有 = 从不触发」那条语义，它们谁也拿不到。
+      // 两边都是查出来的，内核仍然不认得任何一个工具名。
+      const tools = new Map<string, Row>();
+      for (const t of all(this.#store.ro, `select * from tool where system = 1 and usable = 1`)) {
+        tools.set(String(t.name), t);
+      }
+      for (const n of fire(this.#store.ro, "tool", facts)) {
+        const t = one(this.#store.ro, `select * from tool where name = ? and usable = 1`, [n]);
+        if (t) tools.set(String(t.name), t);
+      }
+      const kit = [...tools.values()];
       const rules = fire(this.#store.ro, "rule", facts);
 
       // 出站那份：完整上下文 + 这一轮的家当。**先落库，再发**
@@ -202,7 +211,19 @@ export class Kernel {
         `select seq, role, kind, body from "${this.#msgTable(p.agent)}" where instance = ? and unit = ? order by seq`,
         [p.instance, p.unit],
       );
-      this.#push(p, "system", "inject", JSON.stringify({ 出站: true, tools: tools.map((t) => t.name), rules }));
+      // 出站这一行是**快照里那次调用的凭据**：模型当时被告知有哪些工具、
+      // 每个工具的用法约定是什么。不记的话，回头看这一步就说不清它为什么那么做。
+      this.#push(
+        p,
+        "system",
+        "inject",
+        JSON.stringify({
+          出站: true,
+          tools: kit.map((t) => t.name),
+          prompts: kit.map((t) => t.prompt).filter(Boolean),
+          rules,
+        }),
+      );
 
       const agent = one(this.#store.ro, `select unit from agent where name = ?`, [p.agent]);
       const back = await this.#reg.get(String(agent!.unit)).call({
@@ -211,7 +232,7 @@ export class Kernel {
         instance: p.instance,
         unit: p.unit,
         context,
-        tools,
+        tools: kit,
         rules,
       });
 

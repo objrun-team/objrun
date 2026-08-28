@@ -14,6 +14,7 @@ import { Registry } from "./engine/registry.ts";
 import { readConfig } from "./H2H/config.ts";
 import { build } from "./H2H/server.ts";
 import { install } from "./install/index.ts";
+import { Places, registerTools } from "./tools/register.ts";
 
 const cfg = readConfig();
 
@@ -35,8 +36,13 @@ app.log.info(
 // 进程外的（http:// 开头）不用碰这儿：往库里 handle 表写一行，
 // 内核下一圈醒来自己给它合成调用器。
 const registry = new Registry();
+const places = new Places(app.store.ro);
 const kernel = new Kernel(app.store, app.log, registry);
 wake = () => kernel.wake();
+
+// 基础工具：注册进内核（它才持有得住函数），同时把给模型看的那几样落进 tool 表。
+// 注册进去的函数只负责**转发** —— 按 workplace 决定这一次在哪儿跑。
+app.log.info(`工具：${registerTools(app.store.rw, registry, places).join("、")}`);
 
 // 停机：先不收新请求，等在途的走完；超时就硬停 —— 不设上限的话，
 // 一个挂住的请求能把整个进程钉在那儿。
@@ -48,6 +54,7 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
       .then(() => {
         clearTimeout(hard);
         kernel.stop();
+        places.closeAll();
         app.store.close();
         process.exit(0);
       })

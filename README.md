@@ -21,6 +21,8 @@ app/               程序本体
     H2H/           状态。库 + 对外接口
     engine/        读 → 处理 → 写 的循环
     install/       装的时候把表预建出来
+    tools/         基础工具 read / write / edit / glob / grep / bash
+    place/         在哪儿干。转发层 + 送过去的那个运行时
     tui/           终端界面
 docs/              给人看的
 examples/          给人看的
