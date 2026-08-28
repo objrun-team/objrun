@@ -60,6 +60,8 @@ export class Kernel {
   #reg: Registry;
   #timer: ReturnType<typeof setTimeout> | null = null;
   #ticking = false;
+  /** 已经报过的坏行，同一条不重复刷屏。 */
+  #cried = new Set<string>();
   #again = false;
   #stopped = true;
 
@@ -135,28 +137,105 @@ export class Kernel {
     return out;
   }
 
-  /** 一行的时限来自它那个智能体的执行单元句柄。 */
-  #expectOf(agent: string): number {
-    const row = one(this.#store.ro, `select unit from agent where name = ?`, [agent]);
-    if (!row) throw new Error(`agent 表里没有 ${agent}`);
-    return this.#reg.get(String(row.unit)).expectMs;
+  /**
+   * 这一行该调哪个句柄。
+   *
+   * **这一站走哪条轨，由周期表上的 `api_mode` 说了算**：
+   *
+   * - 非空 → 从 `agent.apis` 里挑一个 `modes` 含它的，调那一行的 `api.handle`
+   * - 留空 → 调 `agent.unit`（这一站不用模型，比如把上一步请求的工具跑掉）
+   *
+   * **挑在这儿挑，适配器只管调。** 适配器自己再挑一次的话，「这一站用哪条轨」
+   * 就有两个地方说了算，早晚漂。
+   */
+  #handleOf(p: Pending): { handle: string; api: { key_env: string; model: string } | null } {
+    const agent = one(this.#store.ro, `select unit, apis from agent where name = ?`, [p.agent]);
+    if (!agent) throw new Error(`agent 表里没有 ${p.agent}`);
+
+    const cyc = one(this.#store.ro, `select api_mode from cycle where mode = ? and cycle = ?`, [p.mode, p.cycle]);
+    const want = String(cyc?.api_mode ?? "").trim();
+    if (!want) return { handle: String(agent.unit), api: null };
+
+    let apis: [string, string][];
+    try {
+      apis = JSON.parse(String(agent.apis ?? "[]")) as [string, string][];
+    } catch {
+      throw new Error(`agent ${p.agent} 的 apis 不是一份能读的列表`);
+    }
+    for (const [keyEnv, model] of apis) {
+      const row = one(this.#store.ro, `select key_env, model, handle, modes from api where key_env = ? and model = ?`, [
+        keyEnv,
+        model,
+      ]);
+      if (!row) continue;
+      const modes = String(row.modes ?? "")
+        .split(",")
+        .map((x) => x.trim());
+      if (modes.includes(want)) {
+        return { handle: String(row.handle), api: { key_env: keyEnv, model } };
+      }
+    }
+    throw new Error(`${p.mode}/${p.cycle} 要一条 ${want} 的轨，但 agent ${p.agent} 的 apis 里没有一项支持`);
+  }
+
+  /** 一行的时限来自它这一站真正要调的那个句柄。 */
+  #expectOf(p: Pending): number {
+    return this.#reg.get(this.#handleOf(p).handle).expectMs;
+  }
+
+  /**
+   * 算不出时限的行（配错了轨、句柄没注册）报出来，别把整圈带停。
+   *
+   * **一行坏了只该坏那一行。** 让它往上抛的话，同一圈里别的任务一并不转，
+   * 而日志上只看得见一条错 —— 那才是最难查的：明明别的任务好好的，就是不动。
+   */
+  #expectSafe(p: Pending): number | null {
+    try {
+      return this.#expectOf(p);
+    } catch (e) {
+      // 同一条坏行只喊一次。每圈都喊的话，一个配错的任务能把日志刷成噪音，
+      // 真出事的那条反而看不见。
+      const key = `${p.sub}\u0000${p.task}\u0000${p.cycle}\u0000${p.unit}`;
+      if (!this.#cried.has(key)) {
+        this.#cried.add(key);
+        this.#log.error(`${p.sub} ${p.task} ${p.cycle}#${p.unit} 这一行走不了：${msg(e)}`);
+      }
+      return null;
+    }
   }
 
   /** 超时的报出来。**不写新列** —— 「死了」是算出来的，不是存着的。 */
   #reap(rows: Pending[]): void {
     const now = Date.now();
     for (const r of rows) {
-      const cap = this.#expectOf(r.agent);
-      if (now - r.at <= cap) continue;
+      const cap = this.#expectSafe(r);
+      if (cap === null || now - r.at <= cap) continue;
       this.#log.warn(
         `判死：${r.sub} ${r.task} ${r.cycle}#${r.unit}（${r.agent}/${r.instance}）已经 ${now - r.at}ms，超过 ${cap}ms`,
       );
     }
   }
 
-  /** 三档里挑「还没开始」的那一档 —— 出站那份都还没落库。 */
+  /**
+   * 三档里挑「还没开始」的那一档 —— **出站那一行还没落库**。
+   *
+   * 判据是那条 `kind = "inject"` 的行，不是「一条消息都没有」：一个单元可以
+   * 预先压好要问的话（那是数据，谁都能往库里放），有话不等于出站过。
+   * 按「有没有消息」判的话，预置了 prompt 的单元会被当成正在跑，永远轮不到它。
+   */
   #ready(rows: Pending[]): Pending[] {
-    return rows.filter((r) => this.#seqMax(r) === 0);
+    return rows.filter((r) => !this.#sentOut(r));
+  }
+
+  /** 这个单元出站过没有。 */
+  #sentOut(r: Pending): boolean {
+    const t = this.#msgTable(r.agent);
+    const got = one(
+      this.#store.ro,
+      `select count(*) as c from "${t}" where instance = ? and unit = ? and kind = 'inject'`,
+      [r.instance, r.unit],
+    );
+    return Number(got?.c ?? 0) > 0;
   }
 
   #msgTable(agent: string): string {
@@ -225,12 +304,14 @@ export class Kernel {
         }),
       );
 
-      const agent = one(this.#store.ro, `select unit from agent where name = ?`, [p.agent]);
-      const back = await this.#reg.get(String(agent!.unit)).call({
+      const pickd = this.#handleOf(p);
+      const back = await this.#reg.get(pickd.handle).call({
         ...facts,
         place: p.place,
         instance: p.instance,
         unit: p.unit,
+        // 这一站挑好的那条轨。适配器直接用，不用自己再挑一遍。
+        api: pickd.api,
         context,
         tools: kit,
         rules,
@@ -241,10 +322,12 @@ export class Kernel {
       this.#push(p, r.role ?? "assistant", r.kind ?? "prompt", text(r.body ?? back));
 
       await this.#infer(p, facts, back);
+      // 成功推完才醒下一圈。**失败不醒** —— 醒了就是原地热循环：
+      // 这一行还是「该动」的那一档，下一圈又挑到它，再失败，再醒。
+      // 失败的那条留给下面那个 deadline 定时器，超时了按判死处理。
+      this.wake();
     } catch (e) {
       this.#log.error(`${p.sub} ${p.task} ${p.cycle}#${p.unit} 走不下去：${msg(e)}`);
-    } finally {
-      this.wake();
     }
   }
 
@@ -353,7 +436,12 @@ export class Kernel {
     this.#timer = null;
     if (this.#stopped || rows.length === 0) return;
     const now = Date.now();
-    const soonest = Math.min(...rows.map((r) => r.at + this.#expectOf(r.agent)));
+    const deadlines = rows.map((r) => {
+      const cap = this.#expectSafe(r);
+      return cap === null ? null : r.at + cap;
+    }).filter((d): d is number => d !== null);
+    if (deadlines.length === 0) return;
+    const soonest = Math.min(...deadlines);
     this.#timer = setTimeout(() => this.wake(), Math.max(soonest - now, 50));
     this.#timer.unref?.();
   }

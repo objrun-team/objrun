@@ -14,6 +14,7 @@ import { Registry } from "./engine/registry.ts";
 import { readConfig } from "./H2H/config.ts";
 import { build } from "./H2H/server.ts";
 import { install } from "./install/index.ts";
+import { registerVendors } from "./llm/index.ts";
 import { Places, registerTools } from "./tools/register.ts";
 
 const cfg = readConfig();
@@ -43,6 +44,16 @@ wake = () => kernel.wake();
 // 基础工具：注册进内核（它才持有得住函数），同时把给模型看的那几样落进 tool 表。
 // 注册进去的函数只负责**转发** —— 按 workplace 决定这一次在哪儿跑。
 app.log.info(`工具：${registerTools(app.store.rw, registry, places).join("、")}`);
+
+// 模型这一侧：每家一个适配器。**这个句柄同时是 api.handle 和 agent.unit** ——
+// 一次调用就是一个执行单元。下面那几行 api 是数据，改它不用动代码。
+app.log.info(
+  `模型：${registerVendors(app.store.rw, registry, [
+    ["deepseek", "deepseek-chat", "chat,tools"],
+    ["deepseek", "deepseek-reasoner", "chat"],
+    ["dashscope", "qwen-max", "chat,tools"],
+  ]).join("、")}`,
+);
 
 // 停机：先不收新请求，等在途的走完；超时就硬停 —— 不设上限的话，
 // 一个挂住的请求能把整个进程钉在那儿。

@@ -89,6 +89,11 @@
           "_": "2 这个模式里的哪个周期"
         },
         {
+          "name": "api_mode",
+          "type": "text",
+          "_": "这个周期要 api 的哪个 mode（chat / duplex / …）。留空 = 这一站不用模型，走 agent.unit"
+        },
+        {
           "name": "max_units",
           "type": "integer",
           "notnull": true,
@@ -527,7 +532,7 @@
         {
           "name": "task",
           "type": "text",
-          "notnull": true
+          "_": "→ task.id。**用户主动登记的实例还没派活时留空** —— 没登记的不算存在"
         },
         {
           "name": "unit",

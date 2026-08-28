@@ -47,6 +47,14 @@ export interface Tool {
   run(args: Record<string, unknown>): Promise<unknown>;
 }
 
+/**
+ * 参数 schema。**存进 `tool.params` 的必须是真的 JSON Schema** ——
+ * 供应商那边照着它校验，形状不对直接 400，而那是在真调模型的时候才发现。
+ */
+function schema(properties: Record<string, unknown>, required: string[]): Record<string, unknown> {
+  return { type: "object", properties, required, additionalProperties: false };
+}
+
 function str(args: Record<string, unknown>, key: string, required = true): string {
   const v = args[key];
   if (v === undefined || v === null) {
@@ -70,11 +78,14 @@ function num(args: Record<string, unknown>, key: string, dflt: number): number {
 export const read: Tool = {
   name: "read",
   does: "Read a UTF-8 text file and return line-numbered content.",
-  params: {
-    file_path: { type: "string", required: true, description: "Path to read." },
-    offset: { type: "number", description: "1-based first line to return. Defaults to 1." },
-    limit: { type: "number", description: `Maximum number of lines to return. Defaults to ${READ_LIMIT}.` },
-  },
+  params: schema(
+    {
+      file_path: { type: "string", description: "Path to read." },
+      offset: { type: "number", description: "1-based first line to return. Defaults to 1." },
+      limit: { type: "number", description: `Maximum number of lines to return. Defaults to ${READ_LIMIT}.` },
+    },
+    ["file_path"],
+  ),
   output: {
     type: "object",
     properties: {
@@ -127,10 +138,13 @@ export const read: Tool = {
 export const write: Tool = {
   name: "write",
   does: "Create or fully replace a UTF-8 text file.",
-  params: {
-    file_path: { type: "string", required: true, description: "Path to write." },
-    content: { type: "string", required: true, description: "Full UTF-8 text content to write." },
-  },
+  params: schema(
+    {
+      file_path: { type: "string", description: "Path to write." },
+      content: { type: "string", description: "Full UTF-8 text content to write." },
+    },
+    ["file_path", "content"],
+  ),
   output: { type: "object", properties: { path: { type: "string" }, bytes: { type: "integer" }, created: { type: "boolean" } } },
   prompt:
     "Use write to create a file or completely replace its contents. Existing files are overwritten — " +
@@ -152,15 +166,21 @@ export const write: Tool = {
 export const edit: Tool = {
   name: "edit",
   does: "Edit an existing UTF-8 text file by replacing literal text.",
-  params: {
-    file_path: { type: "string", required: true, description: "Path to edit." },
-    old_string: { type: "string", required: true, description: "Literal text to replace. Must match exactly." },
-    new_string: { type: "string", required: true, description: "Literal replacement text. Use an empty string to delete the match." },
-    replace_all: {
-      type: "boolean",
-      description: "Replace all matches. Defaults to false; when false, old_string must appear exactly once.",
+  params: schema(
+    {
+      file_path: { type: "string", description: "Path to edit." },
+      old_string: { type: "string", description: "Literal text to replace. Must match exactly." },
+      new_string: {
+        type: "string",
+        description: "Literal replacement text. Use an empty string to delete the match.",
+      },
+      replace_all: {
+        type: "boolean",
+        description: "Replace all matches. Defaults to false; when false, old_string must appear exactly once.",
+      },
     },
-  },
+    ["file_path", "old_string", "new_string"],
+  ),
   output: { type: "object", properties: { path: { type: "string" }, replaced: { type: "integer" } } },
   prompt:
     "Use edit for targeted changes to existing UTF-8 text files. It replaces literal old_string with new_string; " +
@@ -211,17 +231,19 @@ export const glob: Tool = {
     "Find files whose paths match a glob pattern. Returns matching file paths — never directories — " +
     `including hidden files (VCS metadata directories are excluded). Up to ${GLOB_MAX_RESULTS} paths come back ` +
     "in modification-time order, newest first.",
-  params: {
-    pattern: {
-      type: "string",
-      required: true,
-      description:
+  params: schema(
+    {
+      pattern: {
+        type: "string",
+        description:
         'Glob pattern to match file paths against (e.g. "**/*.ts", "src/**/*.test.js"). ' +
         'A pattern with no "/" matches the basename at any depth, so "*" and "*.ts" both search the whole tree; ' +
-        "include a separator to anchor the depth.",
+          "include a separator to anchor the depth.",
+      },
+      path: { type: "string", description: "Directory to search under. Defaults to the current directory." },
     },
-    path: { type: "string", description: "Directory to search under. Defaults to the current directory." },
-  },
+    ["pattern"],
+  ),
   output: {
     type: "object",
     properties: { files: { type: "array", items: { type: "string" } }, truncated: { type: "boolean" } },
@@ -305,11 +327,14 @@ export const grep: Tool = {
   does:
     "Search file contents with a regular expression. Returns matching lines with line numbers, grouped by file. " +
     `Returns the first ${GREP_MAX_MATCHES} matches; a capped result says so. Use read on a matched file for context.`,
-  params: {
-    pattern: { type: "string", required: true, description: "Regular expression to search for." },
-    path: { type: "string", description: "File or directory to search. Defaults to the current directory." },
-    include: { type: "string", description: 'One glob filter for which files to search (e.g. "*.ts"). Not a list.' },
-  },
+  params: schema(
+    {
+      pattern: { type: "string", description: "Regular expression to search for." },
+      path: { type: "string", description: "File or directory to search. Defaults to the current directory." },
+      include: { type: "string", description: 'One glob filter for which files to search (e.g. "*.ts"). Not a list.' },
+    },
+    ["pattern"],
+  ),
   output: {
     type: "object",
     properties: {
@@ -367,11 +392,14 @@ export const bash: Tool = {
   does:
     "Run a shell command and return its stdout, stderr and exit code. " +
     "Uses /bin/sh on POSIX and PowerShell on Windows.",
-  params: {
-    command: { type: "string", required: true, description: "The shell command to run." },
-    cwd: { type: "string", description: "Working directory. Defaults to the current directory." },
-    timeout_ms: { type: "number", description: "Kill the command after this long. Defaults to 120000." },
-  },
+  params: schema(
+    {
+      command: { type: "string", description: "The shell command to run." },
+      cwd: { type: "string", description: "Working directory. Defaults to the current directory." },
+      timeout_ms: { type: "number", description: "Kill the command after this long. Defaults to 120000." },
+    },
+    ["command"],
+  ),
   output: {
     type: "object",
     properties: {
