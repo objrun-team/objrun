@@ -20,6 +20,7 @@ import { evaluate } from "./objective/run.ts";
 import { openSealed } from "./objective/store.ts";
 import { publish, type Publish } from "./tasks/publish.ts";
 import { registerTree } from "./tree/dfs.ts";
+import { check, explain } from "./trigger/check.ts";
 import { Places, registerTools } from "./tools/register.ts";
 
 const cfg = readConfig();
@@ -87,6 +88,34 @@ app.log.info(
   ]).join("、")}`,
 );
 
+// 触发条件：不跑系统就把全部条件过一遍。**写错的典型后果是静默不生效** ——
+// 那条规则永远不触发而系统照常跑，所以这一步不是调试功能，是能不能用的前提。
+app.get(`${cfg.api.prefix}/trigger/check`, async () => ({ problems: check(app.store.ro) }));
+
+// 没命中的时候逐条说清哪一条没过，**带上实际取到的值** —— 只说「没匹配」的话，
+// 人得自己猜是词写错了还是那段文本里根本没有。
+app.post(`${cfg.api.prefix}/trigger/explain`, async (req, reply) => {
+  const b = (req.body ?? {}) as {
+    kind?: string; owner?: string; agent?: string; task?: string;
+    mode?: string; cycle?: string; chain?: string;
+  };
+  try {
+    const row = (t: string, sql: string, p: unknown[]) => {
+      const r = all(app.store.ro, sql, p)[0];
+      if (!r) throw new Error(`${t} 里没有这一行`);
+      return r;
+    };
+    return explain(app.store.ro, String(b.kind), String(b.owner), {
+      agent: b.agent ? row("agent", `select * from agent where name = ?`, [b.agent]) : {},
+      task: b.task ? row("task", `select * from task where id = ?`, [b.task]) : {},
+      cycle: b.mode ? row("cycle", `select * from cycle where mode = ? and cycle = ?`, [b.mode, b.cycle]) : {},
+      chain: b.chain ?? "",
+    });
+  } catch (e) {
+    return reply.code(400).send({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 // 重装：灌完声明（新模式、新智能体）之后让子表长出来。幂等，随时能打。
 app.post(`${cfg.api.prefix}/install`, async () => {
   const r = install(app.store.rw);
@@ -133,5 +162,14 @@ if (!loopback && !cfg.api.token && cfg.api.allowWrite) {
 }
 
 await app.listen({ host: cfg.server.host, port: cfg.server.port });
+
+// 开机自己验一遍触发条件。**不拦启动** —— 条件写错不该让整台机器起不来；
+// 但也不能不吭声，静默不生效正是这张表最容易出的事。
+const bad = check(app.store.ro);
+if (bad.length) {
+  app.log.warn(`触发条件有 ${bad.length} 处不对：`);
+  for (const b of bad.slice(0, 10)) app.log.warn(`  ${b.owner_kind} ${b.owner} 第 ${b.group} 组：${b.why}`);
+}
+
 kernel.start();
 app.log.info(`库 ${cfg.db.file}｜写 ${cfg.api.allowWrite ? "开" : "关"}｜令牌 ${cfg.api.token ? "要" : "不要"}`);

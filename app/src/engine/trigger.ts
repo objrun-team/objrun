@@ -26,8 +26,19 @@ interface Term {
   value: string;
 }
 
+/**
+ * 认得的比法。**这一组就是权威** —— 不另开一张登记表。
+ *
+ * 登记表会跟实现漂：表里写着 `contains` 而代码改了名，或者反过来，两边都以为
+ * 自己对。合法取值本来就是这个 `switch` 认得的那几个，校验直接对着它查最硬。
+ */
+export const OPS = ["eq", "ne", "contains", "not_contains", "prefix", "suffix", "in"] as const;
+
+/** 认得的维度。同理，不另开表。 */
+export const DIMS = ["agent", "task", "cycle", "chain"] as const;
+
 /** 认得的比法。写错一个字母不该悄悄不匹配，所以不认得的当场炸。 */
-function compare(op: string, got: string, want: string): boolean {
+export function compare(op: string, got: string, want: string): boolean {
   switch (op) {
     case "eq":
       return got === want;
@@ -35,6 +46,10 @@ function compare(op: string, got: string, want: string): boolean {
       return got !== want;
     case "contains":
       return got.includes(want);
+    case "not_contains":
+      // 「非」：出现即不命中。老代码那边是单独一个 absent 字段，我们这儿是一种比法 ——
+      // 少一个字段，而且能跟别的条件混在同一组里 and。
+      return !got.includes(want);
     case "prefix":
       return got.startsWith(want);
     case "suffix":
@@ -46,7 +61,7 @@ function compare(op: string, got: string, want: string): boolean {
   }
 }
 
-function pick(f: Facts, dim: string, key: string): string {
+export function pick(f: Facts, dim: string, key: string): string {
   switch (dim) {
     case "chain":
       return f.chain;
