@@ -1,0 +1,14 @@
+# 号和钥匙。只在这台机器上，永远不进版本库。
+.env
+.env.*
+!.env.example
+
+node_modules/
+*.log
+.DS_Store
+
+# 运行时产物：库是权威存储，但记录本身不进版本库
+data/
+*.sqlite
+*.sqlite-*
+.scratch/
