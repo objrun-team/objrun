@@ -22,7 +22,7 @@
 
 import type { Conn } from "../H2H/db.ts";
 import { all } from "../H2H/db.ts";
-import { compare, DIMS, OPS, pick, type Facts } from "../engine/trigger.ts";
+import { compare, DIMS, MOMENTS, OPS, pick, type Facts } from "../engine/trigger.ts";
 
 export interface Term {
   owner_kind: string;
@@ -79,9 +79,12 @@ export function check(db: Conn): Problem[] {
       continue;
     }
 
-    // 属性：`chain` 维度不看属性，别的维度得是那张表真有的列
-    if (t.dim === "chain") {
-      if (t.key.trim() !== "") say(t, `chain 维度不看属性，key 该留空，现在写着 ${t.key}`);
+    // 属性：`chain` / `moment` 不看属性，别的维度得是那张表真有的列
+    if (t.dim === "chain" || t.dim === "moment") {
+      if (t.key.trim() !== "") say(t, `${t.dim} 维度不看属性，key 该留空，现在写着 ${t.key}`);
+      if (t.dim === "moment" && !(MOMENTS as readonly string[]).includes(t.value)) {
+        say(t, `不认得的时刻 ${t.value}（内核会喊到的是 ${MOMENTS.join(" / ")}）`);
+      }
     } else {
       const ks = keys.get(t.dim) ?? [];
       if (!ks.includes(t.key)) {

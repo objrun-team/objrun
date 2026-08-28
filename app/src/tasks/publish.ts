@@ -20,6 +20,7 @@
 import type { Conn } from "../H2H/db.ts";
 import { all, run } from "../H2H/db.ts";
 import { install, tableNameOf } from "../install/index.ts";
+import { deliver } from "../msg/deliver.ts";
 import { parseObjective, validate } from "../objective/spec.ts";
 import type { Sealed } from "../objective/store.ts";
 
@@ -206,11 +207,15 @@ ${JSON.stringify(p.objective, null, 2)}` : p.description;
       p.place,
     ]);
     // 任务描述就是上下文的第一条。**内核不解读它** —— 它只是一条消息。
-    run(
-      db,
-      `insert into "${msg}" (instance, unit, seq, role, kind, body, at) values (?, 1, 1, 'user', 'user', ?, ?)`,
-      [instance, description, now],
-    );
+    // 走那条唯一的投递管道：`by` 说的是**谁放的**，kind / role / 人写的那个标记
+    // 都是推出来的。`source=user` 的任务描述是真人写的，缀上标记；别的来源不缀。
+    deliver(db, {
+      agent: p.agent,
+      instance,
+      unit: 1,
+      by: p.source === "user" ? "user" : "world",
+      body: description,
+    });
     // G 封存在**建行都成功之后** —— 建行失败就根本不会留下孤儿 G。
     if (g) sealed!.seal(p.id, g);
     db.exec("commit");

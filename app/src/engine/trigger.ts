@@ -14,6 +14,8 @@ export interface Facts {
   task: Record<string, unknown>;
   cycle: Record<string, unknown>;
   chain: string;
+  /** 这一刻是什么时刻。见 `MOMENTS`。不在时刻上问的条件用不到它。 */
+  moment?: string;
 }
 
 interface Term {
@@ -35,7 +37,16 @@ interface Term {
 export const OPS = ["eq", "ne", "contains", "not_contains", "prefix", "suffix", "in"] as const;
 
 /** 认得的维度。同理，不另开表。 */
-export const DIMS = ["agent", "task", "cycle", "chain"] as const;
+export const DIMS = ["agent", "task", "cycle", "chain", "moment"] as const;
+
+/**
+ * 内核会喊到的时刻。**钩子就挂在这些点上** —— 一条规则 + 一条
+ * `dim=moment` 的条件，不另开一张钩子表。
+ *
+ * 老代码那边钩子是 `cards/<id>/hooks/<event_type>/*.py`，一个目录一个时刻。
+ * 我们这儿时刻是**数据里的一个值**，挂谁由 `trigger` 说了算。
+ */
+export const MOMENTS = ["unit_start", "pre_send", "post_send", "task_done"] as const;
 
 /** 认得的比法。写错一个字母不该悄悄不匹配，所以不认得的当场炸。 */
 export function compare(op: string, got: string, want: string): boolean {
@@ -65,6 +76,8 @@ export function pick(f: Facts, dim: string, key: string): string {
   switch (dim) {
     case "chain":
       return f.chain;
+    case "moment":
+      return f.moment ?? "";
     case "agent":
     case "task":
     case "cycle": {

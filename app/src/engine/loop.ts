@@ -30,6 +30,7 @@ import { all, run } from "../H2H/db.ts";
 import { tableNameOf } from "../install/index.ts";
 import { chainOf, type Unit } from "./chain.ts";
 import type { Registry } from "./registry.ts";
+import { deliver } from "../msg/deliver.ts";
 import { fire, type Facts } from "./trigger.ts";
 
 type Row = Record<string, unknown>;
@@ -290,13 +291,22 @@ export class Kernel {
   async #advance(p: Pending): Promise<void> {
     try {
       const facts = this.#factsOf(p);
+      await this.#atMoment(p, facts, "unit_start");
 
       // 这一轮该塞的 skill —— 先落库
       for (const identity of fire(this.#store.ro, "skill", facts)) {
         const s = one(this.#store.ro, `select body, role, usable from skill where identity = ?`, [identity]);
         if (!s || !Number(s.usable)) continue;
         const body = s.body ?? (await this.#reg.get(identity).call({ facts }));
-        this.#push(p, String(s.role), "skill", text(body));
+        // **走那条唯一的投递管道** —— kind 和 role 都是推出来的，不在这儿填。
+        deliver(this.#store.rw, {
+          agent: p.agent,
+          instance: p.instance,
+          unit: p.unit,
+          by: "skill",
+          who: identity,
+          body: text(body),
+        });
       }
 
       // 这一轮挂上的工具 = **系统工具 ∪ trigger 命中的**。
@@ -322,17 +332,20 @@ export class Kernel {
       );
       // 出站这一行是**快照里那次调用的凭据**：模型当时被告知有哪些工具、
       // 每个工具的用法约定是什么。不记的话，回头看这一步就说不清它为什么那么做。
-      this.#push(
-        p,
-        "system",
-        "inject",
-        JSON.stringify({
+      deliver(this.#store.rw, {
+        agent: p.agent,
+        instance: p.instance,
+        unit: p.unit,
+        by: "kernel",
+        body: JSON.stringify({
           出站: true,
           tools: kit.map((t) => t.name),
           prompts: kit.map((t) => t.prompt).filter(Boolean),
           rules,
         }),
-      );
+      });
+
+      await this.#atMoment(p, facts, "pre_send");
 
       const pickd = this.#handleOf(p);
       const back = await this.#reg.get(pickd.handle).call({
@@ -348,9 +361,12 @@ export class Kernel {
       });
 
       // 回来再落一行
+      // 模型自己说的那条**不走投递管道** —— 那是它自己的轨迹，直接落库；
+      // 而且 kind 得由适配器说（prompt 还是 call），推不出来。
       const r = (back ?? {}) as { role?: string; kind?: string; body?: unknown };
       this.#push(p, r.role ?? "assistant", r.kind ?? "prompt", text(r.body ?? back));
 
+      await this.#atMoment(p, facts, "post_send");
       await this.#infer(p, facts, back);
       // 成功推完才醒下一圈。**失败不醒** —— 醒了就是原地热循环：
       // 这一行还是「该动」的那一档，下一圈又挑到它，再失败，再醒。
@@ -358,6 +374,27 @@ export class Kernel {
       this.wake();
     } catch (e) {
       this.#log.error(`${p.sub} ${p.task} ${p.cycle}#${p.unit} 走不下去：${msg(e)}`);
+    }
+  }
+
+  /**
+   * 到某个时刻了，喊一声：命中的规则跑一遍。**这就是钩子。**
+   *
+   * 内核不认得任何一条规则叫什么 —— 它只报「现在是哪一刻」，谁挂在这一刻上由
+   * `trigger` 说了算（`dim=moment`）。老代码那边钩子是一个目录一个时刻；
+   * 我们这儿时刻是数据里的一个值，不另开表。
+   *
+   * **一条规则炸了只炸它自己。** 钩子挂在主路上，让它把整步带停的话，
+   * 一条写坏的规则能让所有任务都不动。
+   */
+  async #atMoment(p: Pending, facts: Facts, moment: string): Promise<void> {
+    const at = { ...facts, moment };
+    for (const identity of fire(this.#store.ro, "rule", at)) {
+      try {
+        await this.#reg.get(identity).call({ ...at, sub: p.sub, unit: p.unit, instance: p.instance });
+      } catch (e) {
+        this.#log.error(`规则 ${identity} 在 ${moment} 这一刻炸了：${msg(e)}`);
+      }
     }
   }
 
