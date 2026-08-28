@@ -145,6 +145,12 @@
           "_": "→ workplace.place"
         },
         {
+          "name": "run",
+          "type": "text",
+          "notnull": true,
+          "_": "这一跑叫什么。一次 bench 是一批任务，靠这个认。空串 = 不属于任何一跑"
+        },
+        {
           "name": "source",
           "type": "text",
           "_": "谁发的：user / agent / world / eacn。**这是准入判据**，不是元数据",

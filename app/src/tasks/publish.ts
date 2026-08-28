@@ -47,6 +47,8 @@ export interface Publish {
   workdir?: string;
   source: Source;
   description: string;
+  /** 属于哪一跑（bench）。空 = 不属于任何一跑。 */
+  run?: string;
   maxBranches?: number;
   /** 同一个父底下判死几个兄弟就回退到更上层换方向。 */
   maxDeadSiblings?: number;
@@ -182,15 +184,19 @@ export function publish(
 ${JSON.stringify(p.objective, null, 2)}` : p.description;
 
   // 要么全建，要么一行都不留。
-  db.exec("begin");
+  //
+  // 用 savepoint 不用 begin：**发一批的时候外面已经开着一个事务**，
+  // 再 begin 一次会当场报 "cannot start a transaction within a transaction"。
+  // savepoint 能嵌，而且跟着外层一起回滚。
+  db.exec("savepoint publish_one");
   try {
     run(
       db,
-      `insert into task (id, mode, place, source, description, created_at, workdir, objective, readable,
+      `insert into task (id, mode, place, run, source, description, created_at, workdir, objective, readable,
                          claimed_by, result, max_branches, max_dead_siblings, solve_seconds, state)
-       values (?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, ?, ?, ?, 'open')`,
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, ?, ?, ?, 'open')`,
       [
-        p.id, p.mode, p.place, p.source, description, now, p.workdir ?? "",
+        p.id, p.mode, p.place, p.run ?? "", p.source, description, now, p.workdir ?? "",
         g ? "sealed" : null, g ? (p.readable ? 1 : 0) : null,
         p.maxBranches ?? 2, p.maxDeadSiblings ?? 3, p.solveSeconds ?? 1800,
       ],
@@ -218,9 +224,10 @@ ${JSON.stringify(p.objective, null, 2)}` : p.description;
     });
     // G 封存在**建行都成功之后** —— 建行失败就根本不会留下孤儿 G。
     if (g) sealed!.seal(p.id, g);
-    db.exec("commit");
+    db.exec("release publish_one");
   } catch (e) {
-    db.exec("rollback");
+    db.exec("rollback to publish_one");
+    db.exec("release publish_one");
     throw e;
   }
 

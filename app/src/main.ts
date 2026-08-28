@@ -18,6 +18,7 @@ import { install } from "./install/index.ts";
 import { registerVendors } from "./llm/index.ts";
 import { evaluate } from "./objective/run.ts";
 import { openSealed } from "./objective/store.ts";
+import { runBench, runs, score, type Bench } from "./tasks/bench.ts";
 import { publish, type Publish } from "./tasks/publish.ts";
 import { seedKinds } from "./msg/deliver.ts";
 import { registerTree } from "./tree/dfs.ts";
@@ -148,6 +149,24 @@ app.post(`${cfg.api.prefix}/tasks`, async (req, reply) => {
     return reply.code(400).send({ error: e instanceof Error ? e.message : String(e) });
   }
 });
+
+// 跑一次 bench：一批任务，每道自带 G。**一道不过就整批不发** —— 发一半的话
+// 成绩单的分母是错的，而且没人看得出来少了哪几道。
+app.post(`${cfg.api.prefix}/bench`, async (req, reply) => {
+  try {
+    const r = runBench(app.store.rw, req.body as Bench, sealed);
+    wake();
+    return reply.code(201).send(r);
+  } catch (e) {
+    return reply.code(400).send({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+// 成绩。**数出来的，不是存着的** —— 存一份会跟真相漂，而且漂了不报错。
+app.get(`${cfg.api.prefix}/bench`, async () => ({ runs: runs(app.store.ro) }));
+app.get<{ Params: { run: string } }>(`${cfg.api.prefix}/bench/:run`, async (req) =>
+  score(app.store.ro, decodeURIComponent(req.params.run)),
+);
 
 // 停机：先不收新请求，等在途的走完；超时就硬停 —— 不设上限的话，
 // 一个挂住的请求能把整个进程钉在那儿。
