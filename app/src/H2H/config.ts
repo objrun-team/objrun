@@ -40,7 +40,7 @@ export interface Config {
   file: string;
   server: { host: string; port: number; bodyLimit: number; shutdownTimeout: number };
   log: { level: string };
-  db: { file: string; pragmas: Record<string, string | number> };
+  db: { file: string; sealed: string; pragmas: Record<string, string | number> };
   api: {
     prefix: string;
     token: string | null;
@@ -123,7 +123,7 @@ export function readConfig(file = findConfig()): Config {
       shutdownTimeout: num(doc, "server.shutdownTimeout"),
     },
     log: { level: str(doc, "log.level") },
-    db: { file: near(str(doc, "db.file")), pragmas },
+    db: { file: near(str(doc, "db.file")), sealed: near(str(doc, "db.sealed")), pragmas },
     api: {
       prefix: prefix === "/" ? "" : prefix.replace(/\/$/, ""),
       token: typeof token === "string" && token !== "" ? token : null,

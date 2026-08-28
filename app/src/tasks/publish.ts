@@ -20,6 +20,8 @@
 import type { Conn } from "../H2H/db.ts";
 import { all, run } from "../H2H/db.ts";
 import { install, tableNameOf } from "../install/index.ts";
+import { parseObjective, validate } from "../objective/spec.ts";
+import type { Sealed } from "../objective/store.ts";
 
 /** 谁发的。**这是准入判据** —— 不同来源能做的事不一样。 */
 export const SOURCES = ["user", "agent", "world", "eacn"] as const;
@@ -46,6 +48,21 @@ export interface Publish {
   description: string;
   maxBranches?: number;
   solveSeconds?: number;
+  /**
+   * 验证函数 `G` —— 「这个任务算不算做成了」的标准。
+   *
+   * **绑定发生在发布这一刻，是准入条件。** 给了就当场检、当场封存；过不了
+   * 定义期检测就**拒收整个任务** —— 与其让一个必然算不出结果的 G 混进系统，
+   * 不如这道题根本别发布。
+   */
+  objective?: unknown;
+  /**
+   * 能不能直接读到 G 的定义。**带 G 就必须显式给，没有默认值。**
+   *
+   * 设定权在发布方，发布方本来就知道要不要给看。给个默认值等于替他决定，
+   * 而且会长出「没人想过的隐式策略」。
+   */
+  readable?: boolean;
 }
 
 function one(db: Conn, sql: string, params: unknown[] = []): Record<string, unknown> | null {
@@ -85,11 +102,34 @@ function firstCycle(db: Conn, mode: string): string {
  * 每一条检查失败都是**拒收整个任务** —— 与其让一个必然跑不动的任务混进系统，
  * 不如这道题根本别发布。
  */
-export function publish(db: Conn, p: Publish): { id: string; mode: string; cycle: string; instance: string } {
+export function publish(
+  db: Conn,
+  p: Publish,
+  sealed?: Sealed,
+): { id: string; mode: string; cycle: string; instance: string; objective: boolean } {
   if (!p.id || !p.id.trim()) throw new Error("任务 id 不能是空的");
   if (!SOURCES.includes(p.source)) throw new Error(`不认得的来源：${p.source}（只能是 ${SOURCES.join(" / ")}）`);
   if (!p.description || !p.description.trim()) throw new Error("任务得有描述");
   if (one(db, `select id from task where id = ?`, [p.id])) throw new Error(`任务 ${p.id} 已经有了`);
+
+  // ── G 那道闸 ──────────────────────────────────────────────────────────
+  //
+  // 智能体在树内派生出来的任务**不许带 G**：放行它 = 智能体可以给自己（或自己
+  // 派生的下一层）设定成功标准，那是**自提权**，判据就不再是判据。
+  //
+  // 闸按【来源】判，判在**唯一入口**上 —— 不指望每条派生路径自觉。老代码那边
+  // 原先靠「某个调用方恰好没传这个参数」，签名一改闸就没了。
+  if (p.objective !== undefined && p.objective !== null) {
+    if (p.source === "agent") {
+      throw new Error(`任务 ${p.id} 的来源是 agent（智能体在树内派生），**不许带验证函数 G** —— G 只能由人在发布那一刻绑定`);
+    }
+    if (typeof p.readable !== "boolean") {
+      throw new Error(`任务 ${p.id} 带了 G，就必须显式给 readable（能不能直接读到 G 的定义）—— 这一位没有默认值`);
+    }
+    if (!sealed) throw new Error("没有封存区，装不下 G");
+  } else if (p.readable !== undefined) {
+    throw new Error(`任务 ${p.id} 没带 G，就不该给 readable`);
+  }
 
   const agent = one(db, `select name from agent where name = ?`, [p.agent]);
   if (!agent) throw new Error(`agent 表里没有 ${p.agent}`);
@@ -118,18 +158,39 @@ export function publish(db: Conn, p: Publish): { id: string; mode: string; cycle
     if (still.length) throw new Error(`子表长不出来：${still.join("、")}`);
   }
 
+  // 定义期检测跑在**建任何行之前**。靠事务回滚也能不留脏行，但那是「先做了再撤」；
+  // 这道题既然必然算不出结果，就该在动库之前拒掉。
+  const g = p.objective === undefined || p.objective === null ? null : parseObjective(p.objective);
+  if (g) {
+    const errs = validate(g);
+    if (errs.length) {
+      throw new Error(`任务 ${p.id} 的 G 没通过定义期检测，拒收：\n  - ${errs.join("\n  - ")}`);
+    }
+  }
+
   const instance = p.instance ?? `${p.id}#1`;
   const now = Date.now();
+  // readable=true 的 G 不用躲 —— 验收标准本来就是需求的一部分，
+  // 直接并进任务描述，连「读 G」这个动作都不存在。benchmark 样本才需要封。
+  const description =
+    g && p.readable ? `${p.description}
+
+【验收标准】
+${JSON.stringify(p.objective, null, 2)}` : p.description;
 
   // 要么全建，要么一行都不留。
   db.exec("begin");
   try {
     run(
       db,
-      `insert into task (id, mode, place, source, description, created_at, workdir, claimed_by, result,
-                         max_branches, solve_seconds, state)
-       values (?, ?, ?, ?, ?, ?, ?, null, null, ?, ?, 'open')`,
-      [p.id, p.mode, p.place, p.source, p.description, now, p.workdir ?? "", p.maxBranches ?? 2, p.solveSeconds ?? 1800],
+      `insert into task (id, mode, place, source, description, created_at, workdir, objective, readable,
+                         claimed_by, result, max_branches, solve_seconds, state)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, ?, ?, 'open')`,
+      [
+        p.id, p.mode, p.place, p.source, description, now, p.workdir ?? "",
+        g ? "sealed" : null, g ? (p.readable ? 1 : 0) : null,
+        p.maxBranches ?? 2, p.solveSeconds ?? 1800,
+      ],
     );
     run(
       db,
@@ -146,13 +207,15 @@ export function publish(db: Conn, p: Publish): { id: string; mode: string; cycle
     run(
       db,
       `insert into "${msg}" (instance, unit, seq, role, kind, body, at) values (?, 1, 1, 'user', 'user', ?, ?)`,
-      [instance, p.description, now],
+      [instance, description, now],
     );
+    // G 封存在**建行都成功之后** —— 建行失败就根本不会留下孤儿 G。
+    if (g) sealed!.seal(p.id, g);
     db.exec("commit");
   } catch (e) {
     db.exec("rollback");
     throw e;
   }
 
-  return { id: p.id, mode: p.mode, cycle, instance };
+  return { id: p.id, mode: p.mode, cycle, instance, objective: g !== null };
 }

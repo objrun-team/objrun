@@ -54,10 +54,17 @@ function one(db: Conn, sql: string, params: unknown[] = []): Row | null {
   return rows.length ? rows[0] : null;
 }
 
+/** 内核挂出来的钩子。**内核不认得钩子里干什么** —— 它只在那一刻喊一声。 */
+export interface Hooks {
+  /** 一个任务的执行单元全干完了。判它成没成是别人的事，内核只报告「跑完了」。 */
+  onDone?(task: string): void;
+}
+
 export class Kernel {
   #store: Store;
   #log: Log;
   #reg: Registry;
+  #hooks: Hooks;
   #timer: ReturnType<typeof setTimeout> | null = null;
   #ticking = false;
   /** 已经报过的坏行，同一条不重复刷屏。 */
@@ -65,10 +72,11 @@ export class Kernel {
   #again = false;
   #stopped = true;
 
-  constructor(store: Store, log: Log, reg: Registry) {
+  constructor(store: Store, log: Log, reg: Registry, hooks: Hooks = {}) {
     this.#store = store;
     this.#log = log;
     this.#reg = reg;
+    this.#hooks = hooks;
   }
 
   /**
@@ -434,8 +442,12 @@ export class Kernel {
     const n = Number(got.n);
     const d = Number(got.d);
     const now = one(this.#store.ro, `select state from task where id = ?`, [task]);
-    if (String(now?.state ?? "") === "failed") return; // 判过失败的不许被数回去
-    run(this.#store.rw, `update task set state = ? where id = ?`, [n === 0 ? "open" : d === n ? "done" : "claimed", task]);
+    const was = String(now?.state ?? "");
+    if (was === "failed") return; // 判过失败的不许被数回去
+    const next = n === 0 ? "open" : d === n ? "done" : "claimed";
+    run(this.#store.rw, `update task set state = ? where id = ?`, [next, task]);
+    // 跑完了喊一声。**内核不知道那边会干什么** —— 判成没成不是它的事。
+    if (next === "done" && was !== "done") this.#hooks.onDone?.(task);
   }
 
   /**

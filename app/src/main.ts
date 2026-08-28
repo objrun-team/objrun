@@ -12,9 +12,12 @@
 import { Kernel } from "./engine/loop.ts";
 import { Registry } from "./engine/registry.ts";
 import { readConfig } from "./H2H/config.ts";
+import { all, run } from "./H2H/db.ts";
 import { build } from "./H2H/server.ts";
 import { install } from "./install/index.ts";
 import { registerVendors } from "./llm/index.ts";
+import { evaluate } from "./objective/run.ts";
+import { openSealed } from "./objective/store.ts";
 import { publish, type Publish } from "./tasks/publish.ts";
 import { Places, registerTools } from "./tools/register.ts";
 
@@ -39,7 +42,30 @@ app.log.info(
 // 内核下一圈醒来自己给它合成调用器。
 const registry = new Registry();
 const places = new Places(app.store.ro);
-const kernel = new Kernel(app.store, app.log, registry);
+
+// 验证函数 G 的封存区。**单独一个库，H2H 不开它** —— 主库全接口开放，
+// G 存主库就等于没有墙。红线靠「够不着」，不靠「规定不许」。
+const sealed = openSealed(cfg.db.sealed);
+
+// 内核判一个任务的执行单元全干完了 → 这儿跑 G，把判决写回主库。
+// **内核不认得 G**，它只喊一声「跑完了」。
+const kernel = new Kernel(app.store, app.log, registry, {
+  onDone(task) {
+    if (!sealed.has(task)) return; // 没有 G 的任务，跑完就是跑完
+    void (async () => {
+      const g = sealed.open(task);
+      if (!g) return;
+      const row = all(app.store.ro, `select id, description, place, workdir from task where id = ?`, [task])[0];
+      const v = await evaluate(g, registry, { task: row });
+      run(app.store.rw, `update task set state = ?, result = ? where id = ?`, [
+        v.pass === 1 ? "done" : "failed",
+        JSON.stringify({ pass: v.pass, why: v.why }),
+        task,
+      ]);
+      app.log.info(`G 判了 ${task}：${v.pass}${v.why ? "（" + v.why + "）" : ""}`);
+    })();
+  },
+});
 wake = () => kernel.wake();
 
 // 基础工具：注册进内核（它才持有得住函数），同时把给模型看的那几样落进 tool 表。
@@ -66,7 +92,7 @@ app.post(`${cfg.api.prefix}/install`, async () => {
 // 不用进代码 import 库才能发布任务 —— 对系统的操作停留在 HTTP 这一层。
 app.post(`${cfg.api.prefix}/tasks`, async (req, reply) => {
   try {
-    const r = publish(app.store.rw, req.body as Publish);
+    const r = publish(app.store.rw, req.body as Publish, sealed);
     wake();
     return reply.code(201).send(r);
   } catch (e) {
@@ -86,6 +112,7 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
         clearTimeout(hard);
         kernel.stop();
         places.closeAll();
+        sealed.close();
         app.store.close();
         process.exit(0);
       })

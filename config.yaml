@@ -23,6 +23,10 @@ db:
   # 库文件。目录不在就建 —— 不建的话 SQLite 报的是
   # 「unable to open database file」，那句话看不出是目录缺了。
   file: ./data/h2h.sqlite
+  # 验证函数 G 的封存区。**单独一个库文件，H2H 不开它** —— 主库是全接口开放的，
+  # G 存主库等于没有墙。红线是「不许直接读到 G 的定义」，靠的是够不着，不是规定不许。
+  sealed: ./data/sealed.sqlite
+
   # 开机按顺序执行的 PRAGMA。
   pragmas:
     journal_mode: WAL
