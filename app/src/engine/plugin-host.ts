@@ -19,12 +19,15 @@
  * ## 协议
  *
  * ```
- * → { kind: "load", module: "路径#导出名" }
+ * → { kind: "load", module: "文件路径" }
  * ← { kind: "ready" } | { kind: "failed", error }
- * → { kind: "call", id, arg }
+ * → { kind: "call", id, export: "导出名", arg }
  * ← { kind: "done", id, ok: true,  value }
  * ← { kind: "done", id, ok: false, error }
  * ```
+ *
+ * **装的是文件，调的时候才挑导出。** 一个文件导出好几个工具是常事，它们本来就
+ * 该在同一份模块状态里 —— 一个导出一个 realm 的话，文件顶上那个变量会悄悄有两份。
  */
 
 declare const self: {
@@ -34,25 +37,28 @@ declare const self: {
 
 type Fn = (arg: unknown) => Promise<unknown> | unknown;
 
-let fn: Fn | null = null;
+let mod: Record<string, unknown> | null = null;
+let from = "";
 
-async function load(spec: string): Promise<void> {
-  const hash = spec.lastIndexOf("#");
-  const path = hash === -1 ? spec : spec.slice(0, hash);
-  const name = hash === -1 ? "default" : spec.slice(hash + 1);
-  // 这个 worker 是**一次性**的：它只装一个插件，换版本靠外面把它 terminate 掉重起。
+async function load(path: string): Promise<void> {
+  // 这个 worker 是**一次性**的：它只装一个文件，换版本靠外面把它 terminate 掉重起。
   // 所以这儿不用管 import 缓存 —— 新的 worker 就是新的模块表。
-  const mod = (await import(path)) as Record<string, unknown>;
+  mod = (await import(path)) as Record<string, unknown>;
+  from = path;
+}
+
+function pick(name: string): Fn {
+  if (!mod) throw new Error("这个 worker 还没装上插件");
   const got = mod[name];
   if (typeof got !== "function") {
     const has = Object.keys(mod).join("、") || "（一个都没有）";
-    throw new Error(`${path} 里的 ${name} 不是个函数（这个文件导出了 ${has}）`);
+    throw new Error(`${from} 里的 ${name} 不是个函数（这个文件导出了 ${has}）`);
   }
-  fn = got as Fn;
+  return got as Fn;
 }
 
 self.onmessage = (e) => {
-  const m = (e.data ?? {}) as { kind?: string; module?: string; id?: number; arg?: unknown };
+  const m = (e.data ?? {}) as { kind?: string; module?: string; id?: number; export?: string; arg?: unknown };
 
   if (m.kind === "load") {
     void load(String(m.module))
@@ -65,13 +71,9 @@ self.onmessage = (e) => {
 
   if (m.kind === "call") {
     const id = m.id;
-    if (!fn) {
-      self.postMessage({ kind: "done", id, ok: false, error: "这个 worker 还没装上插件" });
-      return;
-    }
     void (async () => {
       try {
-        self.postMessage({ kind: "done", id, ok: true, value: await fn!(m.arg) });
+        self.postMessage({ kind: "done", id, ok: true, value: await pick(String(m.export))(m.arg) });
       } catch (err) {
         // 插件抛的错**只回给调用方**，不掀掉这个 worker —— 一次调用失败不是这个
         // 插件坏了。真把 worker 弄挂了（死循环、吃爆内存）也只影响它自己。

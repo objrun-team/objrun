@@ -70,7 +70,7 @@ interface Waiting {
   fail(e: Error): void;
 }
 
-/** 一个装着插件的 worker。 */
+/** 一个装着插件的 worker。**一个文件一个**，不是一个导出一个。 */
 class Live {
   readonly stamp: number;
   #w: Worker;
@@ -129,13 +129,13 @@ class Live {
     this.#waiting.clear();
   }
 
-  async call(arg: unknown): Promise<unknown> {
+  async call(exp: string, arg: unknown): Promise<unknown> {
     await this.#ready;
     if (this.#dead) throw this.#dead;
     const id = ++this.#id;
     return await new Promise((ok, fail) => {
       this.#waiting.set(id, { ok, fail });
-      this.#w.postMessage({ kind: "call", id, arg });
+      this.#w.postMessage({ kind: "call", id, export: exp, arg });
     });
   }
 
@@ -146,7 +146,10 @@ class Live {
 }
 
 export class Plugins {
+  /** 文件 → 那个 realm。 */
   #live = new Map<string, Live>();
+  /** 句柄 → 它落在哪个文件上。一个文件上挂着好几条句柄是常事。 */
+  #on = new Map<string, string>();
 
   /** worker 那一半在哪儿 —— 报出来，配错了一眼看得见。 */
   readonly host = HOST;
@@ -187,11 +190,15 @@ export class Plugins {
    *
    * 「运行时能加进来」和「改一行就得重启」放在一起是自相矛盾的，所以这一眼必须看。
    * 一次 `stat` 而已，比一次结构化克隆便宜。
+   *
+   * realm 按**文件**分，不按句柄分：`a.ts#login` 和 `a.ts#book` 落在同一个 worker
+   * 里，共享那个模块的状态 —— 前一个在文件顶上起的监听，后一个等得到。分开的话
+   * 那个变量会悄悄有两份，而这种 bug 从外面一点都看不出来。
    */
   async call(name: string, spec: string, arg: unknown): Promise<unknown> {
     const hash = spec.lastIndexOf("#");
     const path = resolve(hash === -1 ? spec : spec.slice(0, hash));
-    const rest = hash === -1 ? "" : spec.slice(hash);
+    const exp = hash === -1 ? "default" : spec.slice(hash + 1);
 
     let stamp = 0;
     try {
@@ -200,26 +207,33 @@ export class Plugins {
       throw new Error(`${name}：找不到 ${path}`);
     }
 
-    const had = this.#live.get(name);
+    this.#on.set(name, path);
+    const had = this.#live.get(path);
     if (!had || had.stamp !== stamp) {
       // 换版本 = 收掉旧的那个 realm。旧版本起的定时器、占的内存跟着一起走 ——
       // 主线程那条路做不到这件事。
       had?.close();
-      this.#live.set(name, new Live(name, pathToFileURL(path).href + rest, stamp));
+      this.#live.set(path, new Live(name, pathToFileURL(path).href, stamp));
     }
-    return await this.#live.get(name)!.call(arg);
+    return await this.#live.get(path)!.call(exp, arg);
   }
 
-  /** 真卸载：那份代码、内存、它起的定时器一起收。 */
+  /**
+   * 真卸载：那份代码、内存、它起的定时器一起收。
+   *
+   * 同一个文件上还挂着别的句柄的话，只把这条摘掉 —— **最后一条走了才收 realm**。
+   */
   drop(name: string): boolean {
-    const had = this.#live.get(name);
-    if (!had) return false;
-    had.close();
-    this.#live.delete(name);
+    const path = this.#on.get(name);
+    if (path === undefined) return false;
+    this.#on.delete(name);
+    if ([...this.#on.values()].includes(path)) return false;
+    this.#live.get(path)?.close();
+    this.#live.delete(path);
     return true;
   }
 
-  /** 现在装着哪几个。 */
+  /** 现在装着哪几个文件。 */
   names(): string[] {
     return [...this.#live.keys()].sort();
   }
@@ -227,5 +241,6 @@ export class Plugins {
   closeAll(): void {
     for (const l of this.#live.values()) l.close();
     this.#live.clear();
+    this.#on.clear();
   }
 }
