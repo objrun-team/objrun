@@ -121,9 +121,14 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
 
     // ── 这一步到底算成了没有 ──────────────────────────────────────────────
     //
-    // 先看自评（ĝ）：还在要工具 = 这一步没完，接着往下派生。
+    // 先看自评（ĝ）：**只有模型自己说出一段话（`prompt`）才算自称到终点**，
+    // 别的都是半路。
+    //
+    // 原先写的是「`call` 才算没完，其余算到了」—— 那条把跑工具那一站也算成了
+    // 终点：它回的是一行记账（`inject`，说这一站跑了哪几个工具），不是答复。
+    // 于是工具跑完就收工，模型永远看不到自己那次调用的结果。
     const r = (a.result ?? {}) as { kind?: string };
-    let status = r.kind === "call" ? "" : "reached";
+    let status = r.kind === "prompt" ? "reached" : "";
 
     // 自称到终点了 —— **这一刻才调 G 复核**。它说 0 就是「以为到了其实没到」，
     // 判死开兄弟。不许节点自己说了算，这就是 verifier-guided 的全部意思。

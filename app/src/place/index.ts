@@ -2,14 +2,22 @@
  * 在哪儿干 —— 转发层。
  *
  * **调用工具本质上是转发给那个位置上的运行时。** 建立连接的时候把运行时送过去、
- * 起起来；之后每次调用发一行 JSON 过去，收一行回来。
+ * 起起来；之后每次调用走 MCP。
  *
  * `local` 是特例：不用送，同进程直接调同一批工具。所以两条路的行为一样 ——
  * 装的是同一份实现。
  *
- * ## 位置串怎么读
+ * ## 位置就是一段命令前缀
  *
- * `workplace.place` 是**带层级的地址串**，一层一层套：
+ * 「远程」在这儿没有第二种含义：`wsl -d X --` / `ssh box-7` / `docker exec -i c`
+ * 都只是**套在运行时那条命令外面的前缀**。套完之后起个子进程、在 stdin/stdout
+ * 上说 MCP —— 跟起一个本机的 MCP server 是同一件事。
+ *
+ * 所以这一层没有自己的协议：`ship` 把二进制送过去，`launch` 拼出命令，
+ * 剩下的交给 `McpClient`。原先这儿有一个手写的 JSON 行客户端陪着运行时那套私有
+ * 协议 —— 同一件事两份实现，而且那一份别人用不了。删了。
+ *
+ * ## 位置串怎么读
  *
  * ```
  * local
@@ -26,7 +34,9 @@
  * 每次现探，不写回库。写回去的话，崩了重启读到的那一列就是过期的谎话。
  */
 
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn } from "node:child_process";
+
+import { McpClient } from "../mcp/client.ts";
 import { TOOLS } from "../tools/index.ts";
 
 /** 一个能接工具调用的位置。 */
@@ -78,7 +88,12 @@ export function hops(place: string): Hop[] {
   });
 }
 
-/** 一层层套出来的命令：外层负责把内层送进去。 */
+/**
+ * 一层层套出来的命令：外层负责把内层送进去。
+ *
+ * 出来的东西就是一个 MCP stdio server 的 `command` + `args` —— 你手写一条
+ * `"command": "ssh", "args": ["box-7", "/tmp/…"]` 的声明，是同一件事。
+ */
 export function launch(place: string, remotePath: string): { cmd: string; argv: string[] } {
   const layers = hops(place);
   let argv: string[] = [remotePath];
@@ -107,89 +122,6 @@ export function ship(place: string, localFile: string, remotePath: string): { cm
   return { cmd: "docker", argv: ["cp", localFile, `${outer.arg}:${remotePath}`] };
 }
 
-// ── 远端：送过去 + JSON 行转发 ───────────────────────────────────────────────
-
-interface Waiting {
-  ok(v: unknown): void;
-  fail(e: Error): void;
-}
-
-class Remote implements Place {
-  place: string;
-  #p: ChildProcess;
-  #buf = "";
-  #id = 0;
-  #waiting = new Map<number, Waiting>();
-  #dead: Error | null = null;
-
-  constructor(place: string, p: ChildProcess) {
-    this.place = place;
-    this.#p = p;
-    p.stdout?.setEncoding("utf8");
-    p.stdout?.on("data", (c: string) => this.#feed(c));
-    p.on("exit", (code) => this.#die(new Error(`${place} 上的运行时退了（${code}）`)));
-    p.on("error", (e) => this.#die(e));
-  }
-
-  #feed(chunk: string): void {
-    this.#buf += chunk;
-    let nl = this.#buf.indexOf("\n");
-    while (nl !== -1) {
-      const line = this.#buf.slice(0, nl);
-      this.#buf = this.#buf.slice(nl + 1);
-      if (line.trim() !== "") this.#take(line);
-      nl = this.#buf.indexOf("\n");
-    }
-  }
-
-  #take(line: string): void {
-    let res: { id?: number; ok?: boolean; value?: unknown; error?: string };
-    try {
-      res = JSON.parse(line) as typeof res;
-    } catch {
-      // 协议行错位了。**当场炸整条连接** —— 从这一刻起所有回答都对不上号，
-      // 继续下去只会答非所问，而那不报错。
-      this.#die(new Error(`${this.place} 上的运行时吐了一行不是 JSON 的东西：${line.slice(0, 200)}`));
-      return;
-    }
-    const w = this.#waiting.get(Number(res.id));
-    if (!w) return;
-    this.#waiting.delete(Number(res.id));
-    if (res.ok) w.ok(res.value);
-    else w.fail(new Error(res.error ?? "那边没说为什么"));
-  }
-
-  #die(e: Error): void {
-    this.#dead = e;
-    for (const w of this.#waiting.values()) w.fail(e);
-    this.#waiting.clear();
-  }
-
-  call(tool: string, args: Record<string, unknown>): Promise<unknown> {
-    if (this.#dead) return Promise.reject(this.#dead);
-    const id = ++this.#id;
-    return new Promise((ok, fail) => {
-      this.#waiting.set(id, { ok, fail: (e) => fail(e) });
-      this.#p.stdin?.write(JSON.stringify({ id, tool, args }) + "\n");
-    });
-  }
-
-  async alive(): Promise<boolean> {
-    if (this.#dead) return false;
-    try {
-      await this.call("ping", {});
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  close(): void {
-    this.#p.stdin?.end();
-    this.#p.kill();
-  }
-}
-
 function run(cmd: string, argv: string[]): Promise<{ code: number; err: string }> {
   return new Promise((done) => {
     const p = spawn(cmd, argv, { windowsHide: true });
@@ -203,8 +135,9 @@ function run(cmd: string, argv: string[]): Promise<{ code: number; err: string }
 /**
  * 打开一个位置。
  *
- * `local` 直接回一个进程内的；别的先把运行时送过去，再把它起起来接管道。
- * `runtimeFile` 是本机那份运行时二进制的路径 —— 它登记在 `workplace.runtime`。
+ * `local` 直接回一个进程内的；别的先把运行时送过去，再当成一个 MCP stdio server
+ * 起起来。`runtimeFile` 是本机那份运行时二进制的路径 —— 它登记在
+ * `workplace.runtime`。
  */
 export async function openPlace(place: string, runtimeFile?: string): Promise<Place> {
   if (place === "local") return openLocal();
@@ -216,10 +149,32 @@ export async function openPlace(place: string, runtimeFile?: string): Promise<Pl
   if (sent.code !== 0) throw new Error(`往 ${place} 送运行时失败：${sent.err.trim() || "退出码 " + sent.code}`);
 
   const l = launch(place, remotePath);
-  const p = spawn(l.cmd, l.argv, { stdio: ["pipe", "pipe", "pipe"], windowsHide: true });
-  const r = new Remote(place, p);
-  if (!(await r.alive())) throw new Error(`${place} 上的运行时起来了但不应答`);
-  return r;
+  const client = new McpClient(place, { command: l.cmd, args: l.argv });
+  try {
+    // 握手 + 问它有哪些工具。**起来了但不应答**跟没起来一样糟，得当场发现。
+    await client.tools();
+  } catch (e) {
+    client.close();
+    throw new Error(`${place} 上的运行时起来了但不应答：${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  return {
+    place,
+    async call(tool, args) {
+      return await client.call(tool, args);
+    },
+    async alive() {
+      try {
+        await client.tools();
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    close() {
+      client.close();
+    },
+  };
 }
 
 /** 位置串换一个稳定的短名，给远端文件名用。 */

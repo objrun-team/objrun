@@ -324,12 +324,8 @@ export class Kernel {
       const kit = [...tools.values()];
       const rules = fire(this.#store.ro, "rule", facts);
 
-      // 出站那份：完整上下文 + 这一轮的家当。**先落库，再发**
-      const context = all(
-        this.#store.ro,
-        `select seq, role, kind, body from "${this.#msgTable(p.agent)}" where instance = ? and unit = ? order by seq`,
-        [p.instance, p.unit],
-      );
+      // 出站那份：**沿着链路把上下文拼齐** + 这一轮的家当。**先落库，再发**
+      const context = this.#contextOf(p);
       // 出站这一行是**快照里那次调用的凭据**：模型当时被告知有哪些工具、
       // 每个工具的用法约定是什么。不记的话，回头看这一步就说不清它为什么那么做。
       deliver(this.#store.rw, {
@@ -419,6 +415,51 @@ export class Kernel {
         this.#log.error(`规则 ${identity} 在 ${moment} 这一刻炸了：${msg(e)}`);
       }
     }
+  }
+
+  /**
+   * 这一站看得见的上下文：**从根一路到自己那一串执行单元的消息，按顺序接起来。**
+   *
+   * 不是只看自己那一格。只看自己的话，第二个执行单元开口时手上什么都没有 ——
+   * 原来的问题、上一站请求的工具、工具跑出来的结果，一样都看不到，于是它对着
+   * 空气说话。整棵树的多站流程都建立在这条上。
+   *
+   * 走的是 `from_unit` 指针，跟链路串同一条血缘：
+   *
+   * - **看得见祖先，看不见兄弟。** 开兄弟正是为了换一条路走，让它看见另一条
+   *   分支上的话，等于把两次尝试搅在一起
+   * - 带环的话当场炸 —— 顺着 from 走回自己，那是数据坏了，静静转下去只会挂死
+   */
+  #contextOf(p: Pending): Row[] {
+    const line: number[] = [];
+    const seen = new Set<string>();
+    let cur: Unit = p;
+    for (;;) {
+      const key = `${cur.cycle}#${cur.unit}`;
+      if (seen.has(key)) throw new Error(`${p.sub} 里 ${p.task} 的链路成环了，在 ${key}`);
+      seen.add(key);
+      line.unshift(cur.unit);
+      if (cur.from_cycle === null || cur.from_unit === null) break;
+      const up = one(
+        this.#store.ro,
+        `select task, cycle, unit, from_cycle, from_unit from "${p.sub}" where task = ? and cycle = ? and unit = ?`,
+        [p.task, cur.from_cycle, cur.from_unit],
+      ) as unknown as Unit | null;
+      if (!up) {
+        throw new Error(`${p.sub} 里 ${p.task} 的 ${cur.cycle}#${cur.unit} 说它从 ${cur.from_cycle}#${cur.from_unit} 来，但那一行不在`);
+      }
+      cur = up;
+    }
+
+    const t = this.#msgTable(p.agent);
+    const holes = line.map(() => "?").join(", ");
+    // 按 unit 的先后、再按 seq 排 —— unit 编号在一个任务里单调递增，所以它就是时间序。
+    return all(
+      this.#store.ro,
+      `select unit, seq, role, kind, body from "${t}"
+        where instance = ? and unit in (${holes}) order by unit, seq`,
+      [p.instance, ...line],
+    );
   }
 
   /** 往上下文里压一条。`seq` 在这个单元里连着排。 */

@@ -33,6 +33,7 @@ import { registerTree } from "./tree/dfs.ts";
 import { check } from "./trigger/check.ts";
 import { checkData } from "./trigger/data.ts";
 import { Places, registerTools } from "./tools/register.ts";
+import { registerToolUnit } from "./tools/unit.ts";
 
 const VERSION = pkg.version;
 
@@ -102,6 +103,10 @@ app.log.info(`消息类型：${seedKinds(app.store.rw).join("、")}`);
 // 基础工具：注册进内核（它才持有得住函数），同时把给模型看的那几样落进 tool 表。
 // 注册进去的函数只负责**转发** —— 按 workplace 决定这一次在哪儿跑。
 app.log.info(`工具：${registerTools(app.store.rw, registry, places).join("、")}`);
+
+// 把上一站模型请求的工具真跑掉。**少了这一步工具那条链是断的** ——
+// 请求落了库却永远不被执行，而且不报错。周期表上 api_mode 留空的那一站走它。
+app.log.info(`执行工具：${registerToolUnit(app.store.rw, registry)}`);
 
 // 认得的调用形状。**取值就是 `api.modes` 那一列的值域** —— 跟消息类型一样，
 // 灌进来是为了让 check 和人都查得到，不是让谁去填。
