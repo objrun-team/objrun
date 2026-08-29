@@ -9,6 +9,12 @@
  * ```
  */
 
+import pkg from "../package.json" with { type: "json" };
+import { aboutRoutes } from "./api/about.ts";
+import { benchRoutes } from "./api/bench.ts";
+import { declareRoutes } from "./api/declare.ts";
+import { mount, mountHelp } from "./api/spec.ts";
+import { taskRoutes } from "./api/tasks.ts";
 import { Kernel } from "./engine/loop.ts";
 import { Registry } from "./engine/registry.ts";
 import { readConfig } from "./H2H/config.ts";
@@ -19,13 +25,13 @@ import { registerVendors, seedModes } from "./llm/index.ts";
 import { registerDuplex, Sessions } from "./llm/duplex.ts";
 import { evaluate } from "./objective/run.ts";
 import { openSealed } from "./objective/store.ts";
-import { runBench, runs, score, type Bench } from "./tasks/bench.ts";
-import { publish, type Publish } from "./tasks/publish.ts";
 import { seedKinds } from "./msg/deliver.ts";
 import { registerTree } from "./tree/dfs.ts";
-import { check, explain } from "./trigger/check.ts";
+import { check } from "./trigger/check.ts";
 import { checkData } from "./trigger/data.ts";
 import { Places, registerTools } from "./tools/register.ts";
+
+const VERSION = pkg.version;
 
 const cfg = readConfig();
 
@@ -103,87 +109,26 @@ app.log.info(
 // 实时轨。**另一条句柄** —— 它不是一次调用，是一条会话，一个执行单元对应会话里的
 // 一个来回。会话活在这个池子里（跟位置一样，是连接不是状态，不进库），停机时全关。
 const sessions = new Sessions();
-app.log.info(
-  `实时轨：${registerDuplex(app.store.rw, registry, sessions, [
-    ["dashscope", "qwen-audio-3.0-realtime-flash"],
-  ]).join("、")}`,
-);
+const duplexHandles = registerDuplex(app.store.rw, registry, sessions, [
+  ["dashscope", "qwen-audio-3.0-realtime-flash"],
+]);
+app.log.info(`实时轨：${duplexHandles.join("、")}`);
 
-// 触发条件：不跑系统就把全部条件过一遍。**写错的典型后果是静默不生效** ——
-// 那条规则永远不触发而系统照常跑，所以这一步不是调试功能，是能不能用的前提。
-app.get(`${cfg.api.prefix}/trigger/check`, async () => ({ problems: check(app.store.ro) }));
+// 内核这一侧的口。**每个口的说明、参数表、实现是同一份声明** —— 契约长在接口上，
+// 不在旁边的文档里：文档会漂（说一套做一套，零报错），声明漂不了，漂了请求就会
+// 被错误地拒，当场看得出来。参数表同时就是**校验**，也就是客户端的操作范围。
+const kernelRoutes = [
+  ...aboutRoutes(cfg.api.prefix, app.store, VERSION, duplexHandles),
+  ...declareRoutes(app.store, registry, () => wake()),
+  ...taskRoutes(app.store, registry, sealed, () => wake()),
+  ...benchRoutes(app.store, registry, sealed, () => wake()),
+];
+mount(app, cfg.api.prefix, kernelRoutes);
 
-// 整库过一遍：条件写得对不对 + 数据互相对不对得上。
-// 「谁都不接而且不报错」是这一类问题的通名 —— 任务躺在库里状态永远是 open，
-// 没人知道为什么。这个口就是拿来问的。
-app.get(`${cfg.api.prefix}/check`, async () => ({
-  trigger: check(app.store.ro),
-  data: checkData(app.store.ro, registry),
-}));
-
-// 没命中的时候逐条说清哪一条没过，**带上实际取到的值** —— 只说「没匹配」的话，
-// 人得自己猜是词写错了还是那段文本里根本没有。
-app.post(`${cfg.api.prefix}/trigger/explain`, async (req, reply) => {
-  const b = (req.body ?? {}) as {
-    kind?: string; owner?: string; agent?: string; task?: string;
-    mode?: string; cycle?: string; chain?: string;
-  };
-  try {
-    // 没说要问什么就别给答案。**`fired:false` 看起来是个答案** —— 而这个口正是
-    // 拿来问「为什么没命中」的，回一句空的「没命中」等于把问题反弹回去。
-    if (!b.kind || !b.owner) throw new Error("要问哪一条：kind（owner_kind）和 owner 都得给");
-    const row = (t: string, sql: string, p: unknown[]) => {
-      const r = all(app.store.ro, sql, p)[0];
-      if (!r) throw new Error(`${t} 里没有这一行`);
-      return r;
-    };
-    return explain(app.store.ro, String(b.kind), String(b.owner), {
-      agent: b.agent ? row("agent", `select * from agent where name = ?`, [b.agent]) : {},
-      task: b.task ? row("task", `select * from task where id = ?`, [b.task]) : {},
-      cycle: b.mode ? row("cycle", `select * from cycle where mode = ? and cycle = ?`, [b.mode, b.cycle]) : {},
-      chain: b.chain ?? "",
-    });
-  } catch (e) {
-    return reply.code(400).send({ error: e instanceof Error ? e.message : String(e) });
-  }
-});
-
-// 重装：灌完声明（新模式、新智能体）之后让子表长出来。幂等，随时能打。
-app.post(`${cfg.api.prefix}/install`, async () => {
-  const r = install(app.store.rw);
-  return { create: r.create, ok: r.ok.length, extra: r.extra };
-});
-
-// 发任务：**外面往系统里放活，只走这一个口。**
-// 不用进代码 import 库才能发布任务 —— 对系统的操作停留在 HTTP 这一层。
-app.post(`${cfg.api.prefix}/tasks`, async (req, reply) => {
-  try {
-    const r = publish(app.store.rw, req.body as Publish, sealed);
-    wake();
-    return reply.code(201).send(r);
-  } catch (e) {
-    // 发布这一路的拒收都是「这道题根本别发布」，是请求的问题不是系统的问题。
-    return reply.code(400).send({ error: e instanceof Error ? e.message : String(e) });
-  }
-});
-
-// 跑一次 bench：一批任务，每道自带 G。**一道不过就整批不发** —— 发一半的话
-// 成绩单的分母是错的，而且没人看得出来少了哪几道。
-app.post(`${cfg.api.prefix}/bench`, async (req, reply) => {
-  try {
-    const r = runBench(app.store.rw, req.body as Bench, sealed);
-    wake();
-    return reply.code(201).send(r);
-  } catch (e) {
-    return reply.code(400).send({ error: e instanceof Error ? e.message : String(e) });
-  }
-});
-
-// 成绩。**数出来的，不是存着的** —— 存一份会跟真相漂，而且漂了不报错。
-app.get(`${cfg.api.prefix}/bench`, async () => ({ runs: runs(app.store.ro) }));
-app.get<{ Params: { run: string } }>(`${cfg.api.prefix}/bench/:run`, async (req) =>
-  score(app.store.ro, decodeURIComponent(req.params.run)),
-);
+// help 得**列全**。路由分两处装（库那一层一处、这儿一处），漏掉一组的话，
+// 客户端会以为那组不存在，然后回头去读表 —— 一读表两端就焊死了。
+mountHelp(app, cfg.api.prefix, [...app.routes, ...kernelRoutes]);
+app.log.info(`接口：${app.routes.length + kernelRoutes.length} 个，打 ${cfg.api.prefix}/help 看用法`);
 
 // 停机：先不收新请求，等在途的走完；超时就硬停 —— 不设上限的话，
 // 一个挂住的请求能把整个进程钉在那儿。

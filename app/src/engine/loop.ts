@@ -337,8 +337,10 @@ export class Kernel {
         instance: p.instance,
         unit: p.unit,
         by: "kernel",
+        // 键名一律 ASCII：这一行**客户端读得到**（`/tasks/:id/messages` 会把它解开），
+        // 中文键名等于逼着客户端写 `data["出站"]`，而且每过一层编码都可能烂。
         body: JSON.stringify({
-          出站: true,
+          sent: true,
           tools: kit.map((t) => t.name),
           prompts: kit.map((t) => t.prompt).filter(Boolean),
           rules,
