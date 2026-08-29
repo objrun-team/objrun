@@ -250,20 +250,31 @@ export class Kernel {
   /**
    * 三档里挑「还没开始」的那一档 —— **出站那一行还没落库**。
    *
-   * 判据是那条 `kind = "inject"` 的行，不是「一条消息都没有」：一个单元可以
-   * 预先压好要问的话（那是数据，谁都能往库里放），有话不等于出站过。
-   * 按「有没有消息」判的话，预置了 prompt 的单元会被当成正在跑，永远轮不到它。
+   * 判据是内核那条出站行，不是「一条消息都没有」：一个单元可以预先压好要问的话
+   * （那是数据，谁都能往库里放），有话不等于出站过。按「有没有消息」判的话，
+   * 预置了 prompt 的单元会被当成正在跑，永远轮不到它。
    */
   #ready(rows: Pending[]): Pending[] {
     return rows.filter((r) => !this.#sentOut(r));
   }
 
-  /** 这个单元出站过没有。 */
+  /**
+   * 这个单元出站过没有。
+   *
+   * **光看 `kind = 'inject'` 不行。** `inject` 是两样东西共用的一个值：内核那条出站
+   * 记账（`by: "kernel"` → role=system），和系统注入的用户侧消息（`by: "world"` →
+   * role=user）。而**非真人发的任务，描述那一条正是后者** —— `source` 不是 `user`
+   * 的时候发布口用 `by: "world"` 投它。于是任务一建出来就带着一条 `inject`，这一站
+   * 被当成「已经出站了」，内核再也不碰它：`agent` / `world` / `eacn` 三种来源的任务
+   * 全部躺在库里不动，不报错，只是永远轮不到。
+   *
+   * 所以判据要连 `role` 一起看 —— `inject` + `system` 只有内核那条出站行是。
+   */
   #sentOut(r: Pending): boolean {
     const t = this.#msgTable(r.agent);
     const got = one(
       this.#store.ro,
-      `select count(*) as c from "${t}" where instance = ? and unit = ? and kind = 'inject'`,
+      `select count(*) as c from "${t}" where instance = ? and unit = ? and kind = 'inject' and role = 'system'`,
       [r.instance, r.unit],
     );
     return Number(got?.c ?? 0) > 0;
@@ -342,6 +353,11 @@ export class Kernel {
           rules,
         }),
       });
+
+      // 出站那一行落了 = 这一站真的动起来了，主表那个大状态这时候就该是 `claimed`。
+      // 只在一步走完之后才推的话，模型这一次调用有多慢，`state` 就有多久还写着
+      // `open`（待领取）—— 客户端照着它轮询，看到的是「没人接」，而它其实正在跑。
+      this.#restate(p.task, p.sub);
 
       await this.#atMoment(p, facts, "pre_send");
 

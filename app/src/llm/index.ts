@@ -128,14 +128,20 @@ function key(keyEnv: string): string {
 /**
  * 这一行该不该发给模型。**一处定义，两条轨读同一个判据。**
  *
- * `inject` 是**我们的记账**（这一轮告诉了模型有哪些工具），不是给模型的内容 ——
- * 发过去等于把账本念给它听。`system` 那几条走各自的 instructions 通道，不进消息流。
+ * 不发的是内核那条记账（这一轮告诉了模型有哪些工具）—— 发过去等于把账本念给它听。
+ * `system` 那几条走各自的 instructions 通道，不进消息流。
+ *
+ * **判据得连 `role` 一起看，不能只看 `kind = 'inject'`。** `inject` 是两样东西共用
+ * 的一个值（见 `deliver.ts` 那张推断表）：内核的记账是 `inject` + `role=system`，
+ * 系统注入的用户侧消息是 `inject` + `role=user`。而**非真人发的任务，描述那一条正是
+ * 后者** —— 一刀切掉 `inject` 的话，`source` 不是 `user` 的任务出站时消息是空的，
+ * 模型那边直接回「messages must not be empty」。
  *
  * chat 和 duplex 各写一份的话，就是 `deliver.ts` 开头警告的那件事：同一个 bug
  * 有两份副本，而修的时候多半只修一份。
  */
 export function sendable(r: { role: string; kind: string }): boolean {
-  return r.kind !== "inject" && r.role !== "system";
+  return r.role !== "system";
 }
 
 /**
