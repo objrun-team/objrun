@@ -15,7 +15,8 @@ import { readConfig } from "./H2H/config.ts";
 import { all, run } from "./H2H/db.ts";
 import { build } from "./H2H/server.ts";
 import { install } from "./install/index.ts";
-import { registerVendors } from "./llm/index.ts";
+import { registerVendors, seedModes } from "./llm/index.ts";
+import { registerDuplex, Sessions } from "./llm/duplex.ts";
 import { evaluate } from "./objective/run.ts";
 import { openSealed } from "./objective/store.ts";
 import { runBench, runs, score, type Bench } from "./tasks/bench.ts";
@@ -85,6 +86,10 @@ app.log.info(`消息类型：${seedKinds(app.store.rw).join("、")}`);
 // 注册进去的函数只负责**转发** —— 按 workplace 决定这一次在哪儿跑。
 app.log.info(`工具：${registerTools(app.store.rw, registry, places).join("、")}`);
 
+// 认得的调用形状。**取值就是 `api.modes` 那一列的值域** —— 跟消息类型一样，
+// 灌进来是为了让 check 和人都查得到，不是让谁去填。
+app.log.info(`调用形状：${seedModes(app.store.rw).join("、")}`);
+
 // 模型这一侧：每家一个适配器。**这个句柄同时是 api.handle 和 agent.unit** ——
 // 一次调用就是一个执行单元。下面那几行 api 是数据，改它不用动代码。
 app.log.info(
@@ -92,6 +97,15 @@ app.log.info(
     ["deepseek", "deepseek-chat", "chat,tools"],
     ["deepseek", "deepseek-reasoner", "chat"],
     ["dashscope", "qwen-max", "chat,tools"],
+  ]).join("、")}`,
+);
+
+// 实时轨。**另一条句柄** —— 它不是一次调用，是一条会话，一个执行单元对应会话里的
+// 一个来回。会话活在这个池子里（跟位置一样，是连接不是状态，不进库），停机时全关。
+const sessions = new Sessions();
+app.log.info(
+  `实时轨：${registerDuplex(app.store.rw, registry, sessions, [
+    ["dashscope", "qwen-audio-3.0-realtime-flash"],
   ]).join("、")}`,
 );
 
@@ -179,6 +193,7 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
         clearTimeout(hard);
         kernel.stop();
         places.closeAll();
+        sessions.closeAll();
         sealed.close();
         app.store.close();
         process.exit(0);

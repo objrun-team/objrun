@@ -29,6 +29,7 @@ import type { Conn } from "../H2H/db.ts";
 import { all } from "../H2H/db.ts";
 import { tableNameOf } from "../install/index.ts";
 import type { Registry } from "../engine/registry.ts";
+import { MODE_NAMES, SERVES } from "../llm/index.ts";
 
 export interface Bad {
   what: string;
@@ -139,6 +140,53 @@ export function checkData(db: Conn, reg?: Registry): Bad[] {
       if (all(db, `select 1 from api where key_env = ? and model = ?`, [keyEnv, model]).length === 0) {
         say(`agent ${a.name}`, `apis 里的 ${keyEnv}/${model} 在 api 表里没登记`);
       }
+    }
+  }
+
+  // ── 轨对得上吗 ────────────────────────────────────────────────────────
+  //
+  // 「谁都不接而且不报错」在这一块有三个入口，全是**静默**的：
+  //
+  // 1. `api.modes` 写错一个字母（`duplx`）→ 那条轨永远挑不中
+  // 2. `cycle.api_mode` 要一种没人支持的 mode → 那个周期的每一行都走不了
+  // 3. 一行的 `modes` 含 `duplex`，`handle` 却是 chat 那条 → **挑中了，
+  //    然后调进另一种适配器**。这条最坏：它不报错，只是那一站的行为
+  //    完全不是你想的那样
+  // 比的是**实现认得什么**，不是 `mode` 表里躺着什么。那张表是灌进去给人查的；
+  // 拿它当判据的话，手插一行 `duplx` 就成了「合法」，而实现照样不认。
+  const modeOK = MODE_NAMES;
+  const served = new Map<string, Set<string>>(); // mode → 哪些句柄接得住
+  for (const a of all(db, `select key_env, model, handle, modes from api`) as {
+    key_env: string; model: string; handle: string; modes: string;
+  }[]) {
+    const at = `api ${a.key_env}/${a.model}`;
+    const modes = String(a.modes ?? "")
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+    if (modes.length === 0) say(at, `modes 是空的 —— 这一行谁也挑不中`);
+    const can = SERVES.get(a.handle);
+    for (const m of modes) {
+      if (!modeOK.has(m)) {
+        say(at, `modes 里的 ${m} 不是认得的调用形状（认得的是 ${[...modeOK].join("、")}）—— 这条轨永远挑不中`);
+        continue;
+      }
+      // 外面注册进来的句柄接得住什么我们不知道，跳过不查。
+      if (can && !can.has(m)) {
+        say(at, `modes 说它能走 ${m}，但 handle=${a.handle} 接不住（它只接 ${[...can].join("、")}）`);
+      }
+      if (!served.has(m)) served.set(m, new Set());
+      served.get(m)!.add(a.handle);
+    }
+  }
+  for (const c of all(db, `select mode, cycle, api_mode from cycle where api_mode is not null and trim(api_mode) <> ''`) as {
+    mode: string; cycle: string; api_mode: string;
+  }[]) {
+    const want = String(c.api_mode).trim();
+    if (!modeOK.has(want)) {
+      say(`cycle ${c.mode}/${c.cycle}`, `api_mode=${want} 不是认得的调用形状（认得的是 ${[...modeOK].join("、")}）`);
+    } else if (!served.has(want)) {
+      say(`cycle ${c.mode}/${c.cycle}`, `要一条 ${want} 的轨，但 api 表里没有一行支持 —— 这个周期的每一行都走不了`);
     }
   }
 

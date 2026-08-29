@@ -5,6 +5,8 @@
 
 node_modules/
 dist/
+# 交叉编译时下载的各平台运行时。几百兆，而且随 bun 版本走 —— 重建一次就有
+.bun-cache/
 *.log
 .DS_Store
 

@@ -33,10 +33,16 @@ import { tableNameOf } from "../install/index.ts";
 /** 人写的那些块的前缀。**一处定义** —— 下游读它，不各写各的字面量。 */
 export const HUMAN_MARK = "【人】";
 
+/** 哪几种来源算「人给的」。**取值就是缀不缀 `HUMAN_MARK` 的判据本身。** */
+const HUMAN = new Set<By>(["user", "voice"]);
+
 /**
  * 谁放的。`kind` 从这儿推。
  *
  * - `user` —— 真人写的。**有意图、有责任**，压出去前缀 `HUMAN_MARK`
+ * - `voice` —— 真人**说**的，实时轨转写来的。同样有意图有责任，同样缀 `HUMAN_MARK`；
+ *   但跟 `user` **分开记**：转写是说的不是打的，混成一个的话，回放这段上下文会把
+ *   它当成人敲进来的字重新发一遍，而那不报错
  * - `world` —— 机械的确定性产出（规则命中后投进来的知识）。**无意图无责任**
  * - `skill` —— skill 临时放的提示词
  * - `tool` —— 工具的返回
@@ -44,11 +50,12 @@ export const HUMAN_MARK = "【人】";
  *   由执行单元直接落库
  * - `kernel` —— 内核的记账（出站凭据那种）。给我们看的，不当内容发给模型
  */
-export type By = "user" | "world" | "skill" | "tool" | "agent" | "kernel";
+export type By = "user" | "voice" | "world" | "skill" | "tool" | "agent" | "kernel";
 
 /** 谁放的 → 落库时的 `kind` 和 `role`。**这张表就是那条推断规则本身。** */
 const FROM: Record<By, { kind: string; role: string }> = {
   user: { kind: "user", role: "user" },
+  voice: { kind: "voice", role: "user" },
   world: { kind: "inject", role: "user" },
   skill: { kind: "skill", role: "user" },
   tool: { kind: "tool", role: "tool" },
@@ -77,8 +84,10 @@ export function deliver(db: Conn, p: Put): number {
   const { kind, role } = FROM[p.by];
   if (!kind) throw new Error(`不认得的投递来源：${p.by}`);
 
-  // 人写的缀上标记。**在这儿缀，不在调用方缀** —— 调用方缀就成了纪律。
-  const body = p.by === "user" ? `${HUMAN_MARK}${p.body}` : p.body;
+  // 人给的缀上标记。**在这儿缀，不在调用方缀** —— 调用方缀就成了纪律。
+  // 判据是 `HUMAN`（写的、说的都算），不是某一个具体的 by —— 加一种人类来源时
+  // 漏改这一行的话，那一路就悄悄丢了标记，而压出去之后再也分不出来。
+  const body = HUMAN.has(p.by) ? `${HUMAN_MARK}${p.body}` : p.body;
 
   const got = all(db, `select coalesce(max(seq), 0) as m from "${t}" where instance = ? and unit = ?`, [
     p.instance,
@@ -100,7 +109,8 @@ export function deliver(db: Conn, p: Put): number {
 
 /** 认得的消息类型 —— `msg_kind` 表的种子。**取值就是上面那张推断表的值域。** */
 export const KINDS: [string, string][] = [
-  ["user", "真人讲的。压出去前缀 " + HUMAN_MARK + "，好跟系统注入分开"],
+  ["user", "真人写的。压出去前缀 " + HUMAN_MARK + "，好跟系统注入分开"],
+  ["voice", "真人说的，实时轨转写来的。role 也是 user，靠 kind 才分得出它是说的不是打的"],
   ["inject", "系统注入的。压出去也是 role=user，靠 kind 才分得出来"],
   ["skill", "skill 临时放的提示词"],
   ["tool", "工具的返回结果"],

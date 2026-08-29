@@ -17,15 +17,20 @@ config.yaml        唯一一份配置
 app/               程序本体
   package.json     依赖也只有这一份
   src/
-    main.ts        入口：读配置 → 起库和接口 → 管停机
+    main.ts        入口：读配置 → 起库和接口 → 装那些句柄 → 管停机
     H2H/           状态。库 + 对外接口
-    engine/        读 → 处理 → 写 的循环
-    install/       装的时候把表预建出来
+    engine/        读 → 处理 → 写 的循环。内核、句柄注册表、链路串、条件
+    install/       装表。表是声明出来的（tables.json），不是写死的
+    llm/           模型这一侧。chat 一条轨，duplex（实时会话）一条轨
+    objective/     验证函数 G。定义存封存区，主库够不着
+    tree/          树的控制流：派生 / 判死开兄弟 / 回退
+    trigger/       防「静默不生效」：条件校验 + 活库检查
+    msg/           往上下文里投消息。**只有这一处实现**
+    tasks/         发任务、跑 bench
     tools/         基础工具 read / write / edit / glob / grep / bash
     place/         在哪儿干。转发层 + 送过去的那个运行时
-    tui/           终端界面
 docs/              给人看的
-examples/          给人看的
+examples/          跑得起来的例子
 data/              运行时产物，不进版本库
 ```
 
