@@ -1,67 +1,39 @@
-# 工具
+# 注册工具的三种方式
 
-工具走 MCP。先做 [`../`](../) 的快速启动。
+| | 实现在哪 | 怎么注册 |
+| --- | --- | --- |
+| [内置 `fn:`](#一内置-fn) | 内核进程里，随二进制发 | 出厂就在，只能改登记 |
+| [MCP server · stdio](#二mcp-serverstdio) | 一个子进程 | `POST /declare` 给 `command` |
+| [MCP server · HTTP](#三mcp-serverhttp) | 另一台机器 | `POST /declare` 给 `url` |
 
-## 引擎自己就是一个 MCP server
+先做 [`../`](../) 的快速启动。
 
-内置的六个工具从 `POST $BASE/mcp` 开出去，任何 MCP 客户端都能用。
+---
 
-```bash
-curl -s -X POST $BASE/mcp -H 'content-type: application/json' -d @- <<'JSON'
-{ "jsonrpc":"2.0", "id":1, "method":"initialize",
-  "params": { "protocolVersion":"2026-07-28", "capabilities":{}, "clientInfo":{"name":"x","version":"1"} } }
-JSON
-```
-```json
-{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2026-07-28",
- "capabilities":{"tools":{"listChanged":false}},
- "serverInfo":{"name":"tgengin","version":"1.0.0"}}}
-```
+## 一、内置 `fn:`
+
+出厂就有六个，`system: true` —— 谁都有，不看条件。
 
 ```bash
-curl -s -X POST $BASE/mcp -H 'content-type: application/json' -d @- <<'JSON'
-{ "jsonrpc":"2.0", "id":2, "method":"tools/list" }
-JSON
+curl -s $BASE/tools | grep -o '"name":"[^"]*"'
 ```
-```json
-{"jsonrpc":"2.0","id":2,"result":{"tools":[
-  {"name":"bash","description":"Run a shell command…","inputSchema":{…}},
-  {"name":"edit"},{"name":"glob"},{"name":"grep"},{"name":"read"},{"name":"write"}]}}
+```
+"name":"bash" "name":"edit" "name":"glob" "name":"grep" "name":"read" "name":"write"
 ```
 
-```bash
-curl -s -X POST $BASE/mcp -H 'content-type: application/json' -d @- <<'JSON'
-{ "jsonrpc":"2.0", "id":3, "method":"tools/call",
-  "params": { "name":"read", "arguments": { "file_path":".env.example" } } }
-JSON
-```
-```json
-{"jsonrpc":"2.0","id":3,"result":{
-  "content":[{"type":"text","text":"{\"path\":\".env.example\",\"lines\":[…]}"}],
-  "structuredContent":{"path":".env.example","lines":[…],"totalLines":7}}}
-```
-
-```bash
-curl -s -X POST $BASE/mcp -H 'content-type: application/json' -d @- <<'JSON'
-{ "jsonrpc":"2.0", "id":4, "method":"tools/call", "params": { "name":"nope" } }
-JSON
-```
-```json
-{"jsonrpc":"2.0","id":4,"error":{"code":-32602,"message":"没有这个工具：nope"}}
-```
-
-只开这台机器自己实现的（`identity` 是 `fn:`）；从别的 server 拉进来的不转发。
-
-## 改内置工具的登记
+实现在内核进程里，运行时加不了新的。能改的是**登记**：
 
 ```bash
 curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
-{ "tools": [{ "name":"bash", "identity":"fn:tool.bash",
-              "does":"Run a shell command and return its stdout, stderr and exit code.",
-              "params":{"type":"object","properties":{"command":{"type":"string"}},"required":["command"]},
-              "output":{"type":"object","properties":{"stdout":{"type":"string"},"code":{"type":"number"}}},
-              "system": false,
-              "when": [[{"dim":"task","key":"description","op":"contains","value":"跑一下"}]] }] }
+{ "tools": [{
+    "name": "bash",
+    "identity": "fn:tool.bash",
+    "does": "Run a shell command and return its stdout, stderr and exit code.",
+    "params": { "type":"object", "properties":{"command":{"type":"string"}}, "required":["command"] },
+    "output": { "type":"object", "properties":{"stdout":{"type":"string"},"code":{"type":"number"}} },
+    "system": false,
+    "when": [[{ "dim":"task", "key":"description", "op":"contains", "value":"跑一下" }]]
+  }] }
 JSON
 ```
 ```json
@@ -69,32 +41,44 @@ JSON
  "agents":[],"rules":[],"skills":[],"tables":[],"entries":{}}
 ```
 
+### 案例
+
+发一个描述里**没有**「跑一下」的任务，`bash` 应该不在这一轮的工具里。
+
 ```bash
-curl -s "$BASE/tasks/t-nobash/messages?kind=inject" | grep -o '"tools":\[[^]]*\]'
+curl -s -X POST $BASE/tasks -H 'content-type: application/json' -d @- <<'JSON'
+{ "id":"t-1", "mode":"chat1", "agent":"bot", "place":"local",
+  "source":"user", "description":"你好" }
+JSON
+
+curl -s "$BASE/tasks/t-1/messages?kind=inject" | grep -o '"tools":\[[^]]*\]'
 ```
 ```
 "tools":["read","write","edit","glob","grep"]
 ```
 
-## 接一个 MCP server
+`bash` 不在了。
 
-[`meetkit.ts`](./meetkit.ts) —— 操作已登录的浏览器，进已预约的会。
+---
+
+## 二、MCP server（stdio）
+
+实现是一个子进程。见 [`meetkit.ts`](./meetkit.ts) —— 操作已登录的浏览器，进已预约的会。
 
 ```bash
 curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
-{
-  "servers": [{
+{ "servers": [{
     "name": "meetkit",
     "command": "bun",
     "args": ["examples/tool/meetkit.ts"],
+
     "tools": {
       "meet_join":      { "when": [[{ "dim":"task","key":"description","op":"contains","value":"会议" }]] },
       "browser_status": { "when": [[{ "dim":"task","key":"description","op":"contains","value":"会议" }]] },
       "share_open":     { "when": [[{ "dim":"task","key":"description","op":"contains","value":"会议" }]] },
       "meet_leave":     { "when": [[{ "dim":"task","key":"description","op":"contains","value":"会议" }]] }
     }
-  }]
-}
+  }] }
 JSON
 ```
 ```json
@@ -103,109 +87,141 @@ JSON
  "tools":[],"rules":[],"skills":[],"tables":[],"entries":{}}
 ```
 
-声明里一个工具都没写 —— `tools/list` 是它自己报的。
+声明里一个工具都没写 —— 名字、描述、参数 schema 是 server 用 `tools/list` 报的。
 
-```bash
-curl -s $BASE/tools | grep -o '"name":"[^"]*"'
-```
-```
-"name":"bash" "name":"browser_status" "name":"edit" "name":"glob" "name":"grep"
-"name":"meet_join" "name":"meet_leave" "name":"read" "name":"share_open" "name":"write"
-```
+### 案例
 
-```bash
-curl -s $BASE/tools | tr '}' '\n' | grep -A1 '"name":"meet_join"'
-```
-```json
-{"name":"meet_join","identity":"mcp:meetkit/meet_join",
- "does":"进一个已经预约好的会","system":false,"concurrent":false,"usable":true,
- "when":[[{"dim":"task","key":"description","op":"contains","value":"会议"}]],
- "neverFires":false}
-```
-
-```bash
-curl -s -X POST $BASE/query -H 'content-type: application/json' -d @- <<'JSON'
-{ "sql": "select name, expect_ms from handle where name like 'mcp:%' order by name" }
-JSON
-```
-```json
-{"count":4,"rows":[{"name":"mcp:meetkit/browser_status","expect_ms":120000},
-                   {"name":"mcp:meetkit/meet_join","expect_ms":120000},
-                   {"name":"mcp:meetkit/meet_leave","expect_ms":120000},
-                   {"name":"mcp:meetkit/share_open","expect_ms":120000}]}
-```
-
-## 校验
+发一个描述里**有**「会议」的任务。
 
 ```bash
 curl -s -X POST $BASE/tasks -H 'content-type: application/json' -d @- <<'JSON'
-{ "id":"t-meet", "mode":"chat1", "agent":"bot", "place":"local",
+{ "id":"t-2", "mode":"chat1", "agent":"bot", "place":"local",
   "source":"user", "description":"进那个已经预约好的会议做一次汇报" }
 JSON
 
-curl -s "$BASE/tasks/t-meet/messages?kind=inject" | grep -o '"tools":\[[^]]*\]'
+curl -s "$BASE/tasks/t-2/messages?kind=inject" | grep -o '"tools":\[[^]]*\]'
 ```
 ```
-"tools":["read","write","edit","glob","grep","bash","browser_status","meet_join","meet_leave","share_open"]
+"tools":["read","write","edit","glob","grep","browser_status","meet_join","meet_leave","share_open"]
 ```
 
 ```bash
-curl -s "$BASE/tasks/t-meet/messages?kind=call" | grep -o '"name":"[^"]*","input":[^}]*}'
+curl -s "$BASE/tasks/t-2/messages?kind=call" | grep -o '"name":"[^"]*","input":[^}]*}'
 ```
 ```
 "name":"browser_status","input":{}
 ```
 
+模型真调了它。
+
+---
+
+## 三、MCP server（HTTP）
+
+同一个 server，换 HTTP 传输 —— 可以在别的机器上。
+
 ```bash
-curl -s -X POST $BASE/trigger/explain -H 'content-type: application/json' -d @- <<'JSON'
-{ "kind":"tool", "owner":"meet_join", "task":"t-other" }
+bun examples/tool/meetkit.ts --http        # :7899
+```
+
+```bash
+curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
+{ "servers": [{
+    "name": "meetweb",
+    "url": "http://127.0.0.1:7899",
+
+    "tools": {
+      "meet_join": { "when": [[{ "dim":"task","key":"description","op":"contains","value":"远端会议" }]] }
+    }
+  }] }
 JSON
 ```
 ```json
-{"fired":false,
- "groups":[[{"group":0,"dim":"task","key":"description","op":"contains","value":"会议",
-             "got":"帮我算一下三加五","hit":false}]]}
+{"servers":{"meetweb":["browser_status","meet_join","share_open","meet_leave"]}, …}
+```
+
+### 案例
+
+两个 server 各自一套句柄，名字带 server 名，不会撞：
+
+```bash
+curl -s -X POST $BASE/query -H 'content-type: application/json' -d @- <<'JSON'
+{ "sql": "select name from handle where name like 'mcp:%' order by name" }
+JSON
+```
+```json
+{"count":8,"rows":[
+  {"name":"mcp:meetkit/browser_status"},{"name":"mcp:meetkit/meet_join"},
+  {"name":"mcp:meetkit/meet_leave"},{"name":"mcp:meetkit/share_open"},
+  {"name":"mcp:meetweb/browser_status"},{"name":"mcp:meetweb/meet_join"},
+  {"name":"mcp:meetweb/meet_leave"},{"name":"mcp:meetweb/share_open"}]}
+```
+
+---
+
+## 反过来：内置工具怎么给外面用
+
+引擎自己就是个 MCP server，`POST $BASE/mcp`。
+
+```bash
+curl -s -X POST $BASE/mcp -H 'content-type: application/json' -d @- <<'JSON'
+{ "jsonrpc":"2.0", "id":1, "method":"tools/list" }
+JSON
+```
+```json
+{"jsonrpc":"2.0","id":1,"result":{"tools":[
+  {"name":"bash","description":"Run a shell command…","inputSchema":{…},"outputSchema":{…}},
+  {"name":"edit"},{"name":"glob"},{"name":"grep"},{"name":"read"},{"name":"write"}]}}
 ```
 
 ```bash
-curl -s $BASE/check
+curl -s -X POST $BASE/mcp -H 'content-type: application/json' -d @- <<'JSON'
+{ "jsonrpc":"2.0", "id":2, "method":"tools/call",
+  "params": { "name":"read", "arguments": { "file_path":".env.example" } } }
+JSON
 ```
 ```json
-{"trigger":[],"data":[]}
+{"jsonrpc":"2.0","id":2,"result":{
+  "content":[{"type":"text","text":"{\"path\":\".env.example\",\"lines\":[…]}"}],
+  "structuredContent":{"path":".env.example","totalLines":7,"lines":[…]}}}
 ```
+
+只开这台机器自己实现的（`fn:`）；从别的 server 拉进来的不转发。
+
+---
 
 ## 参数
 
-### `servers[]`
+### `tools[]`（方式一）
 
 | | |
 | --- | --- |
-| `name` | 必给。句柄名是 `mcp:<name>/<tool>`，所以不能带 `/` |
-| `command` `args` `env` | stdio：起个子进程 |
-| `url` `headers` | HTTP：POST JSON-RPC |
-| `tools.<工具名>` | 见下。没提到的工具照 MCP 报的原样收 |
+| `name` | 给模型看的名字 |
+| `identity` | 指一条句柄。内置的是 `fn:tool.<名字>` |
+| `does` `params` `output` | 给模型看的描述和 schema |
+| `prompt` | 往系统提示里加的一段 |
+| `system` | `true` = 谁都有，不看 `when` |
+| `usable` | `false` = 登记着但不挂 |
+| `concurrent` | 能不能跟别的工具同时跑 |
+| `when` | 见下 |
 
-`command` 和 `url` **给一个**：
+### `servers[]`（方式二、三）
+
+| | |
+| --- | --- |
+| `name` | 句柄名是 `mcp:<name>/<tool>`，不能带 `/` |
+| `command` `args` `env` | stdio |
+| `url` `headers` | HTTP |
+| `tools.<工具名>` | `when` / `expectMs` / `system` / `usable` / `prompt` / `concurrent`，都可不给 |
+
+`command` 和 `url` 给一个：
 
 ```json
 {"problems":["server meetkit：要么给 command（起个子进程），要么给 url（HTTP），**给一个，不能都给也不能都不给**"]}
 ```
 
-### `tools.<工具名>`
-
-MCP 里没有这几样，都可以不给。
-
-| | |
-| --- | --- |
-| `when` | 什么时候摆给模型 |
-| `expectMs` | 调多久算死。默认 120000 |
-| `system` | `true` = 谁都有，不看 `when` |
-| `usable` | `false` = 登记着但不挂 |
-| `prompt` | 往系统提示里加的一段 |
-| `concurrent` | 能不能跟别的工具同时跑 |
-
-MCP 报的原样落进来：`name` → `name`，`description` → `does`，
-`inputSchema` → `params`，`outputSchema` → `output`。
+MCP 报的原样落进来：`name`→`name`，`description`→`does`，
+`inputSchema`→`params`，`outputSchema`→`output`。
 
 ### `when`
 
@@ -219,11 +235,21 @@ MCP 报的原样落进来：`name` → `name`，`description` → `does`，
 
 `op`：`eq` `ne` `contains` `not_contains` `prefix` `suffix` `in`
 
-一条都不给 = 从不触发。
+一条都不给 = 从不触发：
 
-### 错
+```json
+{"problems":["tool meet_join：不是系统工具，又一条触发条件都没有 —— 它永远不会被挂给任何一个智能体"]}
+```
 
-| | |
-| --- | --- |
-| JSON-RPC `error` | 没这个工具、请求形状不对 → 当调用失败 |
-| `isError: true` | 参数不合理、业务上不成 → 当结果回给模型 |
+没命中时问它：
+
+```bash
+curl -s -X POST $BASE/trigger/explain -H 'content-type: application/json' -d @- <<'JSON'
+{ "kind":"tool", "owner":"meet_join", "task":"t-1" }
+JSON
+```
+```json
+{"fired":false,
+ "groups":[[{"group":0,"dim":"task","key":"description","op":"contains","value":"会议",
+             "got":"你好","hit":false}]]}
+```
