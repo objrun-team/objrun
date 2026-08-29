@@ -25,6 +25,7 @@ import { registerVendors, seedModes } from "./llm/index.ts";
 import { registerDuplex, Sessions } from "./llm/duplex.ts";
 import { Servers } from "./mcp/client.ts";
 import { attach } from "./mcp/register.ts";
+import { mcpServeRoutes } from "./mcp/serve.ts";
 import { evaluate } from "./objective/run.ts";
 import { openSealed } from "./objective/store.ts";
 import { seedKinds } from "./msg/deliver.ts";
@@ -132,6 +133,8 @@ const kernelRoutes = [
   ...declareRoutes(app.store, registry, servers, () => wake()),
   ...taskRoutes(app.store, registry, sealed, () => wake()),
   ...benchRoutes(app.store, registry, sealed, () => wake()),
+  // 这台引擎自己的 MCP server —— 不开的话，内核实现的那几个工具外面用不上。
+  ...mcpServeRoutes(app.store, registry),
 ];
 mount(app, cfg.api.prefix, kernelRoutes);
 
