@@ -20,7 +20,7 @@
 
 import { statSync } from "node:fs";
 import { resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 /**
  * worker 那一半在哪个文件里。
@@ -41,7 +41,21 @@ import { pathToFileURL } from "node:url";
  * 所以位置得**由外面告诉它**，跟 `config.yaml` 和钥匙一个道理。默认值只对
  * 「在 `app/` 底下 `bun start`」这一种情况成立，别的情况下必须给。
  */
-const HOST = process.env.TGENGIN_PLUGIN_HOST ?? "./src/engine/plugin-host.ts";
+function hostPath(): string {
+  const given = process.env.TGENGIN_PLUGIN_HOST;
+  if (given && given.trim()) return given;
+  // 直接跑源码时 `import.meta.url` 指得到真文件，从哪个目录启动都对。
+  // 打包之后它是个虚拟路径，那儿没有文件 —— 这时候只能靠上面那个环境变量。
+  try {
+    const beside = fileURLToPath(new URL("./plugin-host.ts", import.meta.url));
+    if (statSync(beside).isFile()) return beside;
+  } catch {
+    // 打包了，或者文件不在 —— 落到下面那个
+  }
+  return "./src/engine/plugin-host.ts";
+}
+
+const HOST = hostPath();
 
 /**
  * 起一个 worker 等多久算它没起来。
