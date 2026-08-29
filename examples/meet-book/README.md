@@ -1,4 +1,4 @@
-# 开一个真的谷歌会议
+﻿# 开一个真的谷歌会议
 
 [← 例子](../) ｜ [tool](../tool/) · [meet-join](../meet-join/) · **meet-book** · [place](../place/)
 
@@ -135,7 +135,7 @@ JSON
 
 ---
 
-## 第一次：中间隔着一次真人点击
+## 还没授权
 
 ```bash
 curl -s -X POST $BASE/tasks -H 'content-type: application/json' -d @- <<'JSON'
@@ -146,53 +146,82 @@ JSON
 ```
 
 「别停下来问我」这句得写。不写的话模型问一句「点完告诉我」就交卷了，那一轮
-`fn:infer.dfs` 判它到终点，任务就结束了 —— 等人得靠工具**堵住那次调用**，不是靠模型等。
+`fn:infer.dfs` 判它到终点，任务就结束了 —— **等人得靠工具堵住那次调用**，不是靠模型等。
 
 ```bash
 curl -s "$BASE/tasks/t-book/messages?kind=tool" | grep -o '"value":{"ok":[^{}]*}' | head -1
 ```
 ```
-"value":{"ok":false,"authUrl":"https://accounts.google.com/o/oauth2/v2/auth?client_id=…&redirect_uri=http%3A%2F%2Flocalhost%3A57473&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.events&access_type=offline&prompt=consent","note":"把这个链接给用户，点完就成了","来自":"进程内插件"}
+"value":{"ok":false,"authUrl":"https://accounts.google.com/o/oauth2/v2/auth?client_id=…&redirect_uri=http%3A%2F%2Flocalhost%3A56459&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.events&access_type=offline&prompt=consent","note":"把这个链接给用户，点完就成了","from":"fn"}
 ```
 
 `redirect_uri` 的端口是每次现挑的空端口，回调监听就在插件那个 worker 里活着。
-把链接在浏览器里点掉，页面回一句「授权好了，回去接着干」——
-堵在 `meet_book_in` 里的那次调用同时醒过来：
+链接一发出去，`meet_book_in` 那次调用就堵在 `authWait` 上等。
+
+链接点掉，页面回一句「授权好了，回去接着干」，堵着的那次调用同时醒过来接着建会。
+**没人点的话它等满 180s 就放弃**：
 
 ```bash
-curl -s $BASE/tasks/t-book
+curl -s "$BASE/tasks/t-book/messages?kind=tool" | grep -o '"value":{"error":[^{}]*}'
 ```
 ```
-  "state":"done"（120s）
+"value":{"error":"还没授权 —— 先调那个发起授权的工具，把链接给用户点一下"}
+```
+```
+  "state":"done"（185s）
 ```
 
+错当结果给模型，它看得见原因 —— 不是「工具没跑」那种查不出来的沉默。
+
+## 授权在了
+
 ```bash
-curl -s "$BASE/tasks/t-book/messages?kind=call" | grep -o '"name":"[a-z_]*","input":[^}]*}'
+curl -s -X POST $BASE/tasks -H 'content-type: application/json' -d @- <<'JSON'
+{ "id":"t-book3", "mode":"work", "agent":"bot", "place":"local", "source":"user",
+  "solveSeconds": 600,
+  "description": "帮我开会。用 meet_book_in 开一个标题叫「进程内」的会，再用 meet_book_out 开一个标题叫「进程外」的会，两个都是 15 分钟后开、开 30 分钟。把两个 Meet 链接都告诉我，然后结束" }
+JSON
+```
+```bash
+curl -s "$BASE/tasks/t-book3/messages?kind=call" | grep -o '"name":"[a-z_]*","input":[^}]*}'
 ```
 ```
-"name":"google_login_in","input":{}
 "name":"meet_book_in","input":{"summary":"进程内","minutesFromNow":15,"minutes":30}
 "name":"meet_book_out","input":{"summary":"进程外","minutesFromNow":15,"minutes":30}
 ```
 
 ```bash
-curl -s "$BASE/tasks/t-book/messages?kind=tool" | grep -o '"value":{"meetUrl":[^{}]*}'
+curl -s "$BASE/tasks/t-book3/messages?kind=tool" | grep -o '"value":{"meetUrl":[^{}]*}'
 ```
 ```
-"value":{"meetUrl":"https://meet.google.com/hbz-dbym-uiw","eventId":"e8h0n38nhs9kkdv9t9quvctkv8","summary":"进程内","start":"2026-08-30T00:18:22+08:00","end":"2026-08-30T00:48:22+08:00","htmlLink":"https://www.google.com/calendar/event?eid=…","来自":"进程内插件"}
-"value":{"meetUrl":"https://meet.google.com/xto-ryfg-mxq","eventId":"826dkoobmda895uenqjbifunlo","summary":"进程外","start":"2026-08-30T00:18:25+08:00","end":"2026-08-30T00:48:25+08:00","htmlLink":"https://www.google.com/calendar/event?eid=…","来自":"进程外 MCP server"}
+"value":{"meetUrl":"https://meet.google.com/nii-tnnb-toz","eventId":"qjfqjqmvmhfal53fupna37b1rk","summary":"进程内","start":"2026-08-30T00:57:35+08:00","end":"2026-08-30T01:27:35+08:00","htmlLink":"https://www.google.com/calendar/event?eid=…","from":"fn"}
+"value":{"meetUrl":"https://meet.google.com/nui-kzuf-qni","eventId":"g9r0r1v1ludi1a1i582bcu0148","summary":"进程外","start":"2026-08-30T00:57:36+08:00","end":"2026-08-30T01:27:36+08:00","htmlLink":"https://www.google.com/calendar/event?eid=…","from":"mcp"}
+```
+```
+  "state":"done"（10s）
 ```
 
-两个链接都是真的，日历里也真躺着两个事件。
+两个链接都是真的，日历里也真躺着两个事件。这一趟一次都没调授权 —— 凭证落在
+`~/.tgengin/google.json`，**在机器上，不在哪个进程里**。进程内那个工具授的权，
+进程外那个工具用得上；引擎只知道有这么一个工具，不知道它拿谁的账号在开会。
+
+再单独问一次授权还在不在：
+
+```bash
+curl -s "$BASE/tasks/t-book2/messages?kind=tool" | grep -o '"value":{"ok":[^{}]*}'
+```
+```
+"value":{"ok":true,"note":"已经授权过了，直接开会就行","from":"fn"}
+```
 
 ### 日志
 
 插件那边在 stdout：
 
 ```
-[book-plugin] 授权：把这个链接给用户，点完就成了
+[book-plugin] 授权：已经授权过了，直接开会就行
 [book-plugin] 开会 {"summary":"进程内","minutesFromNow":15,"minutes":30}
-[book-plugin] → https://meet.google.com/hbz-dbym-uiw
+[book-plugin] → https://meet.google.com/nii-tnnb-toz
 ```
 
 server 那边在 stderr：
@@ -200,35 +229,8 @@ server 那边在 stderr：
 ```
 [book-server] 起来了
 [book-server] 开会 {"summary":"进程外","minutesFromNow":15,"minutes":30}
-[book-server] → https://meet.google.com/xto-ryfg-mxq
+[book-server] → https://meet.google.com/nui-kzuf-qni
 ```
-
----
-
-## 第二次：不用再点了
-
-```bash
-curl -s -X POST $BASE/tasks -H 'content-type: application/json' -d @- <<'JSON'
-{ "id":"t-book2", "mode":"work", "agent":"bot", "place":"local", "source":"user",
-  "solveSeconds": 600,
-  "description": "帮我开会。先调 google_login_in 看看授权还在不在，然后调 meet_book_out 开一个标题叫「第二次」的会，20 分钟后开、开 15 分钟。把 Meet 链接告诉我，然后结束" }
-JSON
-```
-```bash
-curl -s "$BASE/tasks/t-book2/messages?kind=tool" | grep -o '"value":{[^{}]*}'
-```
-```
-"value":{"ok":true,"note":"已经授权过了，直接开会就行","来自":"进程内插件"}
-"value":{"meetUrl":"https://meet.google.com/jpj-ivvf-dyy","eventId":"2q8ar1irkvojb3bkb0235r8gjc","summary":"第二次","start":"2026-08-30T00:24:44+08:00","end":"2026-08-30T00:39:44+08:00","htmlLink":"…","来自":"进程外 MCP server"}
-```
-
-```
-  "state":"done"（10s）
-```
-
-进程内那个工具授的权，进程外那个工具用得上 —— 落地的是 `~/.tgengin/google.json`，
-在机器上，不在哪个进程里。凭证跟着机器走，引擎只知道有这么一个工具，
-不知道它拿谁的账号在开会。
 
 ---
 
