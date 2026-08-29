@@ -34,7 +34,7 @@ function beta(ws: { send(s: string): void }, o: Record<string, unknown>): void {
   ws.send(JSON.stringify(o));
 }
 
-const server = Bun.serve<undefined, Record<string, never>>({
+const server = Bun.serve({
   port: 0,
   fetch(req, srv) {
     got.auth = req.headers.get("authorization") ?? "";

@@ -39,6 +39,7 @@ async function freePort(): Promise<number> {
   const s = Bun.serve({ port: 0, fetch: () => new Response("") });
   const p = s.port;
   await s.stop(true);
+  if (p === undefined) throw new Error("要不到一个空闲端口");
   return p;
 }
 

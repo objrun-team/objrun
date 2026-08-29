@@ -1,0 +1,5 @@
+{
+  "_": "只为了声明这底下的 .ts 是 ESM —— 它们在 app/ 外面，继承不到那份 package.json。依赖仍然只有 app/package.json 一份。",
+  "type": "module",
+  "private": true
+}
