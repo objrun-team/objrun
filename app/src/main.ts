@@ -129,6 +129,9 @@ app.post(`${cfg.api.prefix}/trigger/explain`, async (req, reply) => {
     mode?: string; cycle?: string; chain?: string;
   };
   try {
+    // 没说要问什么就别给答案。**`fired:false` 看起来是个答案** —— 而这个口正是
+    // 拿来问「为什么没命中」的，回一句空的「没命中」等于把问题反弹回去。
+    if (!b.kind || !b.owner) throw new Error("要问哪一条：kind（owner_kind）和 owner 都得给");
     const row = (t: string, sql: string, p: unknown[]) => {
       const r = all(app.store.ro, sql, p)[0];
       if (!r) throw new Error(`${t} 里没有这一行`);

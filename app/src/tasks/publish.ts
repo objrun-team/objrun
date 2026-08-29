@@ -112,6 +112,10 @@ export function publish(
   p: Publish,
   sealed?: Sealed,
 ): { id: string; mode: string; cycle: string; instance: string; objective: boolean } {
+  // 先问「这是不是一份东西」，再问它里面缺什么。**这是从 HTTP 进来的第一道**，
+  // 不挡的话空请求会在 `p.id` 上崩，回给人的是一句 JS 内部话（`undefined is not
+  // an object`）—— 那句话既不告诉他该发什么，也让人以为是服务端坏了。
+  if (p === null || typeof p !== "object") throw new Error("请求体得是一行 JSON 对象");
   if (!p.id || !p.id.trim()) throw new Error("任务 id 不能是空的");
   if (!SOURCES.includes(p.source)) throw new Error(`不认得的来源：${p.source}（只能是 ${SOURCES.join(" / ")}）`);
   if (!p.description || !p.description.trim()) throw new Error("任务得有描述");

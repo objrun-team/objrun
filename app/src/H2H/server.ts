@@ -52,6 +52,25 @@ export async function build(cfg: Config, hooks: Hooks = {}): Promise<FastifyInst
 
   if (cfg.cors.enabled) await app.register(cors, { origin: cfg.cors.origin });
 
+  // 有几个口**根本不收 body**（`/install` 那种，打一下就干活）。而 Fastify 认的是
+  // content-type：一个 `curl -X POST` 不带头、不带 body，它按「不认得这种媒体类型」
+  // 顶回 415 —— 那句话指向的是格式，而请求里压根没有格式可言，人只会以为接口坏了。
+  //
+  // 所以在这儿兜一道，但**只兜空 body**：
+  //
+  // - 没有 body → 当没有 body（`undefined`），该干什么干什么
+  // - 有 body 但格式不认得 → **还是 415**，而且说清不认得的是哪一种
+  //
+  // 一刀切成「什么都收下」的话，第二种就被吞了：发来一坨我们解不了的东西，
+  // 接口回 200，而那份 body 悄悄没了。
+  app.addContentTypeParser("*", { parseAs: "buffer" }, (req, body, done) => {
+    if ((body as Buffer).length === 0) return done(null, undefined);
+    const ct = req.headers["content-type"] ?? "（没给）";
+    const err = new Error(`不认得这种 content-type：${ct}`) as Error & { statusCode?: number };
+    err.statusCode = 415;
+    done(err, undefined);
+  });
+
   // 令牌。配置里留空就整个不校验 —— 本地默认这样。
   if (cfg.api.token) {
     app.addHook("onRequest", async (req, reply) => {

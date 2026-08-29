@@ -52,6 +52,8 @@ export interface Score {
  * 定义期检测、readable、模式/智能体/地方在不在）都在 `publish` 里，不在这儿抄一份。
  */
 export function runBench(db: Conn, b: Bench, sealed: Sealed): { run: string; ids: string[] } {
+  // 同 `publish`：先问「这是不是一份东西」。空请求打进来不该崩在字段上。
+  if (b === null || typeof b !== "object") throw new Error("请求体得是一行 JSON 对象");
   if (!Array.isArray(b.tasks) || b.tasks.length === 0) throw new Error("这一批一道题都没有");
   const run = (b.run ?? "").trim() || new Date().toISOString().replace(/[:.]/g, "-");
   if (all(db, `select 1 from task where run = ? limit 1`, [run]).length > 0) {
