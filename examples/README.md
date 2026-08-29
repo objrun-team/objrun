@@ -100,7 +100,9 @@ curl -s "$BASE/help?format=json"  # 机器读的
 
 | | |
 | --- | --- |
-| [`tool/`](./tool/) | 工具 |
+| [`tool/`](./tool/) | 工具：同一个，两种写法 |
+| [`meet-join/`](./meet-join/) | 一个工具长出新句柄 |
+| [`meet-book/`](./meet-book/) | 真的开一个谷歌会议 |
 | [`rule/`](./rule/) | 规则（挂在时刻上就是钩子） |
 | [`skill/`](./skill/) | skill |
 | [`mode/`](./mode/) | 任务机制 |

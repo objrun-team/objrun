@@ -2,7 +2,7 @@
  * 会里的那两样。**只有进会之后才存在** —— 这个 server 是 `meet_join` 拉起来的。
  *
  * ```
- * bun examples/tool/meet-live.ts <会议号>
+ * bun examples/meet-join/meet-live.ts <会议号>
  * ```
  */
 

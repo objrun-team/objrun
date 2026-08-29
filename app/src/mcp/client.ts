@@ -108,7 +108,10 @@ export class McpClient {
     });
     this.#proc.stdout?.setEncoding("utf8");
     this.#proc.stdout?.on("data", (c: string) => this.#feed(c));
-    // stdio 的 server 常拿 stderr 当日志用，不是只有出错才写 —— 所以不当错处理。
+    // stdio 的 server 拿 stderr 当日志用，不是只有出错才写 —— 所以不当错处理，
+    // 原样转到引擎的 stderr。不转的话 server 自己说的话全丢，出事没处看。
+    this.#proc.stderr?.setEncoding("utf8");
+    this.#proc.stderr?.on("data", (c: string) => process.stderr.write(c));
     this.#proc.on("exit", (code) => this.#die(new Error(`${this.name} 退了（${code}）`)));
     this.#proc.on("error", (e) => this.#die(e));
   }

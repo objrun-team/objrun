@@ -6,7 +6,7 @@
  */
 
 const BASE = process.env.TGENGIN_BASE ?? "http://127.0.0.1:7801/api";
-const LIVE = "examples/tool/meet-live.ts";
+const LIVE = "examples/meet-join/meet-live.ts";
 
 const TOOL = {
   name: "meet_join",
