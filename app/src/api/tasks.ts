@@ -25,7 +25,7 @@ import { all, run } from "../H2H/db.ts";
 import { chainOf } from "../engine/chain.ts";
 import type { Registry } from "../engine/registry.ts";
 import { tableNameOf } from "../install/index.ts";
-import { deliver, HUMAN_MARK } from "../msg/deliver.ts";
+import { deliver, HUMAN_KINDS, HUMAN_MARK } from "../msg/deliver.ts";
 import type { Sealed } from "../objective/store.ts";
 import { publish, SOURCES, STATES, type Publish } from "../tasks/publish.ts";
 import type { Route } from "./spec.ts";
@@ -374,15 +374,20 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
           offset: Number(a.offset),
           rows: page.map((m) => {
             const body = String(m.body ?? "");
-            const human = body.startsWith(HUMAN_MARK);
+            // **判据是 `kind`，不是 body 长什么样。**
+            //
+            // 按前缀判的话，模型只要在回答开头复读一句 `【人】` 就被当成人写的 ——
+            // 实测它真的会这么干（上下文里人写的那条就带着这个前缀，它照着学）。
+            // `kind` 是投递那一刻推出来的，模型伪造不了。
+            const human = HUMAN_KINDS.has(String(m.kind));
             const out: Row = {
               agent: m.agent, instance: m.instance, unit: m.unit, seq: m.seq,
               role: m.role, kind: m.kind, at: Number(m.at), body,
-              human: human,
+              human,
             };
             // 标记在这儿剥，不让客户端自己截字符串 —— 它一旦硬编码 "【人】"，
             // 这边一改那边就全乱。
-            if (human) out.text = body.slice(HUMAN_MARK.length);
+            if (human && body.startsWith(HUMAN_MARK)) out.text = body.slice(HUMAN_MARK.length);
             if (m.kind === "call" || m.kind === "tool" || m.kind === "inject") {
               try {
                 out.parsed = JSON.parse(body);

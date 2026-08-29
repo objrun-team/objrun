@@ -63,6 +63,15 @@ const FROM: Record<By, { kind: string; role: string }> = {
   kernel: { kind: "inject", role: "system" },
 };
 
+/**
+ * 哪几种 `kind` 是人给的。**从上面那两张表推出来，不另列一份名单。**
+ *
+ * 下游（接口那一层）判「这条是不是人给的」只能靠它 —— **不许看 body 长什么样**：
+ * 上下文里人写的那条带着 `HUMAN_MARK` 前缀，模型照着学、在回答开头复读一句，
+ * 就被当成人写的了（实测它真会这么干）。`kind` 是投递那一刻推出来的，伪造不了。
+ */
+export const HUMAN_KINDS = new Set([...HUMAN].map((b) => FROM[b].kind));
+
 export interface Put {
   agent: string;
   instance: string;

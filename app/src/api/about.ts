@@ -14,7 +14,7 @@
  */
 
 import { all, type Store } from "../H2H/db.ts";
-import { HUMAN_MARK, KINDS } from "../msg/deliver.ts";
+import { HUMAN_KINDS, HUMAN_MARK, KINDS } from "../msg/deliver.ts";
 import { MODES } from "../llm/index.ts";
 import { SOURCES, STATES } from "../tasks/publish.ts";
 import type { Route } from "./spec.ts";
@@ -61,15 +61,14 @@ export function aboutRoutes(prefix: string, store: Store, version: string, duple
         declared: { modes: ["dfs"], agents: ["solver"], places: ["local"], duplexHandles: [] },
       },
       handler: async () => {
-        // `human` 这一位是**算**出来的：库里那条消息压出去会不会缀标记。
-        // 客户端拿它决定要不要剥前缀 —— 自己维护一张名单的话，加一种就漏一种。
-        const human = new Set(["user", "voice"]);
+        // `human` 这一位从投递那张推断表推出来，**这儿不另留一份名单** ——
+        // 各留一份的话，加一种人类来源就会漏掉一处。
         return {
           version,
           prefix,
           taskStates: STATES.map((s) => ({ name: s, note: STATE_NOTE[s] ?? "" })),
           taskSources: SOURCES.map((s) => ({ name: s, note: SOURCE_NOTE[s] ?? "" })),
-          msgKinds: KINDS.map(([name, note]) => ({ name, note, human: human.has(name) })),
+          msgKinds: KINDS.map(([name, note]) => ({ name, note, human: HUMAN_KINDS.has(name) })),
           apiModes: MODES.map(([name, note]) => ({ name, note })),
           unitStatuses: UNIT_STATUS.map(([name, note]) => ({ name, note })),
           humanMark: HUMAN_MARK,
