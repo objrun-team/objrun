@@ -1,5 +1,7 @@
 # 一个会给你新句柄的工具
 
+[← 例子](../) ｜ [tool](../tool/) · **meet-join** · [meet-book](../meet-book/) · [place](../place/)
+
 `meet_join` 进会。进去之后，会里才有的 `say` 和 `screen` 才出现在表里。
 
 字段说明在 [`../tool/`](../tool/)。
@@ -118,7 +120,7 @@ curl -s "$BASE/tasks/t-meet/messages?kind=tool" | grep -o '"value":{[^{}]*}'
 ```
 ```
 "value":{"ok":true,"meetId":"abc-defg-hij","handles":["mcp:meet-live/say","mcp:meet-live/screen"]}
-"value":{"ok":true,"meet":"abc-defg-hij","说了":"大家好"}
+"value":{"ok":true,"meet":"abc-defg-hij","said":"大家好"}
 ```
 
 `screen` 那条回的是嵌套对象（deck 的操作契约），上面这个 grep 不收。
@@ -127,7 +129,7 @@ curl -s "$BASE/tasks/t-meet/messages?kind=tool" | grep -o '"value":{[^{}]*}'
 curl -s "$BASE/tasks/t-meet/messages?kind=prompt" | grep -o '"body":"[^"]*"' | tail -1
 ```
 ```
-"body":"会议任务已经完成：\n\n1. ✅ **加入会议** — 已通过 meet_join 进入 https://meet.google.com/abc-defg-hij\n2. ✅ **打招呼** — 用会里的 say 工具说了「大家好」\n3. ✅ **共享文件** — 已成功共享 file:///deck.html，它是一份 12 页的演示文稿（当前在第 1 页）\n\n任务已按流程全部执行完毕。"
+"body":"已完成会议任务：\n\n1. ✅ **进入会议**：通过 `meet_join` 加入了 https://meet.google.com/abc-defg-hij\n2. ✅ **在会里说「大家好」**：已通过会里的 `say` 工具发言\n3. ✅ **共享 file:///deck.html**：已通过 `screen` 共享，返回了操作契约，deck 共 12 页，当前在第 1 页，可用左右箭头翻页、输入页码跳转\n\n任务已全部完成。"
 ```
 
 ### 日志

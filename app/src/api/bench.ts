@@ -97,6 +97,7 @@ export function benchRoutes(store: Store, reg: Registry, sealed: Sealed, wake: (
         { name: "mode", in: "body", kind: "string", note: "拿哪个模式的周期当事实，跟 `cycle` 一起给" },
         { name: "cycle", in: "body", kind: "string", note: "哪个周期" },
         { name: "chain", in: "body", kind: "string", note: "链路串，如 `dfs/open#1 > dfs/act#2`" },
+        { name: "place", in: "body", kind: "string", note: "拿哪个工作区当事实。**是执行单元那一站的，不是任务的**" },
       ],
       returns: {
         fired: false,
@@ -115,6 +116,7 @@ export function benchRoutes(store: Store, reg: Registry, sealed: Sealed, wake: (
             task: a.task ? row("task", `select * from task where id = ?`, [a.task]) : {},
             cycle: a.mode ? row("cycle", `select * from cycle where mode = ? and cycle = ?`, [a.mode, a.cycle]) : {},
             chain: a.chain ? String(a.chain) : "",
+            place: a.place ? String(a.place) : "",
           });
         } catch (e) {
           return reply.code(400).send({ error: e instanceof Error ? e.message : String(e) });

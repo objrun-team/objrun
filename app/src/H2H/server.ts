@@ -89,7 +89,7 @@ export async function build(cfg: Config, hooks: Hooks = {}): Promise<App> {
   app.setNotFoundHandler(async (req, reply) =>
     reply.code(404).send({
       error: `没有这个接口：${req.method} ${req.url}`,
-      看这里: `GET ${cfg.api.prefix}/help`,
+      help: `GET ${cfg.api.prefix}/help`,
     }),
   );
 

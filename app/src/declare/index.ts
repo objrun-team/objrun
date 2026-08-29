@@ -87,8 +87,8 @@ export interface AgentDecl {
 /**
  * 一条触发条件项。
  *
- * `dim` 是在哪一维上问（`agent` / `task` / `cycle` / `chain` / `moment`），
- * `key` 是那一维上的哪个属性 —— **`chain` 和 `moment` 不看属性，留空**。
+ * `dim` 是在哪一维上问（`agent` / `task` / `cycle` / `chain` / `moment` / `place`），
+ * `key` 是那一维上的哪个属性 —— **`chain`、`moment`、`place` 不看属性，留空**。
  */
 export interface TermDecl {
   dim: string;
@@ -302,18 +302,21 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
     }
     if (places.has(p.place)) say(`${at}：这一份里出现了两次`);
     places.add(p.place);
-    // 位置串认不得的话，等到真去转发那一刻才炸 —— 那时候任务已经在半路上了。
-    try {
-      hops(p.place);
-    } catch (e) {
-      say(`${at}：${e instanceof Error ? e.message : String(e)}`);
-    }
     for (const t of p.tools ?? []) {
       if (!POLICIES.includes(t.policy)) {
         say(`${at}：工具 ${t.tool} 的 policy 不认得（只能是 ${POLICIES.join(" / ")}）`);
       }
     }
     if (p.forward) {
+      // **位置串只有要转发的时候才得是一串跳板**，因为那时候它要被拿去拼命令。
+      // 不转发的地方，名字就只是个名字：一个本机浏览器标签页、一个工位、一条产线。
+      // 它决定的是「这一站手上有哪些工具」（`dim: place`），不决定工具跑在哪台机器上。
+      // 认不得的话等到真去转发那一刻才炸 —— 那时候任务已经在半路上了。
+      try {
+        hops(p.place);
+      } catch (e) {
+        say(`${at}：${e instanceof Error ? e.message : String(e)}`);
+      }
       // 转发是要把运行时送过去的。没登记送什么，`openPlace` 会在第一次调用时炸。
       if (p.place !== "local" && !p.runtime) say(`${at}：说要转发，但没给 runtime —— 没东西可送过去`);
       // 开了总闸而白名单是空的 = 一个工具都不会转发。**合法，但一定不是本意。**
@@ -460,7 +463,7 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
           say(`${where}：不认得的比法 ${t.op}（认得的是 ${OPS.join(" / ")}）`);
           continue;
         }
-        if (t.dim === "chain" || t.dim === "moment") {
+        if (t.dim === "chain" || t.dim === "moment" || t.dim === "place") {
           if ((t.key ?? "").trim() !== "") say(`${where}：${t.dim} 维度不看属性，key 该留空`);
           if (t.dim === "moment" && !(MOMENTS as readonly string[]).includes(t.value)) {
             say(`${where}：不认得的时刻 ${t.value}（内核会喊到的是 ${MOMENTS.join(" / ")}）`);

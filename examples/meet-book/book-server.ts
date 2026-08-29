@@ -30,12 +30,12 @@ async function call(name: string, a: Record<string, unknown>): Promise<unknown> 
   if (name === "google_login_out") {
     const got = await authStart();
     process.stderr.write(`[book-server] 授权：${got.note}\n`);
-    return { ...got, 来自: "进程外 MCP server" };
+    return { ...got, from: "mcp" };
   }
   process.stderr.write(`[book-server] 开会 ${JSON.stringify(a)}\n`);
   const got = await book(a as Parameters<typeof book>[0]);
   process.stderr.write(`[book-server] → ${got.meetUrl}\n`);
-  return { ...got, 来自: "进程外 MCP server" };
+  return { ...got, from: "mcp" };
 }
 
 async function handle(m: { id?: number; method?: string; params?: unknown }): Promise<unknown | null> {

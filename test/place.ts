@@ -39,13 +39,24 @@ try {
   // ═══════════════ 第一部分：注册 ═══════════════
   part("第一部分：注册");
 
-  step("① 位置串写了个认不得的写法");
-  const 认不得 = await m.bad("POST", "/declare", { places: [{ place: "podman:box" }] });
+  step("① 要转发，位置串却写了个认不得的写法");
+  const 认不得 = await m.bad("POST", "/declare", {
+    places: [{ place: "podman:box", forward: true, runtime: "/tmp/runtime", tools: [{ tool: "bash", policy: "always" }] }],
+  });
   show("回的是：", 认不得.problems);
   ok(
     "**认不得的写法当场炸** —— 猜的话会连到别的地方去",
     JSON.stringify(认不得.problems).includes("位置串不认得这一段"),
     认不得.problems,
+  );
+
+  step("①b 不转发的地方，名字随便起");
+  const 随便起 = await m.api<{ places: string[] }>("POST", "/declare", { places: [{ place: "tab:deck" }] });
+  show("收下了：", 随便起.places);
+  ok(
+    "**位置串只有要转发的时候才得是一串跳板** —— 不转发的地方，名字只是「这一站在哪儿」",
+    随便起.places.includes("tab:deck"),
+    随便起.places,
   );
 
   step("② 说要转发，却没说送什么运行时过去");

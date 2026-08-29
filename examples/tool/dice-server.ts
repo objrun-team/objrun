@@ -34,7 +34,7 @@ function handle(m: { id?: number; method?: string; params?: unknown }): unknown 
     const sides = Number(p.arguments?.sides ?? 6);
     const value = 1 + Math.floor(Math.random() * sides);
     process.stderr.write(`[dice-server] sides=${sides} → ${value}\n`);
-    const out = { sides, value, 来自: "进程外 MCP server" };
+    const out = { sides, value, from: "mcp" };
     return reply({ content: [{ type: "text", text: JSON.stringify(out) }], structuredContent: out });
   }
 

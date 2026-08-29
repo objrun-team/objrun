@@ -1,5 +1,7 @@
 # 开一个真的谷歌会议
 
+[← 例子](../) ｜ [tool](../tool/) · [meet-join](../meet-join/) · **meet-book** · [place](../place/)
+
 两个工具：一个发起授权，一个开会。**两种写法各来一遍。**
 
 授权本身也是工具 —— 没授权就调它，把链接给人，人点完接着干，中间不用谁去跑脚本。
@@ -44,13 +46,13 @@ JSON
 export async function login(): Promise<unknown> {
   const got = await authStart();
   console.log(`[book-plugin] 授权：${got.note}`);
-  return { ...got, 来自: "进程内插件" };
+  return { ...got, from: "fn" };
 }
 
 export async function book(arg: unknown): Promise<unknown> {
   const a = ((arg ?? {}) as { args?: Record<string, unknown> }).args ?? {};
   const got = await create(a as Parameters<typeof create>[0]);
-  return { ...got, 来自: "进程内插件" };
+  return { ...got, from: "fn" };
 }
 ```
 

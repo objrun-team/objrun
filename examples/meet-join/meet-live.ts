@@ -26,7 +26,7 @@ const TOOLS = [
 function call(name: string, a: Record<string, unknown>): unknown {
   if (name === "say") {
     process.stderr.write(`[meet-live ${MEET}] say「${String(a.text ?? "")}」\n`);
-    return { ok: true, meet: MEET, 说了: a.text };
+    return { ok: true, meet: MEET, said: a.text };
   }
   process.stderr.write(`[meet-live ${MEET}] screen ${String(a.url ?? "")}\n`);
   return {

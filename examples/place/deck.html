@@ -1,0 +1,50 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Q3 Review</title>
+<style>
+  html, body { height: 100%; margin: 0; }
+  body { display: grid; place-items: center; font: 16px/1.5 system-ui, sans-serif; background: #111; color: #eee; }
+  .slide { text-align: center; }
+  .n { font-size: 12vw; font-weight: 700; letter-spacing: -0.04em; }
+  .t { font-size: 3vw; opacity: 0.75; }
+  .foot { position: fixed; bottom: 24px; right: 32px; font-size: 14px; opacity: 0.4; }
+</style>
+<div class="slide">
+  <div class="n" id="n">1</div>
+  <div class="t" id="t"></div>
+</div>
+<div class="foot"><span id="p">1</span> / <span id="total">12</span></div>
+<script>
+  // 这一页对外只认这一个对象。工具那边靠 Runtime.evaluate 调它 ——
+  // 页面的操作面是页面自己定的，不是外面猜出来的。
+  const TITLES = [
+    "开场", "这一季干了什么", "收入", "成本", "毛利", "用户",
+    "留存", "渠道", "出了什么问题", "下一季的赌注", "要多少钱", "问答",
+  ];
+  const deck = {
+    page: 1,
+    get total() { return TITLES.length; },
+    render() {
+      document.getElementById("n").textContent = String(this.page);
+      document.getElementById("t").textContent = TITLES[this.page - 1];
+      document.getElementById("p").textContent = String(this.page);
+      document.getElementById("total").textContent = String(this.total);
+      document.title = `Q3 Review — ${this.page}/${this.total} ${TITLES[this.page - 1]}`;
+    },
+    goto(p) {
+      const n = Math.max(1, Math.min(this.total, Number(p) || 1));
+      this.page = n;
+      this.render();
+      return this.state();
+    },
+    next() { return this.goto(this.page + 1); },
+    prev() { return this.goto(this.page - 1); },
+    state() { return { page: this.page, total: this.total, title: TITLES[this.page - 1] }; },
+  };
+  window.deck = deck;
+  addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight") deck.next();
+    if (e.key === "ArrowLeft") deck.prev();
+  });
+  deck.render();
+</script>

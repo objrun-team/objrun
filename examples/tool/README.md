@@ -1,4 +1,6 @@
-﻿# 注册工具
+# 注册工具
+
+[← 例子](../) ｜ **tool** · [meet-join](../meet-join/) · [meet-book](../meet-book/) · [place](../place/)
 
 同一个骰子，两种写法，都注册进去，一个任务里都用上。
 
@@ -37,7 +39,7 @@ export async function run(arg: unknown): Promise<unknown> {
   const { sides = 6 } = ((arg ?? {}) as { args?: { sides?: number } }).args ?? {};
   const value = 1 + Math.floor(Math.random() * sides);
   console.log(`[dice-plugin] sides=${sides} → ${value}`);
-  return { sides, value, 来自: "进程内插件" };
+  return { sides, value, from: "fn" };
 }
 ```
 
@@ -73,7 +75,7 @@ if (m.method === "tools/call") {
   const sides = Number(p.arguments?.sides ?? 6);
   const value = 1 + Math.floor(Math.random() * sides);
   process.stderr.write(`[dice-server] sides=${sides} → ${value}\n`);
-  const out = { sides, value, 来自: "进程外 MCP server" };
+  const out = { sides, value, from: "mcp" };
   return reply({ content: [{ type: "text", text: JSON.stringify(out) }], structuredContent: out });
 }
 ```
@@ -138,28 +140,32 @@ curl -s "$BASE/tasks/t-dice/messages?kind=call" | grep -o '"name":"dice[^}]*}'
 curl -s "$BASE/tasks/t-dice/messages?kind=tool" | grep -o '"value":{[^}]*}'
 ```
 ```
-"value":{"sides":20,"value":10,"来自":"进程内插件"}
-"value":{"sides":20,"value":14,"来自":"进程外 MCP server"}
+"value":{"sides":20,"value":1,"from":"fn"}
+"value":{"sides":20,"value":14,"from":"mcp"}
 ```
 
 ```bash
 curl -s "$BASE/tasks/t-dice/messages?kind=prompt" | grep -o '"body":"[^"]*"' | tail -1
 ```
 ```
-"body":"两个点数分别为：**10**（dice_in，进程内）和 **14**（dice_out，进程外）。\n\n结束。"
+"body":"好的，两个 20 面骰子都掷完了：\n\n- **dice_in**（进程内）：**1**\n- **dice_out**（进程外）：**14**\n\n就这样，结束了。"
 ```
 
 ### 日志
 
-引擎的 stdout 里有插件那条：
+插件在引擎的 stdout 上：
 
 ```
 {"level":30,…,"msg":"插件：app/src/engine/plugin-host.ts"}
-[dice-plugin] sides=20 → 10
+[dice-plugin] sides=20 → 1
 ```
 
-`dice-server` 是子进程，它那行 `[dice-server] sides=20 → 14` 在引擎的 stderr 上 —— stdio
-的 server 拿 stderr 当日志，引擎原样转出来。
+`dice-server` 是子进程，它在 stderr 上 —— stdio 的 server 拿 stderr 当日志，引擎原样转出来：
+
+```
+[dice-server] 起来了
+[dice-server] sides=20 → 14
+```
 
 ---
 
@@ -196,7 +202,7 @@ curl -s "$BASE/tasks/t-dice/messages?kind=prompt" | grep -o '"body":"[^"]*"' | t
 | dim | key |
 | --- | --- |
 | `task` `agent` `cycle` | 那张表的列名 |
-| `chain` `moment` | 留空 |
+| `chain` `moment` `place` | 留空 |
 
 `op`：`eq` `ne` `contains` `not_contains` `prefix` `suffix` `in`
 

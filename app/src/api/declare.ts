@@ -264,9 +264,14 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
       returns: { place: "wsl", alive: true, ms: 812 },
       handler: async (a) => {
         const place = String(a.place);
-        const row = all(store.ro, `select runtime from workplace where place = ?`, [place])[0] as
-          | { runtime: string | null }
+        const row = all(store.ro, `select runtime, forward from workplace where place = ?`, [place])[0] as
+          | { runtime: string | null; forward: number }
           | undefined;
+        // 不转发的地方压根没有连接这回事 —— 它只是「这一站在哪儿」的一个名字。
+        // 不说清楚的话这儿会回一个 alive:false，看着像坏了。
+        if (row && !Number(row.forward) && place !== "local") {
+          return { place, alive: true, ms: 0, why: "这个地方不转发，没有连接可探" };
+        }
         const t0 = Date.now();
         try {
           const p = await openPlace(place, row?.runtime ?? undefined);

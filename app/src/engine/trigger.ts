@@ -14,6 +14,14 @@ export interface Facts {
   task: Record<string, unknown>;
   cycle: Record<string, unknown>;
   chain: string;
+  /**
+   * **这个执行单元**的工作区，不是任务的。
+   *
+   * 两者一开始一样，但工作区是一行一行往下传的（见 `loop.ts` 开下一站那段），
+   * 树岔开之后同一个任务的两站可以落在不同地方 —— 「这一站手上有哪些工具」
+   * 要看这一站在哪儿，看 `task.place` 会挂错。
+   */
+  place: string;
   /** 这一刻是什么时刻。见 `MOMENTS`。不在时刻上问的条件用不到它。 */
   moment?: string;
 }
@@ -37,7 +45,7 @@ interface Term {
 export const OPS = ["eq", "ne", "contains", "not_contains", "prefix", "suffix", "in"] as const;
 
 /** 认得的维度。同理，不另开表。 */
-export const DIMS = ["agent", "task", "cycle", "chain", "moment"] as const;
+export const DIMS = ["agent", "task", "cycle", "chain", "moment", "place"] as const;
 
 /**
  * 内核会喊到的时刻。**钩子就挂在这些点上** —— 一条规则 + 一条
@@ -76,6 +84,8 @@ export function pick(f: Facts, dim: string, key: string): string {
   switch (dim) {
     case "chain":
       return f.chain;
+    case "place":
+      return f.place;
     case "moment":
       return f.moment ?? "";
     case "agent":

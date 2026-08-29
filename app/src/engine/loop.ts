@@ -485,7 +485,7 @@ export class Kernel {
     if (!agent) throw new Error(`agent 表里没有 ${p.agent}`);
     if (!task) throw new Error(`task 表里没有 ${p.task}`);
     if (!cycle) throw new Error(`cycle 表里没有 ${p.mode}/${p.cycle}`);
-    return { agent, task, cycle, chain: chainOf(this.#store.ro, p.sub, p.mode, p) };
+    return { agent, task, cycle, place: p.place, chain: chainOf(this.#store.ro, p.sub, p.mode, p) };
   }
 
   /**
