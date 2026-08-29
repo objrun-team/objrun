@@ -39,7 +39,46 @@ const BUNDLE = [
     of: "{ name, apis: [[key_env, model]], unit, config?, state? }",
     note: "智能体。`apis` 挂哪几条轨，每条得在 api 表里真有那一行",
   },
+  {
+    name: "handles",
+    in: "body" as const,
+    kind: "array" as const,
+    of: "{ name, expectMs }",
+    note: "外面注册进来的句柄。**只能是 `http://` / `https://`** —— `fn:` 是进程内的真函数，往库里写个名字换不出函数来。`expectMs` 是多久算死",
+  },
+  {
+    name: "tools",
+    in: "body" as const,
+    kind: "array" as const,
+    of: "{ name, identity, does, params, output, prompt?, concurrent?, system?, usable?, when? }",
+    note: "工具。`identity` 指一个句柄；`does`/`params`/`output` 是**给模型看的**。`system: true` 的所有智能体一上来就有，不看 `when`",
+  },
+  {
+    name: "rules",
+    in: "body" as const,
+    kind: "array" as const,
+    of: "{ identity, does, params, writes, scope, access?, when? }",
+    note: "规则。`identity` 就是句柄名。挂在时刻上（`when` 里写 `dim: \"moment\"`）就是钩子 —— **不另开钩子表**",
+  },
+  {
+    name: "skills",
+    in: "body" as const,
+    kind: "array" as const,
+    of: "{ identity, does, params, role, body?, usable?, when? }",
+    note: "skill。模型不挑它，是按 `when` 塞进去的。`body` 留空 = 动态生成，那就得真有个同名句柄现给内容",
+  },
 ];
+
+/**
+ * `when` 怎么写 —— 这段跟着每个收 `when` 的口一起给出去。
+ *
+ * 客户端不用知道 `trigger` 表长什么样，更不用自己编组号。
+ */
+const WHEN_NOTE =
+  "什么时候轮到它：`[[条件,条件],[条件]]` —— **外层是组，组间 or；组内 and**。" +
+  "一条 = `{dim, key, op, value}`；`dim` 是 agent/task/cycle/chain/moment，" +
+  "`chain` 和 `moment` 不看属性（key 留空）；`op` 是 eq/ne/contains/not_contains/prefix/suffix/in。" +
+  "**一条都不给 = 永远不触发**，不是「总是触发」—— 反过来定的话，忘了写条件的东西会到处乱开。";
 
 const ALL_OR_NOTHING = {
   code: 400,
@@ -52,14 +91,21 @@ export function declareRoutes(store: Store, reg: Registry, onWrite: () => void):
       method: "POST",
       path: "/declare",
       group: DECL,
-      does: "灌一整份声明：在哪儿干 + 有哪些模式 + 有哪些智能体",
-      why: "三样**互相依赖**：智能体的轨要 api 表有那一行，周期要的调用形状得有句柄接得住，任务要三样齐全。拆成三个口的话，客户端可以合法地把系统灌成「一半声明」，而错要等到发任务那一刻才冒出来。灌完子表现长出来，**不用重启**。",
+      does: "灌一整份声明：句柄 / 在哪儿干 / 模式 / 智能体 / 工具 / 规则 / skill",
+      why:
+        "这几样**互相依赖**：工具的 identity 要有句柄、触发条件的 owner 要真存在、智能体的轨要 api 表有那一行、周期要的调用形状得有句柄接得住。" +
+        "拆成几个口的话，客户端可以合法地把系统灌成「一半声明」，而错要等到跑起来那一刻才冒出来。灌完子表现长出来，**不用重启**。\n" +
+        "      " + WHEN_NOTE,
       params: BUNDLE,
       returns: {
+        handles: [],
         places: ["local"],
         modes: ["dfs"],
         cycles: 2,
         agents: ["solver"],
+        tools: [],
+        rules: [],
+        skills: [],
         tables: ["task_dfs", "agent_solver_ctx", "agent_solver_msg"],
         entries: { dfs: ["open"] },
       },
@@ -220,6 +266,51 @@ export function declareRoutes(store: Store, reg: Registry, onWrite: () => void):
       },
     },
     {
+      method: "GET",
+      path: "/tools",
+      group: DECL,
+      does: "注册了哪些工具，各自什么时候会被挂上",
+      why: "`when` 是**还原**出来的（库里那张表存的是一行一条、带组号），客户端不用自己按组号分堆。`neverFires` 那一位尤其要紧：不是系统工具又没有条件 = 谁都拿不到它，而这**不报错**。",
+      returns: {
+        tools: [
+          {
+            name: "weather", identity: "http://127.0.0.1:9010/weather", system: false, usable: true,
+            when: [[{ dim: "task", key: "description", op: "contains", value: "天气" }]],
+            neverFires: false,
+          },
+        ],
+      },
+      handler: async () => ({ tools: listOf(store, "tool", "name") }),
+    },
+    {
+      method: "GET",
+      path: "/rules",
+      group: DECL,
+      does: "注册了哪些规则，各自挂在什么时候",
+      why: "挂在时刻上（`dim: \"moment\"`）的就是钩子 —— **不另开钩子表**，所以要看钩子也是查这个口。",
+      returns: {
+        rules: [
+          {
+            identity: "http://127.0.0.1:9010/audit",
+            when: [[{ dim: "moment", key: "", op: "eq", value: "pre_send" }]],
+            neverFires: false,
+          },
+        ],
+      },
+      handler: async () => ({ rules: listOf(store, "rule", "identity") }),
+    },
+    {
+      method: "GET",
+      path: "/skills",
+      group: DECL,
+      does: "注册了哪些 skill",
+      why: "`body` 留空的是**动态生成**的 —— 内容由同名句柄在触发那一刻现给。客户端要显示「这条 skill 是写死的还是现生成的」，看的就是这一位。",
+      returns: {
+        skills: [{ identity: "recap", role: "user", dynamic: false, usable: true, when: [], neverFires: true }],
+      },
+      handler: async () => ({ skills: listOf(store, "skill", "identity") }),
+    },
+    {
       method: "POST",
       path: "/install",
       group: DECL,
@@ -233,6 +324,46 @@ export function declareRoutes(store: Store, reg: Registry, onWrite: () => void):
       },
     },
   ];
+}
+
+/**
+ * 一类东西的清单，`when` 还原成组的形状，并且算出**它会不会永远不触发**。
+ *
+ * 「一条条件都没有 = 从不触发」这条语义写在内核里，客户端不该自己再判一遍 ——
+ * 判反了（当成「总是触发」）它会告诉用户一切正常，而实际上那个工具谁都拿不到。
+ */
+function listOf(store: Store, kind: "tool" | "rule" | "skill", idCol: string) {
+  const rows = all(store.ro, `select * from "${kind}" order by "${idCol}"`) as Record<string, unknown>[];
+  return rows.map((r) => {
+    const id = String(r[idCol]);
+    const when = whenOfRow(store, kind, id);
+    const system = kind === "tool" && Boolean(r.system);
+    return {
+      ...(kind === "tool" ? { name: id } : { identity: id }),
+      identity: String(r.identity ?? id),
+      does: r.does ?? null,
+      ...(kind === "tool" ? { system, concurrent: Boolean(r.concurrent) } : {}),
+      ...(kind === "skill" ? { role: r.role ?? null, dynamic: !r.body } : {}),
+      usable: r.usable === undefined ? true : Boolean(r.usable),
+      when,
+      // 系统工具不看条件，所以它没有这个毛病。
+      neverFires: !system && when.length === 0,
+    };
+  });
+}
+
+function whenOfRow(store: Store, kind: string, owner: string) {
+  const rows = all(
+    store.ro,
+    `select "group", dim, "key", op, value from trigger where owner_kind = ? and owner = ? order by "group"`,
+    [kind, owner],
+  ) as { group: number; dim: string; key: string; op: string; value: string }[];
+  const by = new Map<number, { dim: string; key: string; op: string; value: string }[]>();
+  for (const r of rows) {
+    const g = Number(r.group);
+    by.set(g, [...(by.get(g) ?? []), { dim: r.dim, key: r.key, op: r.op, value: r.value }]);
+  }
+  return [...by].sort((a, b) => a[0] - b[0]).map(([, t]) => t);
 }
 
 /** 哪些智能体接得住这个模式：它每一站要的调用形状，这个智能体都得有一条轨。 */

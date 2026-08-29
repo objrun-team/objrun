@@ -27,6 +27,7 @@
 import type { Conn } from "../H2H/db.ts";
 import { all, run } from "../H2H/db.ts";
 import type { Registry } from "../engine/registry.ts";
+import { DIMS, MOMENTS, OPS } from "../engine/trigger.ts";
 import { install, tableNameOf } from "../install/index.ts";
 import { MODE_NAMES } from "../llm/index.ts";
 import { hops } from "../place/index.ts";
@@ -78,19 +79,112 @@ export interface AgentDecl {
   state?: string;
 }
 
-/** 一整份声明。三样都可以缺，但缺了的那样就不许被别的引用。 */
+/**
+ * 一条触发条件项。
+ *
+ * `dim` 是在哪一维上问（`agent` / `task` / `cycle` / `chain` / `moment`），
+ * `key` 是那一维上的哪个属性 —— **`chain` 和 `moment` 不看属性，留空**。
+ */
+export interface TermDecl {
+  dim: string;
+  key?: string;
+  op: string;
+  value: string;
+}
+
+/**
+ * 什么时候轮到它。**外层是组，组间 or；组内 and。**
+ *
+ * 组号由这边按下标算，客户端不用管 —— 让客户端自己编组号的话，它得先知道
+ * 「同组 and、组间 or」这条语义，还得保证不跟已有的组撞号。
+ *
+ * **一条都不给 = 永远不触发**，不是「总是触发」。反过来定的话，忘了写条件的
+ * 东西会到处乱开。（系统工具 `system: true` 例外，它不看条件。）
+ */
+export type WhenDecl = TermDecl[][];
+
+/** 外面注册进来的句柄。**只能是 `http://` / `https://`** —— 见下。 */
+export interface HandleDecl {
+  name: string;
+  /** 调它多久算死。超过这个时间内核判死，内外一视同仁。 */
+  expectMs: number;
+}
+
+/** 一个工具。`identity` 指向一个句柄 —— 进程内的 `fn:` 或外面的 `http://`。 */
+export interface ToolDecl {
+  /** 给模型看的名字，也是 `workplace` 白名单引用的那个。 */
+  name: string;
+  identity: string;
+  /** 给模型看的描述。 */
+  does: string;
+  /** 给模型看的参数 schema。 */
+  params: unknown;
+  /** 返回值的 schema，也是给模型看的。 */
+  output: unknown;
+  /** 要往系统提示里加的一段用法约定。 */
+  prompt?: string | null;
+  /** 能不能跟别的工具同时跑。 */
+  concurrent?: boolean;
+  /** 系统工具：所有智能体一上来就有，**不看 `when`**。 */
+  system?: boolean;
+  access?: string | null;
+  usable?: boolean;
+  when?: WhenDecl;
+}
+
+/** 一条规则。挂在时刻上就是钩子（`dim: "moment"`）。 */
+export interface RuleDecl {
+  identity: string;
+  does: string;
+  params: unknown;
+  /** 声明它会动哪几张表怎么动。 */
+  writes: unknown;
+  /** 能动哪些行。结构化匹配式，不用 SQL 片段。 */
+  scope: unknown;
+  /** 外部规则够着库的办法。**密钥只存环境变量名。** */
+  access?: unknown;
+  when?: WhenDecl;
+}
+
+/** 一个 skill。模型不挑它，是按条件塞进去的。 */
+export interface SkillDecl {
+  identity: string;
+  does: string;
+  params: unknown;
+  /** 固定的一段。留空 = 动态生成，由句柄现给。 */
+  body?: string | null;
+  role: string;
+  usable?: boolean;
+  when?: WhenDecl;
+}
+
+/**
+ * 一整份声明。每样都可以缺，但缺了的那样就不许被别的引用。
+ *
+ * **一处不过整份不写** —— 这几样互相引用（工具的 `identity` 要有句柄、
+ * 触发条件的 owner 要真存在、智能体的轨要 `api` 表有那一行），分开灌的话
+ * 可以合法地灌成「一半声明」，而错要等到跑起来才冒出来。
+ */
 export interface Declare {
+  handles?: HandleDecl[];
   places?: PlaceDecl[];
   modes?: ModeDecl[];
   agents?: AgentDecl[];
+  tools?: ToolDecl[];
+  rules?: RuleDecl[];
+  skills?: SkillDecl[];
 }
 
 /** 灌完了，回什么。 */
 export interface Declared {
+  handles: string[];
   places: string[];
   modes: string[];
   cycles: number;
   agents: string[];
+  tools: string[];
+  rules: string[];
+  skills: string[];
   /** 这一趟长出来的子表。 */
   tables: string[];
   /** 每个模式的入口周期。**不止一个的话，发任务得指定 `cycle`** —— 在这儿说出来。 */
@@ -117,6 +211,42 @@ function list(v: unknown, what: string, bad: string[]): string[] {
 export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
   const bad: string[] = [];
   const say = (s: string) => bad.push(s);
+
+  // ── 外面注册进来的句柄。**先验这一段** ────────────────────────────────
+  //
+  // 后面的模式、智能体、工具、规则、skill 都要引用句柄，所以得先知道这一份里
+  // 声明了哪些 —— 不然「同一份里先声明句柄、再用它」这条最自然的写法会被拒。
+  //
+  // **只能是 `http://` / `https://`。** `fn:` 的句柄是进程内的真函数，只有那个
+  // 进程持有得住 —— 从外面往 `handle` 表写一个 `fn:` 名字，库里就有了一条
+  // 进程里没人认领的句柄，而错要等到某个任务真走到那一步才炸。
+  const handles = new Set<string>();
+  for (const h of d.handles ?? []) {
+    const at = `handle ${h.name || "(没名字)"}`;
+    if (!h.name || !h.name.trim()) {
+      say(`有一个 handle 没名字`);
+      continue;
+    }
+    if (handles.has(h.name)) say(`${at}：这一份里出现了两次`);
+    handles.add(h.name);
+    if (!/^https?:\/\//.test(h.name)) {
+      say(`${at}：外面只能注册 http:// 或 https:// 的句柄 —— fn: 是进程内的真函数，往库里写个名字换不出函数来`);
+    }
+    if (!Number.isFinite(h.expectMs) || h.expectMs <= 0) say(`${at}：expectMs 得是个正数`);
+  }
+
+  /**
+   * 这个句柄够得着吗：这一份里刚声明的、进程里注册过的、或者库里已经登记过的。
+   *
+   * 三处都算数 —— 外部句柄本来就该能当 `infer` / `agent.unit` / 工具实现用，
+   * 那正是「外面能往里加东西」这条路。只认进程内注册表的话，这条路就断了。
+   */
+  const handleThere = (name: string) =>
+    handles.has(name) || reg.has(name) || all(db, `select 1 from handle where name = ?`, [name]).length > 0;
+
+  /** 句柄不在时那句话。得说清「在 handles 里一起声明」，不然人不知道下一步做什么。 */
+  const noHandle = (name: string) =>
+    `没有 ${name} 这个句柄 —— 进程内的 fn: 由代码注册；外面的 http:// 在同一份声明的 handles 里一起给`;
 
   // ── 在哪儿干 ──────────────────────────────────────────────────────────
   const places = new Set<string>();
@@ -191,7 +321,7 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
       }
       // 推断函数没注册 → 走到这一站才炸，而那时候任务已经跑了一半。
       if (!c.infer || !c.infer.trim()) say(`${cat}：没给 infer`);
-      else if (!reg.has(c.infer)) say(`${cat}：infer 是 ${c.infer}，但进程里没有这个句柄`);
+      else if (!handleThere(c.infer)) say(`${cat}：infer 是 ${c.infer}，但${noHandle(c.infer)}`);
 
       const want = (c.apiMode ?? "").trim();
       if (want) {
@@ -242,7 +372,7 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
       say(`${at}：${e instanceof Error ? e.message : String(e)}`);
     }
     if (!a.unit || !a.unit.trim()) say(`${at}：没给 unit`);
-    else if (!reg.has(a.unit)) say(`${at}：unit 是 ${a.unit}，但进程里没有这个句柄`);
+    else if (!handleThere(a.unit)) say(`${at}：unit 是 ${a.unit}，但${noHandle(a.unit)}`);
 
     if (!Array.isArray(a.apis)) {
       say(`${at}：apis 得是一串 [key_env, model]`);
@@ -258,6 +388,116 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
         say(`${at}：挂的 ${keyEnv}/${model} 在 api 表里没登记 —— 这条轨挑不中`);
       }
     }
+  }
+
+  // ── 触发条件 ──────────────────────────────────────────────────────────
+  //
+  // 跟 `check` 查的是同一套，只是提前到了**写进去之前**。写进去之后再查的话，
+  // 那条件已经在库里躺着了 —— 而它的表现是「永远不触发」，不是报错。
+  const colsOf = (t: string) => (all(db, `pragma table_info("${t}")`) as { name: string }[]).map((r) => r.name);
+  const dimKeys: Record<string, string[]> = {
+    agent: colsOf("agent"),
+    task: colsOf("task"),
+    cycle: colsOf("cycle"),
+  };
+  const checkWhen = (at: string, when: WhenDecl | undefined) => {
+    for (const [i, group] of (when ?? []).entries()) {
+      if (!Array.isArray(group) || group.length === 0) {
+        say(`${at}：第 ${i} 组是空的 —— 空组永远不会全中，写它等于没写`);
+        continue;
+      }
+      for (const t of group) {
+        const where = `${at} 第 ${i} 组`;
+        if (!(DIMS as readonly string[]).includes(t.dim)) {
+          say(`${where}：不认得的维度 ${t.dim}（认得的是 ${DIMS.join(" / ")}）`);
+          continue;
+        }
+        if (!(OPS as readonly string[]).includes(t.op)) {
+          say(`${where}：不认得的比法 ${t.op}（认得的是 ${OPS.join(" / ")}）`);
+          continue;
+        }
+        if (t.dim === "chain" || t.dim === "moment") {
+          if ((t.key ?? "").trim() !== "") say(`${where}：${t.dim} 维度不看属性，key 该留空`);
+          if (t.dim === "moment" && !(MOMENTS as readonly string[]).includes(t.value)) {
+            say(`${where}：不认得的时刻 ${t.value}（内核会喊到的是 ${MOMENTS.join(" / ")}）`);
+          }
+        } else if (!(dimKeys[t.dim] ?? []).includes(t.key ?? "")) {
+          say(`${where}：${t.dim} 上没有 ${t.key ?? "(空)"} 这一项（有的是 ${(dimKeys[t.dim] ?? []).join(" / ")}）`);
+        }
+        if (t.op === "in") {
+          try {
+            if (!Array.isArray(JSON.parse(t.value))) say(`${where}：in 的值得是一份列表，现在是 ${t.value}`);
+          } catch {
+            say(`${where}：in 的值不是能读的 JSON：${t.value}`);
+          }
+        }
+        // 关键词带空格 = 把几个词写一起了。系统不替你猜要的是相邻还是有序。
+        if (t.op !== "in" && /\s/.test(t.value) && t.dim !== "task") {
+          say(`${where}：值里带空格（${JSON.stringify(t.value)}）—— 拆成同一组的两条，别让系统猜`);
+        }
+      }
+    }
+  };
+
+  // ── 工具 ──────────────────────────────────────────────────────────────
+  const tools = new Set<string>();
+  for (const t of d.tools ?? []) {
+    const at = `tool ${t.name || "(没名字)"}`;
+    if (!t.name || !t.name.trim()) {
+      say(`有一个 tool 没名字`);
+      continue;
+    }
+    if (tools.has(t.name)) say(`${at}：这一份里出现了两次`);
+    tools.add(t.name);
+    if (!t.identity || !handleThere(t.identity)) {
+      say(`${at}：identity 是 ${t.identity ?? "(空)"}，但${noHandle(String(t.identity))}`);
+    }
+    if (!t.does) say(`${at}：没有 does —— 那是给模型看的描述，空着模型不知道它是干什么的`);
+    if (t.params === undefined || t.params === null) say(`${at}：没有 params —— 那是给模型看的参数 schema`);
+    if (t.output === undefined || t.output === null) say(`${at}：没有 output —— 那是给模型看的返回值 schema`);
+    checkWhen(at, t.when);
+    // 不是系统工具、又一条条件都没有 = 谁都拿不到它。**合法，但一定不是本意。**
+    if (!t.system && (t.when ?? []).length === 0) {
+      say(`${at}：不是系统工具，又一条触发条件都没有 —— 它永远不会被挂给任何一个智能体`);
+    }
+  }
+
+  // ── 规则 ──────────────────────────────────────────────────────────────
+  const rules = new Set<string>();
+  for (const r of d.rules ?? []) {
+    const at = `rule ${r.identity || "(没名字)"}`;
+    if (!r.identity || !r.identity.trim()) {
+      say(`有一个 rule 没有 identity`);
+      continue;
+    }
+    if (rules.has(r.identity)) say(`${at}：这一份里出现了两次`);
+    rules.add(r.identity);
+    if (!handleThere(r.identity)) {
+      say(`${at}：规则的 identity 就是句柄名，而${noHandle(r.identity)}`);
+    }
+    if (r.writes === undefined || r.writes === null) say(`${at}：没有 writes —— 它会动哪几张表怎么动，得声明出来`);
+    if (r.scope === undefined || r.scope === null) say(`${at}：没有 scope —— 它能动哪些行，得声明出来`);
+    checkWhen(at, r.when);
+    if ((r.when ?? []).length === 0) say(`${at}：一条触发条件都没有 —— 它永远不会被跑到`);
+  }
+
+  // ── skill ─────────────────────────────────────────────────────────────
+  const skills = new Set<string>();
+  for (const s of d.skills ?? []) {
+    const at = `skill ${s.identity || "(没名字)"}`;
+    if (!s.identity || !s.identity.trim()) {
+      say(`有一个 skill 没有 identity`);
+      continue;
+    }
+    if (skills.has(s.identity)) say(`${at}：这一份里出现了两次`);
+    skills.add(s.identity);
+    // `body` 留空 = 动态生成，那就得真有个句柄现给；写死了的就不用。
+    if (!s.body && !handleThere(s.identity)) {
+      say(`${at}：body 留空（动态生成），但${noHandle(s.identity)} —— 没人能把内容现给出来`);
+    }
+    if (!s.role) say(`${at}：没有 role`);
+    checkWhen(at, s.when);
+    if ((s.when ?? []).length === 0) say(`${at}：一条触发条件都没有 —— 它永远不会被塞进去`);
   }
 
   return bad;
@@ -337,6 +577,56 @@ export function apply(db: Conn, reg: Registry, d: Declare): Declared {
         [a.name, a.config ?? null, JSON.stringify(a.apis), a.unit, a.state ?? "idle"],
       );
     }
+
+    for (const h of d.handles ?? []) {
+      run(db, `insert into handle (name, expect_ms) values (?, ?) on conflict(name) do update set expect_ms = excluded.expect_ms`, [
+        h.name,
+        h.expectMs,
+      ]);
+    }
+
+    for (const t of d.tools ?? []) {
+      run(
+        db,
+        `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable)
+         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         on conflict(name) do update set identity = excluded.identity, does = excluded.does,
+           params = excluded.params, output = excluded.output, prompt = excluded.prompt,
+           concurrent = excluded.concurrent, system = excluded.system,
+           access = excluded.access, usable = excluded.usable`,
+        [
+          t.name, t.identity, t.does, JSON.stringify(t.params), JSON.stringify(t.output),
+          t.prompt ?? null, t.concurrent ? 1 : 0, t.system ? 1 : 0, t.access ?? null,
+          t.usable === false ? 0 : 1,
+        ],
+      );
+      putWhen(db, "tool", t.name, t.when);
+    }
+
+    for (const r of d.rules ?? []) {
+      run(
+        db,
+        `insert into rule (identity, does, params, writes, access, scope) values (?, ?, ?, ?, ?, ?)
+         on conflict(identity) do update set does = excluded.does, params = excluded.params,
+           writes = excluded.writes, access = excluded.access, scope = excluded.scope`,
+        [
+          r.identity, r.does, JSON.stringify(r.params), JSON.stringify(r.writes),
+          r.access === undefined ? null : JSON.stringify(r.access), JSON.stringify(r.scope),
+        ],
+      );
+      putWhen(db, "rule", r.identity, r.when);
+    }
+
+    for (const s of d.skills ?? []) {
+      run(
+        db,
+        `insert into skill (identity, does, params, body, role, usable) values (?, ?, ?, ?, ?, ?)
+         on conflict(identity) do update set does = excluded.does, params = excluded.params,
+           body = excluded.body, role = excluded.role, usable = excluded.usable`,
+        [s.identity, s.does, JSON.stringify(s.params), s.body ?? null, s.role, s.usable === false ? 0 : 1],
+      );
+      putWhen(db, "skill", s.identity, s.when);
+    }
     db.exec("commit");
   } catch (e) {
     db.exec("rollback");
@@ -352,10 +642,14 @@ export function apply(db: Conn, reg: Registry, d: Declare): Declared {
   }
 
   return {
+    handles: (d.handles ?? []).map((h) => h.name),
     places: (d.places ?? []).map((p) => p.place),
     modes: (d.modes ?? []).map((m) => m.mode),
     cycles: (d.modes ?? []).reduce((n, m) => n + m.cycles.length, 0),
     agents: (d.agents ?? []).map((a) => a.name),
+    tools: (d.tools ?? []).map((t) => t.name),
+    rules: (d.rules ?? []).map((r) => r.identity),
+    skills: (d.skills ?? []).map((s) => s.identity),
     tables: grown,
     entries,
   };
@@ -409,7 +703,85 @@ export function dump(db: Conn): Declare {
     state: r.state,
   }));
 
-  return { places, modes, agents };
+  // 句柄只导**外面注册进来的那些**（`http://`）。进程内的 `fn:` 是代码带来的，
+  // 导出去再回灌一遍毫无意义 —— 而且回灌到一台没有那段代码的机器上就是一条
+  // 谁都认领不了的句柄。
+  const handles = (all(db, `select name, expect_ms from handle where name like 'http://%' or name like 'https://%' order by name`) as {
+    name: string; expect_ms: number;
+  }[]).map((r) => ({ name: r.name, expectMs: r.expect_ms }));
+
+  const tools = (all(db, `select * from tool order by name`) as Record<string, unknown>[]).map((r) => ({
+    name: String(r.name),
+    identity: String(r.identity),
+    does: String(r.does),
+    params: safeJson(String(r.params), {}),
+    output: safeJson(String(r.output), {}),
+    prompt: (r.prompt as string | null) ?? null,
+    concurrent: Boolean(r.concurrent),
+    system: Boolean(r.system),
+    access: (r.access as string | null) ?? null,
+    usable: Boolean(r.usable),
+    when: whenOf(db, "tool", String(r.name)),
+  }));
+
+  const rules = (all(db, `select * from rule order by identity`) as Record<string, unknown>[]).map((r) => ({
+    identity: String(r.identity),
+    does: String(r.does),
+    params: safeJson(String(r.params), {}),
+    writes: safeJson(String(r.writes), {}),
+    scope: safeJson(String(r.scope), {}),
+    access: r.access == null ? null : safeJson(String(r.access), null),
+    when: whenOf(db, "rule", String(r.identity)),
+  }));
+
+  const skills = (all(db, `select * from skill order by identity`) as Record<string, unknown>[]).map((r) => ({
+    identity: String(r.identity),
+    does: String(r.does),
+    params: safeJson(String(r.params), {}),
+    body: (r.body as string | null) ?? null,
+    role: String(r.role),
+    usable: Boolean(r.usable),
+    when: whenOf(db, "skill", String(r.identity)),
+  }));
+
+  return { handles, places, modes, agents, tools, rules, skills };
+}
+
+/**
+ * 把一个 owner 的触发条件整组换掉。
+ *
+ * **整组换，不是逐条 upsert。** 少给一组就该是「删掉它」，而 upsert 会把它留在
+ * 库里 —— 那一组照样会命中，于是「我明明把条件改窄了」而它还是到处触发，零报错。
+ *
+ * `when` 整个不给（`undefined`）= 不动它现有的条件；给了空数组 = 明确清空。
+ * 这两件事不一样：前者是「这次没提」，后者是「我要它一条都没有」。
+ */
+function putWhen(db: Conn, kind: string, owner: string, when: WhenDecl | undefined): void {
+  if (when === undefined) return;
+  run(db, `delete from trigger where owner_kind = ? and owner = ?`, [kind, owner]);
+  for (const [i, group] of when.entries()) {
+    for (const t of group) {
+      run(
+        db,
+        `insert into trigger (owner_kind, owner, "group", dim, "key", op, value) values (?, ?, ?, ?, ?, ?, ?)`,
+        [kind, owner, i, t.dim, t.key ?? "", t.op, t.value],
+      );
+    }
+  }
+}
+
+/** 库里那个 owner 的条件读回来，还原成 `when` 的形状（外层组，组间 or）。 */
+function whenOf(db: Conn, kind: string, owner: string): WhenDecl {
+  const rows = all(db, `select "group", dim, "key", op, value from trigger where owner_kind = ? and owner = ? order by "group"`, [
+    kind,
+    owner,
+  ]) as { group: number; dim: string; key: string; op: string; value: string }[];
+  const by = new Map<number, TermDecl[]>();
+  for (const r of rows) {
+    const g = Number(r.group);
+    by.set(g, [...(by.get(g) ?? []), { dim: r.dim, key: r.key, op: r.op, value: r.value }]);
+  }
+  return [...by].sort((a, b) => a[0] - b[0]).map(([, terms]) => terms);
 }
 
 function safeJson(s: string, fallback: unknown): unknown {

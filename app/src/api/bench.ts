@@ -33,7 +33,13 @@ export function benchRoutes(store: Store, reg: Registry, sealed: Sealed, wake: (
       returns: { run: "2026-08-29T12-00-00", ids: ["b-1", "b-2"] },
       errs: [{ code: 400, when: "重名、一道题都没有、或者其中任一道过不了发布那道闸（整批都不发）" }],
       handler: async (a, _req, reply) => {
-        const r = runBench(store.rw, a as unknown as Bench, sealed);
+        // 同 `/tasks`：拒收是请求的问题，一律 400。
+        let r: unknown;
+        try {
+          r = runBench(store.rw, a as unknown as Bench, sealed);
+        } catch (e) {
+          return reply.code(400).send({ error: e instanceof Error ? e.message : String(e) });
+        }
         wake();
         return reply.code(201).send(r);
       },

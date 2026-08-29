@@ -141,7 +141,15 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
         { code: 400, when: "**这道题根本别发布**：id 重了、模式/地方没登记、来源不许带 G、G 过不了定义期检测" },
       ],
       handler: async (a, _req, reply) => {
-        const r = publish(store.rw, a as unknown as Publish, sealed);
+        // **发布这一路的拒收全是 400。** 「这道题根本别发布」是请求的问题，
+        // 不是系统坏了 —— 回 500 的话，客户端会当成服务端故障去重试，
+        // 而重试多少次结果都一样。
+        let r: unknown;
+        try {
+          r = publish(store.rw, a as unknown as Publish, sealed);
+        } catch (e) {
+          return reply.code(400).send({ error: e instanceof Error ? e.message : String(e) });
+        }
         wake();
         return reply.code(201).send(r);
       },
@@ -484,7 +492,26 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
 
         const limitMs = Number(t.solve_seconds) * 1000;
         if (String(t.state) !== "done" && String(t.state) !== "failed" && now - Number(t.created_at) > limitMs) {
-          problems.push(`整道题超过 solve_seconds=${String(t.solve_seconds)}s 了 —— 内核会判 failed`);
+          problems.push(`整道题超过 solveSeconds=${String(t.solve_seconds)}s 了 —— 内核会判 failed`);
+        }
+
+        // 内核推某一行时炸过的话，它把话落在了那一行的上下文里。**捞出来。**
+        // 只留在日志里的话，看日志的人和被卡住的人不是同一个 —— 而客户端手里只有接口。
+        for (const u of units) {
+          const table = tableNameOf("agent_{}_msg", String(u.agent));
+          if (!has(store, table)) continue;
+          for (const r of all(
+            store.ro,
+            `select body from "${table}" where instance = ? and unit = ? and kind = 'inject' and role = 'system'`,
+            [u.instance, u.unit],
+          ) as { body: string }[]) {
+            try {
+              const v = JSON.parse(r.body) as { stuck?: string };
+              if (v.stuck) problems.push(`${String(u.cycle)}#${String(u.unit)}：内核推它的时候炸了 —— ${v.stuck}`);
+            } catch {
+              // 不是那种记账行，跳过
+            }
+          }
         }
 
         return { id: t.id, state: t.state, movable: problems.length === 0, problems, stuckAt };

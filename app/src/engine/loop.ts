@@ -375,7 +375,28 @@ export class Kernel {
       // 失败的那条留给下面那个 deadline 定时器，超时了按判死处理。
       this.wake();
     } catch (e) {
-      this.#log.error(`${p.sub} ${p.task} ${p.cycle}#${p.unit} 走不下去：${msg(e)}`);
+      const why = msg(e);
+      this.#log.error(`${p.sub} ${p.task} ${p.cycle}#${p.unit} 走不下去：${why}`);
+      // **也落进库。** 只进日志的话，从接口上看这一行就是「不知为何不动」——
+      // 而客户端手里只有接口。日志在服务器上，看日志的人和被卡住的人不是同一个。
+      //
+      // 同一行的同一句只落一次：走不下去的行多半每一圈都会再试一次，
+      // 每次都落的话，一个配错的任务能把上下文表撑满。
+      const key = `走不下去 ${p.sub} ${p.task} ${p.cycle} ${p.unit} ${why}`;
+      if (!this.#cried.has(key)) {
+        this.#cried.add(key);
+        try {
+          deliver(this.#store.rw, {
+            agent: p.agent,
+            instance: p.instance,
+            unit: p.unit,
+            by: "kernel",
+            body: JSON.stringify({ stuck: why }),
+          });
+        } catch {
+          // 连这一行都落不进去（多半是子表还没长出来），那就只剩日志了
+        }
+      }
     }
   }
 
@@ -505,7 +526,12 @@ export class Kernel {
       }
     }
 
-    this.#restate(p.task, p.sub);
+    // 这一下把任务推到「全干完了」→ 喊 `task_done` 那一刻。
+    //
+    // **`MOMENTS` 里列了它，就必须真喊。** 列着不喊的话，挂在这一刻上的规则永远
+    // 不跑，而 `check` 看不出问题（条件合法）、日志上也没有一个字 —— 正是这台机器
+    // 最不该有的那种失败。
+    if (this.#restate(p.task, p.sub)) await this.#atMoment(p, facts, "task_done");
   }
 
   /**
@@ -519,8 +545,12 @@ export class Kernel {
    *
    * `failed` 推不出来 —— 它是**判定**的结果，不是数出来的。等验证函数那一块
    * 落地了由它显式写。现在硬凑一个的话，那一列就开始说谎。
+   *
+   * 回「这一下是不是刚好推到了 `done`」—— 上面那层据它喊 `task_done` 那一刻。
+   * 由这儿说而不是让上面自己再数一遍：数两遍就会漂，而漂了的表现是那一刻
+   * 要么不喊、要么喊两回。
    */
-  #restate(task: string, sub: string): void {
+  #restate(task: string, sub: string): boolean {
     const got = one(this.#store.ro, `select count(*) as n, coalesce(sum(done), 0) as d from "${sub}" where task = ?`, [
       task,
     ])!;
@@ -528,11 +558,13 @@ export class Kernel {
     const d = Number(got.d);
     const now = one(this.#store.ro, `select state from task where id = ?`, [task]);
     const was = String(now?.state ?? "");
-    if (was === "failed") return; // 判过失败的不许被数回去
+    if (was === "failed") return false; // 判过失败的不许被数回去
     const next = n === 0 ? "open" : d === n ? "done" : "claimed";
     run(this.#store.rw, `update task set state = ? where id = ?`, [next, task]);
+    const justDone = next === "done" && was !== "done";
     // 跑完了喊一声。**内核不知道那边会干什么** —— 判成没成不是它的事。
-    if (next === "done" && was !== "done") this.#hooks.onDone?.(task);
+    if (justDone) this.#hooks.onDone?.(task);
+    return justDone;
   }
 
   /**
