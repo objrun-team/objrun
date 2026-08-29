@@ -5,15 +5,31 @@
  *
  * **只有一条轴：进程内，还是进程外。** 名字的前缀说的就是它：
  *
- * | 前缀 | 实现在哪 | 谁来注册 |
- * | --- | --- | --- |
- * | `fn:` | 内核进程里，随二进制发 | 只能由代码调 `register` |
- * | `http://` `https://` | 另一个进程 | **往库里写一行就算注册完了** |
- *
- * `fn:` 那条外面**不许**注册 —— 库里写了个 `fn:` 而进程内没人注册过，那是错，
- * 当场就该说出来，不能等到真去调它那一刻。
+ * | 前缀 | 实现在哪 |
+ * | --- | --- |
+ * | `fn:` | **内核进程里** |
+ * | `http://` `https://` | 另一个进程 |
  *
  * 两边共用 `expect_ms`：调用超过这个时间就判死，**内外一视同仁**。
+ *
+ * ## 「进程内」不等于「必须编进二进制」
+ *
+ * 传不过来的是函数**对象**，不是函数**在哪儿**。所以 `fn:` 的实现有两个来源：
+ *
+ * | `handle.module` | 实现从哪儿来 | 谁写那一行 | 住在哪 |
+ * | --- | --- | --- | --- |
+ * | 留空 | 随二进制发 | 代码调 `register` | 主线程，裸函数调用 |
+ * | `路径#导出名` | 运行时装进来的插件 | **外面写一行就行** | 自己的 Worker（见 `plugin.ts`） |
+ *
+ * 两种都在这个进程里，都不过 OS 的进程边界。库里那一行的作用是一样的：
+ * **让内核知道系统里有这个函数**。
+ *
+ * 插件那条住在 Worker 里，是因为**生命周期的单位是 realm**：只有换掉整个 realm
+ * 才能真换版本、真卸载。代价是一次结构化克隆 —— 「能真卸载」和「零开销直接调」
+ * 在 JS 里换不到一起，那一条选了前者，随二进制发的这一条选了后者。
+ *
+ * 库里有一个 `fn:` 而进程内没人认领、`module` 也没给 —— 那才是错，当场就该说
+ * 出来，不能等到真去调它那一刻。
  *
  * ## MCP 不是第三类
  *
@@ -32,6 +48,7 @@
 
 import type { Conn } from "../H2H/db.ts";
 import { all, run } from "../H2H/db.ts";
+import { Plugins } from "./plugin.ts";
 
 /** 一次调用。参数和返回都是能过 JSON 的东西 —— 程序外那条路只能传这些。 */
 export type Handle = (arg: unknown) => Promise<unknown>;
@@ -42,19 +59,39 @@ export interface Entry {
   call: Handle;
   /** 进程内的函数，还是外面的接口。 */
   where: "in" | "out";
+  /**
+   * 运行时装进来的插件，实现在这个模块里（`路径#导出名`）。
+   *
+   * 随二进制发的那些没有这一项 —— 它们不该被「卸载」，也没地方去卸。
+   */
+  plugin?: string;
 }
 
 const IN = /^fn:/;
 const OUT = /^https?:\/\//;
 const MCP = /^mcp:/;
 
-/** 外面能不能注册这个名字。`fn:` 不行 —— 那是随二进制发的，写个名字换不出函数。 */
-export function registrable(name: string): boolean {
-  return OUT.test(name) || MCP.test(name);
+/**
+ * 外面能不能注册这个名字。
+ *
+ * `fn:` **能** —— 但得说清实现从哪儿来（`module`）。不说的话，库里就多了一条
+ * 谁都认领不了的句柄，而错要等到真去调它那一刻才冒出来。
+ */
+export function registrable(name: string, module?: string | null): boolean {
+  if (OUT.test(name) || MCP.test(name)) return true;
+  return IN.test(name) && Boolean(module && module.trim());
 }
 
 export class Registry {
   #by = new Map<string, Entry>();
+
+  /**
+   * 运行时装进来的插件住的地方 —— 一个插件一个 Worker。
+   *
+   * 放在这儿是因为**注册表就是「系统里有哪些函数」那张表**，而插件的建和毁跟
+   * 这张表是同一件事的两面：库里多一行就起一个，少一行就收一个。
+   */
+  readonly plugins = new Plugins();
 
   /**
    * 对表之前先喊一声。
@@ -74,7 +111,7 @@ export class Registry {
     if (!IN.test(name)) throw new Error(`进程内的句柄名要以 fn: 开头：${name}`);
     if (!Number.isFinite(expectMs) || expectMs <= 0) throw new Error(`${name} 的 expect_ms 得是个正数`);
     this.#by.set(name, { name, expectMs, call: fn, where: "in" });
-    run(db, `insert into handle (name, expect_ms) values (?, ?)
+    run(db, `insert into handle (name, expect_ms, module) values (?, ?, null)
              on conflict(name) do update set expect_ms = excluded.expect_ms`, [name, expectMs]);
   }
 
@@ -96,9 +133,13 @@ export class Registry {
    * - 进程内的句柄：库里有、进程里没人注册过 → **当场炸**。不炸的话，
    *   要等到某个任务真走到那一步才发现，而那时候已经在半路上了。
    */
-  sync(db: Conn): { added: string[]; missing: string[] } {
+  sync(db: Conn): { added: string[]; missing: string[]; dropped: string[] } {
     this.beforeSync?.();
-    const rows = all(db, `select name, expect_ms from handle`) as { name: string; expect_ms: number }[];
+    const rows = all(db, `select name, expect_ms, module from handle`) as {
+      name: string;
+      expect_ms: number;
+      module: string | null;
+    }[];
     const added: string[] = [];
     const missing: string[] = [];
     for (const r of rows) {
@@ -109,14 +150,38 @@ export class Registry {
       if (OUT.test(r.name)) {
         this.#by.set(r.name, { name: r.name, expectMs: r.expect_ms, where: "out", call: remote(r.name) });
         added.push(r.name);
+      } else if (IN.test(r.name) && r.module) {
+        // 进程内，实现在磁盘上 —— 住在自己的 worker 里。第一次调它的时候才起，
+        // 装表这一步不该因为一个插件写坏了就起不来。
+        const spec = r.module;
+        this.#by.set(r.name, {
+          name: r.name,
+          expectMs: r.expect_ms,
+          where: "in",
+          plugin: spec,
+          call: (arg) => this.plugins.call(r.name, spec, arg),
+        });
+        added.push(r.name);
       } else {
         missing.push(r.name);
       }
     }
+
+    // **库里没有了 = 真卸载。** 把那个 worker 收掉：代码、内存、它起的定时器
+    // 一起走。只从注册表里删掉的话，那些东西会一直留在进程里，而且没人看得见。
+    const inDb = new Set(rows.map((r) => r.name));
+    const dropped: string[] = [];
+    for (const [name, e] of this.#by) {
+      if (e.plugin === undefined || inDb.has(name)) continue;
+      this.plugins.drop(name);
+      this.#by.delete(name);
+      dropped.push(name);
+    }
+
     if (missing.length) {
       throw new Error(`库里登记了这些句柄，进程内没人注册过：${missing.join("、")}`);
     }
-    return { added, missing };
+    return { added, missing, dropped };
   }
 
   get(name: string): Entry {

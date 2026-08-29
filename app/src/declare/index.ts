@@ -108,11 +108,18 @@ export interface TermDecl {
  */
 export type WhenDecl = TermDecl[][];
 
-/** 外面注册进来的句柄。**只能是 `http://` / `https://`** —— 见下。 */
+/** 外面注册进来的句柄。 */
 export interface HandleDecl {
   name: string;
-  /** 调它多久算死。超过这个时间内核判死，内外一视同仁。 */
+  /** 调它多久算死。超过这个时间内核判死，**内外一视同仁**。 */
   expectMs: number;
+  /**
+   * `fn:` 的实现从哪儿来：`路径#导出名`（导出名不给就取 `default`）。
+   *
+   * **给了它，`fn:` 就能从外面注册** —— 那个模块在内核进程里跑，调用没有 IPC。
+   * 传不过来的是函数对象，不是函数在哪儿。进程外的句柄用不到这一项。
+   */
+  module?: string | null;
 }
 
 /** 一个工具。`identity` 指向一个句柄 —— 进程内的 `fn:` 或外面的 `http://`。 */
@@ -262,8 +269,12 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
     }
     if (handles.has(h.name)) say(`${at}：这一份里出现了两次`);
     handles.add(h.name);
-    if (!registrable(h.name)) {
-      say(`${at}：外面注册的句柄得是进程外的（http:// / https://）。fn: 是进程内的、随二进制发的，往库里写个名字换不出函数来`);
+    if (!registrable(h.name, h.module)) {
+      say(
+        `${at}：认得的是 http:// / https://（另一个进程），` +
+          `和 fn: 加上 module（进程内，实现在磁盘上，写成 路径#导出名）。` +
+          `光给一个 fn: 名字换不出函数来 —— 传不过来的是函数对象，不是函数在哪儿`,
+      );
     }
     if (!Number.isFinite(h.expectMs) || h.expectMs <= 0) say(`${at}：expectMs 得是个正数`);
   }
@@ -640,10 +651,12 @@ export async function apply(db: Conn, reg: Registry, pool: Servers, d: Declare):
     }
 
     for (const h of d.handles ?? []) {
-      run(db, `insert into handle (name, expect_ms) values (?, ?) on conflict(name) do update set expect_ms = excluded.expect_ms`, [
-        h.name,
-        h.expectMs,
-      ]);
+      run(
+        db,
+        `insert into handle (name, expect_ms, module) values (?, ?, ?)
+         on conflict(name) do update set expect_ms = excluded.expect_ms, module = excluded.module`,
+        [h.name, h.expectMs, h.module ?? null],
+      );
     }
 
     for (const t of d.tools ?? []) {

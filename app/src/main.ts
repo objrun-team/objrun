@@ -161,6 +161,7 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
         places.closeAll();
         sessions.closeAll();
         servers.closeAll();
+        registry.plugins.closeAll();
         sealed.close();
         app.store.close();
         process.exit(0);
@@ -190,6 +191,12 @@ if (badData.length) {
   app.log.warn(`库里有 ${badData.length} 处对不上：`);
   for (const b of badData.slice(0, 10)) app.log.warn(`  ${b.what}：${b.why}`);
 }
+
+// 插件那条路开机探一遍。**不拦启动** —— 没装插件的机器不该因为它起不来；
+// 但也不能不吭声，不然要等到某个任务真去调一个插件那一刻才发现。
+const plugBad = await registry.plugins.probe();
+if (plugBad) app.log.warn(plugBad);
+else app.log.info(`插件：${registry.plugins.host}`);
 
 kernel.start();
 app.log.info(`库 ${cfg.db.file}｜写 ${cfg.api.allowWrite ? "开" : "关"}｜令牌 ${cfg.api.token ? "要" : "不要"}`);
