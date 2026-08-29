@@ -113,6 +113,20 @@ export async function pull(
   for (const t of tools) {
     const o = overlay?.[t.name] ?? {};
     const identity = handleName(s.name, t.name);
+
+    // **重名当场拒。** `tool.name` 是模型看见的那个名字，全系统唯一；两个 server
+    // 都报 `deck_state` 的话，后来的那个会把前一个的 identity 顶掉 —— 库里还是
+    // 一行，看着一切正常，可它已经指到另一个 server 上去了。模型照调，调到的是
+    // 别人。这种错从外面一点都看不出来，所以只能在写进去之前拦。
+    const had = all(db, `select identity from tool where name = ?`, [t.name])[0] as
+      | { identity: string }
+      | undefined;
+    if (had && had.identity !== identity) {
+      throw new Error(
+        `工具名撞了：${t.name} 已经是 ${had.identity} 的了，server ${s.name} 也报了一个` +
+          `（要换的话先把旧那行删掉 —— 悄悄顶掉的话没人看得出来）`,
+      );
+    }
     run(db, `insert into handle (name, expect_ms) values (?, ?) on conflict(name) do update set expect_ms = excluded.expect_ms`, [
       identity,
       o.expectMs ?? defaults.expectMs,

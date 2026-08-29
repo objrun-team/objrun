@@ -2,8 +2,11 @@
  * 一个本机浏览器标签页上的那几个工具。
  *
  * ```
- * bun examples/place/tab-server.ts [认页面的那截字符串] [调试端口]
+ * bun examples/place/tab-server.ts <那一页的链接> [调试端口]
  * ```
+ *
+ * 链接是**这个地方的身份**，所以要整条给，不是给一截让它去猜 —— 同时开着两个
+ * deck 的时候，猜会连错一个，而且连错了看不出来。
  *
  * ## 它连的是什么
  *
@@ -27,8 +30,12 @@
  * 这个地方 `forward` 是关的 —— 工具不用转发到别处去，它本来就在本机。
  */
 
-const MATCH = process.argv[2] ?? "deck.html";
+const LINK = process.argv[2] ?? "";
 const PORT = Number(process.argv[3] ?? 9222);
+if (!LINK) {
+  process.stderr.write("要给那一页的链接：bun tab-server.ts <url> [调试端口]\n");
+  process.exit(1);
+}
 
 interface Target {
   id: string;
@@ -95,27 +102,34 @@ async function target(): Promise<Target> {
     throw new Error(`连不上 127.0.0.1:${PORT} —— 浏览器得带 --remote-debugging-port=${PORT} 起着`);
   }
   const pages = list.filter((t) => t.type === "page");
-  const hit = pages.find((t) => t.url.includes(MATCH) || t.title.includes(MATCH));
+  const hit = pages.find((t) => t.url === LINK);
   if (!hit) {
     const open = pages.map((t) => t.url).join("、") || "（一个都没开）";
-    throw new Error(`没有哪个标签页对得上「${MATCH}」。现在开着的是：${open}`);
+    throw new Error(`没有哪个标签页是 ${LINK}。现在开着的是：${open}`);
   }
   return hit;
 }
 
 let opening: Promise<WebSocket> | null = null;
+let live: string | null = null;
 
-/** 连一条，**只连一条** —— 同时来三个调用不该开出三条 WS 各排各的队。 */
+/**
+ * 连一条，**只连一条** —— 同时来三个调用不该开出三条 WS 各排各的队。
+ *
+ * 每次都先 `target()` 核一遍那条链接。**同一个标签页导航到别处，target id 不变、
+ * WS 也不断**，缓存着直接用的话，求值会落在新页上：拿回来的是
+ * 「window.deck 是 undefined」，看着像页面写坏了，其实是这个地方已经不在了。
+ */
 async function socket(): Promise<WebSocket> {
-  if (ws && ws.readyState === WebSocket.OPEN) return ws;
-  opening ??= open().finally(() => {
+  const t = await target();
+  if (ws && ws.readyState === WebSocket.OPEN && live === t.id) return ws;
+  opening ??= open(t).finally(() => {
     opening = null;
   });
   return await opening;
 }
 
-async function open(): Promise<WebSocket> {
-  const t = await target();
+async function open(t: Target): Promise<WebSocket> {
   if (!t.webSocketDebuggerUrl) throw new Error(`${t.url} 没给调试地址`);
   const s = new WebSocket(t.webSocketDebuggerUrl);
   await new Promise<void>((ok, fail) => {
@@ -136,8 +150,10 @@ async function open(): Promise<WebSocket> {
     for (const w of waiting.values()) w.fail(new Error("那个标签页的连接断了"));
     waiting.clear();
     ws = null;
+    live = null;
   };
   ws = s;
+  live = t.id;
   process.stderr.write(`[tab] 接上了 ${t.title}｜${t.url}\n`);
   return s;
 }
@@ -206,7 +222,7 @@ async function handle(m: { id?: number; method?: string; params?: unknown }): Pr
   return { jsonrpc: "2.0", id: m.id, error: { code: -32601, message: `不认得这个方法：${String(m.method)}` } };
 }
 
-process.stderr.write(`[tab] 起来了，认「${MATCH}」，调试端口 ${PORT}\n`);
+process.stderr.write(`[tab] 起来了，认 ${LINK}，调试端口 ${PORT}\n`);
 let buf = "";
 // 在途几个。stdin 关了就该收摊，但**手上还有没答完的不能走** ——
 // 那条 WS 会把进程一直吊着，所以收摊这件事得自己数着来。
