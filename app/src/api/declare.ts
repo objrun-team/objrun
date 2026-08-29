@@ -11,6 +11,7 @@ import type { Store } from "../H2H/db.ts";
 import { all } from "../H2H/db.ts";
 import { apply, dump, inspect, type Declare } from "../declare/index.ts";
 import { install } from "../install/index.ts";
+import type { Servers } from "../mcp/client.ts";
 import { openPlace } from "../place/index.ts";
 import type { Route } from "./spec.ts";
 
@@ -18,6 +19,16 @@ const DECL = "声明";
 
 /** 一份声明里的三样，参数表长一个样 —— 三个口共用，省得写三遍还写歪。 */
 const BUNDLE = [
+  {
+    name: "servers",
+    in: "body" as const,
+    kind: "array" as const,
+    of: "{ name, command?, args?, env?, url?, headers?, tools?: { <工具名>: { when?, expectMs?, system?, usable?, prompt?, concurrent? } } }",
+    note:
+      "MCP server。**形状跟 claude_desktop_config.json 里那个 mcpServers 一样**：`command`/`args`/`env` 起个子进程，" +
+      "或者 `url`/`headers` 走 HTTP。**有哪些工具是它自己用 `tools/list` 报的，你不用一个个写**；" +
+      "`tools` 那一项是我们补的（MCP 里没有这几样）。连不上当场拒",
+  },
   {
     name: "places",
     in: "body" as const,
@@ -85,7 +96,7 @@ const ALL_OR_NOTHING = {
   when: "一处不过整份不写。回 `problems`，**把全部问题一次说全** —— 一次说一条的话你得改一行发一次，十处错来回十趟",
 };
 
-export function declareRoutes(store: Store, reg: Registry, onWrite: () => void): Route[] {
+export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrite: () => void): Route[] {
   return [
     {
       method: "POST",
@@ -111,7 +122,9 @@ export function declareRoutes(store: Store, reg: Registry, onWrite: () => void):
       },
       errs: [ALL_OR_NOTHING],
       handler: async (a, _req, reply) => {
-        const r = apply(store.rw, reg, a as Declare);
+        // 连 server、拉 tools/list 都在这一步里，所以是 await。
+        // 连不上就抛 —— 声明一个连不上的 server 是错，得在动库之前说。
+        const r = await apply(store.rw, reg, pool, a as Declare);
         onWrite();
         return reply.code(201).send(r);
       },

@@ -26,11 +26,16 @@
 
 import type { Conn } from "../H2H/db.ts";
 import { all, run } from "../H2H/db.ts";
-import type { Registry } from "../engine/registry.ts";
+import { registrable, type Registry } from "../engine/registry.ts";
 import { DIMS, MOMENTS, OPS } from "../engine/trigger.ts";
+import type { Servers } from "../mcp/client.ts";
+import { inspectServer, pull, type ServerDecl } from "../mcp/register.ts";
 import { install, tableNameOf } from "../install/index.ts";
 import { MODE_NAMES } from "../llm/index.ts";
 import { hops } from "../place/index.ts";
+
+/** MCP 工具没说多久算死时给多少。一次工具调用，不是一次求解。 */
+export const MCP_EXPECT_MS = 120_000;
 
 /** 一个能干活的地方。 */
 export interface PlaceDecl {
@@ -166,6 +171,17 @@ export interface SkillDecl {
  * 可以合法地灌成「一半声明」，而错要等到跑起来才冒出来。
  */
 export interface Declare {
+  /**
+   * MCP server。**工具走 MCP，别自己定一套。**
+   *
+   * 形状跟 `claude_desktop_config.json` 里那个 `mcpServers` 一样：`command` /
+   * `args` / `env` 起个子进程，或者 `url` / `headers` 走 HTTP。有哪些工具是
+   * server 自己用 `tools/list` 报的 —— 你不用一个个写。
+   *
+   * `tools` 那一项是**我们补的**：什么时候把它摆给模型（`when`）、多久算死
+   * （`expectMs`）、要不要谁都有（`system`）。MCP 里没有这几样。
+   */
+  servers?: ServerDecl[];
   handles?: HandleDecl[];
   places?: PlaceDecl[];
   modes?: ModeDecl[];
@@ -177,6 +193,8 @@ export interface Declare {
 
 /** 灌完了，回什么。 */
 export interface Declared {
+  /** 每个 server 连上之后报了哪些工具。 */
+  servers: Record<string, string[]>;
   handles: string[];
   places: string[];
   modes: string[];
@@ -212,6 +230,18 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
   const bad: string[] = [];
   const say = (s: string) => bad.push(s);
 
+  // ── MCP server ────────────────────────────────────────────────────────
+  //
+  // 连不连得上要真去连，那是 `apply` 的事；这儿只看声明本身对不对。
+  const servers = new Set<string>();
+  for (const s of d.servers ?? []) {
+    for (const w of inspectServer(s)) say(w);
+    if (s.name) {
+      if (servers.has(s.name)) say(`server ${s.name}：这一份里出现了两次`);
+      servers.add(s.name);
+    }
+  }
+
   // ── 外面注册进来的句柄。**先验这一段** ────────────────────────────────
   //
   // 后面的模式、智能体、工具、规则、skill 都要引用句柄，所以得先知道这一份里
@@ -229,8 +259,8 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
     }
     if (handles.has(h.name)) say(`${at}：这一份里出现了两次`);
     handles.add(h.name);
-    if (!/^https?:\/\//.test(h.name)) {
-      say(`${at}：外面只能注册 http:// 或 https:// 的句柄 —— fn: 是进程内的真函数，往库里写个名字换不出函数来`);
+    if (!registrable(h.name)) {
+      say(`${at}：外面能注册的是 http:// / https://；工具走 MCP，声明一个 server（servers）让它自己报。fn: 是随二进制发的，往库里写个名字换不出函数来`);
     }
     if (!Number.isFinite(h.expectMs) || h.expectMs <= 0) say(`${at}：expectMs 得是个正数`);
   }
@@ -512,7 +542,7 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
  * 写完把子表现长出来（`install` 是幂等的）。不长的话，灌完声明还得重启一趟，
  * 「外面纯用 HTTP 把机器配起来」就断在这儿。
  */
-export function apply(db: Conn, reg: Registry, d: Declare): Declared {
+export async function apply(db: Conn, reg: Registry, pool: Servers, d: Declare): Promise<Declared> {
   const bad = inspect(db, reg, d);
   if (bad.length) {
     const e = new Error(`这份声明有 ${bad.length} 处不对，什么都没写`) as Error & {
@@ -525,6 +555,34 @@ export function apply(db: Conn, reg: Registry, d: Declare): Declared {
   }
 
   const before = new Set(tableNames(db));
+
+  // ── server 先连、先拉工具，**再开事务** ───────────────────────────────
+  //
+  // 连出去是要等的，而 SQLite 的事务里不该挂着等网络 —— 一个连不上的 server
+  // 能把库锁到超时。而且「连不上」本来就该在动库之前拒：声明一个连不上的
+  // server 是错，跟声明一个不存在的句柄一样。
+  const grew: Record<string, string[]> = {};
+  for (const s of d.servers ?? []) {
+    run(
+      db,
+      `insert into mcp_server (name, spec, note) values (?, ?, ?)
+       on conflict(name) do update set spec = excluded.spec, note = excluded.note`,
+      [
+        s.name,
+        JSON.stringify({
+          ...(s.command ? { command: s.command, args: s.args ?? [], env: s.env ?? {} } : {}),
+          ...(s.url ? { url: s.url, headers: s.headers ?? {} } : {}),
+        }),
+        null,
+      ],
+    );
+    grew[s.name] = await pull(db, pool, { ...s, name: s.name }, s.tools, { expectMs: MCP_EXPECT_MS });
+    // 工具是 server 报的，`when` 是我们补的 —— 补在这儿，跟别的 owner 一个写法。
+    for (const [tool, o] of Object.entries(s.tools ?? {})) {
+      if (o.when !== undefined) putWhen(db, "tool", tool, o.when as WhenDecl);
+    }
+  }
+
   db.exec("begin");
   try {
     for (const p of d.places ?? []) {
@@ -642,6 +700,7 @@ export function apply(db: Conn, reg: Registry, d: Declare): Declared {
   }
 
   return {
+    servers: grew,
     handles: (d.handles ?? []).map((h) => h.name),
     places: (d.places ?? []).map((p) => p.place),
     modes: (d.modes ?? []).map((m) => m.mode),

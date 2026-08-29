@@ -3,16 +3,22 @@
  *
  * **注册一律走内核**，因为只有内核这个进程持有得住函数。库里存的永远只是名字。
  *
- * 程序内和程序外在这儿分开：
+ * 三种，按名字的前缀分：
  *
- * - **程序内**（`fn:` 开头）：注册时交进来一个真函数。别的进程拿不到它，
- *   所以外面**不许**注册 `fn:` 的名字 —— 库里写了个 `fn:` 而进程内没人注册过，
- *   那是错，当场就该说出来，不能等到真去调它那一刻。
- * - **程序外**（`http://` / `https://`）：注册的是一个接口。**外面往库里写一行
- *   就算注册完了** —— 内核醒来时自己给它合成一个调用器。这条路不用碰内核代码，
- *   外部规则和外部工具就是这么接进来的。
+ * | 前缀 | 是什么 | 谁来注册 |
+ * | --- | --- | --- |
+ * | `fn:` | 内核进程里的函数，随二进制发 | 只能由代码调 `register` |
+ * | `http://` `https://` | 一个接口 | **往库里写一行就算注册完了** |
+ * | `mcp:<server>/<tool>` | 一个 MCP server 上的工具 | 声明那个 server，工具是它自己报的 |
  *
- * 两边共用一件事：`expect_ms`。调用超过这个时间就判死，内外一视同仁。
+ * `fn:` 那条外面**不许**注册 —— 库里写了个 `fn:` 而进程内没人注册过，那是错，
+ * 当场就该说出来，不能等到真去调它那一刻。
+ *
+ * `http://` 那条是给内核自己的扩展点用的（`agent.unit` / `cycle.infer` / 规则 /
+ * skill / G 的节点）—— 那些不是 MCP 的概念，MCP 只管工具。**工具走 MCP**，
+ * 别自己定一套：自己定的话，别人写好的 server 一个都用不了。
+ *
+ * 三种共用一件事：`expect_ms`。调用超过这个时间就判死，一视同仁。
  */
 
 import type { Conn } from "../H2H/db.ts";
@@ -31,9 +37,24 @@ export interface Entry {
 
 const IN = /^fn:/;
 const OUT = /^https?:\/\//;
+const MCP = /^mcp:/;
+
+/** 外面能不能注册这个名字。`fn:` 不行 —— 那是随二进制发的，写个名字换不出函数。 */
+export function registrable(name: string): boolean {
+  return OUT.test(name) || MCP.test(name);
+}
 
 export class Registry {
   #by = new Map<string, Entry>();
+
+  /**
+   * 对表之前先喊一声。
+   *
+   * MCP 那条路要用：库里可能刚登记了一个 server，它的工具句柄还没人认领。
+   * 这一声给它一个机会把调用器补上，**补完再对**，不然 `sync` 会说「没人注册过」
+   * 而那不是实情 —— 只是还没轮到它装。
+   */
+  beforeSync: (() => void) | null = null;
 
   /**
    * 注册一个**进程内**的句柄：把函数收下，同时往 `handle` 表登记。
@@ -49,6 +70,17 @@ export class Registry {
   }
 
   /**
+   * 收下一个**已经在库里登记过**的句柄的调用器。
+   *
+   * 跟 `register` 的分别：`register` 是「我这儿有个函数，替我登记一行」；
+   * `adopt` 是「库里那一行的调用器我给你合成好了」。MCP 那条路走这个 ——
+   * 工具是 server 报的，行早就写进去了，这儿只是把调用器补上。
+   */
+  adopt(name: string, expectMs: number, fn: Handle): void {
+    this.#by.set(name, { name, expectMs, call: fn, where: "out" });
+  }
+
+  /**
    * 照着库里的 `handle` 表对一遍。**这是那两层核对里的第二层。**
    *
    * - 外面的接口：注册表里没有就现合成一个调用器 —— 外部注册就是这么生效的。
@@ -56,6 +88,7 @@ export class Registry {
    *   要等到某个任务真走到那一步才发现，而那时候已经在半路上了。
    */
   sync(db: Conn): { added: string[]; missing: string[] } {
+    this.beforeSync?.();
     const rows = all(db, `select name, expect_ms from handle`) as { name: string; expect_ms: number }[];
     const added: string[] = [];
     const missing: string[] = [];

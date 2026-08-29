@@ -23,6 +23,8 @@ import { build } from "./H2H/server.ts";
 import { install } from "./install/index.ts";
 import { registerVendors, seedModes } from "./llm/index.ts";
 import { registerDuplex, Sessions } from "./llm/duplex.ts";
+import { Servers } from "./mcp/client.ts";
+import { attach } from "./mcp/register.ts";
 import { evaluate } from "./objective/run.ts";
 import { openSealed } from "./objective/store.ts";
 import { seedKinds } from "./msg/deliver.ts";
@@ -54,6 +56,14 @@ app.log.info(
 // 内核下一圈醒来自己给它合成调用器。
 const registry = new Registry();
 const places = new Places(app.store.ro);
+
+// MCP server 池。**工具走 MCP** —— 注册的是一个 server，有哪些工具它自己报。
+// 起着的子进程和连接是活状态，跟位置一样不进库；停机时全关。
+const servers = new Servers();
+
+// 库里登记的 MCP 工具，每圈把调用器装上。**新登记一个 server，下一圈就有了** ——
+// 不用重启。这一步得排在内核起来之前，不然第一圈会说「句柄没人注册」。
+registry.beforeSync = () => attach(app.store.rw, registry, servers);
 
 // 验证函数 G 的封存区。**单独一个库，H2H 不开它** —— 主库全接口开放，
 // G 存主库就等于没有墙。红线靠「够不着」，不靠「规定不许」。
@@ -119,7 +129,7 @@ app.log.info(`实时轨：${duplexHandles.join("、")}`);
 // 被错误地拒，当场看得出来。参数表同时就是**校验**，也就是客户端的操作范围。
 const kernelRoutes = [
   ...aboutRoutes(cfg.api.prefix, app.store, VERSION, duplexHandles),
-  ...declareRoutes(app.store, registry, () => wake()),
+  ...declareRoutes(app.store, registry, servers, () => wake()),
   ...taskRoutes(app.store, registry, sealed, () => wake()),
   ...benchRoutes(app.store, registry, sealed, () => wake()),
 ];
@@ -142,6 +152,7 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
         kernel.stop();
         places.closeAll();
         sessions.closeAll();
+        servers.closeAll();
         sealed.close();
         app.store.close();
         process.exit(0);

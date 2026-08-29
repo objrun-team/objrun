@@ -501,6 +501,31 @@
       ]
     },
     {
+      "name": "mcp_server",
+      "_": "登记一个 MCP server。工具不用在这儿写 —— 连上之后它自己用 tools/list 报，一个工具长一行 tool。",
+      "columns": [
+        {
+          "name": "name",
+          "type": "text",
+          "notnull": true,
+          "_": "叫什么。句柄名是 mcp:<name>/<tool>，所以里面不能有 /"
+        },
+        {
+          "name": "spec",
+          "type": "text",
+          "notnull": true,
+          "_": "怎么起。JSON，跟 MCP 客户端配置里那个形状一样：{command,args,env} 或 {url,headers}。**密钥只存环境变量名**"
+        },
+        {
+          "name": "note",
+          "type": "text"
+        }
+      ],
+      "pk": [
+        "name"
+      ]
+    },
+    {
       "name": "msg_kind",
       "_": "登记消息类型。加一种 = 加一行，别的表不动。",
       "columns": [
