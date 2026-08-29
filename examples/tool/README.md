@@ -1,20 +1,29 @@
 # 注册工具
 
-**只有一条路：声明一个 MCP server。** 区别只在这个 server 在哪儿。
+**一个工具就是 `tool` 表里的一行。** 行上的 `identity` 指一条句柄，句柄只有一条轴：
 
-| server 在哪 | 怎么写 |
+| 句柄 | 实现在哪 | 外面能注册吗 |
+| --- | --- | --- |
+| `fn:…` | 内核进程里，随二进制发 | 不能（函数传不过来）。但能引用已有的 |
+| `http://…` | 另一个进程 | 能，写一行就是了 |
+
+**注册就是写那一行。** 写法有两种，落到库里是同样的行：
+
+| | |
 | --- | --- |
-| [引擎自带](#引擎自带的那个) | 出厂就在，也从 `POST $BASE/mcp` 开给外面 |
-| [本机子进程](#本机子进程) | `command` / `args` / `env` |
-| [别的机器](#别的机器) | 同上，命令前缀 `ssh box-7` / `wsl --`；或者 `url` |
+| [一条一条写](#一条一条写) | `tools[]`，自己给 `identity` / `does` / `params` / `output` |
+| [让 server 自己报](#让-server-自己报) | `servers[]`，声明一个 MCP server，它用 `tools/list` 报一堆 |
+
+MCP 不是第三类句柄，是这两边**说话的方式** —— 协议本身进程内外都支持，
+决定边界的是传输（内存 / stdio 子进程 / HTTP）。
 
 先做 [`../`](../) 的快速启动。
 
 ---
 
-## 引擎自带的那个
+## 出厂就有的
 
-六个工具随二进制发，`system: true` —— 谁都有，不看条件。
+六个工具随二进制发，`identity` 是 `fn:tool.*`，`system: true` —— 谁都有，不看条件。
 
 ```bash
 curl -s $BASE/tools | grep -o '"name":"[^"]*"'
@@ -74,7 +83,59 @@ curl -s "$BASE/tasks/t-1/messages?kind=inject" | grep -o '"tools":\[[^]]*\]'
 
 ---
 
-## 本机子进程
+## 一条一条写
+
+实现在进程外：先声明句柄，再写工具那一行。
+
+```bash
+curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
+{
+  "handles": [{ "name": "http://127.0.0.1:7898/dice", "expectMs": 10000 }],
+  "tools": [{
+    "name": "dice",
+    "identity": "http://127.0.0.1:7898/dice",
+    "does": "掷一个 n 面骰子",
+    "params": { "type":"object", "properties": { "sides": {"type":"integer"} }, "required":["sides"] },
+    "output": { "type":"object", "properties": { "value": {"type":"integer"} } },
+    "when": [[{ "dim":"task", "key":"description", "op":"contains", "value":"骰子" }]]
+  }]
+}
+JSON
+```
+```json
+{"handles":["http://127.0.0.1:7898/dice"],"tools":["dice"],
+ "servers":{},"places":[],"modes":[],"cycles":0,"agents":[],
+ "rules":[],"skills":[],"tables":[],"entries":{}}
+```
+
+那个地址收一份 JSON、回一份 JSON：
+
+```jsonc
+// 收到
+{ "args": { "sides": 20 }, "place": "local", "agent": "bot", "instance": "t-b#1", "unit": 2 }
+// 回
+{ "sides": 20, "value": 1 }
+```
+
+### 案例
+
+```bash
+curl -s -X POST $BASE/tasks -H 'content-type: application/json' -d @- <<'JSON'
+{ "id":"t-b", "mode":"work", "agent":"bot", "place":"local", "source":"user",
+  "description":"帮我掷一个 20 面的骰子，把点数告诉我，然后就结束" }
+JSON
+
+curl -s "$BASE/tasks/t-b/messages?kind=tool" | grep -o '"value":{[^}]*}'
+curl -s "$BASE/tasks/t-b/messages?kind=prompt" | grep -o '"body":"[^"]*"' | tail -1
+```
+```
+"value":{"sides":20,"value":1}
+"body":"掷出的点数是 **1**。\n\n结束。"
+```
+
+---
+
+## 让 server 自己报
 
 [`meetkit.ts`](./meetkit.ts) 是个普通 MCP server —— 操作已登录的浏览器，进已预约的会。
 
@@ -105,26 +166,21 @@ JSON
 
 ```bash
 curl -s -X POST $BASE/tasks -H 'content-type: application/json' -d @- <<'JSON'
-{ "id":"t-2", "mode":"chat1", "agent":"bot", "place":"local",
-  "source":"user", "description":"进那个已经预约好的会议做一次汇报" }
+{ "id":"t-c", "mode":"work", "agent":"bot", "place":"local", "source":"user",
+  "description":"先看一下浏览器状态，这是会议相关的准备，看完就结束" }
 JSON
 
-curl -s "$BASE/tasks/t-2/messages?kind=inject" | grep -o '"tools":\[[^]]*\]'
+curl -s "$BASE/tasks/t-c/messages?kind=inject" | grep -o '"tools":\[[^]]*\]' | head -1
+curl -s "$BASE/tasks/t-c/messages?kind=tool"   | grep -o '"value":{[^}]*}'
 ```
 ```
-"tools":["read","write","edit","glob","grep","browser_status","meet_join","meet_leave","share_open"]
-```
-
-```bash
-curl -s "$BASE/tasks/t-2/messages?kind=call" | grep -o '"name":"[^"]*","input":[^}]*}'
-```
-```
-"name":"browser_status","input":{}
+"tools":["read","write","edit","glob","grep","bash","browser_status","meet_join","meet_leave","share_open"]
+"value":{"running":true,"profile":"meetkit-chrome","loggedIn":true}
 ```
 
 ---
 
-## 别的机器
+## 换个位置跑
 
 远程没有第二种含义：**命令前缀**。
 

@@ -172,11 +172,14 @@ export interface SkillDecl {
  */
 export interface Declare {
   /**
-   * MCP server。**工具走 MCP，别自己定一套。**
+   * MCP server —— **一条批量来源**，不是另一种注册方式。
    *
    * 形状跟 `claude_desktop_config.json` 里那个 `mcpServers` 一样：`command` /
    * `args` / `env` 起个子进程，或者 `url` / `headers` 走 HTTP。有哪些工具是
-   * server 自己用 `tools/list` 报的 —— 你不用一个个写。
+   * server 自己用 `tools/list` 报的 —— 省得一个个写。
+   *
+   * **想一个个写也行**：`tools` 那一项直接给，`identity` 指一条 `http://` 句柄。
+   * 两条路落到库里是同样的行。
    *
    * `tools` 那一项是**我们补的**：什么时候把它摆给模型（`when`）、多久算死
    * （`expectMs`）、要不要谁都有（`system`）。MCP 里没有这几样。
@@ -260,7 +263,7 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
     if (handles.has(h.name)) say(`${at}：这一份里出现了两次`);
     handles.add(h.name);
     if (!registrable(h.name)) {
-      say(`${at}：外面能注册的是 http:// / https://；工具走 MCP，声明一个 server（servers）让它自己报。fn: 是随二进制发的，往库里写个名字换不出函数来`);
+      say(`${at}：外面注册的句柄得是进程外的（http:// / https://）。fn: 是进程内的、随二进制发的，往库里写个名字换不出函数来`);
     }
     if (!Number.isFinite(h.expectMs) || h.expectMs <= 0) say(`${at}：expectMs 得是个正数`);
   }

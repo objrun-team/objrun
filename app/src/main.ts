@@ -59,8 +59,8 @@ app.log.info(
 const registry = new Registry();
 const places = new Places(app.store.ro);
 
-// MCP server 池。**工具走 MCP** —— 注册的是一个 server，有哪些工具它自己报。
-// 起着的子进程和连接是活状态，跟位置一样不进库；停机时全关。
+// MCP server 池。声明一个 server 是**一条批量来源** —— 它自己报有哪些工具，
+// 替你把那些行写出来。起着的子进程和连接是活状态，跟位置一样不进库；停机时全关。
 const servers = new Servers();
 
 // 库里登记的 MCP 工具，每圈把调用器装上。**新登记一个 server，下一圈就有了** ——

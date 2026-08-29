@@ -25,8 +25,8 @@ const BUNDLE = [
     kind: "array" as const,
     of: "{ name, command?, args?, env?, url?, headers?, tools?: { <工具名>: { when?, expectMs?, system?, usable?, prompt?, concurrent? } } }",
     note:
-      "MCP server。**形状跟 claude_desktop_config.json 里那个 mcpServers 一样**：`command`/`args`/`env` 起个子进程，" +
-      "或者 `url`/`headers` 走 HTTP。**有哪些工具是它自己用 `tools/list` 报的，你不用一个个写**；" +
+      "MCP server —— **一条批量来源**，不是另一种注册方式。形状跟 claude_desktop_config.json 里那个 mcpServers 一样：" +
+      "`command`/`args`/`env` 起个子进程，或者 `url`/`headers` 走 HTTP。有哪些工具是它自己用 `tools/list` 报的，省得一个个写；" +
       "`tools` 那一项是我们补的（MCP 里没有这几样）。连不上当场拒",
   },
   {
@@ -55,14 +55,14 @@ const BUNDLE = [
     in: "body" as const,
     kind: "array" as const,
     of: "{ name, expectMs }",
-    note: "外面注册进来的句柄。**只能是 `http://` / `https://`** —— `fn:` 是进程内的真函数，往库里写个名字换不出函数来。`expectMs` 是多久算死",
+    note: "进程外的句柄（`http://` / `https://`）。`fn:` 是进程内的、随二进制发的，外面注册不了。`expectMs` 是多久算死，**内外一视同仁**",
   },
   {
     name: "tools",
     in: "body" as const,
     kind: "array" as const,
     of: "{ name, identity, does, params, output, prompt?, concurrent?, system?, usable?, when? }",
-    note: "工具。`identity` 指一个句柄；`does`/`params`/`output` 是**给模型看的**。`system: true` 的所有智能体一上来就有，不看 `when`",
+    note: "一条一条地写工具。`identity` 指一个句柄 —— 进程内的 `fn:` 或进程外的 `http://`。`does`/`params`/`output` 是**给模型看的**。想让 server 自己报就用 `servers`，落到库里是同样的行",
   },
   {
     name: "rules",
