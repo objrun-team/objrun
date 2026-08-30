@@ -117,6 +117,15 @@ try {
   show("the stations it walked:", t.units.map((u) => `${String(u.cycle)}#${String(u.unit)}`));
   ok("it reached the hand-in step", t.units.some((u) => u.cycle === "submit"), t.units);
   ok("and it passed", t.state === "done", t.state);
+  // **G 收到的得是那段话本身。** 递原始 result 的话它拿到的是 `{text, calls}`
+  // 整坨 JSON —— 判卷那一侧只会说「没找到答案」，而看日志像是模型没答。
+  // 实测就这么判错过一整跑。
+  show("what the grading function received as the answer:", (graded.at(-1) as { input?: { result?: unknown } })?.input?.result);
+  ok(
+    "the grading function received the words themselves, not a JSON blob",
+    ((graded.at(-1) as { input?: { result?: { body?: unknown } } })?.input?.result?.body) === "the answer is 42",
+    (graded.at(-1) as { input?: { result?: unknown } })?.input?.result,
+  );
   ok(
     "the verdict was taken at the hand-in step, not at the working one",
     t.units.find((u) => u.status === "reached")?.cycle === "submit",

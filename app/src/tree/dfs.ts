@@ -372,7 +372,10 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
       // 两个时刻，但问的是同一个 G。它刚验过的正是这一份的话，那次判决就是这一次
       // 的答案 —— 再打一遍判卷台只是多花一次钱，还多一次抖动的机会。
       const had = verdictFor(db, inst, said);
-      const v = had ?? (await evaluate(g, reg, { task: a.task, chain: a.chain, result: a.result }));
+      // **递出去的是挖出来的那一份，不是原始 result。** 原样递的话，G 那一侧
+      // 拿到的是 `{text, calls}` 整坨 JSON —— 上面那几行把答案挖出来就白挖了。
+      // 形状跟收尾那一路对齐（`main.ts`：`result: {body}`），一个 G 脚本两处都能用。
+      const v = had ?? (await evaluate(g, reg, { task: a.task, chain: a.chain, result: { kind: "prompt", body: said } }));
 
       // **判决要落进上下文**，不能只进日志。投成「一次带结果的工具调用」——
       // 它是外部的、这一次的观测，正好是 tool 结果的语义。
