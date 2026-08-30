@@ -30,17 +30,22 @@ openai / anthropic / google-genai / tqdm / dotenv —— 那是它「拿模型�
 发题时也把 `solution` 摘掉 —— 答案不出这个进程。G 封存在引擎另一个库里，主库全接口
 开放也翻不出来。
 
-**但这不是隔离，别当成隔离。** solver 的 `bash` 跟引擎在同一台机器上，于是：
+**但这不是隔离，别当成隔离。** solver 的 `bash` 跟引擎在同一台机器上，于是
+`wsl.exe -- docker exec cmt-grader cat /oracle/cmt_data.jsonl` 就是整本答案 ——
+实测走过，**一个漏洞都没用到**（`wsl.exe` 在 system32 里，账号在 docker 组里）。
+装容器改的是路径，不是可达性。这一条是有意留着的（一圈够长了）；真堵死得把 solver
+自己关进沙箱，那是 `place` 这一维的事，见 README「真要挡住 GT」。
 
-    wsl.exe -- docker exec cmt-grader cat /oracle/cmt_data.jsonl     ← 整本答案
-    curl 127.0.0.1:7901/equiv                                        ← 免费验证 oracle
+## `/parsed` `/equiv` 可达**不是**洞
 
-两条都实测走过，**一个漏洞都没用到** —— `wsl.exe` 在 system32 里，账号在 docker 组里。
-装容器改的是路径，不是可达性。往句柄名里塞 token 也不行：句柄是主库 `handle` 表里
-的一行，`/query` 一条 SQL 就读出来。
+它俩回的是判决 —— 而判决本来就是给智能体的：判死之后投进它的上下文，它也可以主动
+调 `verify` 来问（`app/src/objective/tool.ts`）。同一份信息，不能主动给的时候叫机制、
+它自己问的时候叫作弊。
 
-这几条是**有意留着的**（一圈够长了）。真堵死得把 solver 自己关进沙箱 ——
-那是 `place` 这一维的事，见 README「真要隔离 solver」。
+会被刷的是**次数**（无限问 = 完美 oracle 下的 best-of-N），但那是预算问题，
+闸在树那边：`max_branches` / `max_dead_siblings` / `solve_seconds`。
+
+要藏的自始至终只有一样：`solution`。它不出这个进程。
 """
 
 from __future__ import annotations

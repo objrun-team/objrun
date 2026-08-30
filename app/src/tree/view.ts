@@ -21,6 +21,7 @@ import type { Conn } from "../H2H/db.ts";
 import { all, run } from "../H2H/db.ts";
 import type { Registry } from "../engine/registry.ts";
 import { tableNameOf } from "../install/index.ts";
+import { whereAmI } from "../tasks/where.ts";
 
 type Row = Record<string, unknown>;
 
@@ -32,18 +33,6 @@ interface At {
   unit?: number;
   task?: Row;
   sub?: string;
-}
-
-/** 这个实例是哪个任务、哪张子表。**从库里问，不靠调用方传** —— 传的会漏。 */
-function whereAmI(db: Conn, instance: string): { task: string; sub: string } | null {
-  for (const m of all(db, `select distinct mode from cycle`) as { mode: string }[]) {
-    const sub = tableNameOf("task_{}", m.mode);
-    const r = all(db, `select task from "${sub}" where instance = ? limit 1`, [instance])[0] as
-      | { task: string }
-      | undefined;
-    if (r) return { task: r.task, sub };
-  }
-  return null;
 }
 
 const TREE_TOOL = {

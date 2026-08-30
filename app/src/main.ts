@@ -30,6 +30,7 @@ import { evaluate } from "./objective/run.ts";
 import { openSealed } from "./objective/store.ts";
 import { deliverVerdict, seedKinds } from "./msg/deliver.ts";
 import { registerTree } from "./tree/dfs.ts";
+import { registerVerifyTool } from "./objective/tool.ts";
 import { registerTreeView } from "./tree/view.ts";
 import { check } from "./trigger/check.ts";
 import { checkData } from "./trigger/data.ts";
@@ -181,6 +182,9 @@ app.log.info(`树：${registerTree(app.store.rw, registry, sealed).join("、")}`
 // 树自省那两个工具。**不是 system 工具** —— 按 mode 分发：条件是「这一站的推断函数
 // 走不走树」，所以一条道走到黑的单链机制一个都拿不到（它本来就直接继承上下文）。
 app.log.info(`树自省：${registerTreeView(app.store.rw, registry, "fn:infer.dfs").join("、")}`);
+// **有 G 就能问 G。** 判决本来每轮就投进上下文（名字也叫 verify），
+// 补上这个工具那条轨迹才名副其实 —— 见 `objective/tool.ts`。
+app.log.info(`复核：${registerVerifyTool(app.store.rw, registry, sealed)}`);
 
 // 认得的消息类型。**取值就是那条「谁放的 → kind」推断表的值域** —— 灌进来是
 // 为了让 check 和人都能查得到，不是让谁去填。

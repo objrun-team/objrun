@@ -76,7 +76,11 @@ const tasks = items.map((it) => ({
     `\n把最终答案放进 \\boxed{} 里。`,
   objective,
   // 带 G 就必须显式给：这道题的智能体读不读得到 G 的定义。
-  readable: false,
+  //
+  // **给 true。** 要藏的只有 GT，不是验收标准 —— 「答案得在 \boxed{} 里、
+  // 而且要被官方 parser 读得出来」本来就该让它知道。藏着的那一跑五道里两道
+  // 死在 parsed=False：不是不会做，是不知道尺子长什么样。
+  readable: true,
 }));
 
 const res = await fetch(`${BASE}/bench`, {

@@ -19,9 +19,14 @@ import { checkValue, domainText, type Node, type Objective } from "./spec.ts";
 export interface Verdict {
   /** 判决。**只有 0 和 1。** */
   pass: 0 | 1;
-  /** 归 0 的原因（判 1 时为空）。给我们看的，**不给智能体**。 */
+  /**
+   * 归 0 的原因（判 1 时为空）。
+   *
+   * **这一栏给智能体**（`deliverVerdict` 和 `verify` 都带上它）—— 只给 0/1 的话
+   * 它只知道错了不知道错在哪，下一条分支多半原样再来一遍。要藏的是 GT，不是判决。
+   */
   why: string;
-  /** 每个节点算出了什么。同样只给我们看。 */
+  /** 每个节点算出了什么。**这一栏只给我们排障看**，不出这一层。 */
   trace: { node: string; value: unknown; error?: string }[];
 }
 
