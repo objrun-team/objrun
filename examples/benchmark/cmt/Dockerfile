@@ -12,29 +12,51 @@ FROM python:3.12-slim
 
 # 官方判据钉在这个 commit。setup.sh 那条路（WSL venv）拉的也是它。
 ARG HARNESS_REF=c114183
+ARG HARNESS_URL=https://github.com/JamesRoggeveen/cmt_benchmark_data/archive
 ARG DATA_URL=https://huggingface.co/datasets/JVRoggeveen/cmt_benchmark/resolve/main/cmt_data.jsonl
 
+# `ARG` 在 `RUN` 里读不到，得转成 `ENV` —— 顺带镜像自己也就记下了它是从哪个版本建的。
 ENV TGENGIN_CMT_HOME=/oracle \
     TGENGIN_CMT_PORT=7901 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    HARNESS_REF=${HARNESS_REF} \
+    HARNESS_URL=${HARNESS_URL} \
+    DATA_URL=${DATA_URL}
 
-RUN apt-get update \
- && apt-get install -y --no-install-recommends git curl ca-certificates \
- && rm -rf /var/lib/apt/lists/*
-
-# **只装判卷那条路要的三个。** 官方 pyproject 还列着 openai / anthropic /
-# google-genai / datasets / matplotlib —— 那是它「拿模型跑一遍」和「画图」那半边要的。
-# 版本照抄官方 pin。
+# **不装 apt 包。** 拉两个文件而已，python 自带 urllib 和 tarfile 就够了 ——
+# 装 git/curl 要走 deb.debian.org 的明文 HTTP，在代理后面容易 502（实测卡在这儿），
+# 而且它们会留在镜像里：这是个放着答案的容器，能少一样是一样。
+#
+# 只装判卷那条路要的三个。官方 pyproject 还列着 openai / anthropic / google-genai /
+# datasets / matplotlib —— 那是它「拿模型跑一遍」和「画图」那半边要的。版本照抄官方 pin。
 RUN pip install --no-cache-dir "sympy==1.13.3" "numpy==2.2.5" "regex==2024.11.6"
 
 WORKDIR /oracle
-RUN mkdir -p /oracle/vendor \
- && git clone --no-checkout https://github.com/JamesRoggeveen/cmt_benchmark_data \
-      /oracle/vendor/cmt_benchmark_data \
- && git -C /oracle/vendor/cmt_benchmark_data checkout "$HARNESS_REF" \
- && rm -rf /oracle/vendor/cmt_benchmark_data/.git \
- && curl -sSL -o /oracle/cmt_data.jsonl "$DATA_URL" \
- && wc -l < /oracle/cmt_data.jsonl
+RUN <<'PY' python
+import io, os, tarfile, urllib.request, pathlib
+
+ref, base, data = os.environ["HARNESS_REF"], os.environ["HARNESS_URL"], os.environ["DATA_URL"]
+
+def get(url):
+    with urllib.request.urlopen(url, timeout=120) as r:
+        return r.read()
+
+# 官方判据：拿 tarball，不用 git —— 顺带也就没有 .git 留在镜像里。
+raw = get(f"{base}/{ref}.tar.gz")
+with tarfile.open(fileobj=io.BytesIO(raw), mode="r:gz") as tf:
+    root = tf.getnames()[0].split("/")[0]
+    tf.extractall("/oracle/vendor", filter="data")
+os.rename(f"/oracle/vendor/{root}", "/oracle/vendor/cmt_benchmark_data")
+assert pathlib.Path("/oracle/vendor/cmt_benchmark_data/src/cmtbench/evaluator.py").exists(), "官方判据没解出来"
+print(f"判据 {ref} 解好了")
+
+# 题库
+book = get(data)
+pathlib.Path("/oracle/cmt_data.jsonl").write_bytes(book)
+n = sum(1 for line in book.splitlines() if line.strip())
+assert n == 50, f"题库该是 50 行，拿到 {n} 行"
+print(f"题库 {n} 行")
+PY
 
 # grader.py 单独一层：改它不用重拉题库和判据。
 COPY grader.py /app/grader.py

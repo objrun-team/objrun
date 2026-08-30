@@ -157,7 +157,55 @@ docker compose -f examples/benchmark/cmt/compose.yaml up -d --build
 `compose.yaml` 里 `127.0.0.1:7901:7901` 的 `127.0.0.1:` 别去掉：不写的话 Docker 会把
 这个口发布到所有网卡，判卷台就从「本机一个进程」变成「局域网里谁都能打」。
 
+验它，**从 Windows 那侧打**（引擎实际走的就是这条路）：
+
+```bash
+curl -s http://127.0.0.1:7901/health
+curl -s -X POST http://127.0.0.1:7901/equiv -H 'content-type: application/json' \
+  -d '{"input":{"task":{"id":"cmt-0","result":"So the answer is $\\boxed{\\frac{U_1}{2}}$"}}}'
+```
+```
+{"ok": true, "items": 50}
+                                     GT 是 U_1/2
+  U_1/2  → parsed=true  equiv=true
+  U_0/2  → parsed=true  equiv=false
+```
+
 **它解决的是可移植和可复现，不是那个洞。** 见下。
+
+#### 在 WSL 里用 snap 的 docker，踩了三个坑
+
+都不是这个例子特有的，但不写下来下次还得再撞一遍。
+
+**一、snap 是严格 confinement，只读得到 `$HOME`。** 构建上下文在 `/mnt/e/...` 上，
+`docker build` 直接就 permission denied —— 得先把 `Dockerfile` / `grader.py` 拷进
+WSL 家目录再 build。（Docker Desktop 没这限制。）
+
+**二、`dockerd` 拿不到你 shell 里的代理。** 代理 `export` 在 `~/.bashrc` 里，那是
+**交互 shell** 才 source 的；`dockerd` 是个 systemd 服务，从来没经过任何 shell。
+拉基础镜像是 **daemon 自己**发的请求，所以 `--build-arg http_proxy=…` 白给
+（那个只管容器里的 `RUN`）。`snap set docker proxy.*` 也不接 —— 配了重启了，
+`docker info` 里还是没有 proxy 栏。管用的是给 systemd 单元加 drop-in：
+
+```bash
+sudo mkdir -p /etc/systemd/system/snap.docker.dockerd.service.d
+printf '[Service]\nEnvironment="HTTP_PROXY=http://%s:7890"\nEnvironment="HTTPS_PROXY=http://%s:7890"\nEnvironment="NO_PROXY=localhost,127.0.0.1,::1"\n' \
+  "$(ip route show default | awk '{print $3}')" "$(ip route show default | awk '{print $3}')" \
+  | sudo tee /etc/systemd/system/snap.docker.dockerd.service.d/proxy.conf
+sudo systemctl daemon-reload && sudo snap restart docker
+```
+
+`docker info` 里出现 `HTTP Proxy:` 那行才算配上。地址是 **WSL 的默认网关**（不是
+`localhost` —— NAT 模式转不过去），而且 `wsl --shutdown` 之后会变，变了要重写。
+
+**三、`# syntax=` 那行会去 Docker Hub 拉 frontend 镜像。** 网络不稳的话它先炸在
+`auth.docker.io`。现在的内置 frontend 自己就认 heredoc，所以那行删了 —— 少一次
+网络往返，少一个失败点。
+
+同理，Dockerfile 里**一个 apt 包都不装**：`git` / `curl` 只是为了拉两个文件，
+python 自带的 `urllib` + `tarfile` 就够。`deb.debian.org` 走的是明文 HTTP，
+在代理后面实测 502（`Failed to fetch … 502 Bad Gateway`）—— 而且这是个放着答案的
+容器，能少一样是一样。建完的镜像里 `command -v git` / `curl` 都是空的，跑的是 uid 10001。
 
 ### 容器堵不住的那一条
 
