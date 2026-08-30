@@ -63,6 +63,7 @@ const VERIFY_TOOL = {
     properties: {
       pass: { type: "integer", description: "1 = passed, 0 = did not pass" },
       why: { type: "string", description: "Why it did not pass. Empty when it passed." },
+      graded: { type: "string", description: "The exact text this verdict is about. If it passed, hand in this text unchanged." },
     },
   },
   expectMs: 120_000,
@@ -90,8 +91,12 @@ export function registerVerifyTool(db: Conn, reg: Registry, sealed: Sealed): str
       chain: [],
       result: { kind: "prompt", body: answer },
     });
-    // **只回这两样。** `trace` 是每个节点算出了什么，那是给我们排障看的。
-    return { pass: v.pass, why: v.why };
+    // **回执带上判的是哪一份。** 只回一个 1 的话，隔几轮它就对不上号了 ——
+    // 实测：模型验出过一份 equiv=True 的答案，后面又交了另一份。上下文里那条
+    // `{pass:1, why:""}` 没说过的是哪一段，等于验了个寂寞。
+    //
+    // `trace`（每个节点算出了什么）仍然不回，那是给我们排障看的。
+    return { pass: v.pass, why: v.why, graded: answer };
   });
 
   run(
