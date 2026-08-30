@@ -8,20 +8,20 @@
 #
 # ## 题库和判据装在**判卷台那一侧**，不在仓库里
 #
-# 这一条是**安全边界，不是整理癖**。solver 手上有 `read` / `glob` / `bash`，而它干活
-# 的地方（`place: local`）就是引擎那台机器 —— 题库放仓库里的话，它 glob 一下就找到，
-# 读一下就拿到 GT。
+# solver 手上有 `read` / `glob` / `bash`，而它干活的地方（`place: local`）就是引擎那台
+# 机器 —— 题库放仓库里的话，它 glob 一下就找到，读一下就拿到 GT。
 #
 # **实测发生过**：模型先 `read grader.py` 搞清楚判据怎么比，接着 `read` 官方 parser
 # 源码，然后 `glob` 到了 `cmt_data.jsonl`。那一跑它还没来得及读出 GT 就被判完了，
-# 但路已经摸到门口。
+# 但路已经摸到门口。所以三样全装在 `$HOME/.cache/tgengin-cmt/` 底下（WSL 家目录）。
 #
-# 所以三样全装在 `$HOME/.cache/tgengin-cmt/` 底下（WSL 家目录）——
-# Windows 那侧的 solver 看不见这个路径。**这一条是够不着，不是不许。**
+# **但这不是隔离，别当成隔离。** `wsl.exe` 就在 Windows 的 system32 里，
+# `wsl.exe -- head ~/.cache/tgengin-cmt/cmt_data.jsonl` 一条命令一样拿到 ——
+# 实测走过。装容器也一样（`wsl.exe -- docker exec`）。改的是路径，不是可达性。
+# 只要 solver 的 bash 跑在宿主机上，宿主机能到的一切它都能到。
 #
-# 但判卷台的端口它够得着（同一台机器上的 127.0.0.1:7901），`/equiv` 能当验证 oracle 刷。
-# 那一条现在只靠「没告诉它地址」，**打包进容器也堵不住**（端口还发布在同一台机器上）——
-# 真堵死得让 solver 那个 place 够不着这个端口。见 README「容器堵不住的那一条」。
+# 这几条是**有意留着的**：一圈从「glob 一下」变成了三步，门槛够用了。真要堵死得把
+# solver 自己关进沙箱（`place` 那一维）—— 见 README「真要隔离 solver」。
 #
 # 这个脚本是**不用容器**那条路。有 docker 的话直接 `compose.yaml`，两条二选一。
 set -eu

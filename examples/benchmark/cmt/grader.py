@@ -30,11 +30,17 @@ openai / anthropic / google-genai / tqdm / dotenv —— 那是它「拿模型�
 发题时也把 `solution` 摘掉 —— 答案不出这个进程。G 封存在引擎另一个库里，主库全接口
 开放也翻不出来。
 
-**还漏着一条**：solver 的 `bash` 跟引擎在同一台机器上，猜到 `127.0.0.1:7901` 的话，
-`/equiv` 就是个能刷的验证 oracle。把这个进程装进容器**堵不住它** —— 端口还是发布在
-同一台机器上。往句柄名里塞 token 也不行：句柄是主库 `handle` 表里的一行，`/query`
-一条 SQL 就读出来了。真堵死得让 solver 那个 place 够不着这个端口（网络受限的沙箱），
-那是 `place` 这一维的事。**这一条现在靠的是没告诉它地址，不是够不着。**
+**但这不是隔离，别当成隔离。** solver 的 `bash` 跟引擎在同一台机器上，于是：
+
+    wsl.exe -- docker exec cmt-grader cat /oracle/cmt_data.jsonl     ← 整本答案
+    curl 127.0.0.1:7901/equiv                                        ← 免费验证 oracle
+
+两条都实测走过，**一个漏洞都没用到** —— `wsl.exe` 在 system32 里，账号在 docker 组里。
+装容器改的是路径，不是可达性。往句柄名里塞 token 也不行：句柄是主库 `handle` 表里
+的一行，`/query` 一条 SQL 就读出来。
+
+这几条是**有意留着的**（一圈够长了）。真堵死得把 solver 自己关进沙箱 ——
+那是 `place` 这一维的事，见 README「真要隔离 solver」。
 """
 
 from __future__ import annotations

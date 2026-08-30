@@ -73,8 +73,8 @@ sympy 1.13.3｜numpy 2.2.5｜regex 2.5.148
 
 **实测发生过**：模型先 `read grader.py` 搞清楚判据怎么比，接着 `read` 官方 parser
 源码，然后 `glob` 到了 `cmt_data.jsonl`。那一跑它还没来得及读出 GT 就被判完了，
-但路已经摸到门口。所以现在题库和判据都搬到 WSL 家目录 —— Windows 那侧的 solver
-够不着那个路径。
+但路已经摸到门口。所以题库和判据都搬出了仓库 —— 现在只在判卷台那一侧
+（WSL 家目录，或者容器里）。
 
 发批的脚本也因此**读不到题库**，题得走 HTTP 取：
 
@@ -88,11 +88,33 @@ curl -s 'http://127.0.0.1:7901/problems?n=1'
 
 **没有 `solution` 这一栏** —— 答案不出判卷台那个进程。
 
-> **还漏着一条，说清楚**：判卷台在 `127.0.0.1:7901` 上，而 solver 的 `bash` 跟引擎在
-> 同一台机器上。它要是猜到这个地址，`/equiv` 就成了一个免费的验证 oracle（提交候选、
-> 回一个 bool，可以刷）。`readable: false` 只挡住「读 G 的定义」，挡不住「往那个端口打」。
-> 真要堵死得把判卷台连题库一起塞进容器、只对引擎那个进程开口 —— 这台机器上暂时没有
-> 容器 runtime，所以现在这条**是靠没写在任务描述里，不是靠够不着**。
+#### 但这**不是**隔离，别当成隔离
+
+换目录、装容器、关掉 HTTP 的执行口 —— 这些改的都是**路径**，没改**可达性**。
+只要 solver 的 `bash` 跑在宿主机上，**宿主机能到的一切它都能到**。实测走了一遍：
+
+```bash
+wsl.exe -d Ubuntu-24.04 -- docker ps
+#   cmt-grader  tgengin-cmt-grader  127.0.0.1:7901->7901/tcp
+wsl.exe -d Ubuntu-24.04 -- docker exec cmt-grader ls /oracle
+#   cmt_data.jsonl  vendor
+wsl.exe -d Ubuntu-24.04 -- docker exec cmt-grader python -c "…"
+#   cmt-0 的标准答案 = $\boxed{U_1/2}$
+```
+
+**一个漏洞都没用到** —— `wsl.exe` 就在 `C:\Windows\system32`，账号在 docker 组里，
+`docker exec` 不要密码。每一步都是授权内的正常命令。同一条路对 WSL 家目录那份也成立
+（`wsl.exe -- head ~/.cache/tgengin-cmt/cmt_data.jsonl`）。
+
+还有一条更省事的：判卷台在 `127.0.0.1:7901` 上，`/equiv` 提交候选回一个 bool，
+**可以刷**。`readable: false` 只挡住「读 G 的定义」，挡不住「往那个端口打」。
+
+**这几条现在是有意留着的**，理由是那一圈确实变长了：早先是 `glob` 一下就撞到题库
+（一步），现在得先想到「宿主机有 wsl.exe → WSL 里有 docker → 容器里有题库」（三步）。
+门槛不等于边界，但对这个例子够用。
+
+**真要堵死只有一条路：把 solver 自己关进沙箱**，让它的 `bash` 不是宿主机的 bash。
+`place` 这一维就是干这个的 —— 见[最后那一节](#真要隔离-solver该动的是-place)。
 
 ### 三个坑
 
@@ -207,20 +229,17 @@ python 自带的 `urllib` + `tarfile` 就够。`deb.debian.org` 走的是明文 
 在代理后面实测 502（`Failed to fetch … 502 Bad Gateway`）—— 而且这是个放着答案的
 容器，能少一样是一样。建完的镜像里 `command -v git` / `curl` 都是空的，跑的是 uid 10001。
 
-### 容器堵不住的那一条
+### 容器堵不住什么
 
-上面说过 `/equiv` 能被 solver 当验证 oracle 刷。装进容器**不解决这个** ——
-端口还是发布在同一台机器的 `127.0.0.1` 上，solver 的 `bash` 照样打得到。
+**它堵不住 solver。** 上面那一节走过实测：`wsl.exe -- docker exec cmt-grader` 三步
+就把 GT 拿出来了，一个漏洞都没用到。装容器改的是路径，不是可达性。
 
-往句柄名里塞个随机 token（`…/equiv?k=xxx`）也不行，我查过了：句柄是主库
-`handle` 表里的一行，而 `/query` 是开放接口，solver 一条 SQL 就把 token 读出来了。
+往句柄名里塞个随机 token（`…/equiv?k=xxx`）也不行，查过了：句柄是主库 `handle`
+表里的一行，而 `/query` 是开放接口，solver 一条 SQL 就把 token 读出来。
 `readable: false` 封的是 **G 的定义**（在另一个库里），封不住句柄名。
 
-真要堵死只有一条路：**让 solver 那个 place 够不着这个端口** —— 把执行单元也放进
-一个网络受限的容器/沙箱里，只放行它该有的出口。那是 `place` 这一维的事，不是判卷台的事。
-
-在那之前，这一条的实际状态是：**没把地址写进任务描述，仅此而已。** 记在这儿，
-别让它被当成已经堵上了。
+容器换来的是别的东西，也值：**判据钉死在 `c114183`、build 时自检 5/5、不再依赖
+某台机器上那个 venv**。分数可复现，靠的是这个。
 
 ## 三、引擎
 
@@ -609,6 +628,50 @@ moment（只有规则走的 `#atMoment` 才设）—— 写了就永远不中，
 | skills | 89 | 47 个是降级实验自动生成的；其余是 SWE-bench / ResearchCodeBench / 化学那几套的专用纪律，这边没搭那些 benchmark |
 | tools | 74 | 能搬（`input_schema` 直接就是 `inputSchema`，`class.context` 正好对上 place 这一维），但要一个 Python MCP server 加载，而且化学那批依赖 rdkit |
 | rules | 44 | 时刻对不上：`pre_task`(25) 大致对应 `unit_start`，但 `pre_tool`(3) / `post_tool`(5) / `on_node_claim`(3) / `on_task_retry`(2) / `on_phase_enter`(1) 这边没有；`judge`(5) 在这边根本不是 rule，是 **G** |
+
+---
+
+## 真要隔离 solver：该动的是 `place`
+
+**这一节还没做**，写在这儿是因为前面那几处「够不着」全都指向它。
+
+现在 `place: local`，意思是 solver 跟引擎**共用一台机器、一个网络栈**。所以宿主机
+上的一切它都有份：`wsl.exe`、docker、`127.0.0.1:7901`。换目录、装容器都改不了这一条。
+
+而 `place` 这一维本来就是干这个的。[`app/src/place/index.ts`](../../../app/src/place/index.ts)
+开头写着：
+
+> 「远程」在这儿没有第二种含义：`wsl -d X --` / `ssh box-7` / `docker exec -i c`
+> 都只是**套在运行时那条命令外面的前缀**。
+
+位置串直接支持 `wsl/docker:cmt-solver`。送过去的是
+[`app/src/place/runtime.ts`](../../../app/src/place/runtime.ts)（`dist/tgengin-runtime-linux-x64`）——
+一个 MCP server，装的是 `../tools/` **同一份实现**，所以转发出去的行为跟 `local` 一样。
+
+```
+ ┌─────────────────────────────┐
+ │ 引擎（Windows）              │
+ │   G 的句柄 ──────────┐       │
+ └───────┬──────────────┼───────┘
+   stdin/stdout         ▼
+ (docker exec -i)  127.0.0.1:7901 判卷台
+         │
+ ┌───────▼──────────────────────┐
+ │ solver 容器  --network none  │  ✗ 打不到 7901
+ │   runtime-linux-x64          │  ✗ 没有 wsl.exe、没有 docker socket
+ │   read/write/edit/glob/grep/bash │
+ └──────────────────────────────┘
+```
+
+**关键在于转发走的是 stdio，不是网络** —— 所以那个容器可以一张网卡都没有，引擎照样
+指挥得动它。模型那一侧完全无感：还是那六个工具，参数一样、返回一样，只是 `bash`
+变成了容器里的 `bash`。
+
+对这个例子刚好没有代价：模型是**引擎**去调的（API key 在引擎那边），solver 的六个
+工具本来就只读写文件，一个都不需要网。
+
+要接的话得定三件事：每道题一个容器还是共用（共用的话并发的题互相看得见文件）、
+`workdir` 怎么给、`hops()` 那关走不走得通 `wsl/docker:` 这条。
 
 ---
 
