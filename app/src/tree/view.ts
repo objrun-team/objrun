@@ -47,6 +47,9 @@ const TREE_TOOL = {
       nodes: { type: "array", items: { type: "object" } },
     },
   },
+  prompt:
+    "When a branch of yours was ruled out, task_tree shows which paths have already been tried and how far " +
+    "each got. Read it before trying a direction again.",
   expectMs: 10_000,
 };
 
@@ -59,6 +62,9 @@ const NODE_TOOL = {
     required: ["unit"],
   },
   output: { type: "object", properties: { unit: { type: "integer" }, said: { type: "array" } } },
+  prompt:
+    "node_load reads what one earlier station said, together with the verdict it got. A ruled-out branch is " +
+    "a trap someone already stepped in - read it to avoid repeating it, not to copy it.",
   expectMs: 10_000,
 };
 
@@ -136,11 +142,11 @@ export function registerTreeView(db: Conn, reg: Registry, treeInfer: string): st
     run(
       db,
       `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable)
-       values (?, ?, ?, ?, ?, null, 0, 0, null, 1)
+       values (?, ?, ?, ?, ?, ?, 0, 0, null, 1)
        on conflict(name) do update set
          identity = excluded.identity, does = excluded.does, params = excluded.params,
-         output = excluded.output, system = excluded.system`,
-      [t.name, `fn:tool.${t.name}`, t.does, JSON.stringify(t.params), JSON.stringify(t.output)],
+         output = excluded.output, prompt = excluded.prompt, system = excluded.system`,
+      [t.name, `fn:tool.${t.name}`, t.does, JSON.stringify(t.params), JSON.stringify(t.output), t.prompt],
     );
     // **不是 system 工具** —— 按 mode 分发：只有走树的那种机制才挂得上。
     // 条件落进 `trigger`，跟别的工具走同一张表、同一套判据。

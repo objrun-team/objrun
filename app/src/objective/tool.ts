@@ -66,6 +66,12 @@ const VERIFY_TOOL = {
       graded: { type: "string", description: "The exact text this verdict is about. If it passed, hand in this text unchanged." },
     },
   },
+  prompt:
+    "You may check a candidate with verify before handing it in, as often as your budget allows. " +
+    "A verdict is about the exact text it echoes back in `graded` and nothing else: change one character " +
+    "and it no longer applies. If a check passes, hand that text in unchanged - do not rewrite it. " +
+    "Each check costs a round trip, so do the thinking first and check once, rather than checking a guess " +
+    "and thinking afterwards.",
   expectMs: 120_000,
 };
 
@@ -102,16 +108,17 @@ export function registerVerifyTool(db: Conn, reg: Registry, sealed: Sealed): str
   run(
     db,
     `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable)
-     values (?, ?, ?, ?, ?, null, 0, 0, null, 1)
+     values (?, ?, ?, ?, ?, ?, 0, 0, null, 1)
      on conflict(name) do update set
        identity = excluded.identity, does = excluded.does, params = excluded.params,
-       output = excluded.output, system = excluded.system`,
+       output = excluded.output, prompt = excluded.prompt, system = excluded.system`,
     [
       VERIFY_TOOL.name,
       `fn:tool.${VERIFY_TOOL.name}`,
       VERIFY_TOOL.does,
       JSON.stringify(VERIFY_TOOL.params),
       JSON.stringify(VERIFY_TOOL.output),
+      VERIFY_TOOL.prompt,
     ],
   );
   run(db, `delete from trigger where owner_kind = 'tool' and owner = ?`, [VERIFY_TOOL.name]);

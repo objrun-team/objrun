@@ -317,6 +317,10 @@ const SUBMIT_TOOL = {
     "calling this only gets you there sooner.",
   params: { type: "object", properties: {} },
   output: { type: "object", properties: { handingIn: { type: "boolean" } } },
+  prompt:
+    "Call submit when the work is done. It takes no arguments: what gets handed in is what you say at the " +
+    "hand-in step, which comes right after. You will reach that step anyway once the working budget runs " +
+    "out - calling submit only gets you there sooner, while there is still room to be judged and try again.",
   expectMs: 10_000,
 };
 
@@ -475,16 +479,17 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
   run(
     db,
     `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable)
-     values (?, ?, ?, ?, ?, null, 0, 0, null, 1)
+     values (?, ?, ?, ?, ?, ?, 0, 0, null, 1)
      on conflict(name) do update set
        identity = excluded.identity, does = excluded.does, params = excluded.params,
-       output = excluded.output, system = excluded.system`,
+       output = excluded.output, prompt = excluded.prompt, system = excluded.system`,
     [
       SUBMIT_TOOL.name,
       `fn:tool.${SUBMIT_TOOL.name}`,
       SUBMIT_TOOL.does,
       JSON.stringify(SUBMIT_TOOL.params),
       JSON.stringify(SUBMIT_TOOL.output),
+      SUBMIT_TOOL.prompt,
     ],
   );
   run(db, `delete from trigger where owner_kind = 'tool' and owner = ?`, [SUBMIT_TOOL.name]);

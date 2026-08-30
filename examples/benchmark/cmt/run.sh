@@ -63,6 +63,7 @@ curl -s -X POST "$BASE/declare" -H 'content-type: application/json' -d @- <<'JSO
     "does": "Run a short Python program in a throwaway sandbox and get its output back. sympy, numpy and scipy are installed. There is no network and no filesystem to explore - use it to compute and to check, not to look around.",
     "params": { "type": "object", "properties": { "code": { "type": "string", "description": "The program. Print what you want to see." } }, "required": ["code"] },
     "output": { "type": "object", "properties": { "exitCode": { "type": "integer" }, "stdout": { "type": "string" }, "stderr": { "type": "string" } } },
+    "prompt": "Prefer computing over guessing. If a quantity can be counted, enumerated, expanded or checked numerically, write the program and read the answer off it - a guess that turns out wrong costs a whole round trip, and you only get a handful.",
     "when": [[{ "dim": "task", "key": "domain", "op": "eq", "value": "physics" }]] }] }
 JSON
 echo
