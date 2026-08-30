@@ -250,6 +250,22 @@ function answerAsked(result: unknown): string {
   return "";
 }
 
+/**
+ * 还有没有地方能再想一遍。
+ *
+ * 看的是这个模式里**除了交卷站以外**的每一个周期：只要还有一个没用满，就还能
+ * 退回去换条路；一个都不剩的话，退回去也只是立刻再拐回交卷站。
+ */
+function noRoomToRetry(db: Conn, a: Ask, nodes: Node[]): boolean {
+  const cycles = all(db, `select cycle, max_units from cycle where mode = ?`, [String(a.task.mode)]) as {
+    cycle: string;
+    max_units: number;
+  }[];
+  const work = cycles.filter((c) => c.cycle !== SUBMIT);
+  if (work.length === 0) return true;
+  return work.every((c) => nodes.filter((n) => n.cycle === c.cycle).length >= Number(c.max_units));
+}
+
 /** 这个周期的额度用完了没有。 */
 function full(db: Conn, a: Ask, nodes: Node[], cycle: string): boolean {
   const cap = all(db, `select max_units from cycle where mode = ? and cycle = ?`, [
@@ -401,6 +417,15 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
     if (status === "reached") return { to: null, status } satisfies Said;
 
     // ── 判死了 ────────────────────────────────────────────────────────────
+
+    // **干活的站全满了就到此为止。** 判死之后往回退是为了「换条路走」，而换路要有
+    // 地方走：退回去的那一层还得能再想一遍。每一个能干活的周期都用满的时候，
+    // 退到哪儿都只是立刻再拐回交卷站，交的还是同一份东西。
+    //
+    // 实测就这么空转过：submit[dead] → act → submit[dead] → act → submit[dead]，
+    // 三次都判一样的 0，中间一个新想法都没有。
+    if (noRoomToRetry(db, a, nodes)) return { to: null, status } satisfies Said;
+
     const maxBranches = Number(a.task.max_branches ?? 2);
     const maxDead = Number(a.task.max_dead_siblings ?? 3);
     const sibs = siblings(nodes, me);
