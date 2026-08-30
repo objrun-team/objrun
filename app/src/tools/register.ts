@@ -95,20 +95,45 @@ const MUTATES = new Set(["edit", "write"]);
  * 判据是**库**：这个执行单元的消息里有没有一条 read 的返回，落在这个路径上。
  * 不是问工具、不是问内存 —— 工具跑在别的位置上，内存崩了就没了，只有库两边都算数。
  */
-function hasRead(db: Conn, agent: string, instance: string, unit: number, path: string): boolean {
+/**
+ * 它**读到过这个文件的内容**没有。
+ *
+ * 两处以前是错的，合起来让这道闸按构造永远满足不了：
+ *
+ * - 找的是 `v.tool`，可结果行写进去的形状是 `{id, name, value}`（`tools/unit.ts`）——
+ *   永远对不上，于是任何 `write` / `edit` 都被无限交回「先去读」。
+ * - 范围只看当前这一站。可这道闸交回去的是一个**操作单元**，那个 read 落在
+ *   **下一站**上 —— 本站里当然找不到。范围得是整个实例。
+ */
+function hasRead(db: Conn, agent: string, instance: string, path: string): boolean {
   const t = `agent_${agent.replace(/[^A-Za-z0-9_]/g, "_")}_msg`;
-  const rows = all(db, `select body from "${t}" where instance = ? and unit = ? and kind = 'tool'`, [
+  const rows = all(db, `select body from "${t}" where instance = ? and kind = 'tool'`, [
     instance,
-    unit,
   ]) as { body: string }[];
   return rows.some((r) => {
     try {
-      const v = JSON.parse(r.body) as { tool?: string; value?: { path?: string } };
-      return v.tool === "read" && v.value?.path === path;
+      const v = JSON.parse(r.body) as { name?: string; value?: { path?: string } };
+      return v.name === "read" && v.value?.path === path;
     } catch {
       return false;
     }
   });
+}
+
+/**
+ * 那个位置上有没有这个文件。**得问那个位置** —— 文件未必在引擎这台机器上，
+ * 在引擎这边 `stat` 一下的话，转发出去的场景会答错。
+ *
+ * 读不出来的错不止「没有这个文件」一种（没权限、那是个目录……）。只有 ENOENT
+ * 才算「不存在」—— 别的错一律当成存在，否则一个读不动的文件就把整道闸绕过去了。
+ */
+async function existsAt(p: Place, path: string): Promise<boolean> {
+  try {
+    await p.call("read", { file_path: path, limit: 1 });
+    return true;
+  } catch (e) {
+    return !/ENOENT|no such file/i.test(e instanceof Error ? e.message : String(e));
+  }
 }
 
 /**
@@ -133,14 +158,22 @@ export function registerTools(db: Conn, reg: Registry, places: Places): string[]
       };
       const args = a.args ?? {};
 
+      const where = placeFor(db, t.name, a.place ?? "local", a.forward);
+      const p = await places.get(where);
+
       // 改之前没读过 → **不拒，回一个操作单元**：先去做这一步，再回来改。
       //
       // dsh 那边是策略层直接拒。我们不用拒 —— 手上有执行单元这个东西，
       // 把「下一步该干什么」交回去就行。拒只是告诉它「不行」，
       // 交回一个单元是告诉它「这么办」，后者模型接得住。
+      //
+      // **新建文件不过这道闸。** 闸挡的是「盖掉你没看过的内容」，而新建没有内容
+      // 会被盖掉 —— 那儿本来就是空的。不这么分的话新建这条路根本走不通：
+      // `write` 说「先去读」，`read` 说 ENOENT，两边各说各的，死循环。
+      // 实测烧掉过一整道题（cmt-0：12 个单元全花在这上面，一个字答案都没写）。
       const path = typeof args.file_path === "string" ? args.file_path : "";
-      if (MUTATES.has(t.name) && a.agent && a.instance && a.unit !== undefined && path) {
-        if (!hasRead(db, a.agent, a.instance, a.unit, path)) {
+      if (MUTATES.has(t.name) && a.agent && a.instance && path && (await existsAt(p, path))) {
+        if (!hasRead(db, a.agent, a.instance, path)) {
           return {
             unit: { tool: "read", args: { file_path: path } },
             why: `改 ${path} 之前先读一遍它 —— 读完再来调 ${t.name}`,
@@ -148,8 +181,6 @@ export function registerTools(db: Conn, reg: Registry, places: Places): string[]
         }
       }
 
-      const where = placeFor(db, t.name, a.place ?? "local", a.forward);
-      const p = await places.get(where);
       return await p.call(t.name, args);
     });
 
