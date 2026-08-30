@@ -117,7 +117,9 @@ try {
     const d = await m.api<{ state: string }>("GET", "/tasks/t-hit");
     return d.state === "done" || d.state === "failed" ? d : null;
   });
-  const attached = out.calls["/unit"].at(-1)!;
+  // 这个例子把同一条句柄同时当 unit 和 infer 用，而终点站也会问一次 infer ——
+  // 那一次不带工具。取**带工具的那一次**，也就是真正调执行单元的那一次。
+  const attached = out.calls["/unit"].filter((c) => c.tools !== undefined).at(-1)!;
   show("tools attached this round:", ((attached.tools ?? []) as { name: string }[]).map((t) => t.name));
   ok("the task finished", (hit as { state: string }).state === "done", hit);
   ok(
@@ -135,7 +137,7 @@ try {
     const d = await m.api<{ state: string }>("GET", "/tasks/t-miss");
     return d.state === "done" || d.state === "failed" ? d : null;
   });
-  const attachedNow = out.calls["/unit"].at(-1)!;
+  const attachedNow = out.calls["/unit"].filter((c) => c.tools !== undefined).at(-1)!;
   show("tools attached this round:", ((attachedNow.tools ?? []) as { name: string }[]).map((t) => t.name));
   ok(
     "weather was NOT attached - the terms really do decide, it is not attached to everything",

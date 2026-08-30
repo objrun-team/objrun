@@ -52,9 +52,10 @@
  */
 
 import type { Conn } from "../H2H/db.ts";
-import { all } from "../H2H/db.ts";
+import { all, run } from "../H2H/db.ts";
 import type { Registry } from "../engine/registry.ts";
 import { deliverVerdict } from "../msg/deliver.ts";
+import { tableNameOf } from "../install/index.ts";
 import { evaluate } from "../objective/run.ts";
 import type { Sealed } from "../objective/store.ts";
 
@@ -93,10 +94,120 @@ interface Node {
 
 const DEAD = new Set(["dead_failed", "dead_below_bar"]);
 
+/** 走树那套机制的推断函数。周期表里 `infer` 写这个名字，就是在选这套机制。 */
+export const TREE_INFER = "fn:infer.dfs";
+
+/** 这套机制自带的那一站：**交卷**。 */
+export const SUBMIT = "submit";
+
+/** 声明里一个周期的形状（`declare/index.ts` 收的那一份）。 */
+export interface DeclaredCycle {
+  cycle: string;
+  apiMode?: string;
+  maxUnits?: number;
+  from?: string[];
+  next?: string[];
+  infer: string;
+  [k: string]: unknown;
+}
+
+/**
+ * **交卷那一站随机制一起装上，不用谁在声明里写。**
+ *
+ * 一个模式只要有周期选了走树这套机制，它就需要一个交卷站 —— 那不是这道题的
+ * 特性，是这套机制的特性：判决要判**它交上来的那一份**，而「交上来」得有个
+ * 落脚的站。让每份声明自己写一遍的话，写漏一个模式就退回「内核回头去消息表里
+ * 猜哪句话像答案」，而猜是会猜错的。
+ *
+ * 干活那几站的 `next` 也跟着加上它 —— 内核只让推断函数在 `next` 里挑，
+ * 不加的话推断函数指向交卷站会被当场拒。
+ *
+ * **声明里自己写了 `submit` 就不动。** 这是补默认，不是抢方向盘。
+ *
+ * 额度不另设闸：交卷站的上限取干活那几站之和，让它永远不是那个卡住的地方 ——
+ * 该由「还能干几轮」说了算，不该由「还能交几次」说了算。
+ */
+export function withSubmit(cycles: DeclaredCycle[]): DeclaredCycle[] {
+  const tree = cycles.filter((c) => c.infer === TREE_INFER);
+  if (tree.length === 0) return cycles;
+  if (cycles.some((c) => c.cycle === SUBMIT)) return cycles;
+  return [
+    ...cycles.map((c) =>
+      c.infer === TREE_INFER ? { ...c, next: [...new Set([...(c.next ?? []), SUBMIT])] } : c,
+    ),
+    {
+      cycle: SUBMIT,
+      // **跟干活那几站同一种轨。** 硬写 chat 的话，一个不用模型的机制（`agent.unit`
+      // 走外部句柄那种）会在这一站上卡死：它的智能体一条 chat 轨都没有。
+      apiMode: tree.map((c) => (c.apiMode ?? "").trim()).find((x) => x !== "") ?? "",
+      maxUnits: tree.reduce((n, c) => n + Number(c.maxUnits ?? 1), 0),
+      from: tree.map((c) => c.cycle),
+      next: [],
+      infer: TREE_INFER,
+    },
+  ];
+}
+
 function nodesOf(db: Conn, sub: string, task: string): Node[] {
   return all(db, `select cycle, unit, from_cycle, from_unit, status, done from "${sub}" where task = ?`, [
     task,
   ]) as unknown as Node[];
+}
+
+/** 这一站（或它上一站）调过交卷工具没有。**只看这条链上刚发生的那一次**。 */
+function calledSubmit(db: Conn, inst: { agent: string; instance: string } | undefined, unit: number): boolean {
+  if (!inst) return false;
+  const t = tableNameOf("agent_{}_msg", inst.agent);
+  const rows = all(db, `select body from "${t}" where instance = ? and unit in (?, ?) and kind = 'call'`, [
+    inst.instance,
+    unit,
+    unit - 1,
+  ]) as { body: string }[];
+  return rows.some((r) => {
+    try {
+      const v = JSON.parse(r.body) as { calls?: { name?: string }[] };
+      return (v.calls ?? []).some((c) => c.name === SUBMIT);
+    } catch {
+      return false;
+    }
+  });
+}
+
+/**
+ * 它是不是已经拿这一份问过 G 了（`verify`），问出来什么。
+ *
+ * 比的是**答复原文**：一字不差才算同一份。差一个字符就是另一份候选，
+ * 上一次的判决对它不作数。
+ */
+function verdictFor(
+  db: Conn,
+  inst: { agent: string; instance: string } | undefined,
+  said: string,
+): { pass: 0 | 1; why: string } | null {
+  if (!inst || !said.trim()) return null;
+  const t = tableNameOf("agent_{}_msg", inst.agent);
+  const rows = all(db, `select unit, seq, kind, body from "${t}" where instance = ? order by unit, seq`, [
+    inst.instance,
+  ]) as { unit: number; seq: number; kind: string; body: string }[];
+  const asked = new Map<string, string>(); // 调用 id → 问的是哪一份
+  let hit: { pass: 0 | 1; why: string } | null = null;
+  for (const r of rows) {
+    let v: { calls?: { id?: string; name?: string; input?: { answer?: unknown } }[]; id?: string; name?: string; value?: { pass?: unknown; why?: unknown } };
+    try {
+      v = JSON.parse(r.body) as typeof v;
+    } catch {
+      continue;
+    }
+    if (r.kind === "call") {
+      for (const c of v.calls ?? []) {
+        if (c.name === "verify" && typeof c.input?.answer === "string" && c.id) asked.set(c.id, c.input.answer);
+      }
+    } else if (r.kind === "tool" && v.name === "verify" && v.id && asked.get(v.id) === said) {
+      const pass = Number(v.value?.pass) === 1 ? 1 : 0;
+      hit = { pass, why: String(v.value?.why ?? "") };
+    }
+  }
+  return hit;
 }
 
 /** 同一个父底下的兄弟（不含自己）。 */
@@ -105,6 +216,35 @@ function siblings(nodes: Node[], me: Node): Node[] {
     (n) => !(n.cycle === me.cycle && n.unit === me.unit) && n.from_cycle === me.from_cycle && n.from_unit === me.from_unit,
   );
 }
+
+/**
+ * **交卷那个工具。无参。**
+ *
+ * 它只干一件事：**说一声「我交了」**，于是流转提前拐到交卷站。不带参数是故意的 ——
+ * 交的是什么，是交卷站上说的那段话，不是这次调用的入参。两处都能交的话，
+ * 「到底判哪一份」就成了个得靠约定回答的问题。
+ *
+ * 不调它也会走到交卷站（干活那几站的额度用完，或者它自己说完了一段话）。
+ * 调它的意义只有一个：**提前**。想早点收工就早点收工，不用把额度耗干。
+ *
+ * ## 跟 `verify` 的分工
+ *
+ * `verify` 是**验证**：干活途中拿一份候选去问「这样行不行」，随时能问、能问多次。
+ * `submit` 是**交卷**：这件事我做完了。两个时刻，两件事。
+ *
+ * 这道题有没有 G，不改这个工具的形状 —— 改的是**交卷站上多不多做一步**：
+ * 有 G 就在那儿判一次，没有就直接收工。
+ */
+const SUBMIT_TOOL = {
+  name: SUBMIT,
+  does:
+    "Hand your work in. Takes no arguments: what gets handed in is what you say at the hand-in step, " +
+    "not an argument here. You will reach that step anyway once the working budget runs out - " +
+    "calling this only gets you there sooner.",
+  params: { type: "object", properties: {} },
+  output: { type: "object", properties: { handingIn: { type: "boolean" } } },
+  expectMs: 10_000,
+};
 
 /**
  * 注册树的控制流。
@@ -120,34 +260,55 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
     const me = nodes.find((n) => n.cycle === here && n.unit === a.unit);
     if (!me) throw new Error(`cannot find ${here}#${a.unit} of ${task} in ${a.sub}`);
 
-    // ── 这一步到底算成了没有 ──────────────────────────────────────────────
-    //
-    // 先看自评（ĝ）：**只有模型自己说出一段话（`prompt`）才算自称到终点**，
-    // 别的都是半路。
-    //
-    // 原先写的是「`call` 才算没完，其余算到了」—— 那条把跑工具那一站也算成了
-    // 终点：它回的是一行记账（`inject`，说这一站跑了哪几个工具），不是答复。
-    // 于是工具跑完就收工，模型永远看不到自己那次调用的结果。
-    const r = (a.result ?? {}) as { kind?: string };
-    let status = r.kind === "prompt" ? "reached" : "";
+    const inst = all(db, `select agent, instance from "${a.sub}" where task = ? and cycle = ? and unit = ?`, [
+      task,
+      here,
+      a.unit,
+    ])[0] as { agent: string; instance: string } | undefined;
 
-    // 自称到终点了 —— **这一刻才调 G 复核**。它说 0 就是「以为到了其实没到」，
-    // 判死开兄弟。不许节点自己说了算，这就是 verifier-guided 的全部意思。
-    if (status === "reached" && sealed.has(task)) {
-      const g = sealed.open(task)!;
-      const v = await evaluate(g, reg, { task: a.task, chain: a.chain, result: a.result });
+    // ── 干活那几站：**这儿不判** ──────────────────────────────────────────
+    //
+    // 判决只在交卷站出。以前是「出现一条 `prompt` 就叫 G」—— 那等于内核替它交了
+    // 一份它没交的东西，而且那条 `prompt` 是空的时候（模型这一发什么都没生成出来）
+    // 也照判，白烧一次 G、白判死一条分支。实测两道题就这么没的。
+    if (here !== SUBMIT) {
+      const r = (a.result ?? {}) as { kind?: string; body?: unknown };
 
-      // **判决要落进上下文**，不能只进日志。以前只写 `task.result`，于是判死开兄弟
-      // 是盲重试：新分支知道要换条路，不知道上一条错在哪。投成「一次带结果的工具
-      // 调用」—— 它是外部的、这一次的观测，正好是 tool 结果的语义。
+      // **拐去交卷站的两条路：**
       //
-      // 落在**被判的这一站**上：兄弟默认看不见它（那是故意的），要看得自己
+      // 1. 它调了 `submit` —— 那就是「我交了」，提前拐过去
+      // 2. 它说出了一段有内容的话 —— 自称做完了，也拐过去（没调工具也走得到）
+      //
+      // 空话不算。一条什么都没生成出来的 `prompt` 不是「我做完了」，
+      // 是这一发没出来 —— 按普通推进往下走，让它下一站接着说。
+      const handedIn = calledSubmit(db, inst, a.unit);
+      const spoke = r.kind === "prompt" && String(r.body ?? "").trim() !== "";
+      if ((handedIn || spoke) && a.next.includes(SUBMIT)) return { to: SUBMIT } satisfies Said;
+
+      // 还在跑：按候选往下走一格，从当前这一行接。
+      return { to: a.next[0] ?? null } satisfies Said;
+    }
+
+    // ── 交卷站 ────────────────────────────────────────────────────────────
+    //
+    // 交的就是这一站说的那段话。没有 G 的题到这儿就是收工；有 G 的题**在这儿多做
+    // 一步**：判一次。「有没有验证过」不改交卷这件事的形状，只改这一步跑不跑得成。
+    let status = "reached";
+    if (sealed.has(task)) {
+      const said = String(((a.result ?? {}) as { body?: unknown }).body ?? "");
+      const g = sealed.open(task)!;
+
+      // **验过就不必再判一次。** `verify` 是干活途中的验证，交卷是这一刻的提交；
+      // 两个时刻，但问的是同一个 G。它刚验过的正是这一份的话，那次判决就是这一次
+      // 的答案 —— 再打一遍判卷台只是多花一次钱，还多一次抖动的机会。
+      const had = verdictFor(db, inst, said);
+      const v = had ?? (await evaluate(g, reg, { task: a.task, chain: a.chain, result: a.result }));
+
+      // **判决要落进上下文**，不能只进日志。投成「一次带结果的工具调用」——
+      // 它是外部的、这一次的观测，正好是 tool 结果的语义。
+      //
+      // 落在**交卷这一站**上：兄弟默认看不见它（那是故意的），要看得自己
       // `node_load` 去取 —— 「进度共享是能看、不是直接继承」。
-      const inst = all(db, `select agent, instance from "${a.sub}" where task = ? and cycle = ? and unit = ?`, [
-        task,
-        here,
-        a.unit,
-      ])[0] as { agent: string; instance: string } | undefined;
       if (inst) {
         deliverVerdict(db, {
           agent: inst.agent,
@@ -157,15 +318,13 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
           input: { task, at: `${here}#${a.unit}` },
           // **`why` 一起给。** 只给 0/1 的话，模型只知道错了，不知道错在哪 ——
           // 那跟不给差不多，它下一条分支多半原样再来一遍。
-          value: { pass: v.pass, why: v.why },
+          value: { pass: v.pass, why: v.why, ...(had ? { reused: true } : {}) },
         });
       }
 
       if (v.pass !== 1) status = "dead_failed";
     }
 
-    // 还在跑：按候选往下走一格，从当前这一行接。
-    if (!status) return { to: a.next[0] ?? null } satisfies Said;
     if (status === "reached") return { to: null, status } satisfies Said;
 
     // ── 判死了 ────────────────────────────────────────────────────────────
@@ -178,8 +337,11 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
     if (busy >= maxBranches) return { to: null, status } satisfies Said;
 
     // 判死闸：这一层试过的方向够多了 → 回退到更上层。
+    //
+    // **交卷站不开兄弟。** 在交卷站旁边再开一个交卷站，交的还是同一份东西 ——
+    // 要换的是「怎么做」，那在干活那一层，所以交卷判死一律往上退。
     const dead = sibs.filter((n) => n.status !== null && DEAD.has(n.status)).length + 1;
-    if (dead < maxDead) {
+    if (here !== SUBMIT && dead < maxDead) {
       // 还能试：在**同一个父**底下开一个兄弟。
       // 兄弟跟我挂在**同一个父**底下。我要是根（没有父），兄弟也是根。
       return { to: here, from_cycle: me.from_cycle, from_unit: me.from_unit, status } satisfies Said;
@@ -201,5 +363,31 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
     } satisfies Said;
   });
 
-  return ["fn:infer.dfs"];
+  // **交卷那个工具跟这套机制一起装上。** 它属于机制，不属于某一份声明 ——
+  // 条件是「这一站的推断函数是不是走树的那个」，跟 `task_tree` / `node_load` 同一条。
+  reg.register(db, `fn:tool.${SUBMIT_TOOL.name}`, SUBMIT_TOOL.expectMs, async () => ({ handingIn: true }));
+  run(
+    db,
+    `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable)
+     values (?, ?, ?, ?, ?, null, 0, 0, null, 1)
+     on conflict(name) do update set
+       identity = excluded.identity, does = excluded.does, params = excluded.params,
+       output = excluded.output, system = excluded.system`,
+    [
+      SUBMIT_TOOL.name,
+      `fn:tool.${SUBMIT_TOOL.name}`,
+      SUBMIT_TOOL.does,
+      JSON.stringify(SUBMIT_TOOL.params),
+      JSON.stringify(SUBMIT_TOOL.output),
+    ],
+  );
+  run(db, `delete from trigger where owner_kind = 'tool' and owner = ?`, [SUBMIT_TOOL.name]);
+  run(
+    db,
+    `insert into trigger (owner_kind, owner, "group", dim, "key", op, value)
+     values ('tool', ?, 0, 'cycle', 'infer', 'eq', ?)`,
+    [SUBMIT_TOOL.name, TREE_INFER],
+  );
+
+  return [TREE_INFER, SUBMIT_TOOL.name];
 }

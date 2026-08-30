@@ -29,8 +29,8 @@ import { mcpServeRoutes } from "./mcp/serve.ts";
 import { evaluate } from "./objective/run.ts";
 import { openSealed } from "./objective/store.ts";
 import { deliverVerdict, seedKinds } from "./msg/deliver.ts";
-import { registerTree } from "./tree/dfs.ts";
-import { lastSubmission, registerVerifyTool } from "./objective/tool.ts";
+import { registerTree, SUBMIT } from "./tree/dfs.ts";
+import { registerVerifyTool } from "./objective/tool.ts";
 import { registerTreeView } from "./tree/view.ts";
 import { check } from "./trigger/check.ts";
 import { checkData } from "./trigger/data.ts";
@@ -55,21 +55,17 @@ function lastUnit(
 /**
  * 收尾那一刻，**这道题交上来的是什么**。
  *
- * G 要判「做成了没有」，而答案不在 `task` 那一行上（`task.result` 存的是判决
- * 本身，不是答复）。两条路，按这个顺序：
+ * 交卷是流转表上的一站（`tree/dfs.ts` 的 `SUBMIT`，随机制一起装上）。**交的就是
+ * 那一站说的那段话** —— 不是内核回头去消息表里猜哪句像答案。
  *
  * | 先看 | 为什么 |
  * | --- | --- |
- * | **它交的那一份**（`verify` 的 `answer`） | `verify` 就是交卷口。交了就以交的为准 —— 这是它自己指定的那一份，不用猜 |
- * | 最后一条 `prompt` | 没交卷的兜底。**只认 `prompt`** —— 树那一路早就是这个规矩（`tree/dfs.ts`：`kind === "prompt"` 才算自称到终点） |
+ * | 交卷站上最后那段有内容的话 | 那一站的意思就是「我交这个」，不用猜 |
+ * | 别处最后一条有内容的 `prompt` | 没走到交卷站的兜底（超时、额度耗干） |
  *
- * 以前这儿把 `call` 行也算上，理由是「它的 text 里有话」。可 `call` 的 text 是
- * **调工具前的开场白**，不是答复 —— 实测收尾拿它去判过，判卷台那边看到的是
- * 「let me look at the environment to understand this task better.」。
- *
- * 还得跳过**判决自己**（`name: "verify"` 那一对里内核投回去的那条）：判决落进
- * 上下文之后就成了「最后一句话」，G 拿着它那条空 `text` 再判一遍，能把上一次
- * 判对的覆盖成 0。
+ * 只认 `prompt`。`call` 那一行的 text 是**调工具前的开场白**，不是答复 ——
+ * 实测拿它去判过，判卷台看到的是「let me look at the environment to understand
+ * this task better.」。空话也跳过：一发什么都没生成出来不是答复。
  *
  * 全都没有就回 `undefined` —— **那是「没交卷」**，跟「交了但判错」是两回事，
  * 收尾那边据它给出不同的 `why`。
@@ -77,22 +73,38 @@ function lastUnit(
 function lastSaid(db: Parameters<typeof all>[0], task: string): { body: string; how: string } | undefined {
   const u = lastUnit(db, task);
   if (!u) return undefined;
+  const t = all(db, `select mode from task where id = ?`, [task])[0] as { mode?: string } | undefined;
+  const sub = t?.mode ? tableNameOf("task_{}", String(t.mode)) : "";
+  const msg = tableNameOf("agent_{}_msg", u.agent);
 
-  const handed = lastSubmission(db, u.agent, u.instance);
+  const spoke = (units: number[]): string | undefined => {
+    if (units.length === 0) return undefined;
+    const rows = all(
+      db,
+      `select body from "${msg}"
+        where instance = ? and kind = 'prompt' and unit in (${units.map(() => "?").join(",")})
+        order by unit desc, seq desc limit 20`,
+      [u.instance, ...units],
+    ) as { body?: string }[];
+    for (const r of rows) if (r.body !== undefined && r.body.trim()) return r.body;
+    return undefined;
+  };
+
+  const submits = sub
+    ? (all(db, `select unit from "${sub}" where task = ? and cycle = ? order by unit desc`, [task, SUBMIT]) as {
+        unit: number;
+      }[]).map((r) => Number(r.unit))
+    : [];
+  const handed = spoke(submits);
   if (handed) return { body: handed, how: "submitted" };
 
-  const msg = tableNameOf("agent_{}_msg", u.agent);
-  const rows = all(
-    db,
-    `select body from "${msg}"
-      where instance = ? and kind = 'prompt'
-      order by unit desc, seq desc limit 20`,
-    [u.instance],
-  ) as { body?: string }[];
-  for (const r of rows) {
-    if (r.body !== undefined && r.body.trim()) return { body: r.body, how: "last words" };
-  }
-  return undefined;
+  const anywhere = sub
+    ? (all(db, `select unit from "${sub}" where task = ? order by unit desc`, [task]) as { unit: number }[]).map(
+        (r) => Number(r.unit),
+      )
+    : [];
+  const last = spoke(anywhere);
+  return last ? { body: last, how: "last words" } : undefined;
 }
 
 const cfg = readConfig();
@@ -146,7 +158,7 @@ const kernel = new Kernel(app.store, app.log, registry, {
       // 日志上看像判据出了毛病，其实是它压根没交。这两件事得分得开。
       const v = said
         ? await evaluate(g, registry, { task: row, result: said })
-        : { pass: 0 as const, why: "nothing submitted - a task with a grading function must hand its answer in through verify before it wraps up", trace: [] };
+        : { pass: 0 as const, why: "nothing submitted - it never reached the hand-in step, so there is nothing to grade", trace: [] };
 
       // **拿到判决就投回上下文** —— 跟树那一路一个规矩（`tree/dfs.ts`）：
       // 凡是问过 G 的，判决都以「一次带结果的工具调用」落在那一站上。

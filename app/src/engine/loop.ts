@@ -28,7 +28,7 @@
 import type { Conn, Store } from "../H2H/db.ts";
 import { all, run } from "../H2H/db.ts";
 import { tableNameOf } from "../install/index.ts";
-import { lastSubmission } from "../objective/tool.ts";
+import { SUBMIT } from "../tree/dfs.ts";
 import { chainOf, type Unit } from "./chain.ts";
 import type { Registry } from "./registry.ts";
 import { deliver } from "../msg/deliver.ts";
@@ -575,7 +575,10 @@ export class Kernel {
       Math.round(Number(task.solve_seconds ?? 0) - (Date.now() - Number(task.created_at ?? Date.now())) / 1000),
     );
     const hasG = task.objective !== null;
-    const handed = hasG ? lastSubmission(this.#store.ro, p.agent, p.instance) !== undefined : false;
+    const handed =
+      hasG &&
+      all(this.#store.ro, `select unit from "${p.sub}" where task = ? and cycle = ? limit 1`, [p.task, SUBMIT])
+        .length > 0;
     return {
       units: caps.map((c) => ({
         cycle: c.cycle,
@@ -669,10 +672,13 @@ export class Kernel {
     const next = JSON.parse(String(cyc.next)) as string[];
 
     // 递给推断函数的除了 facts，还有「我是哪一行」—— 开兄弟和回退都要照着树走。
-    const picked =
-      next.length === 0
-        ? null
-        : await this.#reg.get(String(cyc.infer)).call({ ...facts, next, result, sub: p.sub, unit: p.unit });
+    // **终点站也要问。** `next` 为空只说明「没有下一站可去」，不说明「不用问这一站
+    // 算成了没有」—— 终止状态（reached / dead_*）正是推断函数说的那一栏。
+    // 以前这儿短路成 null，于是任何终点站的 status 永远是空：树上看不出它是走到了
+    // 还是被判死了。交卷站就是终点站，短路的话它那一次判决根本不会发生。
+    const picked = await this.#reg
+      .get(String(cyc.infer))
+      .call({ ...facts, next, result, sub: p.sub, unit: p.unit });
     const said = picked !== null && typeof picked === "object" ? (picked as Record<string, unknown>) : null;
     const to = picked == null ? null : said ? (said.to == null ? null : String(said.to)) : String(picked);
     // **「没说」和「说了是根」是两回事**：没说 = 从当前这一行接；

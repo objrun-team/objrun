@@ -33,6 +33,7 @@ import { inspectServer, pull, type ServerDecl } from "../mcp/register.ts";
 import { install, tableNameOf } from "../install/index.ts";
 import { MODE_NAMES } from "../llm/index.ts";
 import { hops } from "../place/index.ts";
+import { withSubmit } from "../tree/dfs.ts";
 
 /** MCP 工具没说多久算死时给多少。一次工具调用，不是一次求解。 */
 export const MCP_EXPECT_MS = 120_000;
@@ -344,6 +345,9 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
       say(`${at}: it has no cycles`);
       continue;
     }
+    // 走树那套机制自带一个交卷站（`tree/dfs.ts` 的 `withSubmit`）。**验的是补完之后
+    // 那张图** —— 验之前那张的话，「从起点走不到它」这类检查会漏掉补出来的那一站。
+    m.cycles = withSubmit(m.cycles as never) as never;
 
     const names = new Set<string>();
     for (const c of m.cycles) {
