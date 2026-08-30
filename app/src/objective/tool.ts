@@ -38,6 +38,7 @@
 import type { Conn } from "../H2H/db.ts";
 import { all, run } from "../H2H/db.ts";
 import type { Registry } from "../engine/registry.ts";
+import { tableNameOf } from "../install/index.ts";
 import { whereAmI } from "../tasks/where.ts";
 import { evaluate } from "./run.ts";
 import type { Sealed } from "./store.ts";
@@ -117,4 +118,35 @@ export function registerVerifyTool(db: Conn, reg: Registry, sealed: Sealed): str
     [VERIFY_TOOL.name],
   );
   return VERIFY_TOOL.name;
+}
+
+/**
+ * 它最后**交上来的那一份**。
+ *
+ * `verify` 是交卷口：模型调它一次，就是把「我这一轮做出来的东西」摆上台面。
+ * 收尾判的是这一份 —— 而不是内核回头去消息表里猜哪句话像答案。猜是会猜错的：
+ * 实测收尾拿到过模型调工具前的开场白（「let me look at the environment…」），
+ * 也拿到过空串，两种在判卷台那边看起来都像「它没答」。
+ *
+ * 内核自己投回去的那条判决**也叫 `verify`**（`deliverVerdict`），但它的
+ * `input` 是 `{task, at}` —— 没有 `answer`。靠这个把两者分开：**有 `answer`
+ * 的才是交卷**。
+ */
+export function lastSubmission(db: Conn, agent: string, instance: string): string | undefined {
+  const t = tableNameOf("agent_{}_msg", agent);
+  const rows = all(db, `select body from "${t}" where instance = ? and kind = 'call' order by unit desc, seq desc`, [
+    instance,
+  ]) as { body: string }[];
+  for (const r of rows) {
+    let v: { calls?: { name?: string; input?: { answer?: unknown } }[] };
+    try {
+      v = JSON.parse(r.body) as typeof v;
+    } catch {
+      continue;
+    }
+    for (const c of v.calls ?? []) {
+      if (c.name === "verify" && typeof c.input?.answer === "string" && c.input.answer.trim()) return c.input.answer;
+    }
+  }
+  return undefined;
 }

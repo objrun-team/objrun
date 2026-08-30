@@ -28,6 +28,7 @@
 import type { Conn, Store } from "../H2H/db.ts";
 import { all, run } from "../H2H/db.ts";
 import { tableNameOf } from "../install/index.ts";
+import { lastSubmission } from "../objective/tool.ts";
 import { chainOf, type Unit } from "./chain.ts";
 import type { Registry } from "./registry.ts";
 import { deliver } from "../msg/deliver.ts";
@@ -97,7 +98,8 @@ function one(db: Conn, sql: string, params: unknown[] = []): Row | null {
 /** 内核挂出来的钩子。**内核不认得钩子里干什么** —— 它只在那一刻喊一声。 */
 export interface Hooks {
   /** 一个任务的执行单元全干完了。判它成没成是别人的事，内核只报告「跑完了」。 */
-  onDone?(task: string): void;
+  /** 这道题收工了。`expired` 有值 = 是被时限逼停的，不是自己走完的。 */
+  onDone?(task: string, expired?: string): void;
 }
 
 export class Kernel {
@@ -272,10 +274,14 @@ export class Kernel {
       if (this.#cried.has(key)) continue;
       this.#cried.add(key);
       this.#log.warn(`任务 ${t.id} 超时：跑了 ${Math.round((now - Number(t.created_at)) / 1000)}s，上限 ${t.solve_seconds}s`);
-      run(this.#store.rw, `update task set state = 'failed', result = ? where id = ?`, [
+      // 先落一个失败，让它别再被排上；有 G 的话下面那一声会按判决改写。
+      run(this.#store.rw, `update task set state = failed, result = ? where id = ?`, [
         JSON.stringify({ pass: 0, why: `超过 solve_seconds=${t.solve_seconds}s` }),
         t.id,
       ]);
+      // **超时也要问 G。** 以前这条路直接写 failed 就完了，于是「时限内交对了、
+      // 只是树没来得及收尾」跟「什么都没做出来」在成绩单上长得一模一样。
+      this.#hooks.onDone?.(t.id, `超过 solve_seconds=${t.solve_seconds}s`);
     }
     for (const r of rows) {
       const cap = this.#expectSafe(r);
@@ -530,12 +536,60 @@ export class Kernel {
         objective: task.objective !== null,
       },
       here: { cycle: p.cycle, unit: p.unit, chain: chainOf(this.#store.ro, p.sub, p.mode, p) },
+      budget: this.#budgetOf(p, task),
       tried: nodes.map((n) => ({
         at: `${String(n.cycle)}#${String(n.unit)}`,
         from: n.from_cycle === null ? null : `${String(n.from_cycle)}#${String(n.from_unit)}`,
         status: n.status,
         done: Number(n.done) === 1,
       })),
+    };
+  }
+
+  /**
+   * **还剩多少额度。** 摆进视图里，不让它自己猜。
+   *
+   * 以前不给，后果是实测出来的：模型把额度全花在探环境上（`cmt-0`：12 个执行
+   * 单元查了一圈 python/node，一个字答案都没写），到收尾那一刻手上什么都没有。
+   * 它不是不会安排，是**看不见还剩多少**。
+   *
+   * 有 G 的话还多一条规矩：`verify` 是交卷口，收尾判的就是它交上来的那一份。
+   * 所以额度里**留一格给交卷** —— 见 `#advance` 里那道闸。
+   */
+  #budgetOf(p: Pending, task: Row): Row {
+    const caps = all(this.#store.ro, `select cycle, max_units from cycle where mode = ?`, [p.mode]) as {
+      cycle: string;
+      max_units: number;
+    }[];
+    const used = new Map(
+      (
+        all(this.#store.ro, `select cycle, count(*) as n from "${p.sub}" where task = ? group by cycle`, [
+          p.task,
+        ]) as { cycle: string; n: number }[]
+      ).map((r) => [r.cycle, Number(r.n)]),
+    );
+    const left = Math.max(
+      0,
+      Math.round(Number(task.solve_seconds ?? 0) - (Date.now() - Number(task.created_at ?? Date.now())) / 1000),
+    );
+    const hasG = task.objective !== null;
+    const handed = hasG ? lastSubmission(this.#store.ro, p.agent, p.instance) !== undefined : false;
+    return {
+      units: caps.map((c) => ({
+        cycle: c.cycle,
+        used: used.get(c.cycle) ?? 0,
+        cap: Number(c.max_units),
+        left: Math.max(0, Number(c.max_units) - (used.get(c.cycle) ?? 0)),
+      })),
+      secondsLeft: left,
+      ...(hasG
+        ? {
+            submitted: handed,
+            note: handed
+              ? "已经交过卷了（verify）。还想改就再调一次 verify，收尾判的是最后交的那一份。"
+              : "**这道题有验收标准。收尾判的是你用 verify 交上来的那一份** —— 额度里给交卷留了一格，但别拖到最后一格才想起来。",
+          }
+        : {}),
     };
   }
 
@@ -664,8 +718,22 @@ export class Kernel {
       const used = Number(
         one(this.#store.ro, `select count(*) as c from "${p.sub}" where task = ? and cycle = ?`, [p.task, to])!.c,
       );
-      if (used >= Number(cap.max_units)) {
-        this.#log.warn(`${p.task} 的 ${p.mode}/${to} 已经用满 ${cap.max_units} 个执行单位，不再开`);
+      // **给交卷留一格。** 有 G 的任务，收尾判的是它用 `verify` 交上来的那一份
+      // （见 `main.ts` 的 `lastSaid`）。额度按普通推进用满就停的话，最后那一步
+      // 「把答案交上来」根本没地方做 —— 实测就这么丢过整整一道题。
+      //
+      // 所以用满之后还允许**再开一格**，条件是这道题有 G 而且还没交过卷。
+      // 交过了就不再放 —— 那一格是为交卷留的，不是白送一次重试。
+      const row = one(this.#store.ro, `select objective from task where id = ?`, [p.task]);
+      const owed =
+        row != null &&
+        row.objective !== null &&
+        lastSubmission(this.#store.ro, p.agent, p.instance) === undefined;
+      const room = Number(cap.max_units) + (owed ? 1 : 0);
+      if (used >= room) {
+        this.#log.warn(
+          `${p.task} 的 ${p.mode}/${to} 已经用满 ${cap.max_units} 个执行单位${owed ? "（外加交卷那一格）" : ""}，不再开`,
+        );
       } else {
         // **编号在一个任务里单调递增，不按周期重新数。** 智能体那边的
         // ctx 表主键是 (instance, unit)，不带周期 —— 每个周期重数的话，

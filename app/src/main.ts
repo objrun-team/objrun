@@ -30,7 +30,7 @@ import { evaluate } from "./objective/run.ts";
 import { openSealed } from "./objective/store.ts";
 import { deliverVerdict, seedKinds } from "./msg/deliver.ts";
 import { registerTree } from "./tree/dfs.ts";
-import { registerVerifyTool } from "./objective/tool.ts";
+import { lastSubmission, registerVerifyTool } from "./objective/tool.ts";
 import { registerTreeView } from "./tree/view.ts";
 import { check } from "./trigger/check.ts";
 import { checkData } from "./trigger/data.ts";
@@ -53,46 +53,44 @@ function lastUnit(
 }
 
 /**
- * 这个任务最后**说过的一句有内容的话**。
+ * 收尾那一刻，**这道题交上来的是什么**。
  *
- * G 在收尾那一刻要判「做成了没有」，而答案在消息表里 —— `task.result` 存的是判决
- * 本身，不是答复。
+ * G 要判「做成了没有」，而答案不在 `task` 那一行上（`task.result` 存的是判决
+ * 本身，不是答复）。两条路，按这个顺序：
  *
- * 两样东西得跳过，都是实测踩过的：
- *
- * | 跳什么 | 不跳会怎样 |
+ * | 先看 | 为什么 |
  * | --- | --- |
- * | **判决自己**（`name: "verify"` 那一对） | 判决落进上下文之后就成了「最后一句话」，G 拿着它那条空 `text` 再判一遍，把上一次判对的覆盖成 0。日志里先 `parsed=True equiv=True`，紧接着一条 `Empty solution string provided` |
- * | **文字是空的那些** | 一条光要工具、没说话的 `call` 不是答复。取到它 = 拿空字符串去判，判卷那边只会说「没找到答案」，而看日志像是模型没答 |
+ * | **它交的那一份**（`verify` 的 `answer`） | `verify` 就是交卷口。交了就以交的为准 —— 这是它自己指定的那一份，不用猜 |
+ * | 最后一条 `prompt` | 没交卷的兜底。**只认 `prompt`** —— 树那一路早就是这个规矩（`tree/dfs.ts`：`kind === "prompt"` 才算自称到终点） |
  *
- * 往回找，找到第一条有字的为止。全都没有就回 `undefined` —— 没答等于没做对。
+ * 以前这儿把 `call` 行也算上，理由是「它的 text 里有话」。可 `call` 的 text 是
+ * **调工具前的开场白**，不是答复 —— 实测收尾拿它去判过，判卷台那边看到的是
+ * 「let me look at the environment to understand this task better.」。
+ *
+ * 还得跳过**判决自己**（`name: "verify"` 那一对里内核投回去的那条）：判决落进
+ * 上下文之后就成了「最后一句话」，G 拿着它那条空 `text` 再判一遍，能把上一次
+ * 判对的覆盖成 0。
+ *
+ * 全都没有就回 `undefined` —— **那是「没交卷」**，跟「交了但判错」是两回事，
+ * 收尾那边据它给出不同的 `why`。
  */
-function lastSaid(db: Parameters<typeof all>[0], task: string): { body: string } | undefined {
+function lastSaid(db: Parameters<typeof all>[0], task: string): { body: string; how: string } | undefined {
   const u = lastUnit(db, task);
   if (!u) return undefined;
+
+  const handed = lastSubmission(db, u.agent, u.instance);
+  if (handed) return { body: handed, how: "交卷" };
+
   const msg = tableNameOf("agent_{}_msg", u.agent);
   const rows = all(
     db,
-    `select kind, body from "${msg}"
-      where instance = ? and kind in ('prompt', 'call') and body not like '%"name":"verify"%'
+    `select body from "${msg}"
+      where instance = ? and kind = 'prompt'
       order by unit desc, seq desc limit 20`,
     [u.instance],
-  ) as { kind?: string; body?: string }[];
-
+  ) as { body?: string }[];
   for (const r of rows) {
-    if (r.body === undefined) continue;
-    // **`call` 那一行的 body 是个 JSON**（`{text, calls}`），模型说的话在 `text` 里。
-    // 原样递过去的话，G 拿到的是 `…"name":"bash","input":{…}}]}` 这种东西。
-    let text = r.body;
-    if (r.kind === "call") {
-      try {
-        text = String((JSON.parse(r.body) as { text?: unknown }).text ?? "");
-      } catch {
-        // 读不出来就当它没说话
-        continue;
-      }
-    }
-    if (text.trim()) return { body: text };
+    if (r.body !== undefined && r.body.trim()) return { body: r.body, how: "最后一句" };
   }
   return undefined;
 }
@@ -134,25 +132,25 @@ const sealed = openSealed(cfg.db.sealed);
 // 内核判一个任务的执行单元全干完了 → 这儿跑 G，把判决写回主库。
 // **内核不认得 G**，它只喊一声「跑完了」。
 const kernel = new Kernel(app.store, app.log, registry, {
-  onDone(task) {
+  onDone(task, expired) {
     if (!sealed.has(task)) return; // 没有 G 的任务，跑完就是跑完
     void (async () => {
       const g = sealed.open(task);
       if (!g) return;
       const row = all(app.store.ro, `select id, description, place, workdir from task where id = ?`, [task])[0];
-      // **把最后那句答复一起递过去。** G 判的是「这道题做成了没有」，而答案在
-      // 消息表里，不在 `task` 那一行上（`task.result` 是判决本身，不是答复）。
-      // 不递的话 G 那一步拿到的是空字符串，凡是要看答案的 G 一律判 0 ——
-      // 而且它会把树那一路刚判对的结果覆盖掉，看着像判据出错。
-      //
-      // 形状跟树那一路对齐（`tree/dfs.ts` 递的是 `{task, chain, result}`），
-      // 这样一个 G 脚本两处都能用，不用问自己「这次是谁在叫我」。
-      const v = await evaluate(g, registry, { task: row, result: lastSaid(app.store.ro, String(task)) });
+      const at = lastUnit(app.store.ro, String(task));
+      const said = lastSaid(app.store.ro, String(task));
+
+      // **没交卷就不用问 G 了。** 有 G 的任务，收尾得有一份「我交的是这个」——
+      // `verify` 就是那个口。递空串进去的话，判卷台只会说「没找到答案」，
+      // 日志上看像判据出了毛病，其实是它压根没交。这两件事得分得开。
+      const v = said
+        ? await evaluate(g, registry, { task: row, result: said })
+        : { pass: 0 as const, why: "没交卷 —— 有 G 的任务收尾要调一次 verify 把答案交上来", trace: [] };
 
       // **拿到判决就投回上下文** —— 跟树那一路一个规矩（`tree/dfs.ts`）：
       // 凡是问过 G 的，判决都以「一次带结果的工具调用」落在那一站上。
       // 只写 `task.result` 的话，那是给我们看的，模型永远不知道自己被判了什么。
-      const at = lastUnit(app.store.ro, String(task));
       if (at) {
         deliverVerdict(app.store.rw, {
           agent: at.agent,
@@ -164,12 +162,18 @@ const kernel = new Kernel(app.store, app.log, registry, {
         });
       }
 
+      // 超时那一路也走到这儿（`#reap`）。**判决照给** —— 它要是在时限内就把对的
+      // 交上来了，那就是做出来了，只是树没来得及收尾；时限只说明「没能自己收工」。
+      // 判 0 的话把超时一起记进 `why`，不然成绩单上分不清是判错还是耗光。
+      const why = v.pass === 1 ? v.why : [expired, v.why].filter(Boolean).join("；");
       run(app.store.rw, `update task set state = ?, result = ? where id = ?`, [
         v.pass === 1 ? "done" : "failed",
-        JSON.stringify({ pass: v.pass, why: v.why }),
+        JSON.stringify({ pass: v.pass, why }),
         task,
       ]);
-      app.log.info(`G 判了 ${task}：${v.pass}${v.why ? "（" + v.why + "）" : ""}`);
+      app.log.info(
+        `G 判了 ${task}：${v.pass}（${said ? said.how : "没交卷"}${why ? "，" + why : ""}）`,
+      );
     })();
   },
 });
