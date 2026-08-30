@@ -1,6 +1,6 @@
-﻿# 开一个真的谷歌会议
+# 开一个真的谷歌会议
 
-[← 例子](../) ｜ [tool](../tool/) · [meet-join](../meet-join/) · **meet-book** · [place](../place/)
+[← 例子](../) ｜ [tool](../tool/) · [meet-join](../meet-join/) · **meet-book** · [place](../place/) · [rule](../rule/) · [skill](../skill/) · [mode](../mode/) · [cmtbench](../benchmark/cmt/)
 
 两个工具：一个发起授权，一个开会。**两种写法各来一遍。**
 
@@ -31,7 +31,7 @@ curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
   "modes": [{ "mode":"work", "cycles":[
     { "cycle":"ask", "apiMode":"chat", "maxUnits":20, "from":[], "next":["act"], "infer":"fn:infer.dfs" },
     { "cycle":"act",                   "maxUnits":20, "from":["ask"], "next":["ask"], "infer":"fn:infer.dfs" }] }],
-  "agents": [{ "name":"bot", "apis":[["DEEPSEEK_API_KEY","deepseek-chat"]], "unit":"fn:unit.tools" }]
+  "agents": [{ "name":"bot", "apis":[["DEEPSEEK_API_KEY","deepseek-v4-flash"]], "unit":"fn:unit.tools" }]
 }
 JSON
 ```

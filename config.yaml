@@ -51,6 +51,13 @@ api:
   # 请求没带 limit 时返回多少行。
   defaultLimit: 100
 
+llm:
+  # 一次调用最多生成多少 token。
+  maxTokens: 8192
+  # 思考强度：none / low / medium / high。**原样发给那家** —— 认不认得是那家的事，
+  # 我们不替它猜。不认得这个参数的模型会忽略它。
+  reasoningEffort: high
+
 cors:
   enabled: true
   # "*" 或者一串来源，如 ["http://127.0.0.1:5173"]

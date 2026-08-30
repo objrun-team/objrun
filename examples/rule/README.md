@@ -1,5 +1,7 @@
 # 规则
 
+[← 例子](../) ｜ [tool](../tool/) · [meet-join](../meet-join/) · [meet-book](../meet-book/) · [place](../place/) · **rule** · [skill](../skill/) · [mode](../mode/) · [cmtbench](../benchmark/cmt/)
+
 挂在时刻上就是钩子。**不另开表** —— 一条规则 + 一条 `dim: "moment"` 的条件，就是钩子。
 
 内核只喊「现在是哪一刻」，谁挂在这一刻上由触发条件说了算，所以内核里没有任何一个规则名。
@@ -82,7 +84,7 @@ curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<JSON
   "places":[{"place":"local"}],
   "modes":[{"mode":"chat1","cycles":[
     {"cycle":"ask","apiMode":"chat","maxUnits":4,"from":[],"next":[],"infer":"fn:infer.dfs"}]}],
-  "agents":[{"name":"bot","apis":[["DEEPSEEK_API_KEY","deepseek-chat"]],"unit":"fn:api.deepseek"}],
+  "agents":[{"name":"bot","apis":[["DEEPSEEK_API_KEY","deepseek-v4-flash"]],"unit":"fn:api.deepseek"}],
   "handles":[
     {"name":"fn:rule.audit",  "expectMs":10000,"module":"$R/examples/rule/hooks.ts#audit"},
     {"name":"fn:rule.archive","expectMs":10000,"module":"$R/examples/rule/hooks.ts#archive"}],

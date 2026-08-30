@@ -24,26 +24,40 @@ curl -s -X POST "$BASE/declare" -H 'content-type: application/json' -d @- <<JSON
   "modes":[{"mode":"solve","cycles":[
     {"cycle":"ask","apiMode":"chat","maxUnits":6,"from":[],      "next":["act"],"infer":"fn:infer.dfs"},
     {"cycle":"act",                 "maxUnits":6,"from":["ask"], "next":["ask"],"infer":"fn:infer.dfs"}]}],
-  "agents":[{"name":"bot","apis":[["DEEPSEEK_API_KEY","deepseek-chat"]],"unit":"fn:unit.tools"}],
+  "agents":[{"name":"bot","apis":[["DEEPSEEK_API_KEY","deepseek-v4-flash"]],"unit":"fn:unit.tools"}],
   "handles":[
     {"name":"$GRADER/parsed","expectMs":60000},
     {"name":"$GRADER/equiv", "expectMs":60000}] }
 JSON
 echo
 
-step "2 发一批（一道不过就整批不发）"
+step "2 挂扩展"
+bun examples/benchmark/cmt/parmeras/load.ts
+
+step "2b 条件本身有没有毛病"
+curl -sS "$BASE/check"; echo
+
+step "3 发一批（一道不过就整批不发）"
 bun examples/benchmark/cmt/send.ts "$HOW_MANY" "$RUN"
 
-step "3 等它跑完"
-for i in $(seq 1 180); do
+step "4 等它跑完"
+# 判 0 的题会被树判死、开兄弟换条路重试，所以「跑完」得等到 running 和 open 都归零
+# —— 要么做对了，要么 solveSeconds 到点被判 failed。
+for i in $(seq 1 200); do
   sleep 10
   r=$(curl -s "$BASE/bench/$RUN")
   left=$(echo "$r" | grep -o '"running":[0-9]*' | grep -o '[0-9]*$')
   open=$(echo "$r" | grep -o '"open":[0-9]*' | grep -o '[0-9]*$')
-  echo "  在跑 ${left:-?}｜没开工 ${open:-?}（$((i*10))s）"
+  [ $((i % 6)) -eq 0 ] && echo "  在跑 ${left:-?}｜没开工 ${open:-?}（$((i*10))s）"
   [ "${left:-1}" = "0" ] && [ "${open:-1}" = "0" ] && break
 done
 
-step "4 成绩单"
+step "5 成绩单"
 curl -s "$BASE/bench/$RUN"
 echo
+
+step "6 扩展塞进去没有"
+for t in $(curl -s "$BASE/tasks?run=$RUN" | grep -o '"id":"[^"]*"' | grep -o 'cmt-[0-9]*'); do
+  n=$(curl -s "$BASE/tasks/$t/messages?kind=skill" | grep -o '"total":[0-9]*' | grep -o '[0-9]*$')
+  echo "  $t: skill 行 ${n:-0} 条"
+done

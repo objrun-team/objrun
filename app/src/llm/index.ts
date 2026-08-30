@@ -210,7 +210,12 @@ export function instructionsOf(u: Unit): string {
  *
  * `seed` 里那几行 `api` 是**数据**，给几个能直接用的；改它不用动代码。
  */
-export function registerVendors(db: Conn, reg: Registry, seed: [string, string, string][]): string[] {
+export function registerVendors(
+  db: Conn,
+  reg: Registry,
+  seed: [string, string, string][],
+  knobs: { maxTokens: number; reasoningEffort: string },
+): string[] {
   for (const [vendor, v] of Object.entries(VENDORS)) {
     // 这条句柄接得住哪几种 mode。**duplex 不在里面** —— 它是另一条句柄。
     SERVES.set(`fn:api.${vendor}`, new Set(["chat", "tools", "vision"]));
@@ -244,6 +249,11 @@ export function registerVendors(db: Conn, reg: Registry, seed: [string, string, 
           messages,
           ...(instructions ? { instructions } : {}),
           ...(Object.keys(tools).length ? { tools } : {}),
+          maxOutputTokens: knobs.maxTokens,
+          // 思考强度**原样塞进那家的请求体**（openai-compatible 会把不认得的键
+          // 直接带过去）。不认得这个参数的模型会忽略它 —— 我们不替它翻译，
+          // 也不按模型名去猜该发哪个字段名，猜错了不报错，只是那一档没生效。
+          providerOptions: { [vendor]: { reasoning_effort: knobs.reasoningEffort } },
           maxRetries: RETRIES,
           abortSignal: wall.signal,
         });

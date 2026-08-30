@@ -1,5 +1,7 @@
 # 任务机制
 
+[← 例子](../) ｜ [tool](../tool/) · [meet-join](../meet-join/) · [meet-book](../meet-book/) · [place](../place/) · [rule](../rule/) · [skill](../skill/) · **mode** · [cmtbench](../benchmark/cmt/)
+
 一种机制 = **一张图**（几个周期，靠 `from`/`next` 连起来）+ **一个推断函数**
 （`infer`，决定这一站走完之后去哪儿）。图和推断函数都在外面，一行内核代码不用改。
 
@@ -80,7 +82,7 @@ export async function infer(arg: unknown): Promise<unknown> {
 curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<JSON
 {
   "places":[{"place":"local"}],
-  "agents":[{"name":"bot","apis":[["DEEPSEEK_API_KEY","deepseek-chat"]],"unit":"fn:api.deepseek"}],
+  "agents":[{"name":"bot","apis":[["DEEPSEEK_API_KEY","deepseek-v4-flash"]],"unit":"fn:api.deepseek"}],
   "handles":[
     {"name":"fn:infer.steps","expectMs":15000,"module":"$R/examples/mode/steps.ts#infer"},
     {"name":"fn:infer.wild", "expectMs":15000,"module":"$R/examples/mode/steps.ts#wild"}],

@@ -1,5 +1,7 @@
 # skill
 
+[← 例子](../) ｜ [tool](../tool/) · [meet-join](../meet-join/) · [meet-book](../meet-book/) · [place](../place/) · [rule](../rule/) · **skill** · [mode](../mode/) · [cmtbench](../benchmark/cmt/)
+
 跟工具最大的分别：**模型不挑它**。工具是摆出来让模型自己决定调不调；skill 是条件一命中
 就**塞进上下文**，模型只会看到已经塞好的结果。
 
@@ -63,7 +65,7 @@ curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<JSON
   "places":[{"place":"local"}],
   "modes":[{"mode":"chat1","cycles":[
     {"cycle":"ask","apiMode":"chat","maxUnits":4,"from":[],"next":[],"infer":"fn:infer.dfs"}]}],
-  "agents":[{"name":"bot","apis":[["DEEPSEEK_API_KEY","deepseek-chat"]],"unit":"fn:api.deepseek"}],
+  "agents":[{"name":"bot","apis":[["DEEPSEEK_API_KEY","deepseek-v4-flash"]],"unit":"fn:api.deepseek"}],
   "handles":[{"name":"fn:skill.recap","expectMs":10000,
               "module":"$R/examples/skill/recap.ts#run"}],
   "skills":[

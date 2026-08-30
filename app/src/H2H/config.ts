@@ -50,6 +50,16 @@ export interface Config {
     defaultLimit: number;
   };
   cors: { enabled: boolean; origin: string | string[] };
+  /**
+   * 调模型时那几个旋钮。**这台机器一份，不按智能体分** —— 要按智能体分的时候
+   * 再往 `agent.apis` 那一列上加，那一列本来就是 JSON。
+   */
+  llm: {
+    /** 一次调用最多生成多少 token。 */
+    maxTokens: number;
+    /** 思考强度。原样发给那家 —— 认不认得是那家的事，我们不替它猜。 */
+    reasoningEffort: string;
+  };
 }
 
 /** `${VAR}` 从环境变量取。取不到就是空 —— 由用它的地方去判缺不缺。 */
@@ -133,5 +143,6 @@ export function readConfig(file = findConfig()): Config {
       defaultLimit: num(doc, "api.defaultLimit"),
     },
     cors: { enabled: bool(doc, "cors.enabled"), origin: origin as string | string[] },
+    llm: { maxTokens: num(doc, "llm.maxTokens"), reasoningEffort: str(doc, "llm.reasoningEffort") },
   };
 }

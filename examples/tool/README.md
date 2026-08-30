@@ -1,6 +1,6 @@
 # 注册工具
 
-[← 例子](../) ｜ **tool** · [meet-join](../meet-join/) · [meet-book](../meet-book/) · [place](../place/)
+[← 例子](../) ｜ **tool** · [meet-join](../meet-join/) · [meet-book](../meet-book/) · [place](../place/) · [rule](../rule/) · [skill](../skill/) · [mode](../mode/) · [cmtbench](../benchmark/cmt/)
 
 同一个骰子，两种写法，都注册进去，一个任务里都用上。
 
@@ -23,7 +23,7 @@ curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
   "modes": [{ "mode":"work", "cycles":[
     { "cycle":"ask", "apiMode":"chat", "maxUnits":8, "from":[], "next":["act"], "infer":"fn:infer.dfs" },
     { "cycle":"act",                   "maxUnits":8, "from":["ask"], "next":["ask"], "infer":"fn:infer.dfs" }] }],
-  "agents": [{ "name":"bot", "apis":[["DEEPSEEK_API_KEY","deepseek-chat"]], "unit":"fn:unit.tools" }]
+  "agents": [{ "name":"bot", "apis":[["DEEPSEEK_API_KEY","deepseek-v4-flash"]], "unit":"fn:unit.tools" }]
 }
 JSON
 ```

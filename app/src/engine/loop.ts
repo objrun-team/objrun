@@ -590,7 +590,19 @@ export class Kernel {
     run(this.#store.rw, `update "${ctx}" set done = 1 where instance = ? and unit = ?`, [p.instance, p.unit]);
 
     if (to !== null) {
-      if (!next.includes(to)) {
+      // **`next` 白名单只管「往下走」那一种。**
+      //
+      // 开兄弟和回退回的是第三种形状（带 `from_cycle`：接到指定那一行上），它们的
+      // `to` 是**当前这个周期**（兄弟）或**祖先的周期**（回退）—— 本来就不在
+      // `next` 里。一律拿 next 卡的话，判死之后一个兄弟都开不出来：
+      // 「fn:infer.dfs 推出来的 ask 不在候选里（候选是 act）」。
+      //
+      // 这条以前撞不上，是因为模型每一站都先请求工具，`ask` 那站从不算「到终点」，
+      // 也就从来没judge过、没判死过。换个直接给答案的模型就炸。
+      //
+      // 不查白名单不等于不查：下面那句 `cycle 表里没有 ${p.mode}/${to}` 仍然拦着
+      // 推断函数瞎编一个周期名出来。
+      if (!saidFrom && !next.includes(to)) {
         throw new Error(`${cyc.infer} 推出来的 ${to} 不在候选里（候选是 ${next.join("、")}）`);
       }
       const cap = one(this.#store.ro, `select max_units from cycle where mode = ? and cycle = ?`, [p.mode, to]);

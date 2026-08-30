@@ -57,10 +57,19 @@ function lastSaid(db: Parameters<typeof all>[0], task: string): { body: string }
   const msg = tableNameOf("agent_{}_msg", u.agent);
   const r = all(
     db,
-    `select body from "${msg}" where instance = ? and kind in ('prompt', 'call') order by unit desc, seq desc limit 1`,
+    `select kind, body from "${msg}" where instance = ? and kind in ('prompt', 'call') order by unit desc, seq desc limit 1`,
     [u.instance],
-  )[0] as { body?: string } | undefined;
-  return r?.body === undefined ? undefined : { body: r.body };
+  )[0] as { kind?: string; body?: string } | undefined;
+  if (r?.body === undefined) return undefined;
+  // **`call` 那一行的 body 是个 JSON**（`{text, calls}`），模型说的话在 `text` 里。
+  // 原样递过去的话，G 拿到的是 `…"name":"bash","input":{…}}]}` 这种东西 —— 判卷那边
+  // 只会说「没找到答案」，而看日志像是模型没答，其实是我们递错了东西。
+  if (r.kind !== "call") return { body: r.body };
+  try {
+    return { body: String((JSON.parse(r.body) as { text?: unknown }).text ?? "") };
+  } catch {
+    return { body: r.body };
+  }
 }
 
 const cfg = readConfig();
@@ -148,11 +157,18 @@ app.log.info(`调用形状：${seedModes(app.store.rw).join("、")}`);
 // 模型这一侧：每家一个适配器。**这个句柄同时是 api.handle 和 agent.unit** ——
 // 一次调用就是一个执行单元。下面那几行 api 是数据，改它不用动代码。
 app.log.info(
-  `模型：${registerVendors(app.store.rw, registry, [
-    ["deepseek", "deepseek-chat", "chat,tools"],
-    ["deepseek", "deepseek-reasoner", "chat"],
-    ["dashscope", "qwen-max", "chat,tools"],
-  ]).join("、")}`,
+  `模型：${registerVendors(
+    app.store.rw,
+    registry,
+    [
+      ["deepseek", "deepseek-v4-flash", "chat,tools"],
+      ["deepseek", "deepseek-v4-pro", "chat,tools"],
+      ["deepseek", "deepseek-chat", "chat,tools"],
+      ["deepseek", "deepseek-reasoner", "chat"],
+      ["dashscope", "qwen-max", "chat,tools"],
+    ],
+    cfg.llm,
+  ).join("、")}｜出 ${cfg.llm.maxTokens} token｜思考 ${cfg.llm.reasoningEffort}`,
 );
 
 // 实时轨。**另一条句柄** —— 它不是一次调用，是一条会话，一个执行单元对应会话里的

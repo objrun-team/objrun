@@ -1,6 +1,6 @@
 # 一个会给你新句柄的工具
 
-[← 例子](../) ｜ [tool](../tool/) · **meet-join** · [meet-book](../meet-book/) · [place](../place/)
+[← 例子](../) ｜ [tool](../tool/) · **meet-join** · [meet-book](../meet-book/) · [place](../place/) · [rule](../rule/) · [skill](../skill/) · [mode](../mode/) · [cmtbench](../benchmark/cmt/)
 
 `meet_join` 进会。进去之后，会里才有的 `say` 和 `screen` 才出现在表里。
 
@@ -21,7 +21,7 @@ curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
   "modes": [{ "mode":"work", "cycles":[
     { "cycle":"ask", "apiMode":"chat", "maxUnits":8, "from":[], "next":["act"], "infer":"fn:infer.dfs" },
     { "cycle":"act",                   "maxUnits":8, "from":["ask"], "next":["ask"], "infer":"fn:infer.dfs" }] }],
-  "agents": [{ "name":"bot", "apis":[["DEEPSEEK_API_KEY","deepseek-chat"]], "unit":"fn:unit.tools" }]
+  "agents": [{ "name":"bot", "apis":[["DEEPSEEK_API_KEY","deepseek-v4-flash"]], "unit":"fn:unit.tools" }]
 }
 JSON
 ```

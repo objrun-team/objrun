@@ -1,5 +1,7 @@
 # cmtbench
 
+[← 例子](../../) ｜ [tool](../../tool/) · [meet-join](../../meet-join/) · [meet-book](../../meet-book/) · [place](../../place/) · [rule](../../rule/) · [skill](../../skill/) · [mode](../../mode/) · **cmtbench**
+
 [CMT-Benchmark](https://arxiv.org/abs/2510.05228)：50 道凝聚态理论的研究级题目，专家出的。
 这个例子把它整批发进引擎，**判卷用官方那套**（LaTeX→Sympy），出一张成绩单。
 
@@ -132,7 +134,7 @@ curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
   "modes":[{"mode":"solve","cycles":[
     {"cycle":"ask","apiMode":"chat","maxUnits":6,"from":[],      "next":["act"],"infer":"fn:infer.dfs"},
     {"cycle":"act",                 "maxUnits":6,"from":["ask"], "next":["ask"],"infer":"fn:infer.dfs"}]}],
-  "agents":[{"name":"bot","apis":[["DEEPSEEK_API_KEY","deepseek-chat"]],"unit":"fn:unit.tools"}],
+  "agents":[{"name":"bot","apis":[["DEEPSEEK_API_KEY","deepseek-v4-flash"]],"unit":"fn:unit.tools"}],
   "handles":[
     {"name":"http://127.0.0.1:7901/parsed","expectMs":60000},
     {"name":"http://127.0.0.1:7901/equiv", "expectMs":60000}] }
@@ -181,11 +183,15 @@ cmt-demo：5 道
 
 ```json
 { "id":"cmt-0", "mode":"solve", "agent":"bot", "place":"local", "source":"user",
+  "domain":"physics",
   "solveSeconds": 900,
   "description":"Consider a spinful electron system in a two-dimensional triangular lattice…\n\n符号：$U_0;U_1$\n\n把最终答案放进 \\boxed{} 里。",
   "objective": { …上面那个… },
   "readable": false }
 ```
+
+`domain: "physics"` 是**扩展分发用的** —— 下面那个 skill 就靠它。它跟 `mode` 是两回事：
+`mode` 是推理机制（这儿是 ask/act 两站的树），`domain` 是这道题属于哪个领域。
 
 `readable: false` —— 带 G 就必须显式给：这道题的智能体读不读得到 G 的定义。
 `source` 只有 `user` 能带 G，智能体自己派生的任务不许带（那是自提权）。
@@ -197,26 +203,27 @@ cmt-demo：5 道
 ## 判卷台看到了什么
 
 ```
-[cmt] cmt-0（HF）parsed=True  equiv=True  ｜答尾 …N = \frac{U_1}{2}$$  $$\boxed{\displaystyle \frac{U_1}{2}}$$
-[cmt] cmt-4（HF）parsed=True  equiv=True  ｜答尾 …massive) layers, so the distinct masses present no obstacle.
+[cmt] cmt-0（HF）parsed=True  equiv=False ｜答尾 …So energy per site = U0/2.  $$\boxed{\frac{U_0}{2}}$$
 [cmt] cmt-1（HF）parsed=True  equiv=False err=Number of expressions do not match: 4 vs 2
-[cmt] cmt-2（HF）parsed=False equiv=False err=Failed to parse model response: Could not parse '\\ (2.09, 0…
-[cmt] cmt-3（HF）parsed=False equiv=False err=Failed to parse model response: SymPy parsing error: invalid…
+[cmt] cmt-4（HF）parsed=True  equiv=False ｜答尾 …exactly what breaks TR. Yes.  So the answer is (g).  $\boxed{g}$
+[cmt] cmt-2（HF）parsed=False equiv=False err=Failed to parse model response: Unexpected error during pars…
+[cmt] cmt-3（HF）parsed=False equiv=False err=Failed to parse model response: Unexpected error during eval…
 ```
 
-`parsed` 和 `equiv` 分开报是有用的：`cmt-1` 是**答错了**（解析出来了，4 个表达式对不上 2 个），
-`cmt-2`/`cmt-3` 是**格式没接住**（官方 parser 读不出来）。这两种失败要分开看 ——
-论文里也是分开报的。
+**`parsed` 和 `equiv` 分开报是有用的**，两种失败要干的活完全不同：
+
+| | |
+| --- | --- |
+| `parsed=True equiv=False` | **答错了**。`cmt-0` 答 `U_0/2`，GT 是 `U_1/2`；`cmt-1` 多给了两个自旋翻转项，4 个表达式对不上 2 个 |
+| `parsed=False` | **格式没接住** —— 官方 parser 读不出来。可能物理上是对的，只是写法没合上口径 |
+
+混成一个数的话，你分不清模型是不会做还是格式没对齐。论文里也是分开报的
+（`parser_stats_summary` 和 `eval_stats_summary` 是两个文件）。
 
 ## 判 0 之后：换条路再来
 
-```
-G 判了 cmt-0：1
-G 判了 cmt-4：1
-```
-
-判 1 的收工。判 0 的那几道**没有停** —— `fn:infer.dfs` 拿到 G 的 0，把这一站盖上
-`dead_failed`，在同一个父底下开一个兄弟换条路走：
+判 0 的题**不会收工** —— `fn:infer.dfs` 拿到 G 的 0，把这一站盖上 `dead_failed`，
+在同一个父底下开一个兄弟换条路走：
 
 ```bash
 curl -s $BASE/tasks/cmt-1/tree | grep -o '"chain":"[^"]*"\|"status":"[a-z_]*"'
@@ -237,21 +244,30 @@ G 说 0，那就是「以为到了其实没到」。
 curl -s $BASE/bench/cmt-demo
 ```
 ```json
-{"run":"cmt-demo","total":5,"passed":2,"failed":0,"running":3,"open":0,
+{"run":"cmt-demo","total":5,"passed":0,"failed":5,"running":0,"open":0,
  "tasks":[
-  {"id":"cmt-0","state":"done",   "result":"{\"pass\":1,\"why\":\"\"}"},
-  {"id":"cmt-1","state":"claimed","result":null},
-  {"id":"cmt-2","state":"claimed","result":null},
-  {"id":"cmt-3","state":"claimed","result":null},
-  {"id":"cmt-4","state":"done",   "result":"{\"pass\":1,\"why\":\"\"}"}]}
+  {"id":"cmt-0","state":"failed","result":"{\"pass\":0,\"why\":\"超过 solve_seconds=900s\"}"},
+  {"id":"cmt-1","state":"failed","result":"{\"pass\":0,\"why\":\"超过 solve_seconds=900s\"}"},
+  {"id":"cmt-2","state":"failed","result":"{\"pass\":0,\"why\":\"超过 solve_seconds=900s\"}"},
+  {"id":"cmt-3","state":"failed","result":"{\"pass\":0,\"why\":\"超过 solve_seconds=900s\"}"},
+  {"id":"cmt-4","state":"failed","result":"{\"pass\":0,\"why\":\"超过 solve_seconds=900s\"}"}]}
 ```
 
 **成绩是数出来的，不是存着的。** 存一份会跟真相漂，而且漂了不报错。
 
-上面这张是跑到一半的快照：2 道判过，3 道还在换路重试，到 `solveSeconds` 才收。
+`failed` 里混着两种，看 `why` 分：
+
+| `why` | |
+| --- | --- |
+| `equiv 判了 false` | G 真判了 0 —— 收尾那一刻算出来的 |
+| `超过 solve_seconds` | **耗光了**。判 0 → 换路重试 → 一直没有哪条分支过 G，直到钟走完 |
+
+这一跑五道全是后者：没有哪条分支通过 G。所以**一道题的耗时下界不是「答一次」，
+是 `solveSeconds`** —— 排 50 道的时候得按这个算。
 
 > 这不是论文那张表上的数。论文是**单轮问一次**，这儿是带工具的多轮、判 0 还会重试，
-> 而且只跑了 50 道里的前 5 道（全是 HF 型）。要跟论文对齐得单轮、跑满 50 道。
+> 而且只跑了 50 道里的前 5 道（全是 HF 型）。另一遍同样的配置跑出 1/5 —— 5 道题的
+> 样本量说明不了什么（论文里 DeepSeek v3 是 4%）。要跟论文对齐得单轮、跑满 50 道。
 
 ---
 

@@ -1,6 +1,6 @@
 # 干活的地方
 
-[← 例子](../) ｜ [tool](../tool/) · [meet-join](../meet-join/) · [meet-book](../meet-book/) · **place**
+[← 例子](../) ｜ [tool](../tool/) · [meet-join](../meet-join/) · [meet-book](../meet-book/) · **place** · [rule](../rule/) · [skill](../skill/) · [mode](../mode/) · [cmtbench](../benchmark/cmt/)
 
 登记一个本机开着的浏览器标签页当一个地方。**执行单元落在这儿，就有这一页的那几个工具；
 落在别处就没有。**
@@ -44,7 +44,7 @@ curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
   "modes": [{ "mode":"work", "cycles":[
     { "cycle":"ask", "apiMode":"chat", "maxUnits":12, "from":[], "next":["act"], "infer":"fn:infer.dfs" },
     { "cycle":"act",                   "maxUnits":12, "from":["ask"], "next":["ask"], "infer":"fn:infer.dfs" }] }],
-  "agents": [{ "name":"bot", "apis":[["DEEPSEEK_API_KEY","deepseek-chat"]], "unit":"fn:unit.tools" }]
+  "agents": [{ "name":"bot", "apis":[["DEEPSEEK_API_KEY","deepseek-v4-flash"]], "unit":"fn:unit.tools" }]
 }
 JSON
 ```
