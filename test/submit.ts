@@ -39,6 +39,9 @@ const out = await outside({
     attached = ((u.tools ?? []) as { name: string }[]).map((t) => t.name);
     return { role: "assistant", kind: "prompt", body: "the answer is 42" };
   },
+  // 干活那一站：**永远只调工具，一句完整的话都不说**。
+  // 一直在调工具的题走不到「说完了」那条路，只能靠额度用完那条路拐去交卷。
+  "/grind": () => ({ role: "assistant", kind: "call", body: JSON.stringify({ text: "", calls: [] }) }),
   "/look": (a) => {
     graded.push(a);
     return true;
@@ -136,6 +139,31 @@ try {
     row.params,
   );
   ok("it is not a system tool - it is attached by a term, like the other tree tools", Number(row.system) === 0, row.system);
+  step("5. a task that only ever calls tools still reaches the hand-in step");
+  await m.api("POST", "/declare", {
+    handles: [{ name: out.url("/grind"), expectMs: 30_000 }],
+    modes: [{ mode: "grind", cycles: [{ cycle: "ask", maxUnits: 2, from: [], next: [], infer: "fn:infer.dfs" }] }],
+    agents: [{ name: "tooler", apis: [], unit: out.url("/grind") }],
+  });
+  await m.api("POST", "/tasks", {
+    id: "t-2", mode: "grind", agent: "tooler", place: "local", source: "user", description: "never speaks",
+  });
+  const g2 = await until("t-2 to finish", async () => {
+    const d = await m.api<{ state: string; units: Record<string, unknown>[] }>("GET", "/tasks/t-2");
+    return d.state === "done" || d.state === "failed" ? d : null;
+  });
+  show("the stations it walked:", g2.units.map((u) => `${String(u.cycle)}#${String(u.unit)}`));
+  ok(
+    "running out of working budget routes it to the hand-in step, rather than dying quietly",
+    g2.units.some((u) => u.cycle === "submit"),
+    g2.units.map((u) => `${String(u.cycle)}#${String(u.unit)}`),
+  );
+  // 这个模式除了交卷站没有别的候选，所以第一站之后就拐过去了 —— 一格都没浪费。
+  ok(
+    "it did not burn more than the declared working budget",
+    g2.units.filter((u) => u.cycle === "ask").length <= 2,
+    g2.units.map((u) => `${String(u.cycle)}#${String(u.unit)}`),
+  );
 } finally {
   out.stop();
   m.stop();

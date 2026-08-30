@@ -210,6 +210,16 @@ function verdictFor(
   return hit;
 }
 
+/** 这个周期的额度用完了没有。 */
+function full(db: Conn, a: Ask, nodes: Node[], cycle: string): boolean {
+  const cap = all(db, `select max_units from cycle where mode = ? and cycle = ?`, [
+    String(a.task.mode),
+    cycle,
+  ])[0] as { max_units?: number } | undefined;
+  if (!cap) return false;
+  return nodes.filter((n) => n.cycle === cycle).length >= Number(cap.max_units);
+}
+
 /** 同一个父底下的兄弟（不含自己）。 */
 function siblings(nodes: Node[], me: Node): Node[] {
   return nodes.filter(
@@ -286,7 +296,19 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
       if ((handedIn || spoke) && a.next.includes(SUBMIT)) return { to: SUBMIT } satisfies Said;
 
       // 还在跑：按候选往下走一格，从当前这一行接。
-      return { to: a.next[0] ?? null } satisfies Said;
+      const to = a.next.find((c) => c !== SUBMIT) ?? null;
+
+      // **第三条到交卷站的路：干活这边走不动了。**
+      //
+      // 一直在调工具的题永远不会说出一段完整的话，也就永远不会走上面那两条 ——
+      // 于是额度耗干，那条分支在 `#advance` 里被静静关掉，收尾一看「没交卷」。
+      // 实测这么丢过整整一道题（cmt-3：12 个单元走满，一次都没到交卷站）。
+      //
+      // 「走不动」有两种：干活那一站的额度用完了，或者候选里除了交卷站就没别的了。
+      // 两种都该交卷 —— 手上有什么交什么，总好过什么都不交。
+      const stuck = to === null || full(db, a, nodes, to);
+      if (stuck && a.next.includes(SUBMIT)) return { to: SUBMIT } satisfies Said;
+      return { to } satisfies Said;
     }
 
     // ── 交卷站 ────────────────────────────────────────────────────────────
