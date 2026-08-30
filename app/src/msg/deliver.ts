@@ -57,7 +57,14 @@ const FROM: Record<By, { kind: string; role: string }> = {
   user: { kind: "user", role: "user" },
   voice: { kind: "voice", role: "user" },
   world: { kind: "inject", role: "user" },
-  skill: { kind: "skill", role: "user" },
+  // **skill 自己就是一种身份。**
+  //
+  // 之前它落成 `role: "user"` —— 那等于告诉模型「有人在跟你说这段话」。实测的后果：
+  // 一段方法注入被读成对话，模型开始接话反问（「请把本题的具体选项发出来」），
+  // 不再作答。它不是人说的，也不是模型说的，更不是工具回的 —— 它是我们按条件塞进去
+  // 的一段提示，那就该有自己的 role，怎么呈现给模型由适配器决定（见 `llm/index.ts`
+  // 的 `sendable` / `instructionsOf`：它走 instructions，不进消息流）。
+  skill: { kind: "skill", role: "skill" },
   tool: { kind: "tool", role: "tool" },
   agent: { kind: "prompt", role: "assistant" },
   kernel: { kind: "inject", role: "system" },
@@ -115,6 +122,74 @@ export function deliver(db: Conn, p: Put): number {
   ]);
   return seq;
 }
+
+/**
+ * 把一次**外部裁决**投成「一次工具调用 + 它的结果」两行。
+ *
+ * ## 为什么是这个形状
+ *
+ * G 判完之后，那个判决以前**只进日志和 `task.result`，从不进上下文**。于是判死开兄弟
+ * 是**盲重试**：新分支知道要换条路，但不知道上一条错在哪。verifier-guided 的
+ * verifier 那一半等于没接上。
+ *
+ * 要让模型看见，就得选一个身份。三种都试得出问题：
+ *
+ * | 当成 | 为什么不行 |
+ * | --- | --- |
+ * | `user` 说的 | 「有人在跟我说我错了」—— 模型会去接话、辩解 |
+ * | `system` 指令 | 它不是交代，是**这一次的观测结果**；而且 instructions 每轮重发，判决会糊在一起 |
+ * | `assistant` 自己说的 | 那是让它自己承认，等于伪造它的轨迹 |
+ *
+ * **一次带结果的工具调用**才对：它是外部的、这一次的、可核对的观测 —— 正好是
+ * tool 结果的语义。而且这两种行内核本来就有（`call` / `tool`），`toMsg` 直接认，
+ * 不用给模型那边加任何新概念。
+ *
+ * ## 为什么放在这个文件里
+ *
+ * 它写的是两行消息，那就得走这条唯一的管道 —— seq 怎么排、`kind` 怎么定，
+ * 只许有一处说了算。绕过去自己 insert 的话，就是这个文件开头警告的那件事。
+ */
+export function deliverVerdict(
+  db: Conn,
+  p: { agent: string; instance: string; unit: number; name: string; input: unknown; value: unknown },
+): number {
+  const t = tableNameOf("agent_{}_msg", p.agent);
+  const got = all(db, `select coalesce(max(seq), 0) as m from "${t}" where instance = ? and unit = ?`, [
+    p.instance,
+    p.unit,
+  ])[0] as { m: number };
+  let seq = Number(got.m);
+  // 调用 id 得对得上 —— 模型那边一律要求「有 tool_call 就得有对应的 tool result」，
+  // 配不上的话整份上下文发不出去（见 `loop.ts` 的 `dropDangling`）。
+  const id = `g-${p.instance}-${p.unit}-${seq + 1}`;
+  const at = Date.now();
+
+  run(db, `insert into "${t}" (instance, unit, seq, role, kind, body, at) values (?, ?, ?, 'assistant', 'call', ?, ?)`, [
+    p.instance,
+    p.unit,
+    ++seq,
+    JSON.stringify({ text: "", calls: [{ id, name: p.name, input: p.input }] }),
+    at,
+  ]);
+  run(db, `insert into "${t}" (instance, unit, seq, role, kind, body, at) values (?, ?, ?, 'tool', 'tool', ?, ?)`, [
+    p.instance,
+    p.unit,
+    ++seq,
+    JSON.stringify({ id, name: p.name, value: p.value }),
+    at,
+  ]);
+  return seq;
+}
+
+/**
+ * 认得的 `role` —— **取值就是上面那张推断表的 role 那一列**，不另列一份名单。
+ *
+ * 库里这一列不是「模型认得的那四个」：`skill` 就是一种独立身份。怎么把它送到模型
+ * 那边去，是适配器的事（`llm/index.ts` 的 `ROLES`：`skill` 走 instructions，
+ * 不进消息流）。**库先认得，再谈怎么呈现** —— 反过来的话，加一种身份就得同时改
+ * 两处，而漏改的表现是那一路悄悄按别人的身份进了上下文。
+ */
+export const ROLES = [...new Set(Object.values(FROM).map((f) => f.role))].sort();
 
 /** 认得的消息类型 —— `msg_kind` 表的种子。**取值就是上面那张推断表的值域。** */
 export const KINDS: [string, string][] = [

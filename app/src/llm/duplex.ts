@@ -53,7 +53,15 @@
 import type { Conn } from "../H2H/db.ts";
 import type { Registry } from "../engine/registry.ts";
 import { deliver } from "../msg/deliver.ts";
-import { instructionsOf, sendable, SERVES, VENDORS, type Unit } from "./index.ts";
+import { instructionsOf, sendable, SERVES, VENDORS, viewOf, type Unit } from "./index.ts";
+
+/**
+ * 哪几条会话已经摆过任务视图了。
+ *
+ * 会话是**活状态**（跟位置那一层一个道理），所以这个集合也活在内存里、不落库 ——
+ * 进程没了会话也没了，重开一条自然会重新摆一遍。
+ */
+const seenView = new Set<string>();
 
 /**
  * 入站事件名：beta → GA。**照抄老代码那张表，一条不改。**
@@ -549,7 +557,13 @@ export function registerDuplex(db: Conn, reg: Registry, pool: Sessions, seed: [s
         return fresh;
       });
 
-      const out = await s.turn(u.context.map(itemOf).filter((x): x is Item => x !== null));
+      // 任务视图打头，跟 chat 那边同一个道理：它是「这道题是什么」，上下文接着它说。
+      // **这条会话第一个来回才发** —— 会话记得住，每轮重发等于把题目念很多遍。
+      const view = viewOf(u);
+      const opening: Item[] = view && !seenView.has(u.instance) ? [{ role: "user", text: view }] : [];
+      if (opening.length) seenView.add(u.instance);
+
+      const out = await s.turn([...opening, ...u.context.map(itemOf).filter((x): x is Item => x !== null)]);
 
       // 别人说的话先落库。**走那条唯一的投递管道** —— kind 和 role 都是推出来的，
       // 不在这儿填。`voice` 跟 `user` 分开：转写是说的，不是打的，混成一个的话

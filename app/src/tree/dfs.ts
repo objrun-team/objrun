@@ -54,6 +54,7 @@
 import type { Conn } from "../H2H/db.ts";
 import { all } from "../H2H/db.ts";
 import type { Registry } from "../engine/registry.ts";
+import { deliverVerdict } from "../msg/deliver.ts";
 import { evaluate } from "../objective/run.ts";
 import type { Sealed } from "../objective/store.ts";
 
@@ -135,6 +136,31 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
     if (status === "reached" && sealed.has(task)) {
       const g = sealed.open(task)!;
       const v = await evaluate(g, reg, { task: a.task, chain: a.chain, result: a.result });
+
+      // **判决要落进上下文**，不能只进日志。以前只写 `task.result`，于是判死开兄弟
+      // 是盲重试：新分支知道要换条路，不知道上一条错在哪。投成「一次带结果的工具
+      // 调用」—— 它是外部的、这一次的观测，正好是 tool 结果的语义。
+      //
+      // 落在**被判的这一站**上：兄弟默认看不见它（那是故意的），要看得自己
+      // `node_load` 去取 —— 「进度共享是能看、不是直接继承」。
+      const inst = all(db, `select agent, instance from "${a.sub}" where task = ? and cycle = ? and unit = ?`, [
+        task,
+        here,
+        a.unit,
+      ])[0] as { agent: string; instance: string } | undefined;
+      if (inst) {
+        deliverVerdict(db, {
+          agent: inst.agent,
+          instance: inst.instance,
+          unit: a.unit,
+          name: "verify",
+          input: { task, at: `${here}#${a.unit}` },
+          // **`why` 一起给。** 只给 0/1 的话，模型只知道错了，不知道错在哪 ——
+          // 那跟不给差不多，它下一条分支多半原样再来一遍。
+          value: { pass: v.pass, why: v.why },
+        });
+      }
+
       if (v.pass !== 1) status = "dead_failed";
     }
 

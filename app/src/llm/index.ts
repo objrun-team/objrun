@@ -115,6 +115,15 @@ export interface Unit {
   /** 内核挑好的那条轨。**适配器不再自己挑** —— 挑的地方只许有一个。 */
   api: { key_env: string; model: string } | null;
   context: { seq: number; role: string; kind: string; body: string }[];
+  /**
+   * 这一轮的任务视图。**内核每轮现算的事实**，不是上下文里的一条消息 ——
+   * 消息跟着单链走，兄弟分支爬不到；视图人人有份。
+   */
+  view?: {
+    task: Row;
+    here: { cycle: string; unit: number; chain: string };
+    tried: { at: string; from: string | null; status: string | null; done: boolean }[];
+  };
   tools: Row[];
   rules: string[];
 }
@@ -141,8 +150,34 @@ function key(keyEnv: string): string {
  * 有两份副本，而修的时候多半只修一份。
  */
 export function sendable(r: { role: string; kind: string }): boolean {
-  return r.role !== "system";
+  return ROLES[r.role]?.where === "messages";
 }
+
+/**
+ * 一个 role 怎么送到模型那边去。**一处定义，两条轨读同一份。**
+ *
+ * | role | 去哪儿 |
+ * | --- | --- |
+ * | `user` `assistant` `tool` | 消息流。模型认得的那三种，原样过去 |
+ * | `system` `skill` | `instructions`。不是对话里的一句，是这一轮的交代 |
+ *
+ * **`skill` 有自己的 role**，不借 `user`：借了就等于告诉模型「有人在跟你说这段话」，
+ * 而它其实是我们按条件塞进去的一段提示。实测借 `user` 的后果是模型开始接话反问
+ * （「请把本题的具体选项发出来」），不再作答 —— 不报错，只表现为分数低。
+ *
+ * 表里认不得的 role 一律**不发**（见 `roleOf`）。宁可少发一条，也不猜着发 ——
+ * 猜错了那条会以错误的身份进上下文，而这件事查不出来。
+ */
+const ROLES: Record<string, { where: "messages" | "instructions" }> = {
+  user: { where: "messages" },
+  assistant: { where: "messages" },
+  tool: { where: "messages" },
+  system: { where: "instructions" },
+  skill: { where: "instructions" },
+};
+
+/** 认得的 role。**取值就是上面那张表的键** —— 不另列一份名单。 */
+export const ROLE_NAMES = Object.keys(ROLES);
 
 /**
  * 库里那一行怎么变回一条模型消息。
@@ -198,10 +233,78 @@ function toMsg(r: { role: string; kind: string; body: string }): ModelMessage | 
 export function instructionsOf(u: Unit): string {
   return [
     ...u.tools.map((t) => String(t.prompt ?? "")),
-    ...u.context.filter((r) => r.role === "system" && r.kind !== "inject").map((r) => r.body),
+    // 走 instructions 那一档的都收进来 —— `system` 和 `skill`。
+    // 内核那条记账（`kind: "inject"`）除外：那是给我们看的账本，不念给模型听。
+    ...u.context.filter((r) => ROLES[r.role]?.where === "instructions" && r.kind !== "inject").map((r) => r.body),
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+/**
+ * 把内核算好的那份任务视图念成一段话。**内核只给事实，这儿才拼词。**
+ *
+ * ## 它进消息流，不进 instructions
+ *
+ * 一开始放在 `instructions` 里，错了：**根级兄弟的消息流是空的**（它没有祖先，
+ * 自己那站还没说过话），于是 `messages: []`，模型那边直接拒
+ * （`Invalid prompt: messages must not be empty`）。视图有内容也救不了 ——
+ * instructions 不是消息。
+ *
+ * 而且从意思上它本来就该是消息：老仓库那句是「你所在**单链的完整上下文**已默认
+ * 接入」——**上下文**，不是系统交代。它是这一轮摆在模型面前的东西（题目、你在树的
+ * 哪儿、别人试过哪几条），跟「工具怎么用」那种交代不是一回事。
+ *
+ * 树那一段**只在真分叉了才写**：单链的机制（一条道走到黑）本来就是直接继承上下文，
+ * 给它一张只有一个节点的树，除了占地方没有别的作用。
+ */
+export function viewOf(u: Unit): string {
+  const v = u.view;
+  if (!v) return "";
+  const t = v.task;
+  const lines = [
+    "## 这道题",
+    `${String(t.description ?? "")}`,
+    "",
+    `任务 ${String(t.id)}｜领域 ${String(t.domain) || "（没分类）"}｜在 ${String(t.place)}${
+      t.workdir ? `:${String(t.workdir)}` : ""
+    }${t.objective ? "｜**这道题有验证函数 G，做完由它判**" : ""}`,
+  ];
+
+  // 只有一个节点 = 还没分叉，那就是单链，树这一段没有意义。
+  if (v.tried.length > 1) {
+    lines.push(
+      "",
+      "## 这棵树",
+      `你在 ${v.here.chain}。**已经试过的路：**`,
+      ...v.tried.map(
+        (n) =>
+          `- ${n.at}${n.from ? `（从 ${n.from} 接下来）` : "（根）"}` +
+          (n.status ? ` —— **${n.status}**` : n.done ? " —— 走完了" : " —— 还在跑"),
+      ),
+      "",
+      "判死的那几条是**别人试过、被判不成**的方向。**别再走一遍。** " +
+        "它们说了什么默认不给你看 —— 那是另一条分支的事；要看得自己去取。",
+    );
+  }
+  return lines.join("\n");
+}
+
+/**
+ * 拼这一轮发出去的消息：**任务视图打头，然后是上下文里该发的那些。**
+ *
+ * 视图排在最前是因为它是「这道题是什么」——上下文是接着它往下说的。
+ * 而且它保证消息流不空：根级兄弟没有祖先，不给它这一条就是 `messages: []`，
+ * 模型那边直接拒。
+ *
+ * 两条轨共用（duplex 那边 import 的就是它）—— 一份判据不许有两处实现。
+ */
+export function messagesOf(u: Unit): ModelMessage[] {
+  const view = viewOf(u);
+  return [
+    ...(view ? [{ role: "user" as const, content: view }] : []),
+    ...u.context.map(toMsg).filter((m): m is ModelMessage => m !== null),
+  ];
 }
 
 /**
@@ -227,7 +330,7 @@ export function registerVendors(
       const provider = createOpenAICompatible({ name: vendor, baseURL: v.baseURL, apiKey: key(keyEnv) });
 
       const instructions = instructionsOf(u);
-      const messages = u.context.map(toMsg).filter((m): m is ModelMessage => m !== null);
+      const messages = messagesOf(u);
 
       // 工具**只声明不执行**：没有 execute，SDK 就只把调用请求还回来。
       // 真去跑它是下一个执行单元的事 —— 在这儿跑掉的话，那一步就从库里消失了。

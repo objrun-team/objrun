@@ -123,7 +123,13 @@ try {
     塞进去的,
   );
   ok("停用那条没进来", !塞进去的.some((r) => String(r.body).includes("【不该出现】")), 塞进去的);
-  ok("塞进去的 role 是 user（模型看得见）", 塞进去的.every((r) => r.role === "user"), 塞进去的);
+  // **skill 有自己的 role，不借 `user`。**
+  //
+  // 借 `user` 等于告诉模型「有人在跟你说这段话」，而它其实是我们按条件塞进去的一段
+  // 提示。实测的后果：模型开始接话反问（「请把本题的具体选项发出来」），不再作答；
+  // 不报错，只表现为分数低。它走 `instructions`，不进消息流（见 `llm/index.ts`
+  // 的 `ROLES`）。
+  ok("塞进去的 role 是 skill —— 自己一种身份，不冒充人说的话", 塞进去的.every((r) => r.role === "skill"), 塞进去的);
 
   step("⑥ 动态那条拿到的是**这一轮的事实**，不是空壳");
   show("它收到的 task：", (现给过.at(-1)?.facts as { task?: unknown })?.task);

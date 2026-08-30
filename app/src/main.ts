@@ -30,6 +30,7 @@ import { evaluate } from "./objective/run.ts";
 import { openSealed } from "./objective/store.ts";
 import { seedKinds } from "./msg/deliver.ts";
 import { registerTree } from "./tree/dfs.ts";
+import { registerTreeView } from "./tree/view.ts";
 import { check } from "./trigger/check.ts";
 import { checkData } from "./trigger/data.ts";
 import { Places, registerTools } from "./tools/register.ts";
@@ -137,6 +138,10 @@ wake = () => kernel.wake();
 // 树的控制流：派生 / 判死开兄弟 / 回退。它是个推断函数，不是内核的一部分 ——
 // 换一种搜索策略就是换一个 infer 句柄，内核一个字不动。
 app.log.info(`树：${registerTree(app.store.rw, registry, sealed).join("、")}`);
+
+// 树自省那两个工具。**不是 system 工具** —— 按 mode 分发：条件是「这一站的推断函数
+// 走不走树」，所以一条道走到黑的单链机制一个都拿不到（它本来就直接继承上下文）。
+app.log.info(`树自省：${registerTreeView(app.store.rw, registry, "fn:infer.dfs").join("、")}`);
 
 // 认得的消息类型。**取值就是那条「谁放的 → kind」推断表的值域** —— 灌进来是
 // 为了让 check 和人都能查得到，不是让谁去填。

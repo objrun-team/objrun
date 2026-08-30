@@ -409,6 +409,9 @@ export class Kernel {
         // 这一站挑好的那条轨。适配器直接用，不用自己再挑一遍。
         api: pickd.api,
         context,
+        // 这一轮的任务视图。**每轮现算**，不是库里存着的一条消息 ——
+        // 存成消息的话，兄弟分支爬不到它（见 `#viewOf`）。
+        view: this.#viewOf(p, facts.task),
         tools: kit,
         rules,
       });
@@ -485,6 +488,57 @@ export class Kernel {
    *   分支上的话，等于把两次尝试搅在一起
    * - 带环的话当场炸 —— 顺着 from 走回自己，那是数据坏了，静静转下去只会挂死
    */
+  /**
+   * 这一轮的**任务视图**：这道题是什么、我在树的哪儿、别的路试过没有。
+   *
+   * ## 为什么必须有这么一份
+   *
+   * 上下文是**沿着单链往上爬**拼的（祖先看得见，兄弟看不见 —— 那是故意的）。
+   * 而任务描述是发布那一刻**当成一条消息**投给第一站的。两条合起来的后果：
+   * 判死之后在根上开的兄弟**没有祖先**，于是它看不到题目 —— 上下文里只剩这一站
+   * 自己的 skill 和记账。实测就是这样：模型拿着一段方法注入，回了句「我已理解
+   * 这个通用方法」，然后开始反问「请把本题的具体选项发出来」。它是真没看见题。
+   *
+   * 根子在于**任务的事实被当成了某一站的一条消息**。事实该是每一轮现算的一份视图，
+   * 跟成绩单一样「数出来的，不是存着的」—— 存成消息就会跟着链路走丢。
+   *
+   * ## 只给事实，不替它拼话
+   *
+   * 这儿回的是结构化的一份，怎么念给模型听是适配器的事（`llm/index.ts`）。
+   * 内核不认得「提示词」长什么样。
+   *
+   * ## 树只给梗概
+   *
+   * 别的分支**默认不接入**（老仓库那条：「进度共享是能看、不是直接继承」）。
+   * 所以这儿只报「试过哪几条、死没死」，要看详情、要把别人的上下文接进来，
+   * 那是工具的事。
+   */
+  #viewOf(p: Pending, task: Row): Row {
+    const nodes = all(
+      this.#store.ro,
+      `select cycle, unit, from_cycle, from_unit, status, done from "${p.sub}" where task = ? order by unit`,
+      [p.task],
+    );
+    return {
+      task: {
+        id: task.id,
+        description: task.description,
+        domain: task.domain,
+        source: task.source,
+        place: task.place,
+        workdir: task.workdir,
+        objective: task.objective !== null,
+      },
+      here: { cycle: p.cycle, unit: p.unit, chain: chainOf(this.#store.ro, p.sub, p.mode, p) },
+      tried: nodes.map((n) => ({
+        at: `${String(n.cycle)}#${String(n.unit)}`,
+        from: n.from_cycle === null ? null : `${String(n.from_cycle)}#${String(n.from_unit)}`,
+        status: n.status,
+        done: Number(n.done) === 1,
+      })),
+    };
+  }
+
   #contextOf(p: Pending): Row[] {
     const line: number[] = [];
     const seen = new Set<string>();
