@@ -449,11 +449,30 @@ export function registerVendors(
         };
 
         let text = "";
+        let thought = "";
         let calls: { id: string; name: string; input: unknown }[] = [];
         for (let round = 0; ; round++) {
           // 已经说出来的那半截接在末尾 —— 让它续，而不是重来一遍。
-          const out = await ask(text ? [...messages, { role: "assistant", content: text }] : messages);
+          //
+          // **思考那半截也得带回去。** 思考型模型把上一轮的思考当成这一轮的前提，
+          // 只回传可见文本的话，有的厂商直接拒收：
+          //   The `reasoning_content` in the thinking mode must be passed back to the API.
+          // 实测一整道题就这么卡死在续写的第一轮上。
+          const so_far: ModelMessage[] = text
+            ? [
+                ...messages,
+                {
+                  role: "assistant",
+                  content: [
+                    ...(thought ? [{ type: "reasoning" as const, text: thought }] : []),
+                    { type: "text" as const, text },
+                  ],
+                },
+              ]
+            : messages;
+          const out = await ask(so_far);
           text += out.text;
+          thought += out.reasoningText ?? "";
           calls = out.toolCalls.map((c) => ({ id: c.toolCallId, name: c.toolName, input: c.input }));
 
           // 要工具了就停：那是一次完整的表态，续不下去也不该续。

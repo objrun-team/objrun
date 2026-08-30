@@ -299,9 +299,41 @@ export class Kernel {
     for (const r of rows) {
       const cap = this.#expectSafe(r);
       if (cap === null || now - r.at <= cap) continue;
+
+      // **判死得真的把这一行关掉，不能只打一条日志。**
+      //
+      // 只打日志的话它永远留在「待办」里：定时器算出「deadline 早就过了」，
+      // 于是 50ms 后醒、再打一条、再排 50ms —— 一条卡住的行能把内核锁进空转。
+      // 实测一跑打了 12732 条同样的警告，而那道题始终收不了尾。
+      //
+      // 关的方式跟正常走完那一路一样（`#infer` 结尾那两行）：盖上终止状态、
+      // 两边的 done 一起落、再让任务状态重新数一遍。**不开兄弟** —— 开兄弟是
+      // 推断函数的事，而这一行根本没走到那一步。
       this.#log.warn(
         `declared dead: ${r.sub} ${r.task} ${r.cycle}#${r.unit} (${r.agent}/${r.instance}) has been ${now - r.at}ms, over ${cap}ms`,
       );
+      run(
+        this.#store.rw,
+        `update "${r.sub}" set done = 1, status = 'dead_failed' where task = ? and cycle = ? and unit = ?`,
+        [r.task, r.cycle, r.unit],
+      );
+      run(this.#store.rw, `update "${tableNameOf("agent_{}_ctx", r.agent)}" set done = 1 where instance = ? and unit = ?`, [
+        r.instance,
+        r.unit,
+      ]);
+      // 上下文里也留一句 —— 只进日志的话，从接口上看这一行就是「不知为何没了」。
+      try {
+        deliver(this.#store.rw, {
+          agent: r.agent,
+          instance: r.instance,
+          unit: r.unit,
+          by: "kernel",
+          body: JSON.stringify({ stuck: `over expect_ms (${cap}ms), the kernel closed this station` }),
+        });
+      } catch {
+        // 连这一行都落不进去（多半是子表还没长出来），那就只剩日志了
+      }
+      this.#restate(r.task, r.sub);
     }
   }
 
