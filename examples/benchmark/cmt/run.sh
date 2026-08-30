@@ -15,6 +15,10 @@ RUN=${2:-cmt-demo}
 
 step () { echo; echo "── $* ──"; }
 
+# `bun` 得在 PATH 上。**这一条先查** —— 不查的话它会一路跑到「挂扩展」那一步
+# 才 command not found，而前面几步已经改过库了：看着像跑完了，其实批根本没发。
+command -v bun >/dev/null || { echo "bun 不在 PATH 上（Git Bash 里常见）：先刷一下 PATH 再来"; exit 1; }
+
 step "0 判卷台在不在"
 curl -sS "$GRADER/health"; echo
 

@@ -251,19 +251,27 @@ function answerAsked(result: unknown): string {
 }
 
 /**
- * 还有没有地方能再想一遍。
+ * 还有没有地方能**再想一遍**。
  *
- * 看的是这个模式里**除了交卷站以外**的每一个周期：只要还有一个没用满，就还能
- * 退回去换条路；一个都不剩的话，退回去也只是立刻再拐回交卷站。
+ * 看的不是「哪个周期还没用满」，而是「哪个**会开口的**周期还没用满」：一个没有
+ * `api_mode` 的站不叫模型（它跑的是上一站请求的工具），退到那儿产不出新答案，
+ * 只会立刻再拐回交卷站 —— 交的还是同一份东西。
+ *
+ * 实测就这么空转过：ask 用满、act 还有额度，于是
+ * submit[dead] → act → submit[dead] → act → submit[dead]，
+ * 三次判一样的 0，中间一个新想法都没有。
+ *
+ * 一个会开口的站都没有的机制（`agent.unit` 走外部句柄那种），退回看所有站。
  */
 function noRoomToRetry(db: Conn, a: Ask, nodes: Node[]): boolean {
-  const cycles = all(db, `select cycle, max_units from cycle where mode = ?`, [String(a.task.mode)]) as {
-    cycle: string;
-    max_units: number;
-  }[];
+  const cycles = all(db, `select cycle, api_mode, max_units from cycle where mode = ?`, [
+    String(a.task.mode),
+  ]) as { cycle: string; api_mode: string | null; max_units: number }[];
   const work = cycles.filter((c) => c.cycle !== SUBMIT);
   if (work.length === 0) return true;
-  return work.every((c) => nodes.filter((n) => n.cycle === c.cycle).length >= Number(c.max_units));
+  const speaks = work.filter((c) => (c.api_mode ?? "").trim() !== "");
+  const room = speaks.length > 0 ? speaks : work;
+  return room.every((c) => nodes.filter((n) => n.cycle === c.cycle).length >= Number(c.max_units));
 }
 
 /** 这个周期的额度用完了没有。 */
