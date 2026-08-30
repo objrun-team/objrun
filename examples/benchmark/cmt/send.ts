@@ -68,7 +68,13 @@ const tasks = items.map((it) => ({
   // 这是哪一类问题。**扩展按它分发** —— 跟 `mode`（推理机制）是两回事。
   // 平的一个值，不往里塞层级：要收紧就在 `when` 里跨维多写几条条件。
   domain: "physics",
-  solveSeconds: 900,
+  // These come from the old runs of this same benchmark, not from tuning against it:
+  //   solve_timeout 300 | dfs_max_siblings 2 | act_max_turns 8
+  // Copying the numbers keeps the two scorecards comparable. Picking them by watching
+  // this dataset would be fitting the benchmark, which makes the score meaningless.
+  solveSeconds: 300,
+  maxBranches: 2,
+  maxDeadSiblings: 2,
   description:
     `${it.prompt}\n\n` +
     (it.parameters ? `Symbols: ${it.parameters}\n` : "") +

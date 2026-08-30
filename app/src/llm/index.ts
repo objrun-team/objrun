@@ -355,7 +355,14 @@ export function registerVendors(
   db: Conn,
   reg: Registry,
   seed: [string, string, string][],
-  knobs: { maxTokens: number; retryTimes: number; continueTimes: number; reasoningEffort: string },
+  knobs: {
+    maxTokens: number;
+    retryTimes: number;
+    continueTimes: number;
+    reasoningEffort: string;
+    temperature: number;
+    seed: number;
+  },
 ): string[] {
   for (const [vendor, v] of Object.entries(VENDORS)) {
     // 这条句柄接得住哪几种 mode。**duplex 不在里面** —— 它是另一条句柄。
@@ -420,6 +427,11 @@ export function registerVendors(
                 ...(instructions ? { instructions } : {}),
                 ...(Object.keys(tools).length ? { tools } : {}),
                 maxOutputTokens: knobs.maxTokens,
+                // A benchmark run has to be reproducible: without a fixed temperature
+                // there is no telling how much of a score change came from an edit and
+                // how much from sampling noise.
+                temperature: knobs.temperature,
+                seed: knobs.seed,
                 // 思考强度**原样塞进那家的请求体**（openai-compatible 会把不认得的键
                 // 直接带过去）。不认得这个参数的模型会忽略它 —— 我们不替它翻译，
                 // 也不按模型名去猜该发哪个字段名，猜错了不报错，只是那一档没生效。

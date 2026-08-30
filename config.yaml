@@ -73,6 +73,11 @@ llm:
   # 思考强度：none / low / medium / high。**原样发给那家** —— 认不认得是那家的事，
   # 我们不替它猜。不认得这个参数的模型会忽略它。
   reasoningEffort: high
+  # Sampling temperature. **0 for a benchmark**: without it there is no telling how
+  # much of a score change came from an edit and how much from sampling noise.
+  temperature: 0
+  # Sampling seed. Only some vendors honour it; harmless where they do not.
+  seed: 42
 
 cors:
   enabled: true

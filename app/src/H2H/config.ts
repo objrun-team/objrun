@@ -63,6 +63,10 @@ export interface Config {
     continueTimes: number;
     /** 思考强度。原样发给那家 —— 认不认得是那家的事，我们不替它猜。 */
     reasoningEffort: string;
+    /** Sampling temperature. 0 makes a run reproducible. */
+    temperature: number;
+    /** Sampling seed. Only some vendors honour it; harmless where they do not. */
+    seed: number;
   };
 }
 
@@ -152,6 +156,8 @@ export function readConfig(file = findConfig()): Config {
       retryTimes: num(doc, "llm.retryTimes"),
       continueTimes: num(doc, "llm.continueTimes"),
       reasoningEffort: str(doc, "llm.reasoningEffort"),
+      temperature: num(doc, "llm.temperature"),
+      seed: num(doc, "llm.seed"),
     },
   };
 }
