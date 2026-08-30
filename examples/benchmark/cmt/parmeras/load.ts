@@ -27,17 +27,69 @@ const HERE = new URL(".", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$
 
 type Term = { dim: string; key: string; op: string; value: string };
 
-/** 每个搬过来的 skill 什么时候塞。**没写在这儿的不注册。** */
+/**
+ * 每个搬过来的 skill 适用于什么处境。**没写在这儿的不注册。**
+ *
+ * ## `trigger` 是一张关键词匹配表
+ *
+ * 一个 `value` 一个关键词（带空格会被 `check` 拦下来：「拆成同一组的两条，别让系统
+ * 猜」）。三层结构齐了：
+ *
+ * ```
+ *   组          之间 or            trigger.group
+ *   组内一条条  之间 and           同组多行
+ *   一条内的同义词  or             op: "in"，value 是一份 JSON 列表
+ * ```
+ *
+ * 老仓库那个 `constants: [[["coding"], ["fits","card"]]]` 一比一就是这个形状，
+ * 什么都不缺 —— 所以搬过来不用加维、不用加列。
+ *
+ * ## 关键词从扩展自己身上来
+ *
+ * 这是关键的一条。同样是 `description contains "symmetry"`，**词是哪儿来的**决定了
+ * 它是正经匹配还是按样本拟合：
+ *
+ * | 词的来源 | |
+ * | --- | --- |
+ * | 扩展自己声明的（名字 / 描述 / 正文里的标记） | ✔ 它在说「我是干这个的」，跟数据集里命中几道无关 |
+ * | 我翻了 50 道题挑出来的 | ✘ 拿样本挑样本，给一部分题开小灶，分数虚高还查不出来 |
+ *
+ * 下面这个 skill 自己声明得很清楚：名字 `cmt-pre-symmetry-projection`、描述
+ * 「对称性投影（CMT）」、正文头一行 `=== 边际处境标记 + 通用方法(symmetry_projection)===`。
+ * 关键词就取自这儿。
+ *
+ * 还试过几种错的，记着免得再犯：`task.run`（绑在某一次考试上，换一跑就没了）、
+ * `agent.name` 单独一条（焊死在一台机器上）、`domain = "physics.cmt.hf"`
+ * （把层级塞进一个串里 —— 维已经分好了，不该在值里再分一遍）。
+ */
 const GATE: Record<string, { why: string; when: Term[][] }> = {
+  /**
+   * 它自己声明的处境，逐段翻成条件：
+   *
+   * | 它说自己是什么 | 翻成 |
+   * | --- | --- |
+   * | 描述里的「（CMT）」 | `task.domain = physics` |
+   * | 名字里的 `-pre-`（边际处境标记，开工时投） | `cycle.cycle = ask`｜`moment = unit_start` |
+   * | 名字/正文里的 `symmetry_projection` | `task.description` 上两条关键词，同组 and |
+   * | 「只投方法不投答案」 = 给模型开口那一站用 | `task.mode = solve`（有 ask/act 两站的那种机制） |
+   */
   "cmt-pre-symmetry-projection": {
-    why: "只投方法（群投影），不投答案",
-    // 两项在同一组 = and：cmt 这一跑，**并且**题面提到对称性。
-    // 只卡 run 的话 50 道全塞 —— 提示本身不含答案，但塞到无关的题上一样是噪声。
-    // 题面带 symmetr 的是 13 道。
+    why: "解题机制的提问站上，面对涉及对称性的物理题时投。关键词取自它自己的名字和正文标记",
     when: [
       [
-        { dim: "task", key: "run", op: "contains", value: "cmt" },
-        { dim: "task", key: "description", op: "contains", value: "symmetr" },
+        // 面对什么问题
+        { dim: "task", key: "domain", op: "eq", value: "physics" },
+        { dim: "task", key: "description", op: "contains", value: "symmetry" },
+        // 在做什么事
+        { dim: "task", key: "mode", op: "eq", value: "solve" },
+        { dim: "task", key: "source", op: "in", value: '["user","eacn"]' },
+        // 什么时候
+        //
+        // **不能写 `moment`。** skill 是在 `#advance` 里 fire 的，那份 facts 不带
+        // moment（只有规则走的 `#atMoment` 才设），写了就永远不中 —— 而且不报错。
+        { dim: "cycle", key: "cycle", op: "eq", value: "ask" },
+        // 在哪儿
+        { dim: "place", key: "", op: "eq", value: "local" },
       ],
     ],
   },

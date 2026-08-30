@@ -64,6 +64,9 @@ const tasks = items.map((it) => ({
   agent: "bot",
   place: "local",
   source: "user",
+  // 这是哪一类问题。**扩展按它分发** —— 跟 `mode`（推理机制）是两回事。
+  // 平的一个值，不往里塞层级：要收紧就在 `when` 里跨维多写几条条件。
+  domain: "physics",
   solveSeconds: 900,
   description:
     `${it.prompt}\n\n` +

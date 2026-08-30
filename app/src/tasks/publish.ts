@@ -47,6 +47,14 @@ export interface Publish {
   workdir?: string;
   source: Source;
   description: string;
+  /**
+   * 这是哪一类问题（`physics` / `chem` / `coding` …）。**扩展按它分发。**
+   *
+   * 跟 `mode` 是两回事：`mode` 是推理机制（cot / tot / 树），`domain` 是问题属于哪个
+   * 领域。一个 skill 说「我是给物理题用的」，写的是 `dim=task, key=domain`——
+   * 换台机器、换一跑、换道题，只要还是物理题，它就在。
+   */
+  domain?: string;
   /** 属于哪一跑（bench）。空 = 不属于任何一跑。 */
   run?: string;
   maxBranches?: number;
@@ -196,11 +204,11 @@ ${JSON.stringify(p.objective, null, 2)}` : p.description;
   try {
     run(
       db,
-      `insert into task (id, mode, place, run, source, description, created_at, workdir, objective, readable,
+      `insert into task (id, mode, place, run, source, domain, description, created_at, workdir, objective, readable,
                          claimed_by, result, max_branches, max_dead_siblings, solve_seconds, state)
-       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, ?, ?, ?, 'open')`,
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, ?, ?, ?, 'open')`,
       [
-        p.id, p.mode, p.place, p.run ?? "", p.source, description, now, p.workdir ?? "",
+        p.id, p.mode, p.place, p.run ?? "", p.source, p.domain ?? "", description, now, p.workdir ?? "",
         g ? "sealed" : null, g ? (p.readable ? 1 : 0) : null,
         p.maxBranches ?? 2, p.maxDeadSiblings ?? 3, p.solveSeconds ?? 1800,
       ],

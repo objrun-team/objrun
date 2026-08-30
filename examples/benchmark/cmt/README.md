@@ -290,44 +290,83 @@ cmt-pre-symmetry-projection：只投方法（群投影），不投答案
     "does": "边际处境标记——对称性投影（CMT）。注入通用群投影方法/定理：…只投方法不投答案。",
     "params": {}, "role": "user",
     "body": "=== 边际处境标记 + 通用方法(symmetry_projection)===\n…",
-    "when": [[{ "dim":"task","key":"run",        "op":"contains","value":"cmt" },
-              { "dim":"task","key":"description","op":"contains","value":"symmetr" }]] }] }
+    "when": [[ …六条，见下… ]] }] }
 ```
 
-### `when` 是这边定的，不是搬来的
+### `trigger` 是一张关键词匹配表
 
-老系统的触发维度叫 `constants`，这边是 `agent/task/cycle/chain/moment/place`，
-**没有 constants 这一维**。所以门得重新写，而且写死在 [`load.ts`](./parmeras/load.ts)
-的 `GATE` 里 —— 挑出来的东西就把门也说清楚，不靠名字前缀去猜。
+老系统的触发条件长这样：`constants: [[["coding"], ["fits","card"]]]` —— 三层：
+组间 or、组内 and、项内 or。这边一比一装得下，**不用加维、不用加列**：
 
-两项在**同一组**所以是 and：`run` 里含 `cmt`，**并且**题面提到 `symmetr`。
-只卡 `run` 的话 50 道全塞 —— 提示本身不含答案，但塞到无关的题上一样是噪声。
-题面带 `symmetr` 的是 13 道。
+| 老的 | 这边 |
+| --- | --- |
+| 最外层（组间 or） | `trigger.group` |
+| 中间层（组内 and） | 同组多行 |
+| 最里层（同义词 or） | `op: "in"`，`value` 是一份 JSON 列表 |
 
-不用发任务就能验这道门：
+一个 `value` 一个关键词 —— 带空格会被 `check` 拦下来（「拆成同一组的两条，别让系统猜」）。
+
+### 一组条件就是一句话
+
+「**哪个智能体、在什么时候、做什么事、面对什么问题，该拿到什么**」，这句话本身就是
+一组条件。只写一两条等于没用这张表，所以这个 skill 的门写满了六条：
+
+```ts
+when: [[
+  { dim: "task",  key: "domain",      op: "eq",       value: "physics" },          // 面对什么问题
+  { dim: "task",  key: "description", op: "contains", value: "symmetry" },
+  { dim: "task",  key: "mode",        op: "eq",       value: "solve" },            // 在做什么事
+  { dim: "task",  key: "source",      op: "in",       value: '["user","eacn"]' },  // 谁发的
+  { dim: "cycle", key: "cycle",       op: "eq",       value: "ask" },              // 什么时候
+  { dim: "place", key: "",            op: "eq",       value: "local" },            // 在哪儿
+]]
+```
+
+`cycle = ask` 那条要紧：这是**模型开口那一站**，不是跑工具那一站，塞晚了没用。
+
+### 关键词从扩展自己身上来
+
+同样是 `description contains "symmetry"`，**词是哪儿来的**决定它是正经匹配还是作弊：
+
+| 词的来源 | |
+| --- | --- |
+| 扩展自己声明的 | ✔ 它在说「我是干这个的」，跟数据集里命中几道无关 |
+| 翻了 50 道题挑出来的 | ✘ 拿样本挑样本，给一部分题开小灶，分数虚高还查不出来 |
+
+这个 skill 自己声明得很清楚：名字 `cmt-pre-symmetry-projection`、描述「对称性投影（CMT）」、
+正文头一行 `=== 边际处境标记 + 通用方法(symmetry_projection)===`。词取自这儿。
+
+`domain` 是 `task` 上的一列（`physics` / `chem` / `coding`），发任务时给。它跟 `mode`
+是两回事：**`mode` 是推理机制**（cot / tot / 树），**`domain` 是问题属于哪个领域**。
+
+### 验这道门，不用发任务
 
 ```bash
-curl -s -X POST $BASE/trigger/explain -H 'content-type: application/json' \
-  -d '{"kind":"skill","owner":"cmt-pre-symmetry-projection","task":"cmt-1"}'
+for t in cmt-1 cmt-0 other-1; do
+  curl -s -X POST $BASE/trigger/explain -H 'content-type: application/json' \
+    -d "{\"kind\":\"skill\",\"owner\":\"cmt-pre-symmetry-projection\",
+         \"task\":\"$t\",\"mode\":\"solve\",\"cycle\":\"ask\",\"place\":\"local\"}"
+done
 ```
-```json
-{"fired":true,"groups":[[
-  {"dim":"task","key":"description","op":"contains","value":"symmetr","got":"…preserve translational symmetry…","hit":true},
-  {"dim":"task","key":"run",        "op":"contains","value":"cmt",    "got":"cmt-demo","hit":true}]]}
 ```
-
-```bash
-curl -s -X POST $BASE/trigger/explain -H 'content-type: application/json' \
-  -d '{"kind":"skill","owner":"cmt-pre-symmetry-projection","task":"cmt-0"}'
-```
-```json
-{"fired":false,"groups":[[
-  {"dim":"task","key":"description","op":"contains","value":"symmetr","got":"…ground state energy per site?…","hit":false},
-  {"dim":"task","key":"run",        "op":"contains","value":"cmt",    "got":"cmt-demo","hit":true}]]}
+cmt-1    fired=true    六条全中
+cmt-0    fired=false   symmetry 那条没中，其余五条中
+other-1  fired=false   domain 和 symmetry 都没中（那是道 coding 题）
 ```
 
-`cmt-1` 塞，`cmt-0` 不塞。塞进去之后在上下文里是一行 `kind: "skill"`
-（`GET /tasks/cmt-1/messages?kind=skill`）—— 跟人写的分得开。
+`explain` 会把**实际取到的值**一起摆出来 —— 没命中最常见的两个原因（词根本不在那段
+文本里、维度上根本没那个属性）都得看着实际值才认得出来。
+
+塞进去之后在上下文里是一行 `kind: "skill"`（`GET /tasks/cmt-1/messages?kind=skill`）
+—— 跟人写的分得开。
+
+### 两个坑
+
+**skill 的条件不能写 `moment`。** skill 是在 `#advance` 里 fire 的，那份 facts 不带
+moment（只有规则走的 `#atMoment` 才设）—— 写了就永远不中，而且不报错。
+
+**词别贪多。** 一开始多写了一条 `description contains "wave"`（想着这方法是讲波函数的），
+结果 cmt-1 题面里没这个词，整组被卡掉。同组是 and，多一条就多一道门。
 
 ### 剩下那些为什么没搬
 

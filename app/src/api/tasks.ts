@@ -126,6 +126,7 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
         { name: "place", in: "body", kind: "string", required: true, note: "在哪儿干 → `GET /places`" },
         { name: "source", in: "body", kind: "string", required: true, only: SOURCES, note: "谁发的。**这是准入判据不是元数据** —— 只有 `user` 能带 G" },
         { name: "description", in: "body", kind: "string", required: true, note: "自然语言的任务描述。内核透明，怎么解读是智能体的事" },
+        { name: "domain", in: "body", kind: "string", note: "这是哪一类问题（`physics` / `chem` / `coding` …）。**扩展按它分发** —— skill / tool / rule 的适用范围写成 `dim=task, key=domain` 的条件。跟 `mode` 是两回事：`mode` 是推理机制，这个是领域" },
         { name: "cycle", in: "body", kind: "string", note: "从哪个周期起步。不给就取 `from` 为空的那一个；**起点不止一个时必须给**" },
         { name: "instance", in: "body", kind: "string", note: "哪个实例。不给按任务 id 生一个" },
         { name: "workdir", in: "body", kind: "string", note: "那个场所里的落脚路径。空 = 那台机器上的 cwd" },

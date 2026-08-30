@@ -79,8 +79,8 @@ export function check(db: Conn): Problem[] {
       continue;
     }
 
-    // 属性：`chain` / `moment` 不看属性，别的维度得是那张表真有的列
-    if (t.dim === "chain" || t.dim === "moment") {
+    // 属性：`chain` / `moment` / `place` 不看属性，别的维度得是那张表真有的列
+    if (t.dim === "chain" || t.dim === "moment" || t.dim === "place") {
       if (t.key.trim() !== "") say(t, `${t.dim} 维度不看属性，key 该留空，现在写着 ${t.key}`);
       if (t.dim === "moment" && !(MOMENTS as readonly string[]).includes(t.value)) {
         say(t, `不认得的时刻 ${t.value}（内核会喊到的是 ${MOMENTS.join(" / ")}）`);

@@ -162,6 +162,12 @@
           "notnull": true
         },
         {
+          "name": "domain",
+          "type": "text",
+          "notnull": true,
+          "_": "这是哪一类问题（physics / chem / coding …）。**扩展按它分发** —— skill / tool / rule 的适用范围写成 dim=task,key=domain 的条件。不写在 mode 里：mode 是推理机制（cot / tot / 树），跟问题属于哪个领域是两回事。空串 = 没分类"
+        },
+        {
           "name": "description",
           "type": "text",
           "_": "自然语言的任务描述。内核透明，怎么解读是智能体的事",

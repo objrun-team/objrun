@@ -17,3 +17,4 @@ data/
 .scratch/
 examples/rule/done.log
 examples/benchmark/cmt/cmt_data.jsonl
+examples/benchmark/cmt/vendor/
