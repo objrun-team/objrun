@@ -35,6 +35,45 @@ import { fire, type Facts } from "./trigger.ts";
 
 type Row = Record<string, unknown>;
 
+/**
+ * 没人接的那次工具请求，别往外发。
+ *
+ * 模型请求了工具，落一行 `call`；工具跑完落一行 `tool`，靠 `id` 配对。但**这一站有没有
+ * 人真去跑，取决于机制怎么搭**：下一站走 `fn:unit.tools` 就有人跑，一条纯问答的轨就没有。
+ * 而系统工具（读写那一组）是无条件挂上去的 —— 于是一条纯问答的多站机制里，模型迟早
+ * 会请求一次工具，没人跑，那一行 `call` 就永远配不上 `tool`。
+ *
+ * 这时候上下文**再也发不出去了**：模型那边一律要求「有 tool_call 就得有对应的
+ * tool result」，缺了直接拒（`Tool result is missing for tool call …`）。整条链路从此
+ * 每一站都发不出去，任务卡到超时，而错看着像模型那边的毛病 —— 跟真正的原因隔着十万八千里。
+ *
+ * 所以配不上的那一行在这儿摘掉：**没人跑，等于没发生过**。库里那一行不动
+ * （它是那一刻的真相），摘的只是发出去的这一份。
+ */
+function dropDangling(rows: Row[]): Row[] {
+  const answered = new Set<string>();
+  for (const r of rows) {
+    if (r.kind !== "tool") continue;
+    try {
+      const id = (JSON.parse(String(r.body)) as { id?: string }).id;
+      if (id) answered.add(id);
+    } catch {
+      // 读不出 id 的当它没答过 —— 宁可多摘一行，也不要发一份发不出去的
+    }
+  }
+  return rows.filter((r) => {
+    if (r.kind !== "call") return true;
+    let calls: { id?: string }[];
+    try {
+      calls = (JSON.parse(String(r.body)) as { calls?: { id?: string }[] }).calls ?? [];
+    } catch {
+      return true;
+    }
+    // 一行 `call` 里可能有好几次调用；**只要有一次没人答，整行就发不出去**。
+    return calls.every((c) => c.id === undefined || answered.has(c.id));
+  });
+}
+
 export interface Log {
   info(msg: string): void;
   warn(msg: string): void;
@@ -470,12 +509,13 @@ export class Kernel {
     const t = this.#msgTable(p.agent);
     const holes = line.map(() => "?").join(", ");
     // 按 unit 的先后、再按 seq 排 —— unit 编号在一个任务里单调递增，所以它就是时间序。
-    return all(
+    const rows = all(
       this.#store.ro,
       `select unit, seq, role, kind, body from "${t}"
         where instance = ? and unit in (${holes}) order by unit, seq`,
       [p.instance, ...line],
     );
+    return dropDangling(rows);
   }
 
   /** 往上下文里压一条。`seq` 在这个单元里连着排。 */
