@@ -70,20 +70,20 @@ export function placeFor(db: Conn, tool: string, place: string, agentWants: bool
   const w = all(db, `select forward, tools from workplace where place = ?`, [place])[0] as
     | { forward: number; tools: string }
     | undefined;
-  if (!w) throw new Error(`workplace 表里没有 ${place}`);
+  if (!w) throw new Error(`no row in workplace for ${place}`);
   if (!Number(w.forward)) return "local";
 
   let list: Policy[];
   try {
     list = JSON.parse(w.tools) as Policy[];
   } catch {
-    throw new Error(`workplace ${place} 的 tools 不是一份能读的列表`);
+    throw new Error(`workplace ${place} has tools that is not a readable list`);
   }
   const hit = list.find((x) => x.tool === tool);
   if (!hit) return "local";
   if (hit.policy === "always") return place;
   if (hit.policy === "agent") return agentWants === false ? "local" : place;
-  throw new Error(`workplace ${place} 上 ${tool} 的 policy 不认得：${hit.policy}`);
+  throw new Error(`unknown policy for ${tool} on workplace ${place}: ${hit.policy}`);
 }
 
 /** 改文件之前得先读过它 —— 这几个是「改」。 */
@@ -176,7 +176,7 @@ export function registerTools(db: Conn, reg: Registry, places: Places): string[]
         if (!hasRead(db, a.agent, a.instance, path)) {
           return {
             unit: { tool: "read", args: { file_path: path } },
-            why: `改 ${path} 之前先读一遍它 —— 读完再来调 ${t.name}`,
+            why: `read ${path} first, then call ${t.name} again`,
           };
         }
       }

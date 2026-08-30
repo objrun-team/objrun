@@ -33,7 +33,7 @@
 const LINK = process.argv[2] ?? "";
 const PORT = Number(process.argv[3] ?? 9222);
 if (!LINK) {
-  process.stderr.write("要给那一页的链接：bun tab-server.ts <url> [调试端口]\n");
+  process.stderr.write("the page link is required: bun tab-server.ts <url> [debug port]\n");
   process.exit(1);
 }
 
@@ -48,7 +48,7 @@ interface Target {
 const TOOLS = [
   {
     name: "deck_state",
-    description: "看这一页现在翻到第几张、一共几张、这张叫什么",
+    description: "Which slide this page is on, how many there are, and what this one is called",
     inputSchema: { type: "object", properties: {} },
     outputSchema: {
       type: "object",
@@ -57,7 +57,7 @@ const TOOLS = [
   },
   {
     name: "deck_next",
-    description: "往后翻一张",
+    description: "Go one slide forward",
     inputSchema: { type: "object", properties: {} },
     outputSchema: {
       type: "object",
@@ -66,7 +66,7 @@ const TOOLS = [
   },
   {
     name: "deck_prev",
-    description: "往前翻一张",
+    description: "Go one slide back",
     inputSchema: { type: "object", properties: {} },
     outputSchema: {
       type: "object",
@@ -75,10 +75,10 @@ const TOOLS = [
   },
   {
     name: "deck_goto",
-    description: "直接翻到第几张",
+    description: "Jump straight to a slide",
     inputSchema: {
       type: "object",
-      properties: { page: { type: "integer", description: "第几张，从 1 起" } },
+      properties: { page: { type: "integer", description: "Which slide, counting from 1" } },
       required: ["page"],
     },
     outputSchema: {
@@ -99,13 +99,13 @@ async function target(): Promise<Target> {
   try {
     list = (await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json()) as Target[];
   } catch {
-    throw new Error(`连不上 127.0.0.1:${PORT} —— 浏览器得带 --remote-debugging-port=${PORT} 起着`);
+    throw new Error(`cannot reach 127.0.0.1:${PORT} - the browser must be started with --remote-debugging-port=${PORT}`);
   }
   const pages = list.filter((t) => t.type === "page");
   const hit = pages.find((t) => t.url === LINK);
   if (!hit) {
-    const open = pages.map((t) => t.url).join("、") || "（一个都没开）";
-    throw new Error(`没有哪个标签页是 ${LINK}。现在开着的是：${open}`);
+    const open = pages.map((t) => t.url).join(", ") || "(nothing open)";
+    throw new Error(`no tab is at ${LINK}. Currently open: ${open}`);
   }
   return hit;
 }
@@ -130,11 +130,11 @@ async function socket(): Promise<WebSocket> {
 }
 
 async function open(t: Target): Promise<WebSocket> {
-  if (!t.webSocketDebuggerUrl) throw new Error(`${t.url} 没给调试地址`);
+  if (!t.webSocketDebuggerUrl) throw new Error(`${t.url} gave no debugger address`);
   const s = new WebSocket(t.webSocketDebuggerUrl);
   await new Promise<void>((ok, fail) => {
     s.onopen = () => ok();
-    s.onerror = () => fail(new Error(`连不上那个标签页：${t.url}`));
+    s.onerror = () => fail(new Error(`cannot reach that tab: ${t.url}`));
   });
   s.onmessage = (e: MessageEvent) => {
     const m = JSON.parse(String(e.data)) as { id?: number; result?: unknown; error?: { message?: string } };
@@ -142,19 +142,19 @@ async function open(t: Target): Promise<WebSocket> {
     const w = waiting.get(m.id);
     if (!w) return;
     waiting.delete(m.id);
-    if (m.error) w.fail(new Error(m.error.message ?? "CDP 报错"));
+    if (m.error) w.fail(new Error(m.error.message ?? "CDP reported an error"));
     else w.ok(m.result);
   };
   // 标签页关了、刷新了、浏览器退了 —— 在途的全得结掉，不然调用方挂到超时。
   s.onclose = () => {
-    for (const w of waiting.values()) w.fail(new Error("那个标签页的连接断了"));
+    for (const w of waiting.values()) w.fail(new Error("the connection to that tab dropped"));
     waiting.clear();
     ws = null;
     live = null;
   };
   ws = s;
   live = t.id;
-  process.stderr.write(`[tab] 接上了 ${t.title}｜${t.url}\n`);
+  process.stderr.write(`[tab] attached to ${t.title} | ${t.url}\n`);
   return s;
 }
 
@@ -168,7 +168,7 @@ async function evaluate(expr: string): Promise<unknown> {
   })) as { result?: { value?: unknown }; exceptionDetails?: { text?: string; exception?: { description?: string } } };
   if (res.exceptionDetails) {
     const d = res.exceptionDetails;
-    throw new Error(`页面里报错：${d.exception?.description ?? d.text ?? "?"}`);
+    throw new Error(`the page reported an error: ${d.exception?.description ?? d.text ?? "?"}`);
   }
   return res.result?.value;
 }
@@ -181,7 +181,7 @@ async function call(name: string, a: Record<string, unknown>): Promise<unknown> 
     : `window.deck.goto(${Number(a.page ?? 1)})`;
   const got = await evaluate(expr);
   if (got === undefined || got === null) {
-    throw new Error("这一页上没有 window.deck —— 标签页对上了，但不是那份 deck");
+    throw new Error("this page has no window.deck - the tab matched, but it is not that deck");
   }
   process.stderr.write(`[tab] ${name} → ${JSON.stringify(got)}\n`);
   return got;
@@ -205,7 +205,7 @@ async function handle(m: { id?: number; method?: string; params?: unknown }): Pr
   if (m.method === "tools/call") {
     const p = (m.params ?? {}) as { name?: string; arguments?: Record<string, unknown> };
     if (!TOOLS.some((t) => t.name === p.name)) {
-      return { jsonrpc: "2.0", id: m.id, error: { code: -32602, message: `没有这个工具：${String(p.name)}` } };
+      return { jsonrpc: "2.0", id: m.id, error: { code: -32602, message: `no such tool: ${String(p.name)}` } };
     }
     try {
       const out = await call(String(p.name), p.arguments ?? {});
@@ -214,15 +214,15 @@ async function handle(m: { id?: number; method?: string; params?: unknown }): Pr
       // 标签页关了、页面换了 —— 是这一次没干成，不是协议错。走 isError，
       // 模型看得见原因，也就知道不该接着翻。
       const why = e instanceof Error ? e.message : String(e);
-      process.stderr.write(`[tab] 没干成：${why}\n`);
+      process.stderr.write(`[tab] failed: ${why}\n`);
       return reply({ content: [{ type: "text", text: why }], isError: true });
     }
   }
 
-  return { jsonrpc: "2.0", id: m.id, error: { code: -32601, message: `不认得这个方法：${String(m.method)}` } };
+  return { jsonrpc: "2.0", id: m.id, error: { code: -32601, message: `unknown method: ${String(m.method)}` } };
 }
 
-process.stderr.write(`[tab] 起来了，认 ${LINK}，调试端口 ${PORT}\n`);
+process.stderr.write(`[tab] up, bound to ${LINK}, debug port ${PORT}\n`);
 let buf = "";
 // 在途几个。stdin 关了就该收摊，但**手上还有没答完的不能走** ——
 // 那条 WS 会把进程一直吊着，所以收摊这件事得自己数着来。

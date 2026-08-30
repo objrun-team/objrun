@@ -39,7 +39,7 @@ async function freePort(): Promise<number> {
   const s = Bun.serve({ port: 0, fetch: () => new Response("") });
   const p = s.port;
   await s.stop(true);
-  if (p === undefined) throw new Error("要不到一个空闲端口");
+  if (p === undefined) throw new Error("cannot obtain a free port");
   return p;
 }
 
@@ -91,7 +91,7 @@ export async function machine(): Promise<Machine> {
     }
     if (i === 99) {
       proc.kill();
-      throw new Error(`引擎没起来。它说：\n${log}`);
+      throw new Error(`the engine did not come up. It said:\n${log}`);
     }
     await Bun.sleep(100);
   }
@@ -120,7 +120,7 @@ export async function machine(): Promise<Machine> {
     },
     async bad(method: string, path: string, body?: unknown) {
       const { res, json } = await call(method, path, body);
-      if (res.ok) throw new Error(`${method} ${path} 本该被拒，却回了 ${res.status}`);
+      if (res.ok) throw new Error(`${method} ${path} should have been rejected, but returned ${res.status}`);
       return json as Record<string, unknown>;
     },
     stop() {
@@ -162,7 +162,7 @@ export async function outside(impls: Record<string, Impl>): Promise<Outside> {
     async fetch(req) {
       const path = new URL(req.url).pathname;
       const impl = impls[path];
-      if (!impl) return new Response(JSON.stringify({ error: `这台小服务器没有 ${path}` }), { status: 404 });
+      if (!impl) return new Response(JSON.stringify({ error: `this little server has no ${path}` }), { status: 404 });
       let arg: Record<string, unknown> = {};
       try {
         arg = (await req.json()) as Record<string, unknown>;
@@ -202,7 +202,7 @@ export function ok(what: string, cond: boolean, saw?: unknown): void {
     return;
   }
   bad++;
-  console.log(`  ✗ ${what}${saw === undefined ? "" : `\n      实际拿到：${JSON.stringify(saw)}`}`);
+  console.log(`  ✗ ${what}${saw === undefined ? "" : `\n      actually got: ${JSON.stringify(saw)}`}`);
 }
 
 /** 把一段（多半是错误信息）缩进打出来，例子里最值钱的往往就是这段话。 */
@@ -212,7 +212,7 @@ export function show(label: string, v: unknown): void {
 }
 
 export function done(): never {
-  console.log(bad === 0 ? `\n全过（${total} 条）。` : `\n${bad}/${total} 条没过。`);
+  console.log(bad === 0 ? `\nall ${total} passed.` : `\n${bad} of ${total} failed.`);
   process.exit(bad === 0 ? 0 : 1);
 }
 
@@ -226,5 +226,5 @@ export async function until<T>(what: string, f: () => Promise<T | null>, ms = 20
     last = v;
     await Bun.sleep(200);
   }
-  throw new Error(`等 ${what} 等了 ${ms}ms 还没成，最后看到的是 ${JSON.stringify(last)}`);
+  throw new Error(`waited ${ms}ms for ${what} without success; last seen was ${JSON.stringify(last)}`);
 }

@@ -112,7 +112,7 @@ export class McpClient {
     // 原样转到引擎的 stderr。不转的话 server 自己说的话全丢，出事没处看。
     this.#proc.stderr?.setEncoding("utf8");
     this.#proc.stderr?.on("data", (c: string) => process.stderr.write(c));
-    this.#proc.on("exit", (code) => this.#die(new Error(`${this.name} 退了（${code}）`)));
+    this.#proc.on("exit", (code) => this.#die(new Error(`${this.name} exited (${code})`)));
     this.#proc.on("error", (e) => this.#die(e));
   }
 
@@ -140,7 +140,7 @@ export class McpClient {
     const w = this.#waiting.get(m.id);
     if (!w) return;
     this.#waiting.delete(m.id);
-    if (m.error) w.fail(new Error(`${this.name}：${m.error.message}`));
+    if (m.error) w.fail(new Error(`${this.name}: ${m.error.message}`));
     else w.ok(m.result);
   }
 
@@ -164,7 +164,7 @@ export class McpClient {
     if (transportOf(this.#spec) === "http") {
       return this.#post(body).then((text) => {
         const m = JSON.parse(text) as Rpc;
-        if (m.error) throw new Error(`${this.name}：${m.error.message}`);
+        if (m.error) throw new Error(`${this.name}: ${m.error.message}`);
         return m.result;
       });
     }
@@ -184,7 +184,7 @@ export class McpClient {
       },
       body,
     });
-    if (!res.ok) throw new Error(`${this.name} 回了 ${res.status}`);
+    if (!res.ok) throw new Error(`${this.name} returned ${res.status}`);
     return await res.text();
   }
 
@@ -219,7 +219,7 @@ export class McpClient {
   }
 
   close(): void {
-    this.#dead ??= new Error(`${this.name} 已经关了`);
+    this.#dead ??= new Error(`${this.name} is already closed`);
     this.#proc?.stdin?.end();
     this.#proc?.kill();
   }

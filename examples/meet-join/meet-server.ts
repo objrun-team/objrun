@@ -10,7 +10,7 @@ const LIVE = "examples/meet-join/meet-live.ts";
 
 const TOOL = {
   name: "meet_join",
-  description: "进一个已经预约好的会。进去之后会里的工具才会出现",
+  description: "Join a meeting that is already booked. The in-meeting tools appear only once you are in",
   inputSchema: {
     type: "object",
     properties: { meetUrl: { type: "string", description: "https://meet.google.com/xxx-xxxx-xxx" } },
@@ -28,10 +28,10 @@ const TOOL = {
 
 async function join(meetUrl: string): Promise<unknown> {
   if (!/^https:\/\/meet\.google\.com\//.test(meetUrl)) {
-    return { isError: true, text: "这不是一个 Meet 地址，形如 https://meet.google.com/xxx-xxxx-xxx" };
+    return { isError: true, text: "that is not a Meet address; it looks like https://meet.google.com/xxx-xxxx-xxx" };
   }
   const meetId = meetUrl.split("/").pop() ?? "?";
-  process.stderr.write(`[meet] 进会 ${meetId}\n`);
+  process.stderr.write(`[meet] joining ${meetId}\n`);
 
   const res = await fetch(`${BASE}/declare`, {
     method: "POST",
@@ -43,8 +43,8 @@ async function join(meetUrl: string): Promise<unknown> {
           command: "bun",
           args: [LIVE, meetId],
           tools: {
-            say: { when: [[{ dim: "task", key: "description", op: "contains", value: "会议" }]] },
-            screen: { when: [[{ dim: "task", key: "description", op: "contains", value: "会议" }]] },
+            say: { when: [[{ dim: "task", key: "description", op: "contains", value: "meeting" }]] },
+            screen: { when: [[{ dim: "task", key: "description", op: "contains", value: "meeting" }]] },
           },
         },
       ],
@@ -52,12 +52,12 @@ async function join(meetUrl: string): Promise<unknown> {
   });
   const got = (await res.json()) as { servers?: Record<string, string[]>; problems?: string[] };
   if (got.problems) {
-    process.stderr.write(`[meet] 接不进来：${got.problems.join("；")}\n`);
-    return { isError: true, text: `进会了，但会里的工具接不进来：${got.problems.join("；")}` };
+    process.stderr.write(`[meet] cannot attach them: ${got.problems.join("; ")}\n`);
+    return { isError: true, text: `joined, but the in-meeting tools cannot be attached: ${got.problems.join("; ")}` };
   }
 
   const handles = (got.servers?.["meet-live"] ?? []).map((t) => `mcp:meet-live/${t}`);
-  process.stderr.write(`[meet] 长出 ${handles.join("、")}\n`);
+  process.stderr.write(`[meet] grew ${handles.join(", ")}\n`);
   return { ok: true, meetId, handles };
 }
 
@@ -79,7 +79,7 @@ async function handle(m: { id?: number; method?: string; params?: unknown }): Pr
   if (m.method === "tools/call") {
     const p = (m.params ?? {}) as { name?: string; arguments?: { meetUrl?: string } };
     if (p.name !== TOOL.name) {
-      return { jsonrpc: "2.0", id: m.id, error: { code: -32602, message: `没有这个工具：${String(p.name)}` } };
+      return { jsonrpc: "2.0", id: m.id, error: { code: -32602, message: `no such tool: ${String(p.name)}` } };
     }
     const out = (await join(String(p.arguments?.meetUrl ?? ""))) as { isError?: boolean; text?: string };
     if (out.isError) {
@@ -90,10 +90,10 @@ async function handle(m: { id?: number; method?: string; params?: unknown }): Pr
       structuredContent: out,
     });
   }
-  return { jsonrpc: "2.0", id: m.id, error: { code: -32601, message: `不认得这个方法：${String(m.method)}` } };
+  return { jsonrpc: "2.0", id: m.id, error: { code: -32601, message: `unknown method: ${String(m.method)}` } };
 }
 
-process.stderr.write("[meet] 起来了\n");
+process.stderr.write("[meet] up\n");
 let buf = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", (chunk: string) => {

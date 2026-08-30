@@ -40,7 +40,7 @@ const server = Bun.serve({
     got.auth = req.headers.get("authorization") ?? "";
     got.model = new URL(req.url).searchParams.get("model") ?? "";
     if (srv.upgrade(req)) return undefined;
-    return new Response("要 websocket", { status: 400 });
+    return new Response("a websocket is required", { status: 400 });
   },
   websocket: {
     open(ws) {
@@ -70,14 +70,14 @@ const server = Bun.serve({
 /** 第一个来回：正常讲话 + 三个坑。 */
 function firstTurn(ws: { send(s: string): void }): void {
   // beta 名。映射不生效的话，这两条没人认领，text 就是空的。
-  beta(ws, { type: "response.audio_transcript.delta", delta: "先说一句，" });
-  beta(ws, { type: "response.text.delta", delta: "再说一句。" });
+  beta(ws, { type: "response.audio_transcript.delta", delta: "first a line, " });
+  beta(ws, { type: "response.text.delta", delta: "then another." });
 
   // 【坑】音频块：收到就丢，只计数。
   beta(ws, { type: "response.audio.delta", delta: "AAAAAAAA" });
 
   // 【坑】一条根本不是 JSON 的。带倒连接的话，后面全收不到。
-  ws.send("{ 这不是 json");
+  ws.send("{ this is not json");
 
   // 【坑】没见过的事件名。那边随时会加新的，不许当成错。
   beta(ws, { type: "response.something.brand_new", whatever: 1 });
@@ -85,7 +85,7 @@ function firstTurn(ws: { send(s: string): void }): void {
   // 【坑】参会者转写：beta schema，通用解析器解不了。老代码在这儿整条跳过。
   beta(ws, {
     type: "conversation.item.input_audio_transcription.completed",
-    transcript: "  台下问：这个数是哪来的？  ",
+    transcript: "  from the floor: where does this number come from?  ",
   });
 
   // 【坑】beta 的 response.done **不带 usage**。老代码读统计字段当场崩，
@@ -116,50 +116,50 @@ function ok(what: string, cond: boolean, saw?: unknown): void {
     return;
   }
   bad++;
-  console.log(`  ✗ ${what}${saw === undefined ? "" : `　实际拿到：${JSON.stringify(saw)}`}`);
+  console.log(`  x ${what}${saw === undefined ? "" : ` actually got: ${JSON.stringify(saw)}`}`);
 }
 
 const url = `ws://127.0.0.1:${server.port}`;
-console.log(`假实时端点起在 ${url}\n`);
+console.log(`fake realtime endpoint listening on ${url}\n`);
 
 const s = new Session(url, "fake-key", "qwen-audio-3.0-realtime-flash");
 await s.ready();
 
-await s.update("你是汇报人。", [
-  { type: "function", name: "read", description: "读一个文件", parameters: { type: "object", properties: {} } },
+await s.update("You are the presenter.", [
+  { type: "function", name: "read", description: "read a file", parameters: { type: "object", properties: {} } },
 ]);
 
-console.log("第一个来回：正常讲话 + 三个坑");
+console.log("Turn one: ordinary speech plus three traps");
 const one = await s.turn([
-  { type: "message", role: "user", content: [{ type: "input_text", text: "开始吧" }] },
+  { type: "message", role: "user", content: [{ type: "input_text", text: "go ahead" }] },
 ]);
 
 // 这一条是整块的要害：beta 名没映射的话，两条 delta 都没人认领，text 是空的。
-ok("beta 事件名映射生效（文本收到了）", one.text === "先说一句，再说一句。", one.text);
-ok("音频只计数不落库", one.audio === 1, one.audio);
-ok("垃圾行和没见过的事件没带倒连接", s.dead === null);
-ok("跳过的条数数出来了（垃圾 1 + 没见过 1）", one.skipped === 2, one.skipped);
-ok("参会者转写接住了，而且去了空白", one.heard.length === 1 && one.heard[0] === "台下问：这个数是哪来的？", one.heard);
-ok("不带 usage 的 response.done 照样收尾", one.errors.length === 0, one.errors);
+ok("the beta event-name mapping works (the text arrived)", one.text === "first a line, then another.", one.text);
+ok("audio is counted, not stored", one.audio === 1, one.audio);
+ok("a garbage line and an unseen event did not take the connection down", s.dead === null);
+ok("the number skipped is counted (1 garbage + 1 unseen)", one.skipped === 2, one.skipped);
+ok("the participant transcript was caught, and trimmed", one.heard.length === 1 && one.heard[0] === "from the floor: where does this number come from?", one.heard);
+ok("a response.done without usage still wraps up", one.errors.length === 0, one.errors);
 
-console.log("\n第二个来回：请求工具（名字只在 item 那条给）");
+console.log("\nTurn two: requesting a tool (the name comes only on the item event)");
 const two = await s.turn([
-  { type: "message", role: "user", content: [{ type: "input_text", text: "去读一下" }] },
+  { type: "message", role: "user", content: [{ type: "input_text", text: "go read it" }] },
 ]);
-ok("工具名从 item 那条补上了", two.calls.length === 1 && two.calls[0].name === "read", two.calls);
-ok("call_id 用的是 item 给的那个", two.calls[0]?.id === "call-9", two.calls[0]?.id);
-ok("参数解出来了", JSON.stringify(two.calls[0]?.input) === '{"file_path":"/tmp/a.txt"}', two.calls[0]?.input);
-ok("转写取走就清空，没重复", two.heard.length === 0, two.heard);
+ok("the tool name was filled in from the item event", two.calls.length === 1 && two.calls[0].name === "read", two.calls);
+ok("call_id is the one the item event gave", two.calls[0]?.id === "call-9", two.calls[0]?.id);
+ok("the arguments were parsed", JSON.stringify(two.calls[0]?.input) === '{"file_path":"/tmp/a.txt"}', two.calls[0]?.input);
+ok("transcripts are cleared once taken, with no repeats", two.heard.length === 0, two.heard);
 
-console.log("\n会话这一层");
-ok("钥匙走的是请求头", got.auth === "Bearer fake-key", got.auth);
-ok("model 挂在地址上", got.model === "qwen-audio-3.0-realtime-flash", got.model);
-ok("instructions 只在开会话时发一次", got.session?.instructions === "你是汇报人。", got.session);
-ok("只要文本", JSON.stringify(got.session?.modalities) === '["text"]', got.session?.modalities);
-ok("两个来回共用同一条会话", got.turns === 2, got.turns);
+console.log("\nThe session layer");
+ok("the key travels in a request header", got.auth === "Bearer fake-key", got.auth);
+ok("the model rides on the URL", got.model === "qwen-audio-3.0-realtime-flash", got.model);
+ok("instructions are sent once, when the session opens", got.session?.instructions === "You are the presenter.", got.session);
+ok("text only", JSON.stringify(got.session?.modalities) === '["text"]', got.session?.modalities);
+ok("both turns shared one session", got.turns === 2, got.turns);
 
 s.close();
 server.stop(true);
 
-console.log(bad === 0 ? "\n全过。" : `\n${bad} 条没过。`);
+console.log(bad === 0 ? "\nall passed." : `\n${bad} failed.`);
 process.exit(bad === 0 ? 0 : 1);

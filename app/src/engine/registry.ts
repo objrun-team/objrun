@@ -108,8 +108,8 @@ export class Registry {
    * 库里那一行是给别人看的（谁在引用这个句柄、它多久算死）；函数只活在这个进程里。
    */
   register(db: Conn, name: string, expectMs: number, fn: Handle): void {
-    if (!IN.test(name)) throw new Error(`进程内的句柄名要以 fn: 开头：${name}`);
-    if (!Number.isFinite(expectMs) || expectMs <= 0) throw new Error(`${name} 的 expect_ms 得是个正数`);
+    if (!IN.test(name)) throw new Error(`an in-process handle name must start with fn: - got ${name}`);
+    if (!Number.isFinite(expectMs) || expectMs <= 0) throw new Error(`expect_ms for ${name} must be a positive number`);
     this.#by.set(name, { name, expectMs, call: fn, where: "in" });
     run(db, `insert into handle (name, expect_ms, module) values (?, ?, null)
              on conflict(name) do update set expect_ms = excluded.expect_ms`, [name, expectMs]);
@@ -179,14 +179,14 @@ export class Registry {
     }
 
     if (missing.length) {
-      throw new Error(`库里登记了这些句柄，进程内没人注册过：${missing.join("、")}`);
+      throw new Error(`registered in the database but never registered in this process: ${missing.join(", ")}`);
     }
     return { added, missing, dropped };
   }
 
   get(name: string): Entry {
     const e = this.#by.get(name);
-    if (!e) throw new Error(`没有这个句柄：${name}`);
+    if (!e) throw new Error(`no such handle: ${name}`);
     return e;
   }
 
@@ -207,7 +207,7 @@ function remote(url: string): Handle {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(arg ?? {}),
     });
-    if (!res.ok) throw new Error(`${url} 回了 ${res.status}`);
+    if (!res.ok) throw new Error(`${url} returned ${res.status}`);
     return await res.json();
   };
 }

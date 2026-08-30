@@ -151,13 +151,13 @@ export class NoSuchTable extends Error {}
  * 因为表名没法用占位符绑。
  */
 export function realTable(db: Conn, name: string): string {
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new BadName(`表名不认得：${name}`);
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new BadName(`illegal table name: ${name}`);
   const hit = all(
     db,
     `select name from sqlite_master where type in ('table','view') and name = ? limit 1`,
     [name],
   );
-  if (hit.length === 0) throw new NoSuchTable(`库里没有这张表：${name}`);
+  if (hit.length === 0) throw new NoSuchTable(`no such table: ${name}`);
   return (hit[0] as { name: string }).name;
 }
 

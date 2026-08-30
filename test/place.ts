@@ -31,61 +31,61 @@ import { done, machine, ok, outside, part, show, step, until } from "./_lib.ts";
 
 const m = await machine();
 const out = await outside({
-  "/unit": (u) => ({ role: "assistant", kind: "prompt", body: `我在 ${u.place} 上干活` }),
+  "/unit": (u) => ({ role: "assistant", kind: "prompt", body: `I am working on ${u.place}` }),
   "/infer": () => null,
 });
 
 try {
   // ═══════════════ 第一部分：注册 ═══════════════
-  part("第一部分：注册");
+  part("Part one: registration");
 
-  step("① 要转发，位置串却写了个认不得的写法");
-  const 认不得 = await m.bad("POST", "/declare", {
+  step("1. forwarding is on, but the place string uses a form nothing recognises");
+  const unknownForm = await m.bad("POST", "/declare", {
     places: [{ place: "podman:box", forward: true, runtime: "/tmp/runtime", tools: [{ tool: "bash", policy: "always" }] }],
   });
-  show("回的是：", 认不得.problems);
+  show("it answered:", unknownForm.problems);
   ok(
-    "**认不得的写法当场炸** —— 猜的话会连到别的地方去",
-    JSON.stringify(认不得.problems).includes("位置串不认得这一段"),
-    认不得.problems,
+    "an unrecognised form fails immediately - guessing would connect somewhere else entirely",
+    JSON.stringify(unknownForm.problems).includes("unrecognised segment in the place string"),
+    unknownForm.problems,
   );
 
-  step("①b 不转发的地方，名字随便起");
-  const 随便起 = await m.api<{ places: string[] }>("POST", "/declare", { places: [{ place: "tab:deck" }] });
-  show("收下了：", 随便起.places);
+  step("1b. a place that does not forward can be named freely");
+  const freeName = await m.api<{ places: string[] }>("POST", "/declare", { places: [{ place: "tab:deck" }] });
+  show("accepted:", freeName.places);
   ok(
-    "**位置串只有要转发的时候才得是一串跳板** —— 不转发的地方，名字只是「这一站在哪儿」",
-    随便起.places.includes("tab:deck"),
-    随便起.places,
+    "a place string has to be a chain of hops only when it forwards; otherwise the name simply says where this station is",
+    freeName.places.includes("tab:deck"),
+    freeName.places,
   );
 
-  step("② 说要转发，却没说送什么运行时过去");
-  const 没运行时 = await m.bad("POST", "/declare", {
+  step("2. it says it forwards, but never says which runtime to ship");
+  const noRuntime = await m.bad("POST", "/declare", {
     places: [{ place: "wsl", forward: true, tools: [{ tool: "bash", policy: "always" }] }],
   });
-  show("回的是：", 没运行时.problems);
-  ok("第一次调用才炸的事，提前到声明这一刻", JSON.stringify(没运行时.problems).includes("没东西可送过去"), 没运行时.problems);
+  show("it answered:", noRuntime.problems);
+  ok("what would otherwise fail on the first call is caught at declaration time", JSON.stringify(noRuntime.problems).includes("nothing to ship over"), noRuntime.problems);
 
-  step("③ 开了转发，白名单却是空的");
-  const 空名单 = await m.bad("POST", "/declare", {
+  step("3. forwarding is on, but the allow-list is empty");
+  const emptyList = await m.bad("POST", "/declare", {
     places: [{ place: "wsl", forward: true, runtime: "/tmp/runtime", tools: [] }],
   });
-  show("回的是：", 空名单.problems);
+  show("it answered:", emptyList.problems);
   ok(
-    "**合法但一定不是本意**，所以说出来",
-    JSON.stringify(空名单.problems).includes("一个工具都不会转过去"),
-    空名单.problems,
+    "legal but certainly not what was meant, so it is said out loud",
+    JSON.stringify(emptyList.problems).includes("not a single tool would be forwarded"),
+    emptyList.problems,
   );
 
-  step("④ 白名单里的 policy 认不得");
-  const 坏policy = await m.bad("POST", "/declare", {
+  step("4. an unrecognised policy in the allow-list");
+  const badPolicy = await m.bad("POST", "/declare", {
     places: [{ place: "local", forward: true, tools: [{ tool: "bash", policy: "sometimes" }] }],
   });
-  show("回的是：", 坏policy.problems);
-  ok("只能是 always / agent", JSON.stringify(坏policy.problems).includes("policy 不认得"), 坏policy.problems);
+  show("it answered:", badPolicy.problems);
+  ok("it must be always or agent", JSON.stringify(badPolicy.problems).includes("unrecognised policy"), badPolicy.problems);
 
-  step("⑤ 灌两个：本机，和一个登记着但停用的远端");
-  const 灌好 = await m.api<Record<string, unknown>>("POST", "/declare", {
+  step("5. load two: this machine, and a registered but disabled remote");
+  const loaded = await m.api<Record<string, unknown>>("POST", "/declare", {
     handles: [
       { name: out.url("/unit"), expectMs: 30_000 },
       { name: out.url("/infer"), expectMs: 10_000 },
@@ -93,7 +93,7 @@ try {
     places: [
       { place: "local" },
       {
-        place: "ssh://box-不存在",
+        place: "ssh://box-does-not-exist",
         runtime: "/tmp/tgengin-runtime",
         forward: true,
         tools: [{ tool: "bash", policy: "always" }, { tool: "read", policy: "agent" }],
@@ -104,57 +104,57 @@ try {
     modes: [{ mode: "demo", cycles: [{ cycle: "go", from: [], next: [], infer: out.url("/infer") }] }],
     agents: [{ name: "bot", apis: [], unit: out.url("/unit") }],
   });
-  ok("两个都进去了", (灌好.places as string[]).length === 2, 灌好.places);
+  ok("both went in", (loaded.places as string[]).length === 2, loaded.places);
 
-  step("⑥ 看一眼登记成什么样");
+  step("6. read back how they were registered");
   const { places } = await m.api<{ places: Record<string, unknown>[] }>("GET", "/places");
-  show("清单：", places);
-  ok("转发那条的白名单留住了", (places.find((p) => p.forward) as { tools: unknown[] }).tools.length === 2, places);
+  show("the list:", places);
+  ok("the allow-list of the forwarding one was kept", (places.find((p) => p.forward) as { tools: unknown[] }).tools.length === 2, places);
 
   // ═══════════════ 第二部分：使用层次的校验 ═══════════════
-  part("第二部分：使用层次的校验");
-  console.log("  登记了 ≠ 连得上。usable 是登记，通不通得现探。");
+  part("Part two: checks at the level of use");
+  console.log("  Registered is not the same as reachable. usable is a registration; reachability has to be probed on the spot.");
 
-  step("⑦ 现探本机");
-  const 本机 = await m.api<Record<string, unknown>>("POST", "/places/local/ping");
-  show("ping local：", 本机);
-  ok("本机通", 本机.alive === true, 本机);
+  step("7. probe this machine");
+  const here = await m.api<Record<string, unknown>>("POST", "/places/local/ping");
+  show("ping local:", here);
+  ok("this machine is reachable", here.alive === true, here);
 
-  step("⑧ 现探那个不存在的远端");
-  const 远端 = await m.api<Record<string, unknown>>("POST", `/places/${encodeURIComponent("ssh://box-不存在")}/ping`);
-  show("ping 它：", 远端);
-  ok("**连不上就说连不上**，而且说得出为什么", 远端.alive === false, 远端);
+  step("8. probe the remote that does not exist");
+  const remote = await m.api<Record<string, unknown>>("POST", `/places/${encodeURIComponent("ssh://box-does-not-exist")}/ping`);
+  show("ping it:", remote);
+  ok("unreachable is reported as unreachable, and it can say why", remote.alive === false, remote);
 
-  step("⑨ 探完之后，库里那一列**没被改写**");
-  const 还是那样 = (await m.api<{ places: Record<string, unknown>[] }>("GET", "/places")).places;
-  show("再看一遍清单里的 usable：", 还是那样.map((p) => ({ place: p.place, usable: p.usable })));
+  step("9. after probing, that column in the database was NOT rewritten");
+  const unchanged = (await m.api<{ places: Record<string, unknown>[] }>("GET", "/places")).places;
+  show("usable in the list, read again:", unchanged.map((p) => ({ place: p.place, usable: p.usable })));
   ok(
-    "**探活的结果不写回库** —— 写回去的话，崩了重启读到的就是过期的谎话",
-    还是那样.find((p) => String(p.place).startsWith("ssh://"))?.usable === false &&
-      还是那样.find((p) => p.place === "local")?.usable === true,
-    还是那样,
+    "a probe result is never written back - written back, it becomes a stale lie after any crash and restart",
+    unchanged.find((p) => String(p.place).startsWith("ssh://"))?.usable === false &&
+      unchanged.find((p) => p.place === "local")?.usable === true,
+    unchanged,
   );
 
-  step("⑩ 在本机上真跑一个任务");
+  step("10. really run a task on this machine");
   await m.api("POST", "/tasks", {
-    id: "t-local", mode: "demo", agent: "bot", place: "local", source: "user", description: "就在本机干",
+    id: "t-local", mode: "demo", agent: "bot", place: "local", source: "user", description: "do it right here",
   });
-  await until("t-local 跑完", async () => {
+  await until("t-local to finish", async () => {
     const d = await m.api<{ state: string }>("GET", "/tasks/t-local");
     return d.state === "done" ? d : null;
   });
-  const 回显 = (await m.api<{ rows: Record<string, unknown>[] }>("GET", "/tasks/t-local/messages")).rows
+  const echoed = (await m.api<{ rows: Record<string, unknown>[] }>("GET", "/tasks/t-local/messages")).rows
     .filter((r) => r.kind === "prompt")
     .at(-1);
-  show("它说：", 回显?.body);
-  ok("**「在哪儿干」真的传到了执行单元手里**", String(回显?.body).includes("local"), 回显?.body);
+  show("it said:", echoed?.body);
+  ok("where to work really reached the execution unit", String(echoed?.body).includes("local"), echoed?.body);
 
-  step("⑪ 发一个任务到没登记的地方");
-  const 没登记 = await m.bad("POST", "/tasks", {
-    id: "t-nowhere", mode: "demo", agent: "bot", place: "火星", source: "user", description: "去火星干",
+  step("11. publish a task to an unregistered place");
+  const unregistered = await m.bad("POST", "/tasks", {
+    id: "t-nowhere", mode: "demo", agent: "bot", place: "mars", source: "user", description: "do it on mars",
   });
-  show("回的是：", 没登记.error);
-  ok("发布那一刻就拒 —— 不会躺在库里等人发现", String(没登记.error).length > 0, 没登记);
+  show("it answered:", unregistered.error);
+  ok("rejected at publish time - it never sits in the database waiting to be noticed", String(unregistered.error).length > 0, unregistered);
 } finally {
   out.stop();
   m.stop();

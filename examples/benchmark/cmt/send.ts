@@ -34,7 +34,7 @@ interface Item {
 // 所以走 HTTP 取题：`/problems` 只回题面，`solution` 一个字都不过来。
 const res0 = await fetch(`${GRADER}/problems${HOW_MANY > 0 ? `?n=${HOW_MANY}` : ""}`);
 if (!res0.ok) {
-  console.error(`判卷台取不到题（${GRADER}/problems）：${res0.status}`);
+  console.error(`cannot fetch problems from the grader (${GRADER}/problems): ${res0.status}`);
   process.exit(1);
 }
 const items = (await res0.json()) as Item[];
@@ -71,9 +71,9 @@ const tasks = items.map((it) => ({
   solveSeconds: 900,
   description:
     `${it.prompt}\n\n` +
-    (it.parameters ? `符号：${it.parameters}\n` : "") +
-    (it.functions ? `函数：${it.functions}\n` : "") +
-    `\n把最终答案放进 \\boxed{} 里。`,
+    (it.parameters ? `Symbols: ${it.parameters}\n` : "") +
+    (it.functions ? `Functions: ${it.functions}\n` : "") +
+    `\nPut the final answer inside \\boxed{}.`,
   objective,
   // 带 G 就必须显式给：这道题的智能体读不读得到 G 的定义。
   //
@@ -90,7 +90,7 @@ const res = await fetch(`${BASE}/bench`, {
 });
 const got = (await res.json()) as { run?: string; ids?: string[]; error?: string };
 if (!res.ok) {
-  console.error(`整批都没发出去：${got.error}`);
+  console.error(`the whole batch was not sent: ${got.error}`);
   process.exit(1);
 }
-console.log(`${got.run}：${got.ids?.length} 道`);
+console.log(`${got.run}: ${got.ids?.length} tasks`);

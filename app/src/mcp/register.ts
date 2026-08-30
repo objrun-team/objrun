@@ -106,7 +106,7 @@ export async function pull(
   try {
     tools = await client.tools();
   } catch (e) {
-    throw new Error(`连不上 server ${s.name}：${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(`cannot reach server ${s.name}: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   const names: string[] = [];
@@ -123,8 +123,8 @@ export async function pull(
       | undefined;
     if (had && had.identity !== identity) {
       throw new Error(
-        `工具名撞了：${t.name} 已经是 ${had.identity} 的了，server ${s.name} 也报了一个` +
-          `（要换的话先把旧那行删掉 —— 悄悄顶掉的话没人看得出来）`,
+        `tool name collision: ${t.name} already belongs to ${had.identity}, and server ${s.name} reports one too` +
+          ` (to replace it, delete the old row first - silently overriding is invisible to everyone)`,
       );
     }
     run(db, `insert into handle (name, expect_ms) values (?, ?) on conflict(name) do update set expect_ms = excluded.expect_ms`, [
@@ -176,14 +176,14 @@ export interface ServerDecl extends ServerSpec {
 /** 声明期就能看出来的毛病。连不连得上要真去连，那在 `pull` 里。 */
 export function inspectServer(s: ServerDecl): string[] {
   const bad: string[] = [];
-  const at = `server ${s.name || "(没名字)"}`;
-  if (!s.name || !s.name.trim()) bad.push(`有一个 server 没名字`);
-  if (/[/]/.test(s.name ?? "")) bad.push(`${at}：名字里不能有 /（句柄名是 mcp:<server>/<tool>，会切错）`);
+  const at = `server ${s.name || "(unnamed)"}`;
+  if (!s.name || !s.name.trim()) bad.push(`a server has no name`);
+  if (/[/]/.test(s.name ?? "")) bad.push(`${at}: the name cannot contain / (handle names are mcp:<server>/<tool> and would split wrong)`);
   const t = transportOf(s);
   if (t === null) {
-    bad.push(`${at}：要么给 command（起个子进程），要么给 url（HTTP），**给一个，不能都给也不能都不给**`);
+    bad.push(`${at}: give either command (spawn a child process) or url (HTTP) - exactly one, not both and not neither`);
   }
-  if (s.args !== undefined && !Array.isArray(s.args)) bad.push(`${at}：args 得是一串字符串`);
+  if (s.args !== undefined && !Array.isArray(s.args)) bad.push(`${at}: args must be a list of strings`);
   return bad;
 }
 

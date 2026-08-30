@@ -45,8 +45,8 @@ export async function build(cfg: Config, hooks: Hooks = {}): Promise<App> {
   // 接口回 200，而那份 body 悄悄没了。
   app.addContentTypeParser("*", { parseAs: "buffer" }, (req, body, done) => {
     if ((body as Buffer).length === 0) return done(null, undefined);
-    const ct = req.headers["content-type"] ?? "（没给）";
-    const err = new Error(`不认得这种 content-type：${ct}`) as Error & { statusCode?: number };
+    const ct = req.headers["content-type"] ?? "(none given)";
+    const err = new Error(`unsupported content-type: ${ct}`) as Error & { statusCode?: number };
     err.statusCode = 415;
     done(err, undefined);
   });
@@ -58,7 +58,7 @@ export async function build(cfg: Config, hooks: Hooks = {}): Promise<App> {
       if (req.url.startsWith(`${cfg.api.prefix}/health`)) return;
       const got = req.headers.authorization ?? "";
       if (got !== `Bearer ${cfg.api.token}`) {
-        return reply.code(401).send({ error: "令牌不对：发 Authorization: Bearer <token>" });
+        return reply.code(401).send({ error: "bad token - send Authorization: Bearer <token>" });
       }
     });
   }
@@ -88,7 +88,7 @@ export async function build(cfg: Config, hooks: Hooks = {}): Promise<App> {
   // 打错地址的时候把 help 指出来 —— 不指的话他只能去猜，或者去读表。
   app.setNotFoundHandler(async (req, reply) =>
     reply.code(404).send({
-      error: `没有这个接口：${req.method} ${req.url}`,
+      error: `no such route: ${req.method} ${req.url}`,
       help: `GET ${cfg.api.prefix}/help`,
     }),
   );

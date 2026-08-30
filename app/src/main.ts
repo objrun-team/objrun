@@ -79,7 +79,7 @@ function lastSaid(db: Parameters<typeof all>[0], task: string): { body: string; 
   if (!u) return undefined;
 
   const handed = lastSubmission(db, u.agent, u.instance);
-  if (handed) return { body: handed, how: "交卷" };
+  if (handed) return { body: handed, how: "submitted" };
 
   const msg = tableNameOf("agent_{}_msg", u.agent);
   const rows = all(
@@ -90,7 +90,7 @@ function lastSaid(db: Parameters<typeof all>[0], task: string): { body: string; 
     [u.instance],
   ) as { body?: string }[];
   for (const r of rows) {
-    if (r.body !== undefined && r.body.trim()) return { body: r.body, how: "最后一句" };
+    if (r.body !== undefined && r.body.trim()) return { body: r.body, how: "last words" };
   }
   return undefined;
 }
@@ -105,8 +105,8 @@ const app = await build(cfg, { onWrite: () => wake() });
 // 装表。幂等 —— 已经在且形状对的跳过；对不上当场炸，不自动改。
 const built = install(app.store.rw);
 app.log.info(
-  `表：建了 ${built.create.length} 张，已有 ${built.ok.length} 张` +
-    (built.extra.length ? `，声明外的 ${built.extra.length} 张（没动）` : ""),
+  `tables: created ${built.create.length}, already there ${built.ok.length}` +
+    (built.extra.length ? `, ${built.extra.length} outside the declaration (untouched)` : ""),
 );
 
 // 句柄注册表 + 内核。
@@ -146,7 +146,7 @@ const kernel = new Kernel(app.store, app.log, registry, {
       // 日志上看像判据出了毛病，其实是它压根没交。这两件事得分得开。
       const v = said
         ? await evaluate(g, registry, { task: row, result: said })
-        : { pass: 0 as const, why: "没交卷 —— 有 G 的任务收尾要调一次 verify 把答案交上来", trace: [] };
+        : { pass: 0 as const, why: "nothing submitted - a task with a grading function must hand its answer in through verify before it wraps up", trace: [] };
 
       // **拿到判决就投回上下文** —— 跟树那一路一个规矩（`tree/dfs.ts`）：
       // 凡是问过 G 的，判决都以「一次带结果的工具调用」落在那一站上。
@@ -157,7 +157,7 @@ const kernel = new Kernel(app.store, app.log, registry, {
           instance: at.instance,
           unit: at.unit,
           name: "verify",
-          input: { task, at: "收尾" },
+          input: { task, at: "wrap-up" },
           value: { pass: v.pass, why: v.why },
         });
       }
@@ -165,14 +165,14 @@ const kernel = new Kernel(app.store, app.log, registry, {
       // 超时那一路也走到这儿（`#reap`）。**判决照给** —— 它要是在时限内就把对的
       // 交上来了，那就是做出来了，只是树没来得及收尾；时限只说明「没能自己收工」。
       // 判 0 的话把超时一起记进 `why`，不然成绩单上分不清是判错还是耗光。
-      const why = v.pass === 1 ? v.why : [expired, v.why].filter(Boolean).join("；");
+      const why = v.pass === 1 ? v.why : [expired, v.why].filter(Boolean).join("; ");
       run(app.store.rw, `update task set state = ?, result = ? where id = ?`, [
         v.pass === 1 ? "done" : "failed",
         JSON.stringify({ pass: v.pass, why }),
         task,
       ]);
       app.log.info(
-        `G 判了 ${task}：${v.pass}（${said ? said.how : "没交卷"}${why ? "，" + why : ""}）`,
+        `graded ${task}: ${v.pass} (${said ? said.how : "nothing submitted"}${why ? ", " + why : ""})`,
       );
     })();
   },
@@ -181,35 +181,35 @@ wake = () => kernel.wake();
 
 // 树的控制流：派生 / 判死开兄弟 / 回退。它是个推断函数，不是内核的一部分 ——
 // 换一种搜索策略就是换一个 infer 句柄，内核一个字不动。
-app.log.info(`树：${registerTree(app.store.rw, registry, sealed).join("、")}`);
+app.log.info(`tree: ${registerTree(app.store.rw, registry, sealed).join(", ")}`);
 
 // 树自省那两个工具。**不是 system 工具** —— 按 mode 分发：条件是「这一站的推断函数
 // 走不走树」，所以一条道走到黑的单链机制一个都拿不到（它本来就直接继承上下文）。
-app.log.info(`树自省：${registerTreeView(app.store.rw, registry, "fn:infer.dfs").join("、")}`);
+app.log.info(`tree introspection: ${registerTreeView(app.store.rw, registry, "fn:infer.dfs").join(", ")}`);
 // **有 G 就能问 G。** 判决本来每轮就投进上下文（名字也叫 verify），
 // 补上这个工具那条轨迹才名副其实 —— 见 `objective/tool.ts`。
-app.log.info(`复核：${registerVerifyTool(app.store.rw, registry, sealed)}`);
+app.log.info(`grading tool: ${registerVerifyTool(app.store.rw, registry, sealed)}`);
 
 // 认得的消息类型。**取值就是那条「谁放的 → kind」推断表的值域** —— 灌进来是
 // 为了让 check 和人都能查得到，不是让谁去填。
-app.log.info(`消息类型：${seedKinds(app.store.rw).join("、")}`);
+app.log.info(`message kinds: ${seedKinds(app.store.rw).join(", ")}`);
 
 // 基础工具：注册进内核（它才持有得住函数），同时把给模型看的那几样落进 tool 表。
 // 注册进去的函数只负责**转发** —— 按 workplace 决定这一次在哪儿跑。
-app.log.info(`工具：${registerTools(app.store.rw, registry, places).join("、")}`);
+app.log.info(`tools: ${registerTools(app.store.rw, registry, places).join(", ")}`);
 
 // 把上一站模型请求的工具真跑掉。**少了这一步工具那条链是断的** ——
 // 请求落了库却永远不被执行，而且不报错。周期表上 api_mode 留空的那一站走它。
-app.log.info(`执行工具：${registerToolUnit(app.store.rw, registry)}`);
+app.log.info(`tool-running unit: ${registerToolUnit(app.store.rw, registry)}`);
 
 // 认得的调用形状。**取值就是 `api.modes` 那一列的值域** —— 跟消息类型一样，
 // 灌进来是为了让 check 和人都查得到，不是让谁去填。
-app.log.info(`调用形状：${seedModes(app.store.rw).join("、")}`);
+app.log.info(`api modes: ${seedModes(app.store.rw).join(", ")}`);
 
 // 模型这一侧：每家一个适配器。**这个句柄同时是 api.handle 和 agent.unit** ——
 // 一次调用就是一个执行单元。下面那几行 api 是数据，改它不用动代码。
 app.log.info(
-  `模型：${registerVendors(
+  `models: ${registerVendors(
     app.store.rw,
     registry,
     [
@@ -220,7 +220,7 @@ app.log.info(
       ["dashscope", "qwen-max", "chat,tools"],
     ],
     cfg.llm,
-  ).join("、")}｜出 ${cfg.llm.maxTokens} token（续写最多 ${cfg.llm.continueTimes} 次）｜思考 ${cfg.llm.reasoningEffort}`,
+  ).join(", ")} | ${cfg.llm.maxTokens} output tokens (up to ${cfg.llm.continueTimes} continuations) | reasoning ${cfg.llm.reasoningEffort}`,
 );
 
 // 实时轨。**另一条句柄** —— 它不是一次调用，是一条会话，一个执行单元对应会话里的
@@ -229,7 +229,7 @@ const sessions = new Sessions();
 const duplexHandles = registerDuplex(app.store.rw, registry, sessions, [
   ["dashscope", "qwen-audio-3.0-realtime-flash"],
 ]);
-app.log.info(`实时轨：${duplexHandles.join("、")}`);
+app.log.info(`realtime lanes: ${duplexHandles.join(", ")}`);
 
 // 内核这一侧的口。**每个口的说明、参数表、实现是同一份声明** —— 契约长在接口上，
 // 不在旁边的文档里：文档会漂（说一套做一套，零报错），声明漂不了，漂了请求就会
@@ -247,7 +247,7 @@ mount(app, cfg.api.prefix, kernelRoutes);
 // help 得**列全**。路由分两处装（库那一层一处、这儿一处），漏掉一组的话，
 // 客户端会以为那组不存在，然后回头去读表 —— 一读表两端就焊死了。
 mountHelp(app, cfg.api.prefix, [...app.routes, ...kernelRoutes]);
-app.log.info(`接口：${app.routes.length + kernelRoutes.length} 个，打 ${cfg.api.prefix}/help 看用法`);
+app.log.info(`routes: ${app.routes.length + kernelRoutes.length}; GET ${cfg.api.prefix}/help for usage`);
 
 // 停机：先不收新请求，等在途的走完；超时就硬停 —— 不设上限的话，
 // 一个挂住的请求能把整个进程钉在那儿。
@@ -275,7 +275,7 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
 // 安卓那类客户端要连过来时最容易凑齐，所以在这儿喊一声。
 const loopback = /^(127\.|::1$|localhost$)/.test(cfg.server.host);
 if (!loopback && !cfg.api.token && cfg.api.allowWrite) {
-  app.log.warn(`听在 ${cfg.server.host}，没有 api.token，而 api.allowWrite 是开的 —— 同一个网里谁都能改这个库`);
+  app.log.warn(`listening on ${cfg.server.host} with no api.token while api.allowWrite is on - anyone on this network can write to the database`);
 }
 
 await app.listen({ host: cfg.server.host, port: cfg.server.port });
@@ -284,20 +284,20 @@ await app.listen({ host: cfg.server.host, port: cfg.server.port });
 // 但也不能不吭声，静默不生效正是这张表最容易出的事。
 const bad = check(app.store.ro);
 if (bad.length) {
-  app.log.warn(`触发条件有 ${bad.length} 处不对：`);
-  for (const b of bad.slice(0, 10)) app.log.warn(`  ${b.owner_kind} ${b.owner} 第 ${b.group} 组：${b.why}`);
+  app.log.warn(`${bad.length} trigger problems:`);
+  for (const b of bad.slice(0, 10)) app.log.warn(`  ${b.owner_kind} ${b.owner} group ${b.group}: ${b.why}`);
 }
 const badData = checkData(app.store.ro, registry);
 if (badData.length) {
-  app.log.warn(`库里有 ${badData.length} 处对不上：`);
-  for (const b of badData.slice(0, 10)) app.log.warn(`  ${b.what}：${b.why}`);
+  app.log.warn(`${badData.length} data inconsistencies:`);
+  for (const b of badData.slice(0, 10)) app.log.warn(`  ${b.what}: ${b.why}`);
 }
 
 // 插件那条路开机探一遍。**不拦启动** —— 没装插件的机器不该因为它起不来；
 // 但也不能不吭声，不然要等到某个任务真去调一个插件那一刻才发现。
 const plugBad = await registry.plugins.probe();
 if (plugBad) app.log.warn(plugBad);
-else app.log.info(`插件：${registry.plugins.host}`);
+else app.log.info(`plugin host: ${registry.plugins.host}`);
 
 kernel.start();
-app.log.info(`库 ${cfg.db.file}｜写 ${cfg.api.allowWrite ? "开" : "关"}｜令牌 ${cfg.api.token ? "要" : "不要"}`);
+app.log.info(`db ${cfg.db.file} | write ${cfg.api.allowWrite ? "on" : "off"} | token ${cfg.api.token ? "required" : "none"}`);

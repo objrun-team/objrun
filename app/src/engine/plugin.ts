@@ -89,7 +89,7 @@ class Live {
       // 出的事 —— worker 文件得**单独当一个入口点**编进去（见 package.json 的
       // build:win 那几行），漏了的话 `new Worker` 什么也找不到，而它不报错。
       const wall = setTimeout(
-        () => fail(new Error(`${name}：那个 worker ${READY_MS}ms 还没起来（${HOST}）`)),
+        () => fail(new Error(`${name}: the worker did not come up within ${READY_MS}ms (${HOST})`)),
         READY_MS,
       );
       const up = () => {
@@ -105,7 +105,7 @@ class Live {
       this.#w.onmessage = (e: MessageEvent) => {
         const m = (e.data ?? {}) as { kind?: string; id?: number; ok?: boolean; value?: unknown; error?: string };
         if (m.kind === "ready") return up();
-        if (m.kind === "failed") return no(new Error(`${name}：${m.error}`));
+        if (m.kind === "failed") return no(new Error(`${name}: ${m.error}`));
         if (m.kind !== "done") return;
         const w = this.#waiting.get(Number(m.id));
         if (!w) return;
@@ -115,7 +115,7 @@ class Live {
       };
       // worker 自己没了（吃爆内存、被 terminate、进程级的错）—— 在途的全得结掉，
       // 不结的话调用方挂到 expect_ms 才超时，而日志上看不出是它没了。
-      this.#w.onerror = (e: ErrorEvent) => no(new Error(`${name}：${e.message}`));
+      this.#w.onerror = (e: ErrorEvent) => no(new Error(`${name}: ${e.message}`));
     });
     // 起不来这件事由上面那道墙报，别让它变成一个没人接的 rejection。
     this.#ready.catch(() => {});
@@ -140,7 +140,7 @@ class Live {
   }
 
   close(): void {
-    this.#dead ??= new Error("已经收了");
+    this.#dead ??= new Error("already closed");
     this.#w.terminate();
   }
 }
@@ -164,7 +164,7 @@ export class Plugins {
     const w = new Worker(HOST);
     try {
       await new Promise<void>((ok, fail) => {
-        const wall = setTimeout(() => fail(new Error(`${READY_MS}ms 没起来`)), READY_MS);
+        const wall = setTimeout(() => fail(new Error(`did not come up within ${READY_MS}ms`)), READY_MS);
         w.onmessage = () => {
           clearTimeout(wall);
           ok();
@@ -179,7 +179,7 @@ export class Plugins {
       });
       return null;
     } catch (e) {
-      return `插件那条路走不通（${HOST}）：${e instanceof Error ? e.message : String(e)} —— 用 TGENGIN_PLUGIN_HOST 指到 plugin-host.ts 上`;
+      return `plugin path unusable (${HOST}): ${e instanceof Error ? e.message : String(e)} - point TGENGIN_PLUGIN_HOST at plugin-host.ts`;
     } finally {
       w.terminate();
     }
@@ -204,7 +204,7 @@ export class Plugins {
     try {
       stamp = statSync(path).mtimeMs;
     } catch {
-      throw new Error(`${name}：找不到 ${path}`);
+      throw new Error(`${name}: cannot find ${path}`);
     }
 
     this.#on.set(name, path);

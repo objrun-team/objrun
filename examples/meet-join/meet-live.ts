@@ -11,13 +11,13 @@ const MEET = process.argv[2] ?? "?";
 const TOOLS = [
   {
     name: "say",
-    description: `在会上说一句话（${MEET}）`,
+    description: `Say a line in the meeting (${MEET})`,
     inputSchema: { type: "object", properties: { text: { type: "string" } }, required: ["text"] },
     outputSchema: { type: "object", properties: { ok: { type: "boolean" }, meet: { type: "string" } } },
   },
   {
     name: "screen",
-    description: `共享一份材料，返回它的操作契约（${MEET}）`,
+    description: `Share a document and return its operating contract (${MEET})`,
     inputSchema: { type: "object", properties: { url: { type: "string" } }, required: ["url"] },
     outputSchema: { type: "object", properties: { contract: { type: "object" } } },
   },
@@ -57,15 +57,15 @@ function handle(m: { id?: number; method?: string; params?: unknown }): unknown 
   if (m.method === "tools/call") {
     const p = (m.params ?? {}) as { name?: string; arguments?: Record<string, unknown> };
     if (!TOOLS.some((t) => t.name === p.name)) {
-      return { jsonrpc: "2.0", id: m.id, error: { code: -32602, message: `没有这个工具：${String(p.name)}` } };
+      return { jsonrpc: "2.0", id: m.id, error: { code: -32602, message: `no such tool: ${String(p.name)}` } };
     }
     const out = call(String(p.name), p.arguments ?? {});
     return reply({ content: [{ type: "text", text: JSON.stringify(out) }], structuredContent: out });
   }
-  return { jsonrpc: "2.0", id: m.id, error: { code: -32601, message: `不认得这个方法：${String(m.method)}` } };
+  return { jsonrpc: "2.0", id: m.id, error: { code: -32601, message: `unknown method: ${String(m.method)}` } };
 }
 
-process.stderr.write(`[meet-live ${MEET}] 起来了\n`);
+process.stderr.write(`[meet-live ${MEET}] up\n`);
 let buf = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", (chunk: string) => {

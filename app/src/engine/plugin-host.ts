@@ -48,11 +48,11 @@ async function load(path: string): Promise<void> {
 }
 
 function pick(name: string): Fn {
-  if (!mod) throw new Error("这个 worker 还没装上插件");
+  if (!mod) throw new Error("this worker has no plugin loaded yet");
   const got = mod[name];
   if (typeof got !== "function") {
-    const has = Object.keys(mod).join("、") || "（一个都没有）";
-    throw new Error(`${from} 里的 ${name} 不是个函数（这个文件导出了 ${has}）`);
+    const has = Object.keys(mod).join(", ") || "(none)";
+    throw new Error(`${name} in ${from} is not a function (this file exports ${has})`);
   }
   return got as Fn;
 }

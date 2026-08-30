@@ -69,23 +69,23 @@ export function mcpServeRoutes(store: Store, reg: Registry): Route[] {
       method: "POST",
       path: "/mcp",
       group: "MCP",
-      does: "这台引擎自己的 MCP server：JSON-RPC，说 initialize / tools/list / tools/call",
+      does: "This engine as an MCP server: JSON-RPC speaking initialize / tools/list / tools/call",
       why:
-        "**不开出去的话，内核自己实现的那几个工具外面一个都用不上** —— 那不是内置，是关起来了。" +
-        "开出去之后内外没有分别：别的 MCP 客户端能用它们，两台引擎也能互相接。" +
-        "只开这台机器自己实现的（`fn:`），从别的 server 拉进来的不转发 —— 那是代理，会绕圈。",
+        "Without this, none of the tools the kernel implements itself are usable from outside - that is not built-in, that is shut in. " +
+        "Once exposed there is no inside and outside: other MCP clients can use them, and two engines can talk to each other. " +
+        "Only what this machine implements itself (`fn:`) is exposed; tools pulled in from other servers are not forwarded - that would be proxying, and it loops.",
       params: [
-        { name: "jsonrpc", in: "body", kind: "string", required: true, only: ["2.0"], note: "固定 2.0" },
-        { name: "id", in: "body", kind: "int", note: "请求给，通知不给" },
+        { name: "jsonrpc", in: "body", kind: "string", required: true, only: ["2.0"], note: "Always 2.0" },
+        { name: "id", in: "body", kind: "int", note: "Given for requests, omitted for notifications" },
         {
           name: "method",
           in: "body",
           kind: "string",
           required: true,
           only: ["initialize", "tools/list", "tools/call", "notifications/initialized"],
-          note: "MCP 的方法名",
+          note: "The MCP method name",
         },
-        { name: "params", in: "body", kind: "object", note: "那个方法的参数。`tools/call` 要 `{name, arguments}`" },
+        { name: "params", in: "body", kind: "object", note: "Arguments for that method. `tools/call` needs `{name, arguments}`" },
       ],
       returns: {
         jsonrpc: "2.0",
@@ -100,7 +100,7 @@ export function mcpServeRoutes(store: Store, reg: Registry): Route[] {
           ],
         },
       },
-      errs: [{ code: 200, when: "**协议里的错也回 200** —— JSON-RPC 的错在 `error` 那一项里，不是 HTTP 状态码" }],
+      errs: [{ code: 200, when: "Protocol-level errors also return 200 - a JSON-RPC error rides in the `error` field, not in the HTTP status" }],
       handler: async (a, _req, reply) => {
         const id = a.id as number | undefined;
         const method = String(a.method);
@@ -129,7 +129,7 @@ export function mcpServeRoutes(store: Store, reg: Registry): Route[] {
             | undefined;
           // **没这个工具是协议错**（模型改不了），跟「参数不合理」不是一回事。
           if (!row || !Number(row.usable) || !row.identity.startsWith("fn:")) {
-            return { jsonrpc: "2.0", id, error: { code: -32602, message: `没有这个工具：${name}` } };
+            return { jsonrpc: "2.0", id, error: { code: -32602, message: `no such tool: ${name}` } };
           }
           try {
             const value = await reg.get(row.identity).call({
@@ -160,7 +160,7 @@ export function mcpServeRoutes(store: Store, reg: Registry): Route[] {
           }
         }
 
-        return { jsonrpc: "2.0", id, error: { code: -32601, message: `不认得这个方法：${method}` } };
+        return { jsonrpc: "2.0", id, error: { code: -32601, message: `unknown method: ${method}` } };
       },
     },
   ];

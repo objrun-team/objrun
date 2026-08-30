@@ -37,7 +37,7 @@ interface At {
 
 const TREE_TOOL = {
   name: "task_tree",
-  does: "看这道题的整棵树：试过哪几条路、谁被判死了、每一条走到哪儿。**别的分支说了什么不在这儿** —— 要读某一站的原话用 node_load。",
+  does: "See the whole tree for this task: which paths were tried, which were ruled out, how far each got. What other branches actually said is NOT here - use node_load to read one.",
   params: { type: "object", properties: {} },
   output: {
     type: "object",
@@ -52,10 +52,10 @@ const TREE_TOOL = {
 
 const NODE_TOOL = {
   name: "node_load",
-  does: "读某一站说了什么（用 task_tree 给的 unit 号）。**读的是别人那条分支的内容** —— 判死的那几条多半是踩过的坑，看它是为了绕开，不是为了抄。",
+  does: "Read what one station said (unit number comes from task_tree). This is another branch content: the ruled-out ones are usually traps already stepped in - read them to avoid repeating, not to copy.",
   params: {
     type: "object",
-    properties: { unit: { type: "integer", description: "第几站，从 task_tree 里拿" } },
+    properties: { unit: { type: "integer", description: "Which station, as numbered by task_tree" } },
     required: ["unit"],
   },
   output: { type: "object", properties: { unit: { type: "integer" }, said: { type: "array" } } },
@@ -72,7 +72,7 @@ export function registerTreeView(db: Conn, reg: Registry, treeInfer: string): st
   reg.register(db, `fn:tool.${TREE_TOOL.name}`, TREE_TOOL.expectMs, async (arg) => {
     const a = (arg ?? {}) as At;
     const at = whereAmI(db, String(a.instance));
-    if (!at) return { error: `不知道 ${String(a.instance)} 在哪张子表上` };
+    if (!at) return { error: `cannot tell which task ${String(a.instance)} belongs to` };
     const nodes = all(
       db,
       `select cycle, unit, from_cycle, from_unit, status, done from "${at.sub}" where task = ? order by unit`,
@@ -95,7 +95,7 @@ export function registerTreeView(db: Conn, reg: Registry, treeInfer: string): st
   reg.register(db, `fn:tool.${NODE_TOOL.name}`, NODE_TOOL.expectMs, async (arg) => {
     const a = (arg ?? {}) as At;
     const want = Number(a.args?.unit);
-    if (!Number.isInteger(want)) return { error: "要给 unit —— 从 task_tree 里拿" };
+    if (!Number.isInteger(want)) return { error: "unit is required - take it from task_tree" };
     const t = tableNameOf("agent_{}_msg", String(a.agent));
     // **模型自己说过的话** + **G 判过什么**。别人那条分支的 skill、内核记账、
     // 普通工具的返回不给 —— 那些是那一站的家当，不是它的结论。
@@ -107,7 +107,7 @@ export function registerTreeView(db: Conn, reg: Registry, treeInfer: string): st
       `select seq, kind, body from "${t}" where instance = ? and unit = ? and kind in ('prompt','call','tool') order by seq`,
       [String(a.instance), want],
     );
-    if (rows.length === 0) return { unit: want, said: [], note: "那一站什么都没说，或者不存在" };
+    if (rows.length === 0) return { unit: want, said: [], note: "that station said nothing, or does not exist" };
     const said: Row[] = [];
     for (const r of rows) {
       if (r.kind === "prompt") {

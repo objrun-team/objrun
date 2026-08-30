@@ -44,14 +44,14 @@ export async function infer(arg: unknown): Promise<unknown> {
   if (here === "work") {
     // 模型自己说「收尾」了才往下走，否则在 work 上再转一圈。
     // `max_units` 是兜底：转不动了内核会拦，不用在这儿数。
-    return pick(said(a.result, "收尾") ? "wrap" : "work", a);
+    return pick(said(a.result, "wrap up") ? "wrap" : "work", a);
   }
 
   // wrap 是终点
   return pick(null, a);
 
   function pick(to: string | null, at: At): unknown {
-    console.log(`[steps] ${at.task?.id} ${here}#${at.unit} → ${to ?? "到此为止"}（候选 ${next.join("、") || "无"}）`);
+    console.log(`[steps] ${at.task?.id} ${here}#${at.unit} -> ${to ?? "end of the line"} (candidates ${next.join(", ") || "none"})`);
     return to;
   }
 }
@@ -59,6 +59,6 @@ export async function infer(arg: unknown): Promise<unknown> {
 /** 故意推一个候选之外的周期出来，看内核拦不拦。 */
 export async function wild(arg: unknown): Promise<unknown> {
   const a = (arg ?? {}) as At;
-  console.log(`[steps] ${a.task?.id} ${a.cycle?.cycle}#${a.unit} → 乱来（候选是 ${(a.next ?? []).join("、")}）`);
+  console.log(`[steps] ${a.task?.id} ${a.cycle?.cycle}#${a.unit} -> something wild (candidates are ${(a.next ?? []).join(", ")})`);
   return "nowhere";
 }

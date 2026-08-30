@@ -1,26 +1,26 @@
 {
-  "_": "表的声明。这是数据 —— 装载器不认得下面任何一个名字。形状以 docs/tables.md 为准。",
+  "_": "The table declarations. This is data: the installer recognises none of the names below. docs/tables.md is the authority on the shape.",
   "tables": [
     {
       "name": "handle",
-      "_": "一行 = 一个可调用的东西。库里只有名字，真函数在进程内的注册表里 —— 这一行就是「让内核知道系统里有这个函数」。",
+      "_": "One row = one callable thing. The database holds only the name; the real function lives in the in-process registry. This row is what tells the kernel such a function exists.",
       "columns": [
         {
           "name": "name",
           "type": "text",
           "notnull": true,
-          "_": "fn: = 在内核进程里跑；http:// = 在另一个进程里"
+          "_": "fn: runs inside the kernel process; http:// runs in another process"
         },
         {
           "name": "expect_ms",
           "type": "integer",
           "notnull": true,
-          "_": "预期多久，超过判死。内外一视同仁"
+          "_": "How long it is expected to take; past this it is declared dead. Same rule inside and out"
         },
         {
           "name": "module",
           "type": "text",
-          "_": "fn: 的实现从哪儿来：`路径#导出名`。留空 = 随二进制发（代码里 register 的那几个）。进程外的用不到这一列"
+          "_": "Where an fn: implementation comes from: `path#exportName`. Empty = shipped with the binary (the ones registered in code). Out-of-process handles do not use this column"
         }
       ],
       "pk": [
@@ -29,7 +29,7 @@
     },
     {
       "name": "api",
-      "_": "一行由「读哪个环境变量上的 key」+「调用的模型」定。密钥不进库。",
+      "_": "A row is defined by which environment variable holds the key, plus the model to call. Secrets never enter the database.",
       "columns": [
         {
           "name": "key_env",
@@ -51,7 +51,7 @@
           "name": "modes",
           "type": "text",
           "notnull": true,
-          "_": "取值在 mode 表登记"
+          "_": "Its values are registered in the mode table"
         }
       ],
       "pk": [
@@ -61,7 +61,7 @@
     },
     {
       "name": "mode",
-      "_": "登记有哪些模式。",
+      "_": "Registers which api modes exist.",
       "columns": [
         {
           "name": "name",
@@ -79,48 +79,48 @@
     },
     {
       "name": "cycle",
-      "_": "任务周期表。一行 = 一个模式里的一个周期。内核流转的依据。",
+      "_": "The cycle table. One row = one cycle within one mode. This is what the kernel advances on.",
       "columns": [
         {
           "name": "mode",
           "type": "text",
           "notnull": true,
-          "_": "1 是哪个模式"
+          "_": "1 which mode"
         },
         {
           "name": "cycle",
           "type": "text",
           "notnull": true,
-          "_": "2 这个模式里的哪个周期"
+          "_": "2 which cycle within that mode"
         },
         {
           "name": "api_mode",
           "type": "text",
-          "_": "这个周期要 api 的哪个 mode（chat / duplex / …）。留空 = 这一站不用模型，走 agent.unit"
+          "_": "Which api mode this cycle needs (chat / duplex / ...). Empty = this station uses no model and goes through agent.unit"
         },
         {
           "name": "max_units",
           "type": "integer",
           "notnull": true,
-          "_": "3 最大允许几个执行单位"
+          "_": "3 how many execution units are allowed"
         },
         {
           "name": "from",
           "type": "text",
           "notnull": true,
-          "_": "4 一般从表里哪几行来。JSON 列表"
+          "_": "4 which rows it usually comes from. A JSON list"
         },
         {
           "name": "next",
           "type": "text",
           "notnull": true,
-          "_": "5 一般下一个是表里哪几行。JSON 列表"
+          "_": "5 which rows usually come next. A JSON list"
         },
         {
           "name": "infer",
           "type": "text",
           "notnull": true,
-          "_": "6 推断函数 → handle.name。4、5 决定它"
+          "_": "6 the inference function -> handle.name. Columns 4 and 5 decide it"
         }
       ],
       "pk": [
@@ -130,7 +130,7 @@
     },
     {
       "name": "task",
-      "_": "任务主表。一行 = 一个任务的头节点。",
+      "_": "The task table. One row = the head node of one task.",
       "columns": [
         {
           "name": "id",
@@ -141,7 +141,7 @@
           "name": "mode",
           "type": "text",
           "notnull": true,
-          "_": "→ cycle.mode，也定了明细在哪张子表"
+          "_": "-> cycle.mode, which also decides which sub-table holds the detail"
         },
         {
           "name": "place",
@@ -153,80 +153,80 @@
           "name": "run",
           "type": "text",
           "notnull": true,
-          "_": "这一跑叫什么。一次 bench 是一批任务，靠这个认。空串 = 不属于任何一跑"
+          "_": "What this run is called. One bench is a batch of tasks, identified by this. Empty = belongs to no run"
         },
         {
           "name": "source",
           "type": "text",
-          "_": "谁发的：user / agent / world / eacn。**这是准入判据**，不是元数据",
+          "_": "Who published it: user / agent / world / eacn. This is an admission criterion, not metadata",
           "notnull": true
         },
         {
           "name": "domain",
           "type": "text",
           "notnull": true,
-          "_": "这是哪一类问题（physics / chem / coding …）。**扩展按它分发** —— skill / tool / rule 的适用范围写成 dim=task,key=domain 的条件。不写在 mode 里：mode 是推理机制（cot / tot / 树），跟问题属于哪个领域是两回事。空串 = 没分类"
+          "_": "Which kind of problem this is (physics / chem / coding ...). Extensions are dispatched on it: a skill / tool / rule states its applicability as a dim=task,key=domain term. It does not belong in mode: mode is the reasoning mechanism (cot / tot / tree), which is a different axis from what field the problem is in. Empty = unclassified"
         },
         {
           "name": "description",
           "type": "text",
-          "_": "自然语言的任务描述。内核透明，怎么解读是智能体的事",
+          "_": "The task description in natural language. Transparent to the kernel; how to read it is the agent's business",
           "notnull": true
         },
         {
           "name": "created_at",
           "type": "integer",
-          "_": "创建挂钟，元数据",
+          "_": "Wall-clock creation time; metadata",
           "notnull": true
         },
         {
           "name": "workdir",
           "type": "text",
-          "_": "这个场所里的落脚路径。空 = 那台机器上的 cwd"
+          "_": "The landing path inside that place. Empty = the cwd on that machine"
         },
         {
           "name": "objective",
           "type": "text",
-          "_": "这个任务有没有 G。**定义不在这儿** —— 在封存区，接口够不着"
+          "_": "Whether this task has a grading function. The definition is not here: it is in the sealed store, out of reach of the API"
         },
         {
           "name": "readable",
           "type": "integer",
-          "_": "策略位：能不能直接读到 G 的定义。**带 G 就必须显式给，不给默认值**"
+          "_": "A policy bit: whether the definition of the grading function may be read directly. If a task carries one, this must be given explicitly; there is no default"
         },
         {
           "name": "claimed_by",
           "type": "text",
-          "_": "当前持有者。空 = 无主"
+          "_": "The current holder. Empty = unclaimed"
         },
         {
           "name": "result",
           "type": "text",
-          "_": "收尾答案。done / failed 的时候才有"
+          "_": "The wrap-up result. Only present once done or failed"
         },
         {
           "name": "max_branches",
           "type": "integer",
-          "_": "同时最多开几条分支",
+          "_": "How many branches may be open at once",
           "notnull": true
         },
         {
           "name": "max_dead_siblings",
           "type": "integer",
           "notnull": true,
-          "_": "同一个父底下判死几个兄弟就回退到更上层换方向"
+          "_": "How many dead siblings under one parent before backtracking a level to change direction"
         },
         {
           "name": "solve_seconds",
           "type": "integer",
-          "_": "求解时长上限，秒",
+          "_": "Upper bound on solving time, in seconds",
           "notnull": true
         },
         {
           "name": "state",
           "type": "text",
           "notnull": true,
-          "_": "现在怎样：open / claimed / done / failed。**从子表推出来再更新**"
+          "_": "Where it stands: open / claimed / done / failed. Derived from the sub-table, then written back"
         }
       ],
       "pk": [
@@ -235,7 +235,7 @@
     },
     {
       "name": "agent",
-      "_": "一行 = 一个智能体（爆炸开的 agent card）。",
+      "_": "One row = one agent (an agent card, unpacked).",
       "columns": [
         {
           "name": "name",
@@ -245,19 +245,19 @@
         {
           "name": "config",
           "type": "text",
-          "_": "配置文件地址"
+          "_": "Where its config file is"
         },
         {
           "name": "apis",
           "type": "text",
           "notnull": true,
-          "_": "JSON 列表，每项 [key_env, model]"
+          "_": "A JSON list; each entry is [key_env, model]"
         },
         {
           "name": "unit",
           "type": "text",
           "notnull": true,
-          "_": "执行单元句柄 → handle.name"
+          "_": "The execution-unit handle -> handle.name"
         },
         {
           "name": "state",
@@ -271,36 +271,36 @@
     },
     {
       "name": "workplace",
-      "_": "登记干活的地方。不是套表。",
+      "_": "Registers the places where work happens. Not a lookup table.",
       "columns": [
         {
           "name": "place",
           "type": "text",
           "notnull": true,
-          "_": "带层级的地址串"
+          "_": "A layered address string"
         },
         {
           "name": "runtime",
           "type": "text",
-          "_": "建立连接时送过去的那个运行时（本机文件路径）。local 留空"
+          "_": "The runtime shipped over when the connection is made (a local file path). Empty for local"
         },
         {
           "name": "forward",
           "type": "integer",
           "notnull": true,
-          "_": "是否把工具转发过去"
+          "_": "Whether tools are forwarded there"
         },
         {
           "name": "tools",
           "type": "text",
           "notnull": true,
-          "_": "白名单。JSON 列表，每项带 policy"
+          "_": "The allow-list. A JSON list; each entry carries a policy"
         },
         {
           "name": "usable",
           "type": "integer",
           "notnull": true,
-          "_": "登记的可用性，不是探活"
+          "_": "Registered availability, not a liveness probe"
         }
       ],
       "pk": [
@@ -309,7 +309,7 @@
     },
     {
       "name": "rule",
-      "_": "规则。可能是外部注册进来的，行是随时会加的。",
+      "_": "Rules. They may be registered from outside, and rows appear at any time.",
       "columns": [
         {
           "name": "identity",
@@ -332,18 +332,18 @@
           "name": "writes",
           "type": "text",
           "notnull": true,
-          "_": "声明会动哪张表怎么动。JSON"
+          "_": "Declares which tables it writes and how. JSON"
         },
         {
           "name": "access",
           "type": "text",
-          "_": "外部规则够着库的办法。JSON，密钥只存环境变量名"
+          "_": "How an external rule reaches the database. JSON; secrets are stored only as environment variable names"
         },
         {
           "name": "scope",
           "type": "text",
           "notnull": true,
-          "_": "只能动哪些行。结构化匹配式，不用 SQL 片段"
+          "_": "Which rows it may touch. A structured match expression, not a SQL fragment"
         }
       ],
       "pk": [
@@ -352,7 +352,7 @@
     },
     {
       "name": "trigger",
-      "_": "什么时候轮到我。rule / skill / tool 共用。一行 = 一个条件项。",
+      "_": "When my turn comes. Shared by rule / skill / tool. One row = one term.",
       "columns": [
         {
           "name": "owner_kind",
@@ -368,7 +368,7 @@
           "name": "group",
           "type": "integer",
           "notnull": true,
-          "_": "同组 and，组间 or"
+          "_": "AND within a group, OR across groups"
         },
         {
           "name": "dim",
@@ -380,7 +380,7 @@
           "name": "key",
           "type": "text",
           "notnull": true,
-          "_": "chain 维度留空串"
+          "_": "Empty string for the chain dimension"
         },
         {
           "name": "op",
@@ -404,7 +404,7 @@
     },
     {
       "name": "tool",
-      "_": "一行 = 一个工具。name 是给模型看的名字，也是 workplace 白名单引用的那个。",
+      "_": "One row = one tool. name is what the model sees, and what the workplace allow-list references.",
       "columns": [
         {
           "name": "name",
@@ -421,36 +421,36 @@
           "name": "does",
           "type": "text",
           "notnull": true,
-          "_": "给模型看的描述"
+          "_": "The description the model reads"
         },
         {
           "name": "params",
           "type": "text",
           "notnull": true,
-          "_": "给模型看的参数 schema"
+          "_": "The argument schema the model reads"
         },
         {
           "name": "output",
           "type": "text",
           "notnull": true,
-          "_": "返回值的 schema，也是给模型看的"
+          "_": "The result schema, also read by the model"
         },
         {
           "name": "prompt",
           "type": "text",
-          "_": "这个工具要往系统提示里加的一段用法约定"
+          "_": "A usage convention this tool adds to the system instructions"
         },
         {
           "name": "concurrent",
           "type": "integer",
           "notnull": true,
-          "_": "能不能跟别的工具同时跑"
+          "_": "Whether it may run alongside other tools"
         },
         {
           "name": "system",
           "type": "integer",
           "notnull": true,
-          "_": "系统工具：所有智能体一开始就有，不看 trigger"
+          "_": "A system tool: every agent has it from the start, with no trigger lookup"
         },
         {
           "name": "access",
@@ -473,7 +473,7 @@
     },
     {
       "name": "skill",
-      "_": "一行 = 一个 skill。模型不挑它，是按条件塞进去的。",
+      "_": "One row = one skill. The model does not pick it; it is injected when its terms match.",
       "columns": [
         {
           "name": "identity",
@@ -494,7 +494,7 @@
         {
           "name": "body",
           "type": "text",
-          "_": "动态生成的留空，由句柄现给"
+          "_": "Empty for dynamically generated ones; the handle produces the content on demand"
         },
         {
           "name": "role",
@@ -513,19 +513,19 @@
     },
     {
       "name": "mcp_server",
-      "_": "登记一个 MCP server。工具不用在这儿写 —— 连上之后它自己用 tools/list 报，一个工具长一行 tool。",
+      "_": "Registers one MCP server. Its tools are not written here: once connected it reports them through tools/list, and each grows one row in tool.",
       "columns": [
         {
           "name": "name",
           "type": "text",
           "notnull": true,
-          "_": "叫什么。句柄名是 mcp:<name>/<tool>，所以里面不能有 /"
+          "_": "Its name. Handle names are mcp:<name>/<tool>, so it must not contain a /"
         },
         {
           "name": "spec",
           "type": "text",
           "notnull": true,
-          "_": "怎么起。JSON，跟 MCP 客户端配置里那个形状一样：{command,args,env} 或 {url,headers}。**密钥只存环境变量名**"
+          "_": "How to start it. JSON, the same shape as an MCP client config: {command,args,env} or {url,headers}. Secrets are stored only as environment variable names"
         },
         {
           "name": "note",
@@ -538,7 +538,7 @@
     },
     {
       "name": "msg_kind",
-      "_": "登记消息类型。加一种 = 加一行，别的表不动。",
+      "_": "Registers message kinds. Adding one = adding a row; no other table changes.",
       "columns": [
         {
           "name": "name",
@@ -557,7 +557,7 @@
   ],
   "templates": [
     {
-      "_": "任务子表：任务周期表里有几个 mode 就建几张。",
+      "_": "Task sub-tables: one per mode present in the cycle table.",
       "pattern": "task_{}",
       "source": {
         "table": "cycle",
@@ -610,7 +610,7 @@
         {
           "name": "status",
           "type": "text",
-          "_": "终止状态：reached / dead_failed / dead_below_bar。**出生即定不回改**；空 = 还在跑"
+          "_": "Terminal status: reached / dead_failed / dead_below_bar. Fixed once written, never revised; empty = still running"
         },
         {
           "name": "done",
@@ -625,7 +625,7 @@
       ]
     },
     {
-      "_": "智能体上下文表：agent 表里有几个智能体就建几张。",
+      "_": "Agent context tables: one per agent in the agent table.",
       "pattern": "agent_{}_ctx",
       "source": {
         "table": "agent",
@@ -640,7 +640,7 @@
         {
           "name": "task",
           "type": "text",
-          "_": "→ task.id。**用户主动登记的实例还没派活时留空** —— 没登记的不算存在"
+          "_": "-> task.id. Empty for an instance a user registered but has not assigned work to yet; anything unregistered does not count as existing"
         },
         {
           "name": "unit",
@@ -664,7 +664,7 @@
       ]
     },
     {
-      "_": "智能体消息表：从上下文表展开。装的是完整上下文，不只是压进去的那半边。",
+      "_": "Agent message tables, expanded from the context table. They hold the full context, not only the half that gets pushed out.",
       "pattern": "agent_{}_msg",
       "source": {
         "table": "agent",

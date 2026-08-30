@@ -71,7 +71,7 @@ DATA = Path(os.environ.get("TGENGIN_CMT_DATA", HOME_DIR / "cmt_data.jsonl"))
 def load_official():
     """把官方那三个模块加载进来，**不碰 __init__.py**。"""
     if not (SRC / "cmtbench" / "evaluator.py").exists():
-        raise SystemExit(f"没有官方评分代码：{SRC}（先跑 setup.sh）")
+        raise SystemExit(f"the official grading code is missing: {SRC} (run setup.sh first)")
     sys.path.insert(0, str(SRC))
     pkg = types.ModuleType("cmtbench")
     pkg.__path__ = [str(SRC / "cmtbench")]
@@ -85,7 +85,7 @@ EV, PARSER = load_official()
 
 def load_book() -> dict[int, dict]:
     if not DATA.exists():
-        raise SystemExit(f"没有题库：{DATA}（先跑 setup.sh）")
+        raise SystemExit(f"the problem set is missing: {DATA} (run setup.sh first)")
     book = {}
     for line in DATA.read_text(encoding="utf-8").splitlines():
         if line.strip():
@@ -148,7 +148,7 @@ def answer_of(body: dict) -> tuple[str, dict | None, str]:
 def verdict(body: dict) -> tuple[bool, bool]:
     tid, item, said = answer_of(body)
     if item is None:
-        print(f"[cmt] {tid} 题库里没有这道", flush=True)
+        print(f"[cmt] {tid} is not in the problem set", flush=True)
         return False, False
     key = (tid, hash(said))
     if key not in CACHE:
@@ -156,9 +156,9 @@ def verdict(body: dict) -> tuple[bool, bool]:
         CACHE[key] = (ok, eq, err)
         head = (said or "").replace("\n", " ")[-60:]
         print(
-            f"[cmt] {tid}（{item['type']}）parsed={ok} equiv={eq}"
+            f"[cmt] {tid} ({item['type']}) parsed={ok} equiv={eq}"
             + (f" err={err[:60]}" if err else "")
-            + f" ｜答尾 …{head}",
+            + f" | answer tail ...{head}",
             flush=True,
         )
     ok, eq, _ = CACHE[key]
@@ -235,8 +235,8 @@ def selftest() -> None:
         flag = "√" if (ok and eq) else "×"
         if not (ok and eq):
             bad += 1
-        print(f"  {flag} cmt-{idx}（{it['type']}）parsed={ok} equiv={eq} {err[:70]}")
-    print(f"  拿 GT 当回答：5 道里 {5 - bad} 道判等价")
+        print(f"  {flag} cmt-{idx} ({it['type']}) parsed={ok} equiv={eq} {err[:70]}")
+    print(f"  feeding the ground truth back as the answer: {5 - bad} of 5 judged equivalent")
 
 
 if __name__ == "__main__":
@@ -247,5 +247,5 @@ if __name__ == "__main__":
     if a.selftest:
         selftest()
         raise SystemExit(0)
-    print(f"[cmt] 判卷台起来了：http://0.0.0.0:{a.port}/{{parsed,equiv}}｜题库 {len(BOOK)} 道", flush=True)
+    print(f"[cmt] grader up: http://0.0.0.0:{a.port}/{{parsed,equiv}} | {len(BOOK)} problems", flush=True)
     ThreadingHTTPServer(("0.0.0.0", a.port), Handler).serve_forever()

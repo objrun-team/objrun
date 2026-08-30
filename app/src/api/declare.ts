@@ -15,7 +15,7 @@ import type { Servers } from "../mcp/client.ts";
 import { openPlace } from "../place/index.ts";
 import type { Route } from "./spec.ts";
 
-const DECL = "声明";
+const DECL = "declare";
 
 /** 一份声明里的三样，参数表长一个样 —— 三个口共用，省得写三遍还写歪。 */
 const BUNDLE = [
@@ -23,60 +23,60 @@ const BUNDLE = [
     name: "servers",
     in: "body" as const,
     kind: "array" as const,
-    of: "{ name, command?, args?, env?, url?, headers?, tools?: { <工具名>: { when?, expectMs?, system?, usable?, prompt?, concurrent? } } }",
+    of: "{ name, command?, args?, env?, url?, headers?, tools?: { <toolName>: { when?, expectMs?, system?, usable?, prompt?, concurrent? } } }",
     note:
-      "MCP server —— **一条批量来源**，不是另一种注册方式。形状跟 claude_desktop_config.json 里那个 mcpServers 一样：" +
-      "`command`/`args`/`env` 起个子进程，或者 `url`/`headers` 走 HTTP。有哪些工具是它自己用 `tools/list` 报的，省得一个个写；" +
-      "`tools` 那一项是我们补的（MCP 里没有这几样）。连不上当场拒",
+      "An MCP server: a bulk source, not another way to register. The shape matches mcpServers in claude_desktop_config.json: " +
+      "`command`/`args`/`env` spawns a child process, or `url`/`headers` goes over HTTP. It reports its own tools through `tools/list`, so they need not be written one by one; " +
+      "the `tools` field is ours (MCP has no such thing). A server that cannot be reached is rejected outright",
   },
   {
     name: "places",
     in: "body" as const,
     kind: "array" as const,
     of: "{ place, runtime?, forward?, tools?: [{tool, policy: always|agent}], usable? }",
-    note: "在哪儿干。`place` 是带层级的地址串：`local` / `wsl:Ubuntu-24.04` / `ssh://box-7` / `wsl/docker:build-01`",
+    note: "Where work happens. `place` is a layered address string: `local` / `wsl:Ubuntu-24.04` / `ssh://box-7` / `wsl/docker:build-01`",
   },
   {
     name: "modes",
     in: "body" as const,
     kind: "array" as const,
     of: "{ mode, note?, cycles: [{ cycle, apiMode?, maxUnits?, from?, next?, infer }] }",
-    note: "执行模式。**一个模式是一张图** —— `from`/`next` 指的周期必须都在这个模式里，而且从起点走得到",
+    note: "An execution mode. A mode is a graph: every cycle named by `from`/`next` must be in this mode, and reachable from an entry point",
   },
   {
     name: "agents",
     in: "body" as const,
     kind: "array" as const,
     of: "{ name, apis: [[key_env, model]], unit, config?, state? }",
-    note: "智能体。`apis` 挂哪几条轨，每条得在 api 表里真有那一行",
+    note: "Agents. `apis` lists the lanes it carries; each must have a real row in the api table",
   },
   {
     name: "handles",
     in: "body" as const,
     kind: "array" as const,
     of: "{ name, expectMs }",
-    note: "进程外的句柄（`http://` / `https://`）。`fn:` 是进程内的、随二进制发的，外面注册不了。`expectMs` 是多久算死，**内外一视同仁**",
+    note: "Out-of-process handles (`http://` / `https://`). `fn:` handles are in-process, shipped with the binary, and cannot be registered from outside. `expectMs` is how long before it counts as dead - the same rule inside and out",
   },
   {
     name: "tools",
     in: "body" as const,
     kind: "array" as const,
     of: "{ name, identity, does, params, output, prompt?, concurrent?, system?, usable?, when? }",
-    note: "一条一条地写工具。`identity` 指一个句柄 —— 进程内的 `fn:` 或进程外的 `http://`。`does`/`params`/`output` 是**给模型看的**。想让 server 自己报就用 `servers`，落到库里是同样的行",
+    note: "Tools written one at a time. `identity` points at a handle, in-process `fn:` or out-of-process `http://`. `does`/`params`/`output` are what the model reads. To let a server report its own, use `servers` - the rows that land in the database are the same",
   },
   {
     name: "rules",
     in: "body" as const,
     kind: "array" as const,
     of: "{ identity, does, params, writes, scope, access?, when? }",
-    note: "规则。`identity` 就是句柄名。挂在时刻上（`when` 里写 `dim: \"moment\"`）就是钩子 —— **不另开钩子表**",
+    note: "Rules. `identity` is the handle name. One hung on a moment (`dim: \"moment\"` in `when`) is a hook - there is no separate hook table",
   },
   {
     name: "skills",
     in: "body" as const,
     kind: "array" as const,
     of: "{ identity, does, params, role, body?, usable?, when? }",
-    note: "skill。模型不挑它，是按 `when` 塞进去的。`body` 留空 = 动态生成，那就得真有个同名句柄现给内容",
+    note: "Skills. The model does not pick them; they are injected when `when` matches. An empty `body` means dynamically generated, which requires a handle of the same name to produce the content on demand",
   },
 ];
 
@@ -86,14 +86,14 @@ const BUNDLE = [
  * 客户端不用知道 `trigger` 表长什么样，更不用自己编组号。
  */
 const WHEN_NOTE =
-  "什么时候轮到它：`[[条件,条件],[条件]]` —— **外层是组，组间 or；组内 and**。" +
-  "一条 = `{dim, key, op, value}`；`dim` 是 agent/task/cycle/chain/moment，" +
-  "`chain` 和 `moment` 不看属性（key 留空）；`op` 是 eq/ne/contains/not_contains/prefix/suffix/in。" +
-  "**一条都不给 = 永远不触发**，不是「总是触发」—— 反过来定的话，忘了写条件的东西会到处乱开。";
+  "When its turn comes: `[[term,term],[term]]` - the outer level is groups, OR across groups, AND within a group. " +
+  "One term = `{dim, key, op, value}`; `dim` is agent/task/cycle/chain/moment, " +
+  "`chain` and `moment` have no attributes (leave key empty); `op` is eq/ne/contains/not_contains/prefix/suffix/in. " +
+  "No terms at all means never fires, not always fires - defined the other way round, anything whose terms were forgotten would fire everywhere.";
 
 const ALL_OR_NOTHING = {
   code: 400,
-  when: "一处不过整份不写。回 `problems`，**把全部问题一次说全** —— 一次说一条的话你得改一行发一次，十处错来回十趟",
+  when: "One bad spot rejects the whole declaration. It returns `problems` with every problem at once - reported one at a time, ten mistakes would mean ten round trips",
 };
 
 export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrite: () => void): Route[] {
@@ -102,10 +102,10 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
       method: "POST",
       path: "/declare",
       group: DECL,
-      does: "灌一整份声明：句柄 / 在哪儿干 / 模式 / 智能体 / 工具 / 规则 / skill",
+      does: "Load one whole declaration: handles / places / modes / agents / tools / rules / skills",
       why:
-        "这几样**互相依赖**：工具的 identity 要有句柄、触发条件的 owner 要真存在、智能体的轨要 api 表有那一行、周期要的调用形状得有句柄接得住。" +
-        "拆成几个口的话，客户端可以合法地把系统灌成「一半声明」，而错要等到跑起来那一刻才冒出来。灌完子表现长出来，**不用重启**。\n" +
+        "These depend on each other: a tool identity needs a handle, a trigger owner must really exist, an agent lane needs a row in the api table, and the api mode a cycle asks for needs a handle that serves it. " +
+        "Split across several routes, a client could legally leave the system half-declared, with the mistake surfacing only once it runs. Sub-tables are grown as part of loading, so no restart is needed.\n" +
         "      " + WHEN_NOTE,
       params: BUNDLE,
       returns: {
@@ -133,14 +133,14 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
       method: "POST",
       path: "/declare/inspect",
       group: DECL,
-      does: "只验不写：这份声明有没有毛病",
-      why: "客户端拿它做**保存前预检** —— 用户在界面上编一份声明，边编边验，不用真写进库。收的东西跟 `/declare` 一模一样。",
+      does: "Validate only, write nothing: is this declaration sound",
+      why: "A client uses it as a pre-save check: a person edits a declaration in the UI and validates as they go, without writing to the database. It takes exactly what `/declare` takes.",
       params: BUNDLE,
       returns: {
         ok: false,
         problems: [
-          "mode dfs/act：next 指的 done 不在这个模式里",
-          "mode dfs/scope：从起点走不到它 —— 这个周期永远不会被用上",
+          "mode dfs/act: next names done, which is not in this mode",
+          "mode dfs/scope: unreachable from any entry point - this cycle would never be used",
         ],
       },
       handler: async (a) => {
@@ -152,8 +152,8 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
       method: "GET",
       path: "/declare",
       group: DECL,
-      does: "把这台机器现在的声明整份导出来",
-      why: "形状跟 `POST /declare` 收的**一模一样，可以直接回灌**。于是「导出配置 / 在另一台上重建」就是两次调用，客户端不用自己拼。",
+      does: "Export this machine current declaration in full",
+      why: "The shape is exactly what `POST /declare` takes, so it can be fed straight back. Export a config and rebuild it on another machine is then two calls, with nothing for the client to assemble.",
       returns: { places: [{ place: "local" }], modes: [], agents: [] },
       handler: async () => dump(store.ro),
     },
@@ -161,8 +161,8 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
       method: "GET",
       path: "/modes",
       group: DECL,
-      does: "有哪些模式，各自走不走得通",
-      why: "`walkable` 和 `agents` 是**这边算的**：后者要把 `agent.apis` × `api.modes` × `cycle.api_mode` 交叉一遍。客户端自己算等于把内核挑轨那段逻辑抄一份 —— 抄错了还不报错。",
+      does: "Which modes exist, and whether each is walkable",
+      why: "`walkable` and `agents` are computed here: the latter crosses `agent.apis` with `api.modes` and `cycle.api_mode`. Computing it client-side means copying the kernel lane-selection logic - and a wrong copy raises no error.",
       returns: {
         modes: [{ mode: "dfs", cycles: 2, entries: ["open"], walkable: true, agents: ["solver"], runningTasks: 3 }],
       },
@@ -189,8 +189,8 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
       method: "GET",
       path: "/modes/:mode",
       group: DECL,
-      does: "一个模式的图长什么样",
-      params: [{ name: "mode", in: "path", kind: "string", required: true, note: "模式名" }],
+      does: "What the graph of one mode looks like",
+      params: [{ name: "mode", in: "path", kind: "string", required: true, note: "Mode name" }],
       returns: {
         mode: "dfs",
         entries: ["open"],
@@ -199,10 +199,10 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
         agents: ["solver"],
         cycles: [{ cycle: "open", apiMode: "chat", maxUnits: 1, from: [], next: ["act"], infer: "fn:infer.dfs" }],
       },
-      errs: [{ code: 404, when: "没有这个模式" }],
+      errs: [{ code: 404, when: "no such mode" }],
       handler: async (a, _req, reply) => {
         const m = dump(store.ro).modes!.find((x) => x.mode === a.mode);
-        if (!m) return reply.code(404).send({ error: `没有这个模式：${String(a.mode)}` });
+        if (!m) return reply.code(404).send({ error: `no such mode: ${String(a.mode)}` });
         const problems = inspect(store.ro, reg, { modes: [m] });
         return {
           ...m,
@@ -217,8 +217,8 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
       method: "GET",
       path: "/agents",
       group: DECL,
-      does: "有哪些智能体，各自挂了哪几条轨",
-      why: "`keySet` 查的是环境变量有没有值。**值本身永远不出库、不出接口** —— 客户端要显示「这条轨配好了没」，只能靠这个布尔。",
+      does: "Which agents exist, and which lanes each carries",
+      why: "`keySet` reports whether the environment variable has a value. The value itself never leaves the database or the API - a client showing whether a lane is configured has only this boolean to go on.",
       returns: {
         agents: [
           {
@@ -237,12 +237,12 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
       method: "GET",
       path: "/agents/:name",
       group: DECL,
-      does: "一个智能体：轨、钥匙配没配、接得住哪些模式、现在在干几件事",
-      params: [{ name: "name", in: "path", kind: "string", required: true, note: "智能体名" }],
-      errs: [{ code: 404, when: "没有这个智能体" }],
+      does: "One agent: its lanes, whether the keys are set, which modes it can serve, how much it is working on now",
+      params: [{ name: "name", in: "path", kind: "string", required: true, note: "Agent name" }],
+      errs: [{ code: 404, when: "no such agent" }],
       handler: async (a, _req, reply) => {
         const d = detailOf(store, String(a.name));
-        if (!d) return reply.code(404).send({ error: `没有这个智能体：${String(a.name)}` });
+        if (!d) return reply.code(404).send({ error: `no such agent: ${String(a.name)}` });
         return d;
       },
     },
@@ -250,7 +250,7 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
       method: "GET",
       path: "/places",
       group: DECL,
-      does: "有哪些干活的地方",
+      does: "Which places work can happen in",
       returns: { places: [{ place: "local", forward: false, tools: [], usable: true, runtime: null }] },
       handler: async () => ({ places: dump(store.ro).places }),
     },
@@ -258,9 +258,9 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
       method: "POST",
       path: "/places/:place/ping",
       group: DECL,
-      does: "现探一下这个地方通不通",
-      why: "**现探，不写回库。** `workplace.usable` 是登记不是探活 —— 写回去的话，崩了重启读到的那一列就是过期的谎话。",
-      params: [{ name: "place", in: "path", kind: "string", required: true, note: "位置串" }],
+      does: "Probe this place right now",
+      why: "Probed on the spot, never written back. `workplace.usable` is a registration, not a liveness reading - written back, that column becomes a stale lie after any crash and restart.",
+      params: [{ name: "place", in: "path", kind: "string", required: true, note: "The place string" }],
       returns: { place: "wsl", alive: true, ms: 812 },
       handler: async (a) => {
         const place = String(a.place);
@@ -270,7 +270,7 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
         // 不转发的地方压根没有连接这回事 —— 它只是「这一站在哪儿」的一个名字。
         // 不说清楚的话这儿会回一个 alive:false，看着像坏了。
         if (row && !Number(row.forward) && place !== "local") {
-          return { place, alive: true, ms: 0, why: "这个地方不转发，没有连接可探" };
+          return { place, alive: true, ms: 0, why: "this place does not forward, so there is no connection to probe" };
         }
         const t0 = Date.now();
         try {
@@ -287,13 +287,13 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
       method: "GET",
       path: "/tools",
       group: DECL,
-      does: "注册了哪些工具，各自什么时候会被挂上",
-      why: "`when` 是**还原**出来的（库里那张表存的是一行一条、带组号），客户端不用自己按组号分堆。`neverFires` 那一位尤其要紧：不是系统工具又没有条件 = 谁都拿不到它，而这**不报错**。",
+      does: "Which tools are registered, and when each gets attached",
+      why: "`when` is reconstructed here (the table stores one term per row with a group number), so a client need not bucket by group itself. The `neverFires` bit matters most: not a system tool and no terms means nobody ever gets it, and that raises no error.",
       returns: {
         tools: [
           {
             name: "weather", identity: "http://127.0.0.1:9010/weather", system: false, usable: true,
-            when: [[{ dim: "task", key: "description", op: "contains", value: "天气" }]],
+            when: [[{ dim: "task", key: "description", op: "contains", value: "weather" }]],
             neverFires: false,
           },
         ],
@@ -304,8 +304,8 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
       method: "GET",
       path: "/rules",
       group: DECL,
-      does: "注册了哪些规则，各自挂在什么时候",
-      why: "挂在时刻上（`dim: \"moment\"`）的就是钩子 —— **不另开钩子表**，所以要看钩子也是查这个口。",
+      does: "Which rules are registered, and when each is hung",
+      why: "A rule hung on a moment (`dim: \"moment\"`) is a hook - there is no separate hook table, so hooks are read through this route too.",
       returns: {
         rules: [
           {
@@ -321,8 +321,8 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
       method: "GET",
       path: "/skills",
       group: DECL,
-      does: "注册了哪些 skill",
-      why: "`body` 留空的是**动态生成**的 —— 内容由同名句柄在触发那一刻现给。客户端要显示「这条 skill 是写死的还是现生成的」，看的就是这一位。",
+      does: "Which skills are registered",
+      why: "An empty `body` means dynamically generated: the handle of the same name produces the content at trigger time. This is the bit a client reads to show whether a skill is fixed or generated.",
       returns: {
         skills: [{ identity: "recap", role: "user", dynamic: false, usable: true, when: [], neverFires: true }],
       },
@@ -332,8 +332,8 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
       method: "POST",
       path: "/install",
       group: DECL,
-      does: "照着声明把该有的表建出来。幂等，随时能打",
-      why: "`/declare` 已经自己长过一次了，这个口是**兜底**：手工改过库、或者别的路子灌了新模式，打一下让子表跟上。",
+      does: "Grow the tables the declaration calls for. Idempotent, safe to call any time",
+      why: "`/declare` already grows them once; this route is the fallback for when the database was edited by hand, or a new mode arrived some other way, and the sub-tables need to catch up.",
       returns: { create: ["task_dfs"], ok: 12, extra: [] },
       handler: async () => {
         const r = install(store.rw);

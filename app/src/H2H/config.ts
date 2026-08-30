@@ -29,10 +29,10 @@ export function findConfig(): string {
 
   const given = process.env.TGENGIN_CONFIG;
   if (!given) {
-    throw new Error(`没找到 config.yaml：${beside} 上没有，也没给 TGENGIN_CONFIG`);
+    throw new Error(`config.yaml not found: not next to ${beside}, and TGENGIN_CONFIG was not set`);
   }
   const file = resolve(given);
-  if (!existsSync(file)) throw new Error(`TGENGIN_CONFIG 指向的文件不在：${file}`);
+  if (!existsSync(file)) throw new Error(`the file TGENGIN_CONFIG points at does not exist: ${file}`);
   return file;
 }
 
@@ -83,49 +83,49 @@ function at(doc: unknown, path: string): unknown {
 
 function str(doc: unknown, path: string): string {
   const v = at(doc, path);
-  if (typeof v !== "string" || v === "") throw new Error(`config.yaml：${path} 得是一行非空字符串`);
+  if (typeof v !== "string" || v === "") throw new Error(`config.yaml: ${path} must be a non-empty string`);
   return v;
 }
 
 function num(doc: unknown, path: string): number {
   const v = at(doc, path);
-  if (typeof v !== "number" || !Number.isFinite(v)) throw new Error(`config.yaml：${path} 得是个数`);
+  if (typeof v !== "number" || !Number.isFinite(v)) throw new Error(`config.yaml: ${path} must be a number`);
   return v;
 }
 
 function bool(doc: unknown, path: string): boolean {
   const v = at(doc, path);
-  if (typeof v !== "boolean") throw new Error(`config.yaml：${path} 得是 true 或 false`);
+  if (typeof v !== "boolean") throw new Error(`config.yaml: ${path} must be true or false`);
   return v;
 }
 
 
 export function readConfig(file = findConfig()): Config {
   const doc: unknown = parse(readFileSync(file, "utf8"));
-  if (doc === null || typeof doc !== "object") throw new Error(`config.yaml 是空的：${file}`);
+  if (doc === null || typeof doc !== "object") throw new Error(`config.yaml is empty: ${file}`);
 
   const near = (p: string) => (isAbsolute(p) ? p : resolve(dirname(file), p));
 
   const pragmasRaw = at(doc, "db.pragmas");
   if (pragmasRaw === null || typeof pragmasRaw !== "object") {
-    throw new Error("config.yaml：db.pragmas 得是一组键值");
+    throw new Error("config.yaml: db.pragmas must be a key/value map");
   }
   const pragmas: Record<string, string | number> = {};
   for (const [k, v] of Object.entries(pragmasRaw as Record<string, unknown>)) {
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(k)) throw new Error(`config.yaml：PRAGMA 名不认得 —— ${k}`);
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(k)) throw new Error(`config.yaml: illegal PRAGMA name - ${k}`);
     if (typeof v !== "string" && typeof v !== "number") {
-      throw new Error(`config.yaml：PRAGMA ${k} 的值得是字符串或数`);
+      throw new Error(`config.yaml: PRAGMA ${k} must be a string or a number`);
     }
     pragmas[k] = v;
   }
 
   const prefix = str(doc, "api.prefix");
-  if (!prefix.startsWith("/")) throw new Error("config.yaml：api.prefix 得以 / 开头");
+  if (!prefix.startsWith("/")) throw new Error("config.yaml: api.prefix must start with /");
 
   const token = at(doc, "api.token");
   const origin = at(doc, "cors.origin");
   if (typeof origin !== "string" && !Array.isArray(origin)) {
-    throw new Error('config.yaml：cors.origin 得是 "*" 或一串来源');
+    throw new Error('config.yaml: cors.origin must be "*" or a list of origins');
   }
 
   return {

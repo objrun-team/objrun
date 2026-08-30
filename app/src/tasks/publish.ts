@@ -94,17 +94,17 @@ function firstCycle(db: Conn, mode: string): string {
     cycle: string;
     from: string;
   }[];
-  if (rows.length === 0) throw new Error(`任务周期表里没有 ${mode} 这个模式`);
+  if (rows.length === 0) throw new Error(`no mode named ${mode} in the cycle table`);
   const heads = rows.filter((r) => {
     try {
       return (JSON.parse(r.from) as unknown[]).length === 0;
     } catch {
-      throw new Error(`${mode}/${r.cycle} 的 from 不是一份能读的列表`);
+      throw new Error(`the from of ${mode}/${r.cycle} is not a readable list`);
     }
   });
-  if (heads.length === 0) throw new Error(`${mode} 一个起点都没有（每个周期的 from 都非空）`);
+  if (heads.length === 0) throw new Error(`${mode} has no entry point (every cycle has a non-empty from)`);
   if (heads.length > 1) {
-    throw new Error(`${mode} 有 ${heads.length} 个起点（${heads.map((h) => h.cycle).join("、")}），发任务时得指定 cycle`);
+    throw new Error(`${mode} has ${heads.length} entry points (${heads.map((h) => h.cycle).join(", ")}), so the task must name a cycle`);
   }
   return heads[0].cycle;
 }
@@ -123,11 +123,11 @@ export function publish(
   // 先问「这是不是一份东西」，再问它里面缺什么。**这是从 HTTP 进来的第一道**，
   // 不挡的话空请求会在 `p.id` 上崩，回给人的是一句 JS 内部话（`undefined is not
   // an object`）—— 那句话既不告诉他该发什么，也让人以为是服务端坏了。
-  if (p === null || typeof p !== "object") throw new Error("请求体得是一行 JSON 对象");
-  if (!p.id || !p.id.trim()) throw new Error("任务 id 不能是空的");
-  if (!SOURCES.includes(p.source)) throw new Error(`不认得的来源：${p.source}（只能是 ${SOURCES.join(" / ")}）`);
-  if (!p.description || !p.description.trim()) throw new Error("任务得有描述");
-  if (one(db, `select id from task where id = ?`, [p.id])) throw new Error(`任务 ${p.id} 已经有了`);
+  if (p === null || typeof p !== "object") throw new Error("the request body must be a JSON object");
+  if (!p.id || !p.id.trim()) throw new Error("the task id cannot be empty");
+  if (!SOURCES.includes(p.source)) throw new Error(`unrecognised source: ${p.source} (must be one of ${SOURCES.join(" / ")})`);
+  if (!p.description || !p.description.trim()) throw new Error("a task needs a description");
+  if (one(db, `select id from task where id = ?`, [p.id])) throw new Error(`a task named ${p.id} already exists`);
 
   // ── G 那道闸 ──────────────────────────────────────────────────────────
   //
@@ -138,24 +138,24 @@ export function publish(
   // 原先靠「某个调用方恰好没传这个参数」，签名一改闸就没了。
   if (p.objective !== undefined && p.objective !== null) {
     if (p.source === "agent") {
-      throw new Error(`任务 ${p.id} 的来源是 agent（智能体在树内派生），**不许带验证函数 G** —— G 只能由人在发布那一刻绑定`);
+      throw new Error(`task ${p.id} has source agent (derived inside the tree by the agent) and may not carry a grading function - only a person can bind one, at publish time`);
     }
     if (typeof p.readable !== "boolean") {
-      throw new Error(`任务 ${p.id} 带了 G，就必须显式给 readable（能不能直接读到 G 的定义）—— 这一位没有默认值`);
+      throw new Error(`task ${p.id} carries a grading function, so readable (whether the agent may read its definition) must be given explicitly - this bit has no default`);
     }
-    if (!sealed) throw new Error("没有封存区，装不下 G");
+    if (!sealed) throw new Error("there is no sealed store, so a grading function cannot be kept");
   } else if (p.readable !== undefined) {
-    throw new Error(`任务 ${p.id} 没带 G，就不该给 readable`);
+    throw new Error(`task ${p.id} carries no grading function, so it must not set readable`);
   }
 
   const agent = one(db, `select name from agent where name = ?`, [p.agent]);
-  if (!agent) throw new Error(`agent 表里没有 ${p.agent}`);
+  if (!agent) throw new Error(`no row in agent for ${p.agent}`);
   const place = one(db, `select place from workplace where place = ?`, [p.place]);
-  if (!place) throw new Error(`workplace 表里没有 ${p.place}`);
+  if (!place) throw new Error(`no row in workplace for ${p.place}`);
 
   const cycle = p.cycle ?? firstCycle(db, p.mode);
   if (!one(db, `select cycle from cycle where mode = ? and cycle = ?`, [p.mode, cycle])) {
-    throw new Error(`任务周期表里没有 ${p.mode}/${cycle}`);
+    throw new Error(`no row in the cycle table for ${p.mode}/${cycle}`);
   }
 
   const sub = tableNameOf("task_{}", p.mode);
@@ -172,7 +172,7 @@ export function publish(
     const still = missing.filter(
       (t) => all(db, `select name from sqlite_master where type='table' and name = ?`, [t]).length === 0,
     );
-    if (still.length) throw new Error(`子表长不出来：${still.join("、")}`);
+    if (still.length) throw new Error(`sub-tables could not be grown: ${still.join(", ")}`);
   }
 
   // 定义期检测跑在**建任何行之前**。靠事务回滚也能不留脏行，但那是「先做了再撤」；
@@ -181,7 +181,7 @@ export function publish(
   if (g) {
     const errs = validate(g);
     if (errs.length) {
-      throw new Error(`任务 ${p.id} 的 G 没通过定义期检测，拒收：\n  - ${errs.join("\n  - ")}`);
+      throw new Error(`the grading function of task ${p.id} failed definition-time checks and was rejected:\n  - ${errs.join("\n  - ")}`);
     }
   }
 
@@ -192,7 +192,7 @@ export function publish(
   const description =
     g && p.readable ? `${p.description}
 
-【验收标准】
+## Acceptance criteria
 ${JSON.stringify(p.objective, null, 2)}` : p.description;
 
   // 要么全建，要么一行都不留。

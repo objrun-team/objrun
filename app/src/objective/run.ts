@@ -73,7 +73,7 @@ export async function evaluate(o: Objective, reg: Registry, input: unknown): Pro
       got = await reg.get(n.handle).call({ node: n.name, moment: n.moment, domain: domainText(n.domain), feed, input });
       const bad = checkValue(n.domain, got);
       if (bad) {
-        error = `违约：${bad}`;
+        error = `out of contract: ${bad}`;
         got = n.domain.kind === "bool" ? false : Array.from({ length: n.domain.width }, () => false);
       }
     } catch (e) {
@@ -89,7 +89,7 @@ export async function evaluate(o: Objective, reg: Registry, input: unknown): Pro
   const broke = trace.filter((t) => t.error);
   return {
     pass,
-    why: pass === 1 ? "" : broke.length ? broke.map((t) => `${t.node}：${t.error}`).join("；") : `${root} 判了 false`,
+    why: pass === 1 ? "" : broke.length ? broke.map((t) => `${t.node}: ${t.error}`).join("; ") : `${root} evaluated to false`,
     trace,
   };
 }

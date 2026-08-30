@@ -58,19 +58,19 @@ export function checkData(db: Conn, reg?: Registry): Bad[] {
     id: string; mode: string; place: string; state: string; result: string | null;
   }[]) {
     if (all(db, `select 1 from cycle where mode = ?`, [t.mode]).length === 0) {
-      say(`task ${t.id}`, `走的模式 ${t.mode} 在任务周期表里没有 —— 这个任务谁都接不了，而且不会报错`);
+      say(`task ${t.id}`, `its mode ${t.mode} is not in the cycle table - nobody can pick this task up, and nothing reports it`);
     }
     if (all(db, `select 1 from workplace where place = ?`, [t.place]).length === 0) {
-      say(`task ${t.id}`, `干活的地方 ${t.place} 没登记`);
+      say(`task ${t.id}`, `its place ${t.place} is not registered`);
     }
     // result 只能写在终止的时候。半路写的话，事后没人说得清那个答案是哪一步给的。
     const done = t.state === "done" || t.state === "failed";
-    if (t.result !== null && !done) say(`task ${t.id}`, `state=${t.state} 却已经有 result —— result 只该写在终止那一刻`);
-    if (t.result === null && t.state === "failed") say(`task ${t.id}`, `判了 failed 却没有 result —— 失败得说清为什么`);
+    if (t.result !== null && !done) say(`task ${t.id}`, `state=${t.state} but result is already set - result should only be written at the terminal moment`);
+    if (t.result === null && t.state === "failed") say(`task ${t.id}`, `marked failed but has no result - a failure must say why`);
 
     const sub = tableNameOf("task_{}", t.mode);
     if (!has.has(sub)) {
-      say(`task ${t.id}`, `子表 ${sub} 还没长出来 —— 装一次（POST /install）`);
+      say(`task ${t.id}`, `the sub-table ${sub} has not been grown yet - run POST /install once`);
       continue;
     }
 
@@ -83,14 +83,14 @@ export function checkData(db: Conn, reg?: Registry): Bad[] {
       cycle: string; unit: number; from_cycle: string | null; from_unit: number | null;
       agent: string; instance: string; status: string | null; done: number;
     }[];
-    if (units.length === 0) say(`task ${t.id}`, `一个执行单元都没有 —— 多半是绕过发布口直接插的 task 行`);
+    if (units.length === 0) say(`task ${t.id}`, `no execution units at all - most likely a task row inserted directly, bypassing the publish route`);
 
     const perCycle = new Map<string, number>();
     for (const u of units) {
       const cyc = all(db, `select max_units from cycle where mode = ? and cycle = ?`, [t.mode, u.cycle])[0] as
         | { max_units: number } | undefined;
       if (!cyc) {
-        say(`${sub} ${t.id} ${u.cycle}#${u.unit}`, `周期 ${u.cycle} 不在 ${t.mode} 底下`);
+        say(`${sub} ${t.id} ${u.cycle}#${u.unit}`, `cycle ${u.cycle} does not belong to ${t.mode}`);
         continue;
       }
       perCycle.set(u.cycle, (perCycle.get(u.cycle) ?? 0) + 1);
@@ -98,24 +98,24 @@ export function checkData(db: Conn, reg?: Registry): Bad[] {
       // 父指的那一行得真在
       if (u.from_cycle !== null && u.from_unit !== null) {
         if (!units.some((x) => x.cycle === u.from_cycle && x.unit === u.from_unit)) {
-          say(`${sub} ${t.id} ${u.cycle}#${u.unit}`, `说它从 ${u.from_cycle}#${u.from_unit} 来，但那一行不在`);
+          say(`${sub} ${t.id} ${u.cycle}#${u.unit}`, `says it came from ${u.from_cycle}#${u.from_unit}, but that row is missing`);
         }
       }
 
       // 两边对咬：任务这边记「谁在干我」，智能体那边记「我在干谁」
       const ctx = tableNameOf("agent_{}_ctx", u.agent);
       if (!has.has(ctx)) {
-        say(`${sub} ${t.id} ${u.cycle}#${u.unit}`, `智能体 ${u.agent} 的上下文表还没长出来`);
+        say(`${sub} ${t.id} ${u.cycle}#${u.unit}`, `the context table for agent ${u.agent} has not been grown yet`);
         continue;
       }
       const mate = all(db, `select task, done from "${ctx}" where instance = ? and unit = ?`, [u.instance, u.unit])[0] as
         | { task: string; done: number } | undefined;
       if (!mate) {
-        say(`${sub} ${t.id} ${u.cycle}#${u.unit}`, `${ctx} 里没有对应那一行 —— 双重记录咬不上`);
+        say(`${sub} ${t.id} ${u.cycle}#${u.unit}`, `${ctx} has no matching row - the two-sided record does not line up`);
       } else {
-        if (mate.task !== t.id) say(`${sub} ${t.id} ${u.cycle}#${u.unit}`, `对面说它在干 ${mate.task}，不是 ${t.id}`);
+        if (mate.task !== t.id) say(`${sub} ${t.id} ${u.cycle}#${u.unit}`, `the other side says it is working on ${mate.task}, not ${t.id}`);
         if (Number(mate.done) !== Number(u.done)) {
-          say(`${sub} ${t.id} ${u.cycle}#${u.unit}`, `done 两边不一致：这边 ${u.done}，${ctx} 那边 ${mate.done}`);
+          say(`${sub} ${t.id} ${u.cycle}#${u.unit}`, `done disagrees across the two sides: ${u.done} here, ${mate.done} in ${ctx}`);
         }
       }
     }
@@ -123,7 +123,7 @@ export function checkData(db: Conn, reg?: Registry): Bad[] {
       const cap = all(db, `select max_units from cycle where mode = ? and cycle = ?`, [t.mode, cycle])[0] as
         | { max_units: number } | undefined;
       if (cap && n > Number(cap.max_units)) {
-        say(`task ${t.id}`, `${cycle} 开了 ${n} 个执行单位，超过 max_units=${cap.max_units}`);
+        say(`task ${t.id}`, `${cycle} opened ${n} units, over max_units=${cap.max_units}`);
       }
     }
   }
@@ -134,11 +134,11 @@ export function checkData(db: Conn, reg?: Registry): Bad[] {
     try {
       apis = JSON.parse(a.apis || "[]") as [string, string][];
     } catch {
-      say(`agent ${a.name}`, `apis 不是一份能读的列表：${a.apis}`);
+      say(`agent ${a.name}`, `apis is not a readable list: ${a.apis}`);
     }
     for (const [keyEnv, model] of apis) {
       if (all(db, `select 1 from api where key_env = ? and model = ?`, [keyEnv, model]).length === 0) {
-        say(`agent ${a.name}`, `apis 里的 ${keyEnv}/${model} 在 api 表里没登记`);
+        say(`agent ${a.name}`, `${keyEnv}/${model} in apis is not registered in the api table`);
       }
     }
   }
@@ -164,16 +164,16 @@ export function checkData(db: Conn, reg?: Registry): Bad[] {
       .split(",")
       .map((x) => x.trim())
       .filter(Boolean);
-    if (modes.length === 0) say(at, `modes 是空的 —— 这一行谁也挑不中`);
+    if (modes.length === 0) say(at, `modes is empty - nothing will ever select this row`);
     const can = SERVES.get(a.handle);
     for (const m of modes) {
       if (!modeOK.has(m)) {
-        say(at, `modes 里的 ${m} 不是认得的调用形状（认得的是 ${[...modeOK].join("、")}）—— 这条轨永远挑不中`);
+        say(at, `${m} in modes is not a known api mode (known: ${[...modeOK].join(", ")}) - this lane will never be selected`);
         continue;
       }
       // 外面注册进来的句柄接得住什么我们不知道，跳过不查。
       if (can && !can.has(m)) {
-        say(at, `modes 说它能走 ${m}，但 handle=${a.handle} 接不住（它只接 ${[...can].join("、")}）`);
+        say(at, `modes claims ${m}, but handle=${a.handle} cannot serve it (it serves only ${[...can].join(", ")})`);
       }
       if (!served.has(m)) served.set(m, new Set());
       served.get(m)!.add(a.handle);
@@ -184,9 +184,9 @@ export function checkData(db: Conn, reg?: Registry): Bad[] {
   }[]) {
     const want = String(c.api_mode).trim();
     if (!modeOK.has(want)) {
-      say(`cycle ${c.mode}/${c.cycle}`, `api_mode=${want} 不是认得的调用形状（认得的是 ${[...modeOK].join("、")}）`);
+      say(`cycle ${c.mode}/${c.cycle}`, `api_mode=${want} is not a known api mode (known: ${[...modeOK].join(", ")})`);
     } else if (!served.has(want)) {
-      say(`cycle ${c.mode}/${c.cycle}`, `要一条 ${want} 的轨，但 api 表里没有一行支持 —— 这个周期的每一行都走不了`);
+      say(`cycle ${c.mode}/${c.cycle}`, `needs a ${want} lane, but no row in the api table serves one - every unit of this cycle is stuck`);
     }
   }
 
@@ -197,7 +197,7 @@ export function checkData(db: Conn, reg?: Registry): Bad[] {
   if (reg) {
     for (const h of all(db, `select name from handle`) as { name: string }[]) {
       if (h.name.startsWith("fn:") && !reg.has(h.name)) {
-        say(`handle ${h.name}`, `库里登记了，进程内没人注册过`);
+        say(`handle ${h.name}`, `registered in the database but never registered in this process`);
       }
     }
   }
@@ -215,7 +215,7 @@ export function checkData(db: Conn, reg?: Registry): Bad[] {
     ),
   ];
   for (const [at, h] of refs) {
-    if (h && !known.has(h)) say(at, `引用了 ${h}，但 handle 表里没登记过它`);
+    if (h && !known.has(h)) say(at, `references ${h}, which is not registered in the handle table`);
   }
 
   return out;

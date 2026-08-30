@@ -56,7 +56,7 @@ export function openSealed(file: string): Sealed {
       if (errs.length) {
         // **拒收整个任务**，不是「先存着回头再说」。存了一份算不出结果的 G，
         // 那道题会一直挂在系统里，判不出成败也没人知道为什么。
-        throw new Error(`G 没通过定义期检测，拒收：\n  - ${errs.join("\n  - ")}`);
+        throw new Error(`the grading function failed definition-time checks and was rejected:\n  - ${errs.join("\n  - ")}`);
       }
       db.prepare(
         `insert into objective (task, body, at) values (?, ?, ?)

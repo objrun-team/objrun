@@ -31,7 +31,7 @@ export async function audit(arg: unknown): Promise<unknown> {
   const a = (arg ?? {}) as At;
   audited++;
   console.log(
-    `[hooks] ${a.moment}｜${a.task?.id} 第 ${a.unit} 站｜轨=${a.cycle?.api_mode ?? "（不用模型）"}｜链路=${a.chain}`,
+    `[hooks] ${a.moment} | ${a.task?.id} station ${a.unit} | lane=${a.cycle?.api_mode ?? "(no model)"} | chain=${a.chain}`,
   );
   return { audited };
 }
@@ -46,6 +46,6 @@ export async function archive(arg: unknown): Promise<unknown> {
     result: (a.task?.result ?? "").slice(0, 60),
   });
   await appendFile(LOG, line + "\n", "utf8");
-  console.log(`[hooks] ${a.moment}｜归档 ${a.task?.id} → ${LOG}`);
+  console.log(`[hooks] ${a.moment} | archiving ${a.task?.id} -> ${LOG}`);
   return { archived: a.task?.id };
 }

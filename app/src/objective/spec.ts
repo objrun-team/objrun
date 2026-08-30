@@ -45,28 +45,28 @@ export function parseDomain(text: unknown): Domain {
     if (d.kind === "bool[]" && Number.isInteger(d.width) && Number(d.width) >= 1) {
       return { kind: "bool[]", width: Number(d.width) };
     }
-    throw new Error(`不认得的值域：${JSON.stringify(text)}`);
+    throw new Error(`unrecognised domain: ${JSON.stringify(text)}`);
   }
   const s = String(text ?? "").trim();
   if (s === "bool") return BOOL;
   const m = /^bool\[(\d+)\]$/.exec(s);
   if (m) {
     const n = Number(m[1]);
-    if (!Number.isInteger(n) || n < 1) throw new Error(`bool[n] 的 n 要是 ≥1 的整数，实得 ${m[1]}`);
+    if (!Number.isInteger(n) || n < 1) throw new Error(`the n in bool[n] must be an integer >= 1, got ${m[1]}`);
     return { kind: "bool[]", width: n };
   }
-  throw new Error(`domain 只能是 'bool' 或 'bool[n]'，实得 ${JSON.stringify(text)}。值域是封闭的，不接受自定义`);
+  throw new Error(`domain must be 'bool' or 'bool[n]', got ${JSON.stringify(text)}. The domain set is closed; custom domains are not accepted`);
 }
 
 /** 求值期封口：`null` = 合法，否则返回**违约原因**（调用方据此归 0）。 */
 export function checkValue(d: Domain, v: unknown): string | null {
   if (d.kind === "bool") {
-    return typeof v === "boolean" ? null : `值域 ${domainText(d)} 要 bool，实得 ${typeof v}`;
+    return typeof v === "boolean" ? null : `domain ${domainText(d)} expects a bool, got ${typeof v}`;
   }
-  if (!Array.isArray(v)) return `值域 ${domainText(d)} 要一串布尔，实得 ${typeof v}`;
-  if (v.length !== d.width) return `值域 ${domainText(d)} 要长度 ${d.width}，实得 ${v.length}`;
+  if (!Array.isArray(v)) return `domain ${domainText(d)} expects a list of bools, got ${typeof v}`;
+  if (v.length !== d.width) return `domain ${domainText(d)} expects length ${d.width}, got ${v.length}`;
   const bad = v.map((x, i) => (typeof x === "boolean" ? -1 : i)).filter((i) => i >= 0);
-  if (bad.length) return `值域 ${domainText(d)} 要元素全是 bool，下标 ${bad.slice(0, 5).join(",")} 不是`;
+  if (bad.length) return `domain ${domainText(d)} expects every element to be a bool; indices ${bad.slice(0, 5).join(",")} are not`;
   return null;
 }
 
@@ -124,30 +124,30 @@ export function validate(o: Objective): string[] {
   const names = o.nodes.map((n) => n.name);
   const N = o.nodes.length;
 
-  if (N === 0) return ["G 一个节点都没有"];
+  if (N === 0) return ["the grading function has no nodes"];
 
   const dup = [...new Set(names.filter((x, i) => names.indexOf(x) !== i))];
-  if (dup.length) errs.push(`节点名重复：${dup.join("、")}`);
+  if (dup.length) errs.push(`duplicate node names: ${dup.join(", ")}`);
 
   const idx = new Map(o.nodes.map((n, i) => [n.name, i]));
   for (const n of o.nodes) {
-    if (!n.moment.trim()) errs.push(`节点 ${n.name}：缺【时刻】`);
-    if (!n.handle.trim()) errs.push(`节点 ${n.name}：缺【脚本】句柄`);
+    if (!n.moment.trim()) errs.push(`node ${n.name}: missing moment`);
+    if (!n.handle.trim()) errs.push(`node ${n.name}: missing handle`);
   }
 
   // 边：引用得存在，下标不许越界。**宽度定义期已知，没有理由留到求值期。**
   for (const e of o.edges) {
     if (!idx.has(e.src)) {
-      errs.push(`边引用了不存在的源节点 ${e.src}`);
+      errs.push(`an edge references a source node that does not exist: ${e.src}`);
       continue;
     }
     if (!idx.has(e.dst)) {
-      errs.push(`边引用了不存在的目标节点 ${e.dst}`);
+      errs.push(`an edge references a target node that does not exist: ${e.dst}`);
       continue;
     }
     const w = o.nodes[idx.get(e.src)!].domain.width;
     if (!(Number.isInteger(e.out) && e.out >= 0 && e.out < w)) {
-      errs.push(`边 ${e.src}[${e.out}] → ${e.dst} 输出下标越界：${e.src} 的宽度是 ${w}，合法下标 0..${w - 1}`);
+      errs.push(`edge ${e.src}[${e.out}] -> ${e.dst} has an out-of-range output index: ${e.src} has width ${w}, valid indices are 0..${w - 1}`);
     }
   }
   if (errs.length) return errs; // 边都对不上，后面无从查起
@@ -170,15 +170,15 @@ export function validate(o: Objective): string[] {
   }
   if (order.length !== N) {
     const stuck = names.filter((_, i) => !order.includes(i)).sort();
-    errs.push(`存在**回环**，涉及节点 ${stuck.join("、")} —— 求值不终止，G 算不出来`);
+    errs.push(`there is a cycle through nodes ${stuck.join(", ")} - evaluation would not terminate, so the grading function has no value`);
   }
 
   // 唯一输出节点。入度为 0 的有几个都正常 —— 那些是直接观测世界的。
   const sinks = names.filter((_, i) => outdeg[i] === 0);
   if (sinks.length !== 1) {
-    errs.push(`必须**唯一输出节点**；实际出度为 0 的是 ${sinks.join("、") || "（一个都没有）"}`);
+    errs.push(`there must be exactly one output node; nodes with out-degree 0 are ${sinks.join(", ") || "(none)"}`);
   } else if (o.sink && o.sink !== sinks[0]) {
-    errs.push(`声明的输出节点是 ${o.sink}，但图上出度为 0 的是 ${sinks[0]}`);
+    errs.push(`the declared output node is ${o.sink}, but the node with out-degree 0 is ${sinks[0]}`);
   }
 
   const root = o.sink || (sinks.length === 1 ? sinks[0] : "");
@@ -188,7 +188,7 @@ export function validate(o: Objective): string[] {
   for (const p of ports(o)) {
     if (p.src === root) continue;
     if (!o.edges.some((e) => e.src === p.src && e.out === p.out)) {
-      errs.push(`节点 ${p.src} 的第 ${p.out} 个输出**没被任何边消费**`);
+      errs.push(`output ${p.out} of node ${p.src} is not consumed by any edge`);
     }
   }
 
@@ -196,11 +196,11 @@ export function validate(o: Objective): string[] {
   if (ri !== undefined) {
     // 根的值域必须是 bool —— G 的输出是 {0,1}
     if (o.nodes[ri].domain.kind !== "bool") {
-      errs.push(`输出节点 ${root} 的值域是 ${domainText(o.nodes[ri].domain)}，但 G 的输出必须是 bool`);
+      errs.push(`the output node ${root} has domain ${domainText(o.nodes[ri].domain)}, but the grading function must output a bool`);
     }
     // 退化：根没有入边 ⇒ 它的值跟候选无关 ⇒ G 恒定 ⇒ 无效目标
     if (indeg[ri] === 0) {
-      errs.push(`输出节点 ${root} 没有任何入边 —— 它的值与候选无关，G 恒定，是无效目标`);
+      errs.push(`the output node ${root} has no incoming edge - its value does not depend on the candidate, so the grading function is constant and the objective is void`);
     }
   }
 
@@ -209,14 +209,14 @@ export function validate(o: Objective): string[] {
 
 /** 解析一份 G。形状不对当场炸 —— 这跟结构校验是两回事，那个查的是图对不对。 */
 export function parseObjective(raw: unknown): Objective {
-  if (raw === null || typeof raw !== "object") throw new Error("G 得是一个对象");
+  if (raw === null || typeof raw !== "object") throw new Error("the grading function must be an object");
   const o = raw as { nodes?: unknown; edges?: unknown; sink?: unknown };
-  if (!Array.isArray(o.nodes)) throw new Error("G 要有 nodes，而且是个数组");
-  if (!Array.isArray(o.edges)) throw new Error("G 要有 edges，而且是个数组");
+  if (!Array.isArray(o.nodes)) throw new Error("the grading function needs nodes, and it must be an array");
+  if (!Array.isArray(o.edges)) throw new Error("the grading function needs edges, and it must be an array");
   const nodes: Node[] = o.nodes.map((n, i) => {
-    if (n === null || typeof n !== "object") throw new Error(`第 ${i} 个节点不是对象`);
+    if (n === null || typeof n !== "object") throw new Error(`node ${i} is not an object`);
     const x = n as Record<string, unknown>;
-    if (typeof x.name !== "string" || !x.name.trim()) throw new Error(`第 ${i} 个节点没有 name`);
+    if (typeof x.name !== "string" || !x.name.trim()) throw new Error(`node ${i} has no name`);
     return {
       name: x.name,
       moment: String(x.moment ?? ""),
@@ -225,7 +225,7 @@ export function parseObjective(raw: unknown): Objective {
     };
   });
   const edges: Edge[] = o.edges.map((e, i) => {
-    if (e === null || typeof e !== "object") throw new Error(`第 ${i} 条边不是对象`);
+    if (e === null || typeof e !== "object") throw new Error(`edge ${i} is not an object`);
     const x = e as Record<string, unknown>;
     return { src: String(x.src ?? ""), out: Number(x.out ?? 0), dst: String(x.dst ?? "") };
   });

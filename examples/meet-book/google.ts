@@ -50,9 +50,9 @@ export interface Booked {
 
 async function client(): Promise<{ client_id: string; client_secret: string }> {
   const f = Bun.file(CLIENT_FILE);
-  if (!(await f.exists())) throw new Error(`没有 OAuth 客户端：${CLIENT_FILE}`);
+  if (!(await f.exists())) throw new Error(`no OAuth client: ${CLIENT_FILE}`);
   const c = (await f.json()) as { installed?: { client_id: string; client_secret: string } };
-  if (!c.installed) throw new Error(`${CLIENT_FILE} 不是桌面应用类型（顶层得是 "installed"）`);
+  if (!c.installed) throw new Error(`${CLIENT_FILE} is not a desktop application (the top level must be "installed")`);
   return c.installed;
 }
 
@@ -67,7 +67,7 @@ async function creds(): Promise<Creds | null> {
 /** `token`（access token）一小时就过期，所以每次现换一个，不缓存 —— 少一份会过期的状态。 */
 async function accessToken(): Promise<string> {
   const c = await creds();
-  if (!c) throw new Error("还没授权");
+  if (!c) throw new Error("not authorised yet");
   const res = await fetch(c.token_uri ?? "https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -80,7 +80,7 @@ async function accessToken(): Promise<string> {
   });
   const got = (await res.json()) as { access_token?: string; error?: string; error_description?: string };
   if (!res.ok || !got.access_token) {
-    throw new Error(`换不到 access token：${got.error_description ?? got.error ?? res.status}`);
+    throw new Error(`cannot exchange for an access token: ${got.error_description ?? got.error ?? res.status}`);
   }
   return got.access_token;
 }
@@ -106,8 +106,8 @@ export async function authed(): Promise<boolean> {
  * 回环地址上什么端口都收，所以不用提前登记。
  */
 export async function authStart(): Promise<{ ok: boolean; authUrl?: string; note: string }> {
-  if (await authed()) return { ok: true, note: "已经授权过了，直接开会就行" };
-  if (pending) return { ok: false, authUrl: pending.url, note: "上一次发的还没点，就是这个链接" };
+  if (await authed()) return { ok: true, note: "already authorised - go ahead and book" };
+  if (pending) return { ok: false, authUrl: pending.url, note: "the last link has not been clicked yet - this is it" };
 
   const { client_id, client_secret } = await client();
   let settle: (() => void) | null = null;
@@ -120,7 +120,7 @@ export async function authStart(): Promise<{ ok: boolean; authUrl?: string; note
     async fetch(req: Request): Promise<Response> {
       const u = new URL(req.url);
       const code = u.searchParams.get("code");
-      if (!code) return new Response(`不行：${u.searchParams.get("error") ?? "没拿到 code"}`);
+      if (!code) return new Response(`no good: ${u.searchParams.get("error") ?? "no code came back"}`);
       const res = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",
         headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -134,7 +134,7 @@ export async function authStart(): Promise<{ ok: boolean; authUrl?: string; note
       });
       const got = (await res.json()) as { refresh_token?: string; error_description?: string };
       if (!got.refresh_token) {
-        return new Response(`换不到 refresh_token：${got.error_description ?? res.status}`);
+        return new Response(`cannot exchange for a refresh_token: ${got.error_description ?? res.status}`);
       }
       await mkdir(dirname(TOKEN_FILE), { recursive: true });
       await Bun.write(
@@ -150,7 +150,7 @@ export async function authStart(): Promise<{ ok: boolean; authUrl?: string; note
         pending = null;
         settle?.();
       });
-      return new Response("授权好了，回去接着干。", { headers: { "content-type": "text/plain; charset=utf-8" } });
+      return new Response("Authorised. Go back and carry on.", { headers: { "content-type": "text/plain; charset=utf-8" } });
     },
   });
 
@@ -165,7 +165,7 @@ export async function authStart(): Promise<{ ok: boolean; authUrl?: string; note
   }).toString();
 
   pending = { url: auth.toString(), done };
-  return { ok: false, authUrl: pending.url, note: "把这个链接给用户，点完就成了" };
+  return { ok: false, authUrl: pending.url, note: "hand this link to the user; once clicked, it is done" };
 }
 
 /** 等人点完。已经授权的话立刻回 true；根本没发起过回 false。 */
@@ -203,14 +203,14 @@ export async function book(
 ): Promise<Booked> {
   if (!(await authed())) {
     const got = await authWait(waitAuthMs);
-    if (!got) throw new Error("还没授权 —— 先调那个发起授权的工具，把链接给用户点一下");
+    if (!got) throw new Error("not authorised yet - call the authorisation tool first and have the user click the link");
   }
   const token = await accessToken();
   const startsIn = Number(a.minutesFromNow ?? 10);
   const lasts = Number(a.minutes ?? 30);
   const start = new Date(Date.now() + startsIn * 60_000);
   const end = new Date(start.getTime() + lasts * 60_000);
-  const summary = a.summary?.trim() || "会议";
+  const summary = a.summary?.trim() || "Meeting";
 
   const res = await fetch(`${CAL}/calendars/primary/events?conferenceDataVersion=1`, {
     method: "POST",
@@ -226,7 +226,7 @@ export async function book(
     }),
   });
   const body = (await res.json()) as Event & { error?: { message?: string } };
-  if (!res.ok) throw new Error(`谷歌不给建：${body.error?.message ?? res.status}`);
+  if (!res.ok) throw new Error(`Google refused to create it: ${body.error?.message ?? res.status}`);
 
   // 会议链接是异步长出来的。多数时候当场就有，pending 的话回头再问几次。
   let e = body;
@@ -240,7 +240,7 @@ export async function book(
   }
   if (!e.hangoutLink) {
     const st = e.conferenceData?.createRequest?.status?.statusCode ?? "?";
-    throw new Error(`事件建好了（${e.id}）但没长出会议链接（${st}）`);
+    throw new Error(`the event was created (${e.id}) but no meeting link grew on it (${st})`);
   }
 
   return {
@@ -255,21 +255,21 @@ export async function book(
 
 // ── 给模型看的那几份 schema。两种写法报的是同一份。 ──────────────────────
 
-export const LOGIN_DOES = "发起谷歌授权。回一个链接，让用户在浏览器里点一下";
+export const LOGIN_DOES = "Start Google authorisation. Returns a link for the user to click in a browser";
 export const LOGIN_PARAMS = { type: "object", properties: {} } as const;
 export const LOGIN_OUTPUT = {
   type: "object",
   properties: { ok: { type: "boolean" }, authUrl: { type: "string" }, note: { type: "string" } },
 } as const;
 
-export const BOOK_DOES = "在本机这个谷歌账号下开一个会，返回 Meet 链接和日历事件";
+export const BOOK_DOES = "Book a meeting under the Google account signed in on this machine; returns the Meet link and the calendar event";
 export const BOOK_PARAMS = {
   type: "object",
   properties: {
-    summary: { type: "string", description: "会议标题" },
-    minutesFromNow: { type: "integer", description: "几分钟之后开，默认 10" },
-    minutes: { type: "integer", description: "开多久，默认 30" },
-    attendees: { type: "array", items: { type: "string" }, description: "参会人邮箱" },
+    summary: { type: "string", description: "Meeting title" },
+    minutesFromNow: { type: "integer", description: "How many minutes from now it starts, default 10" },
+    minutes: { type: "integer", description: "How long it runs, default 30" },
+    attendees: { type: "array", items: { type: "string" }, description: "Attendee email addresses" },
   },
 } as const;
 export const BOOK_OUTPUT = {

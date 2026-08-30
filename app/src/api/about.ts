@@ -21,24 +21,24 @@ import type { Route } from "./spec.ts";
 
 /** 任务四态各是什么意思。**跟 `STATES` 同源** —— 那是值域，这是给人看的注解。 */
 const STATE_NOTE: Record<string, string> = {
-  open: "待领取：一个执行单元都还没开",
-  claimed: "有人在干：还有没干完的执行单元",
-  done: "全干完了。有 G 的话还得 G 说了算",
-  failed: "判失败了 —— result 里说为什么",
+  open: "Waiting to be picked up: not a single execution unit has been opened",
+  claimed: "Someone is working on it: there are unfinished execution units",
+  done: "Everything finished. If it has a grading function, that function has the last word",
+  failed: "Judged a failure - result says why",
 };
 
 const SOURCE_NOTE: Record<string, string> = {
-  user: "真人发的。**只有这一种能带 G**",
-  agent: "智能体在树内派生的。不许带 G —— 那是自提权",
-  world: "环境触发的",
-  eacn: "上层系统发的",
+  user: "Published by a person. Only this source may carry a grading function",
+  agent: "Derived by the agent inside the tree. May not carry a grading function - that would be self-granted authority",
+  world: "Triggered by the environment",
+  eacn: "Published by the system above",
 };
 
 /** 执行单元的终止状态。**出生即定，不回改。** */
 const UNIT_STATUS: [string, string][] = [
-  ["reached", "自称走到终点了"],
-  ["dead_failed", "判死：这一步没成"],
-  ["dead_below_bar", "判死：够不着及格线"],
+  ["reached", "Claims to have arrived"],
+  ["dead_failed", "Ruled out: this step did not work"],
+  ["dead_below_bar", "Ruled out: below the bar"],
 ];
 
 export function aboutRoutes(prefix: string, store: Store, version: string, duplex: string[]): Route[] {
@@ -46,18 +46,18 @@ export function aboutRoutes(prefix: string, store: Store, version: string, duple
     {
       method: "GET",
       path: "/about",
-      group: "这台机器",
-      does: "这台机器认得哪些取值 —— 状态、来源、消息类型、调用形状",
-      why: "**别把这些写死在客户端里。** 这边加一种消息类型，客户端的 switch 没有那一支，那条消息就在界面上显示成空白 —— 不报错，就是没了。拉这个口当数据用，这边加一种那边自动就有。",
+      group: "This machine",
+      does: "Which values this machine knows: states, sources, message kinds, api modes",
+      why: "Do not hard-code these in a client. Add a message kind here, and a client switch without that branch renders the message as blank - no error, it is simply gone. Read this route as data, and a kind added here shows up there on its own.",
       returns: {
         version: "1.0.0",
         prefix: "/api",
-        taskStates: [{ name: "open", note: "待领取：一个执行单元都还没开" }],
-        taskSources: [{ name: "user", note: "真人发的。**只有这一种能带 G**" }],
-        msgKinds: [{ name: "voice", note: "真人说的（转写）", human: true }],
-        apiModes: [{ name: "duplex", note: "实时双向。一个执行单元 = 会话里的一个来回" }],
-        unitStatuses: [{ name: "reached", note: "自称走到终点了" }],
-        humanMark: "【人】",
+        taskStates: [{ name: "open", note: "Waiting to be picked up: not a single execution unit has been opened" }],
+        taskSources: [{ name: "user", note: "Published by a person. Only this source may carry a grading function" }],
+        msgKinds: [{ name: "voice", note: "Spoken by a person (transcribed)", human: true }],
+        apiModes: [{ name: "duplex", note: "Realtime, both directions. One execution unit = one turn in the session" }],
+        unitStatuses: [{ name: "reached", note: "Claims to have arrived" }],
+        humanMark: "[human] ",
         declared: { modes: ["dfs"], agents: ["solver"], places: ["local"], duplexHandles: [] },
       },
       handler: async () => {

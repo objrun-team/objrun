@@ -95,13 +95,13 @@ class Bad extends Error {
 function coerce(p: Param, raw: unknown): unknown {
   // 路径段和查询串一律是字符串，得按声明的类型翻过来。请求体里本来就是 JSON。
   if (p.kind === "string") {
-    if (typeof raw !== "string") throw new Bad(`${p.name} 得是个字符串`, p.name);
+    if (typeof raw !== "string") throw new Bad(`${p.name} must be a string`, p.name);
     return raw;
   }
   if (p.kind === "int" || p.kind === "number") {
     const n = typeof raw === "number" ? raw : Number(String(raw));
-    if (!Number.isFinite(n)) throw new Bad(`${p.name} 得是个数，给的是 ${JSON.stringify(raw)}`, p.name);
-    if (p.kind === "int" && !Number.isInteger(n)) throw new Bad(`${p.name} 得是个整数`, p.name);
+    if (!Number.isFinite(n)) throw new Bad(`${p.name} must be a number, got ${JSON.stringify(raw)}`, p.name);
+    if (p.kind === "int" && !Number.isInteger(n)) throw new Bad(`${p.name} must be an integer`, p.name);
     return n;
   }
   if (p.kind === "boolean") {
@@ -109,14 +109,14 @@ function coerce(p: Param, raw: unknown): unknown {
     const s = String(raw).toLowerCase();
     if (s === "true" || s === "1") return true;
     if (s === "false" || s === "0") return false;
-    throw new Bad(`${p.name} 得是 true 或 false`, p.name);
+    throw new Bad(`${p.name} must be true or false`, p.name);
   }
   if (p.kind === "array") {
-    if (!Array.isArray(raw)) throw new Bad(`${p.name} 得是个列表`, p.name);
+    if (!Array.isArray(raw)) throw new Bad(`${p.name} must be a list`, p.name);
     return raw;
   }
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
-    throw new Bad(`${p.name} 得是个对象`, p.name);
+    throw new Bad(`${p.name} must be an object`, p.name);
   }
   return raw;
 }
@@ -138,7 +138,7 @@ export function take(r: Route, req: FastifyRequest): Record<string, unknown> {
   const bodyParams = params.filter((p) => p.in === "body");
   if (bodyParams.length > 0 && body !== undefined && body !== null) {
     if (typeof body !== "object" || Array.isArray(body)) {
-      throw new Bad("请求体得是一个 JSON 对象", "body");
+      throw new Bad("the request body must be a JSON object", "body");
     }
   }
   const bag = (body ?? {}) as Record<string, unknown>;
@@ -148,13 +148,13 @@ export function take(r: Route, req: FastifyRequest): Record<string, unknown> {
   const qNames = params.filter((p) => p.in === "query").map((p) => p.name);
   for (const k of Object.keys(query)) {
     if (!known.has(k)) {
-      throw new Bad(`不认得的查询参数 ${k}${qNames.length ? `（认得的是 ${qNames.join("、")}）` : "（这个口不收查询参数）"}`, k);
+      throw new Bad(`unknown query parameter ${k}${qNames.length ? ` (known: ${qNames.join(", ")})` : " (this route takes no query parameters)"}`, k);
     }
   }
   const bNames = bodyParams.map((p) => p.name);
   for (const k of Object.keys(bag)) {
     if (!known.has(k)) {
-      throw new Bad(`不认得的字段 ${k}${bNames.length ? `（认得的是 ${bNames.join("、")}）` : "（这个口不收请求体）"}`, k);
+      throw new Bad(`unknown field ${k}${bNames.length ? ` (known: ${bNames.join(", ")})` : " (this route takes no body)"}`, k);
     }
   }
 
@@ -162,13 +162,13 @@ export function take(r: Route, req: FastifyRequest): Record<string, unknown> {
     const src = p.in === "path" ? path : p.in === "query" ? query : bag;
     const raw = src[p.name];
     if (raw === undefined || raw === null || raw === "") {
-      if (p.required) throw new Bad(`少了 ${p.name}：${p.note}`, p.name);
+      if (p.required) throw new Bad(`${p.name} is missing: ${p.note}`, p.name);
       if (p.def !== undefined) out[p.name] = p.def;
       continue;
     }
     const v = coerce(p, p.in === "path" ? decodeURIComponent(String(raw)) : raw);
     if (p.only && !p.only.includes(String(v))) {
-      throw new Bad(`${p.name} 只能是 ${p.only.join(" / ")}，给的是 ${JSON.stringify(v)}`, p.name);
+      throw new Bad(`${p.name} must be one of ${p.only.join(" / ")}, got ${JSON.stringify(v)}`, p.name);
     }
     out[p.name] = v;
   }
@@ -185,13 +185,13 @@ function pad(s: string, n: number): string {
 }
 
 function paramLine(p: Param): string[] {
-  const must = p.required ? "必给" : p.def !== undefined ? `默认 ${JSON.stringify(p.def)}` : "可不给";
+  const must = p.required ? "required" : p.def !== undefined ? `default ${JSON.stringify(p.def)}` : "optional";
   // 取值只有那几个的时候，**列出来比写个类型名有用得多** —— 客户端照着填就行。
   const kind = p.only ? p.only.join("|") : p.kind;
   const out = [`      ${pad(p.name, 16)}${pad(p.in, 7)}${pad(kind, 20)}${pad(must, 12)}${p.note}`];
   // 里面长什么样单独一行。塞进类型那一列的话，一个长形状会把后面的列全顶飞，
   // 而这张表全靠对齐才读得下去。
-  if (p.of) out.push(`      ${" ".repeat(16)}里面：${p.of}`);
+  if (p.of) out.push(`      ${" ".repeat(16)}inside: ${p.of}`);
   return out;
 }
 
@@ -201,23 +201,23 @@ export function asText(prefix: string, routes: Route[], q?: string): string {
     ? routes.filter((r) => (r.path + r.does + r.group).toLowerCase().includes(q.toLowerCase()))
     : routes;
   const out: string[] = [];
-  out.push(`TgEngin ${prefix} —— ${hit.length} 个口${q ? `（筛 "${q}"，共 ${routes.length} 个）` : ""}`);
-  out.push(`加 ?format=json 拿机器读的那一份；加 ?q=tasks 只看相关的。`);
+  out.push(`TgEngin ${prefix} - ${hit.length} routes${q ? ` (filtered by "${q}", ${routes.length} in total)` : ""}`);
+  out.push(`Add ?format=json for the machine-readable form; add ?q=tasks to narrow it down.`);
 
   const groups = [...new Set(hit.map((r) => r.group))];
   for (const g of groups) {
-    out.push("", `【${g}】`);
+    out.push("", `[${g}]`);
     for (const r of hit.filter((x) => x.group === g)) {
       out.push("", `  ${pad(r.method, 7)}${pad(prefix + r.path, 34)}${r.does}`);
-      if (r.why) out.push(`      为什么有这个口：${r.why}`);
+      if (r.why) out.push(`      why this route exists: ${r.why}`);
       if (r.params?.length) {
-        out.push(`      ${pad("参数", 16)}${pad("在哪", 7)}${pad("类型", 20)}${pad("给不给", 12)}说明`);
+        out.push(`      ${pad("name", 16)}${pad("in", 7)}${pad("type", 20)}${pad("given", 12)}note`);
         for (const p of r.params) out.push(...paramLine(p));
       }
       if (r.returns !== undefined) {
-        out.push(`      回：${JSON.stringify(r.returns, null, 2).split("\n").join("\n      ")}`);
+        out.push(`      returns: ${JSON.stringify(r.returns, null, 2).split("\n").join("\n      ")}`);
       }
-      for (const e of r.errs ?? []) out.push(`      ${e.code}：${e.when}`);
+      for (const e of r.errs ?? []) out.push(`      ${e.code}: ${e.when}`);
     }
   }
   return out.join("\n") + "\n";
@@ -270,7 +270,7 @@ export function mount(app: FastifyInstance, prefix: string, routes: Route[]): vo
             error: e.message,
             at: e.at,
             usage: `${r.method} ${prefix}${r.path}`,
-            params: (r.params ?? []).map((p) => `${p.name}（${p.in}，${p.kind}${p.required ? "，必给" : ""}）`),
+            params: (r.params ?? []).map((p) => `${p.name} (${p.in}, ${p.kind}${p.required ? ", required" : ""})`),
           });
         }
         throw e;

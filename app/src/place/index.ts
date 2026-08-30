@@ -58,7 +58,7 @@ function openLocal(): Place {
     place: "local",
     async call(tool, args) {
       const t = local.get(tool);
-      if (!t) throw new Error(`本机没有 ${tool} 这个工具`);
+      if (!t) throw new Error(`this machine has no tool named ${tool}`);
       return await t.run(args);
     },
     async alive() {
@@ -84,7 +84,7 @@ export function hops(place: string): Hop[] {
     if (seg.startsWith("wsl:")) return { kind: "wsl", arg: seg.slice(4) } as Hop;
     if (seg.startsWith("ssh:")) return { kind: "ssh", arg: seg.slice(4) } as Hop;
     if (seg.startsWith("docker:")) return { kind: "docker", arg: seg.slice(7) } as Hop;
-    throw new Error(`位置串不认得这一段：${seg}（整串是 ${place}）`);
+    throw new Error(`unrecognised segment in the place string: ${seg} (whole string: ${place})`);
   });
 }
 
@@ -109,7 +109,7 @@ export function launch(place: string, remotePath: string): { cmd: string; argv: 
 export function ship(place: string, localFile: string, remotePath: string): { cmd: string; argv: string[] } {
   const layers = hops(place);
   const outer = layers[0];
-  if (!outer) throw new Error("local 不用送运行时");
+  if (!outer) throw new Error("local needs no runtime shipped");
   if (outer.kind === "wsl") {
     // WSL 把 Windows 盘挂在 /mnt 下，所以「送」就是一次 cp。
     const mnt = "/mnt/" + localFile[0].toLowerCase() + localFile.slice(2).replace(/\\/g, "/");
@@ -141,12 +141,12 @@ function run(cmd: string, argv: string[]): Promise<{ code: number; err: string }
  */
 export async function openPlace(place: string, runtimeFile?: string): Promise<Place> {
   if (place === "local") return openLocal();
-  if (!runtimeFile) throw new Error(`${place} 要转发，但 workplace.runtime 没登记要送什么过去`);
+  if (!runtimeFile) throw new Error(`${place} forwards, but workplace.runtime does not say what to ship`);
 
   const remotePath = `/tmp/tgengin-runtime-${Math.abs(hash(place))}`;
   const s = ship(place, runtimeFile, remotePath);
   const sent = await run(s.cmd, s.argv);
-  if (sent.code !== 0) throw new Error(`往 ${place} 送运行时失败：${sent.err.trim() || "退出码 " + sent.code}`);
+  if (sent.code !== 0) throw new Error(`failed to ship the runtime to ${place}: ${sent.err.trim() || "exit code " + sent.code}`);
 
   const l = launch(place, remotePath);
   const client = new McpClient(place, { command: l.cmd, args: l.argv });
@@ -155,7 +155,7 @@ export async function openPlace(place: string, runtimeFile?: string): Promise<Pl
     await client.tools();
   } catch (e) {
     client.close();
-    throw new Error(`${place} 上的运行时起来了但不应答：${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(`the runtime on ${place} started but does not answer: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   return {

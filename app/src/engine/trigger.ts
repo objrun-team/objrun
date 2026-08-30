@@ -76,7 +76,7 @@ export function compare(op: string, got: string, want: string): boolean {
     case "in":
       return (JSON.parse(want) as unknown[]).map(String).includes(got);
     default:
-      throw new Error(`不认得的比法：${op}`);
+      throw new Error(`unknown operator: ${op}`);
   }
 }
 
@@ -92,11 +92,11 @@ export function pick(f: Facts, dim: string, key: string): string {
     case "task":
     case "cycle": {
       const row = f[dim];
-      if (!(key in row)) throw new Error(`${dim} 上没有 ${key} 这一项`);
+      if (!(key in row)) throw new Error(`dimension ${dim} has no attribute ${key}`);
       return String(row[key] ?? "");
     }
     default:
-      throw new Error(`不认得的维度：${dim}`);
+      throw new Error(`unknown dimension: ${dim}`);
   }
 }
 

@@ -157,7 +157,7 @@ export class Kernel {
       for (const p of this.#ready(rows)) void this.#advance(p);
       this.#arm(rows);
     } catch (e) {
-      this.#log.error(`内核这一圈没转完：${msg(e)}`);
+      this.#log.error(`kernel tick did not finish: ${msg(e)}`);
     } finally {
       this.#ticking = false;
       if (this.#again) {
@@ -200,7 +200,7 @@ export class Kernel {
    */
   #handleOf(p: Pending): { handle: string; api: { key_env: string; model: string } | null } {
     const agent = one(this.#store.ro, `select unit, apis from agent where name = ?`, [p.agent]);
-    if (!agent) throw new Error(`agent 表里没有 ${p.agent}`);
+    if (!agent) throw new Error(`no row in agent for ${p.agent}`);
 
     const cyc = one(this.#store.ro, `select api_mode from cycle where mode = ? and cycle = ?`, [p.mode, p.cycle]);
     const want = String(cyc?.api_mode ?? "").trim();
@@ -210,7 +210,7 @@ export class Kernel {
     try {
       apis = JSON.parse(String(agent.apis ?? "[]")) as [string, string][];
     } catch {
-      throw new Error(`agent ${p.agent} 的 apis 不是一份能读的列表`);
+      throw new Error(`agent ${p.agent} has apis that is not a readable list`);
     }
     for (const [keyEnv, model] of apis) {
       const row = one(this.#store.ro, `select key_env, model, handle, modes from api where key_env = ? and model = ?`, [
@@ -225,7 +225,7 @@ export class Kernel {
         return { handle: String(row.handle), api: { key_env: keyEnv, model } };
       }
     }
-    throw new Error(`${p.mode}/${p.cycle} 要一条 ${want} 的轨，但 agent ${p.agent} 的 apis 里没有一项支持`);
+    throw new Error(`${p.mode}/${p.cycle} needs a ${want} lane, but none of agent ${p.agent} apis supports it`);
   }
 
   /** 一行的时限来自它这一站真正要调的那个句柄。 */
@@ -248,7 +248,7 @@ export class Kernel {
       const key = `${p.sub}\u0000${p.task}\u0000${p.cycle}\u0000${p.unit}`;
       if (!this.#cried.has(key)) {
         this.#cried.add(key);
-        this.#log.error(`${p.sub} ${p.task} ${p.cycle}#${p.unit} 这一行走不了：${msg(e)}`);
+        this.#log.error(`${p.sub} ${p.task} ${p.cycle}#${p.unit} cannot run: ${msg(e)}`);
       }
       return null;
     }
@@ -270,24 +270,24 @@ export class Kernel {
       `select id, created_at, solve_seconds from task where state not in ('done','failed')`,
     ) as { id: string; created_at: number; solve_seconds: number }[]) {
       if (now - Number(t.created_at) <= Number(t.solve_seconds) * 1000) continue;
-      const key = `任务超时\u0000${t.id}`;
+      const key = `task expired\u0000${t.id}`;
       if (this.#cried.has(key)) continue;
       this.#cried.add(key);
-      this.#log.warn(`任务 ${t.id} 超时：跑了 ${Math.round((now - Number(t.created_at)) / 1000)}s，上限 ${t.solve_seconds}s`);
+      this.#log.warn(`task ${t.id} expired: ran ${Math.round((now - Number(t.created_at)) / 1000)}s, limit ${t.solve_seconds}s`);
       // 先落一个失败，让它别再被排上；有 G 的话下面那一声会按判决改写。
       run(this.#store.rw, `update task set state = failed, result = ? where id = ?`, [
-        JSON.stringify({ pass: 0, why: `超过 solve_seconds=${t.solve_seconds}s` }),
+        JSON.stringify({ pass: 0, why: `over solve_seconds=${t.solve_seconds}s` }),
         t.id,
       ]);
       // **超时也要问 G。** 以前这条路直接写 failed 就完了，于是「时限内交对了、
       // 只是树没来得及收尾」跟「什么都没做出来」在成绩单上长得一模一样。
-      this.#hooks.onDone?.(t.id, `超过 solve_seconds=${t.solve_seconds}s`);
+      this.#hooks.onDone?.(t.id, `over solve_seconds=${t.solve_seconds}s`);
     }
     for (const r of rows) {
       const cap = this.#expectSafe(r);
       if (cap === null || now - r.at <= cap) continue;
       this.#log.warn(
-        `判死：${r.sub} ${r.task} ${r.cycle}#${r.unit}（${r.agent}/${r.instance}）已经 ${now - r.at}ms，超过 ${cap}ms`,
+        `declared dead: ${r.sub} ${r.task} ${r.cycle}#${r.unit} (${r.agent}/${r.instance}) has been ${now - r.at}ms, over ${cap}ms`,
       );
     }
   }
@@ -436,13 +436,13 @@ export class Kernel {
       this.wake();
     } catch (e) {
       const why = msg(e);
-      this.#log.error(`${p.sub} ${p.task} ${p.cycle}#${p.unit} 走不下去：${why}`);
+      this.#log.error(`${p.sub} ${p.task} ${p.cycle}#${p.unit} is stuck: ${why}`);
       // **也落进库。** 只进日志的话，从接口上看这一行就是「不知为何不动」——
       // 而客户端手里只有接口。日志在服务器上，看日志的人和被卡住的人不是同一个。
       //
       // 同一行的同一句只落一次：走不下去的行多半每一圈都会再试一次，
       // 每次都落的话，一个配错的任务能把上下文表撑满。
-      const key = `走不下去 ${p.sub} ${p.task} ${p.cycle} ${p.unit} ${why}`;
+      const key = `stuck ${p.sub} ${p.task} ${p.cycle} ${p.unit} ${why}`;
       if (!this.#cried.has(key)) {
         this.#cried.add(key);
         try {
@@ -476,7 +476,7 @@ export class Kernel {
       try {
         await this.#reg.get(identity).call({ ...at, sub: p.sub, unit: p.unit, instance: p.instance });
       } catch (e) {
-        this.#log.error(`规则 ${identity} 在 ${moment} 这一刻炸了：${msg(e)}`);
+        this.#log.error(`rule ${identity} threw at moment ${moment}: ${msg(e)}`);
       }
     }
   }
@@ -553,8 +553,10 @@ export class Kernel {
    * 单元查了一圈 python/node，一个字答案都没写），到收尾那一刻手上什么都没有。
    * 它不是不会安排，是**看不见还剩多少**。
    *
-   * 有 G 的话还多一条规矩：`verify` 是交卷口，收尾判的就是它交上来的那一份。
-   * 所以额度里**留一格给交卷** —— 见 `#advance` 里那道闸。
+   * **只报事实，不报口径。** 每一站用了几个、还剩几个、还剩多少秒 —— 这些是内核
+   * 手上的账。至于「该在哪一站交卷、交卷用哪个工具」，那是**声明层**说的事：
+   * 流转表上摆着有哪几站，skill / 任务描述里写着规矩。内核往上下文里塞策略文案
+   * 就是越位 —— 换一套模式那段话就成了谎话，而且没人改得着它。
    */
   #budgetOf(p: Pending, task: Row): Row {
     const caps = all(this.#store.ro, `select cycle, max_units from cycle where mode = ?`, [p.mode]) as {
@@ -582,14 +584,7 @@ export class Kernel {
         left: Math.max(0, Number(c.max_units) - (used.get(c.cycle) ?? 0)),
       })),
       secondsLeft: left,
-      ...(hasG
-        ? {
-            submitted: handed,
-            note: handed
-              ? "已经交过卷了（verify）。还想改就再调一次 verify，收尾判的是最后交的那一份。"
-              : "**这道题有验收标准。收尾判的是你用 verify 交上来的那一份** —— 额度里给交卷留了一格，但别拖到最后一格才想起来。",
-          }
-        : {}),
+      ...(hasG ? { submitted: handed } : {}),
     };
   }
 
@@ -599,7 +594,7 @@ export class Kernel {
     let cur: Unit = p;
     for (;;) {
       const key = `${cur.cycle}#${cur.unit}`;
-      if (seen.has(key)) throw new Error(`${p.sub} 里 ${p.task} 的链路成环了，在 ${key}`);
+      if (seen.has(key)) throw new Error(`chain for ${p.task} in ${p.sub} is cyclic, at ${key}`);
       seen.add(key);
       line.unshift(cur.unit);
       if (cur.from_cycle === null || cur.from_unit === null) break;
@@ -609,7 +604,7 @@ export class Kernel {
         [p.task, cur.from_cycle, cur.from_unit],
       ) as unknown as Unit | null;
       if (!up) {
-        throw new Error(`${p.sub} 里 ${p.task} 的 ${cur.cycle}#${cur.unit} 说它从 ${cur.from_cycle}#${cur.from_unit} 来，但那一行不在`);
+        throw new Error(`${p.sub} ${p.task} ${cur.cycle}#${cur.unit} says it came from ${cur.from_cycle}#${cur.from_unit}, but that row is missing`);
       }
       cur = up;
     }
@@ -646,9 +641,9 @@ export class Kernel {
     const agent = one(this.#store.ro, `select * from agent where name = ?`, [p.agent]);
     const task = one(this.#store.ro, `select * from task where id = ?`, [p.task]);
     const cycle = one(this.#store.ro, `select * from cycle where mode = ? and cycle = ?`, [p.mode, p.cycle]);
-    if (!agent) throw new Error(`agent 表里没有 ${p.agent}`);
-    if (!task) throw new Error(`task 表里没有 ${p.task}`);
-    if (!cycle) throw new Error(`cycle 表里没有 ${p.mode}/${p.cycle}`);
+    if (!agent) throw new Error(`no row in agent for ${p.agent}`);
+    if (!task) throw new Error(`no row in task for ${p.task}`);
+    if (!cycle) throw new Error(`no row in cycle for ${p.mode}/${p.cycle}`);
     return { agent, task, cycle, place: p.place, chain: chainOf(this.#store.ro, p.sub, p.mode, p) };
   }
 
@@ -708,32 +703,18 @@ export class Kernel {
       // 这条以前撞不上，是因为模型每一站都先请求工具，`ask` 那站从不算「到终点」，
       // 也就从来没judge过、没判死过。换个直接给答案的模型就炸。
       //
-      // 不查白名单不等于不查：下面那句 `cycle 表里没有 ${p.mode}/${to}` 仍然拦着
+      // 不查白名单不等于不查：下面那句 `no row in cycle for ${p.mode}/${to}` 仍然拦着
       // 推断函数瞎编一个周期名出来。
       if (!saidFrom && !next.includes(to)) {
-        throw new Error(`${cyc.infer} 推出来的 ${to} 不在候选里（候选是 ${next.join("、")}）`);
+        throw new Error(`${cyc.infer} returned ${to}, which is not among the candidates (${next.join(", ")})`);
       }
       const cap = one(this.#store.ro, `select max_units from cycle where mode = ? and cycle = ?`, [p.mode, to]);
-      if (!cap) throw new Error(`cycle 表里没有 ${p.mode}/${to}`);
+      if (!cap) throw new Error(`no row in cycle for ${p.mode}/${to}`);
       const used = Number(
         one(this.#store.ro, `select count(*) as c from "${p.sub}" where task = ? and cycle = ?`, [p.task, to])!.c,
       );
-      // **给交卷留一格。** 有 G 的任务，收尾判的是它用 `verify` 交上来的那一份
-      // （见 `main.ts` 的 `lastSaid`）。额度按普通推进用满就停的话，最后那一步
-      // 「把答案交上来」根本没地方做 —— 实测就这么丢过整整一道题。
-      //
-      // 所以用满之后还允许**再开一格**，条件是这道题有 G 而且还没交过卷。
-      // 交过了就不再放 —— 那一格是为交卷留的，不是白送一次重试。
-      const row = one(this.#store.ro, `select objective from task where id = ?`, [p.task]);
-      const owed =
-        row != null &&
-        row.objective !== null &&
-        lastSubmission(this.#store.ro, p.agent, p.instance) === undefined;
-      const room = Number(cap.max_units) + (owed ? 1 : 0);
-      if (used >= room) {
-        this.#log.warn(
-          `${p.task} 的 ${p.mode}/${to} 已经用满 ${cap.max_units} 个执行单位${owed ? "（外加交卷那一格）" : ""}，不再开`,
-        );
+      if (used >= Number(cap.max_units)) {
+        this.#log.warn(`${p.task}: ${p.mode}/${to} has used all ${cap.max_units} units, not opening more`);
       } else {
         // **编号在一个任务里单调递增，不按周期重新数。** 智能体那边的
         // ctx 表主键是 (instance, unit)，不带周期 —— 每个周期重数的话，

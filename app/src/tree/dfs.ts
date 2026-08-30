@@ -118,7 +118,7 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
     const here = String(a.cycle.cycle);
     const nodes = nodesOf(db, a.sub, task);
     const me = nodes.find((n) => n.cycle === here && n.unit === a.unit);
-    if (!me) throw new Error(`${a.sub} 里找不到 ${task} 的 ${here}#${a.unit}`);
+    if (!me) throw new Error(`cannot find ${here}#${a.unit} of ${task} in ${a.sub}`);
 
     // ── 这一步到底算成了没有 ──────────────────────────────────────────────
     //

@@ -224,7 +224,7 @@ const POLICIES = ["always", "agent"];
 function list(v: unknown, what: string, bad: string[]): string[] {
   if (v === undefined) return [];
   if (!Array.isArray(v) || v.some((x) => typeof x !== "string")) {
-    bad.push(`${what} 得是一串周期名`);
+    bad.push(`${what} must be a list of cycle names`);
     return [];
   }
   return v as string[];
@@ -247,7 +247,7 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
   for (const s of d.servers ?? []) {
     for (const w of inspectServer(s)) say(w);
     if (s.name) {
-      if (servers.has(s.name)) say(`server ${s.name}：这一份里出现了两次`);
+      if (servers.has(s.name)) say(`server ${s.name}: appears twice in this declaration`);
       servers.add(s.name);
     }
   }
@@ -262,21 +262,21 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
   // 进程里没人认领的句柄，而错要等到某个任务真走到那一步才炸。
   const handles = new Set<string>();
   for (const h of d.handles ?? []) {
-    const at = `handle ${h.name || "(没名字)"}`;
+    const at = `handle ${h.name || "(unnamed)"}`;
     if (!h.name || !h.name.trim()) {
-      say(`有一个 handle 没名字`);
+      say(`a handle has no name`);
       continue;
     }
-    if (handles.has(h.name)) say(`${at}：这一份里出现了两次`);
+    if (handles.has(h.name)) say(`${at}: appears twice in this declaration`);
     handles.add(h.name);
     if (!registrable(h.name, h.module)) {
       say(
-        `${at}：认得的是 http:// / https://（另一个进程），` +
-          `和 fn: 加上 module（进程内，实现在磁盘上，写成 路径#导出名）。` +
-          `光给一个 fn: 名字换不出函数来 —— 传不过来的是函数对象，不是函数在哪儿`,
+        `${at}: recognised forms are http:// or https:// (another process), ` +
+          `and fn: plus module (in-process, implementation on disk, written as path#exportName). ` +
+          `a bare fn: name cannot be turned into a function - what cannot cross the wire is the function object, not where it lives`,
       );
     }
-    if (!Number.isFinite(h.expectMs) || h.expectMs <= 0) say(`${at}：expectMs 得是个正数`);
+    if (!Number.isFinite(h.expectMs) || h.expectMs <= 0) say(`${at}: expectMs must be a positive number`);
   }
 
   /**
@@ -290,21 +290,21 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
 
   /** 句柄不在时那句话。得说清「在 handles 里一起声明」，不然人不知道下一步做什么。 */
   const noHandle = (name: string) =>
-    `没有 ${name} 这个句柄 —— 进程内的 fn: 由代码注册；外面的 http:// 在同一份声明的 handles 里一起给`;
+    `there is no handle named ${name} - in-process fn: handles are registered by code, and http:// ones are given in the handles of this same declaration`;
 
   // ── 在哪儿干 ──────────────────────────────────────────────────────────
   const places = new Set<string>();
   for (const p of d.places ?? []) {
-    const at = `place ${p.place || "(没名字)"}`;
+    const at = `place ${p.place || "(unnamed)"}`;
     if (!p.place || !p.place.trim()) {
-      say(`有一个 place 没名字`);
+      say(`a place has no name`);
       continue;
     }
-    if (places.has(p.place)) say(`${at}：这一份里出现了两次`);
+    if (places.has(p.place)) say(`${at}: appears twice in this declaration`);
     places.add(p.place);
     for (const t of p.tools ?? []) {
       if (!POLICIES.includes(t.policy)) {
-        say(`${at}：工具 ${t.tool} 的 policy 不认得（只能是 ${POLICIES.join(" / ")}）`);
+        say(`${at}: unrecognised policy for tool ${t.tool} (must be one of ${POLICIES.join(" / ")})`);
       }
     }
     if (p.forward) {
@@ -315,74 +315,74 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
       try {
         hops(p.place);
       } catch (e) {
-        say(`${at}：${e instanceof Error ? e.message : String(e)}`);
+        say(`${at}: ${e instanceof Error ? e.message : String(e)}`);
       }
       // 转发是要把运行时送过去的。没登记送什么，`openPlace` 会在第一次调用时炸。
-      if (p.place !== "local" && !p.runtime) say(`${at}：说要转发，但没给 runtime —— 没东西可送过去`);
+      if (p.place !== "local" && !p.runtime) say(`${at}: it forwards, but no runtime was given - there is nothing to ship over`);
       // 开了总闸而白名单是空的 = 一个工具都不会转发。**合法，但一定不是本意。**
-      if ((p.tools ?? []).length === 0) say(`${at}：转发开着，可白名单是空的 —— 一个工具都不会转过去`);
+      if ((p.tools ?? []).length === 0) say(`${at}: forwarding is on but the allow-list is empty - not a single tool would be forwarded`);
     }
   }
 
   // ── 模式：验的是图，不是行 ────────────────────────────────────────────
   const modes = new Set<string>();
   for (const m of d.modes ?? []) {
-    const at = `mode ${m.mode || "(没名字)"}`;
+    const at = `mode ${m.mode || "(unnamed)"}`;
     if (!m.mode || !m.mode.trim()) {
-      say(`有一个 mode 没名字`);
+      say(`a mode has no name`);
       continue;
     }
-    if (modes.has(m.mode)) say(`${at}：这一份里出现了两次`);
+    if (modes.has(m.mode)) say(`${at}: appears twice in this declaration`);
     modes.add(m.mode);
     // 模式名要能长成一张表（`task_<mode>`）。长不出来的话装表那一步才炸。
     try {
       tableNameOf("task_{}", m.mode);
     } catch (e) {
-      say(`${at}：${e instanceof Error ? e.message : String(e)}`);
+      say(`${at}: ${e instanceof Error ? e.message : String(e)}`);
     }
     if (!Array.isArray(m.cycles) || m.cycles.length === 0) {
-      say(`${at}：一个周期都没有`);
+      say(`${at}: it has no cycles`);
       continue;
     }
 
     const names = new Set<string>();
     for (const c of m.cycles) {
       if (!c.cycle || !c.cycle.trim()) {
-        say(`${at}：有一个周期没名字`);
+        say(`${at}: one of its cycles has no name`);
         continue;
       }
-      if (names.has(c.cycle)) say(`${at}/${c.cycle}：这个周期名出现了两次`);
+      if (names.has(c.cycle)) say(`${at}/${c.cycle}: this cycle name appears twice`);
       names.add(c.cycle);
     }
 
     for (const c of m.cycles) {
       const cat = `${at}/${c.cycle}`;
-      const next = list(c.next, `${cat} 的 next`, bad);
-      const from = list(c.from, `${cat} 的 from`, bad);
+      const next = list(c.next, `the next of ${cat}`, bad);
+      const from = list(c.from, `the from of ${cat}`, bad);
       // 指到这个模式外面去的周期永远走不到，而内核不会说什么 —— 它只是停在那儿。
-      for (const n of next) if (!names.has(n)) say(`${cat}：next 指的 ${n} 不在这个模式里`);
-      for (const f of from) if (!names.has(f)) say(`${cat}：from 指的 ${f} 不在这个模式里`);
+      for (const n of next) if (!names.has(n)) say(`${cat}: next names ${n}, which is not in this mode`);
+      for (const f of from) if (!names.has(f)) say(`${cat}: from names ${f}, which is not in this mode`);
 
       if (c.maxUnits !== undefined && (!Number.isInteger(c.maxUnits) || c.maxUnits < 1)) {
-        say(`${cat}：max_units 得是个正整数`);
+        say(`${cat}: max_units must be a positive integer`);
       }
       // 推断函数没注册 → 走到这一站才炸，而那时候任务已经跑了一半。
-      if (!c.infer || !c.infer.trim()) say(`${cat}：没给 infer`);
-      else if (!handleThere(c.infer)) say(`${cat}：infer 是 ${c.infer}，但${noHandle(c.infer)}`);
+      if (!c.infer || !c.infer.trim()) say(`${cat}: infer is missing`);
+      else if (!handleThere(c.infer)) say(`${cat}: infer is ${c.infer}, but ${noHandle(c.infer)}`);
 
       const want = (c.apiMode ?? "").trim();
       if (want) {
         if (!MODE_NAMES.has(want)) {
-          say(`${cat}：apiMode=${want} 不是认得的调用形状（认得的是 ${[...MODE_NAMES].join("、")}）`);
+          say(`${cat}: apiMode=${want} is not a known api mode (known: ${[...MODE_NAMES].join(", ")})`);
         } else if (!servedBy(db, want)) {
-          say(`${cat}：要一条 ${want} 的轨，但 api 表里没有一行支持 —— 这个周期的每一行都走不了`);
+          say(`${cat}: it needs a ${want} lane, but no row in the api table serves one - every unit of this cycle is stuck`);
         }
       }
     }
 
     // 起点：`from` 为空的那些。一个都没有 = 这个模式根本进不去。
     const entries = m.cycles.filter((c) => list(c.from, "", []).length === 0).map((c) => c.cycle);
-    if (entries.length === 0) say(`${at}：一个起点都没有（每个周期的 from 都非空），这个模式进不去`);
+    if (entries.length === 0) say(`${at}: no entry point (every cycle has a non-empty from), so this mode cannot be entered`);
 
     // 谁都指不到的周期。**它永远不会被走到，而且不报错** —— 声明里躺着一段死代码，
     // 而写的人多半以为它在跑。
@@ -399,40 +399,40 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
       }
     }
     for (const c of m.cycles) {
-      if (c.cycle && !seen.has(c.cycle)) say(`${at}/${c.cycle}：从起点走不到它 —— 这个周期永远不会被用上`);
+      if (c.cycle && !seen.has(c.cycle)) say(`${at}/${c.cycle}: unreachable from any entry point - this cycle would never be used`);
     }
   }
 
   // ── 智能体 ────────────────────────────────────────────────────────────
   const agents = new Set<string>();
   for (const a of d.agents ?? []) {
-    const at = `agent ${a.name || "(没名字)"}`;
+    const at = `agent ${a.name || "(unnamed)"}`;
     if (!a.name || !a.name.trim()) {
-      say(`有一个 agent 没名字`);
+      say(`an agent has no name`);
       continue;
     }
-    if (agents.has(a.name)) say(`${at}：这一份里出现了两次`);
+    if (agents.has(a.name)) say(`${at}: appears twice in this declaration`);
     agents.add(a.name);
     try {
       tableNameOf("agent_{}_ctx", a.name);
     } catch (e) {
-      say(`${at}：${e instanceof Error ? e.message : String(e)}`);
+      say(`${at}: ${e instanceof Error ? e.message : String(e)}`);
     }
-    if (!a.unit || !a.unit.trim()) say(`${at}：没给 unit`);
-    else if (!handleThere(a.unit)) say(`${at}：unit 是 ${a.unit}，但${noHandle(a.unit)}`);
+    if (!a.unit || !a.unit.trim()) say(`${at}: unit is missing`);
+    else if (!handleThere(a.unit)) say(`${at}: unit is ${a.unit}, but ${noHandle(a.unit)}`);
 
     if (!Array.isArray(a.apis)) {
-      say(`${at}：apis 得是一串 [key_env, model]`);
+      say(`${at}: apis must be a list of [key_env, model]`);
       continue;
     }
     for (const pair of a.apis) {
       if (!Array.isArray(pair) || pair.length !== 2) {
-        say(`${at}：apis 里有一项不是 [key_env, model]`);
+        say(`${at}: one entry of apis is not a [key_env, model] pair`);
         continue;
       }
       const [keyEnv, model] = pair;
       if (all(db, `select 1 from api where key_env = ? and model = ?`, [keyEnv, model]).length === 0) {
-        say(`${at}：挂的 ${keyEnv}/${model} 在 api 表里没登记 —— 这条轨挑不中`);
+        say(`${at}: ${keyEnv}/${model} is not registered in the api table - this lane can never be selected`);
       }
     }
   }
@@ -450,37 +450,37 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
   const checkWhen = (at: string, when: WhenDecl | undefined) => {
     for (const [i, group] of (when ?? []).entries()) {
       if (!Array.isArray(group) || group.length === 0) {
-        say(`${at}：第 ${i} 组是空的 —— 空组永远不会全中，写它等于没写`);
+        say(`${at}: group ${i} is empty - an empty group never matches in full, so writing it changes nothing`);
         continue;
       }
       for (const t of group) {
-        const where = `${at} 第 ${i} 组`;
+        const where = `${at} group ${i}`;
         if (!(DIMS as readonly string[]).includes(t.dim)) {
-          say(`${where}：不认得的维度 ${t.dim}（认得的是 ${DIMS.join(" / ")}）`);
+          say(`${where}: unknown dimension ${t.dim} (known: ${DIMS.join(" / ")})`);
           continue;
         }
         if (!(OPS as readonly string[]).includes(t.op)) {
-          say(`${where}：不认得的比法 ${t.op}（认得的是 ${OPS.join(" / ")}）`);
+          say(`${where}: unknown operator ${t.op} (known: ${OPS.join(" / ")})`);
           continue;
         }
         if (t.dim === "chain" || t.dim === "moment" || t.dim === "place") {
-          if ((t.key ?? "").trim() !== "") say(`${where}：${t.dim} 维度不看属性，key 该留空`);
+          if ((t.key ?? "").trim() !== "") say(`${where}: dimension ${t.dim} has no attributes, so key must be empty`);
           if (t.dim === "moment" && !(MOMENTS as readonly string[]).includes(t.value)) {
-            say(`${where}：不认得的时刻 ${t.value}（内核会喊到的是 ${MOMENTS.join(" / ")}）`);
+            say(`${where}: unknown moment ${t.value} (the kernel raises: ${MOMENTS.join(" / ")})`);
           }
         } else if (!(dimKeys[t.dim] ?? []).includes(t.key ?? "")) {
-          say(`${where}：${t.dim} 上没有 ${t.key ?? "(空)"} 这一项（有的是 ${(dimKeys[t.dim] ?? []).join(" / ")}）`);
+          say(`${where}: dimension ${t.dim} has no attribute ${t.key ?? "(empty)"} (it has: ${(dimKeys[t.dim] ?? []).join(" / ")})`);
         }
         if (t.op === "in") {
           try {
-            if (!Array.isArray(JSON.parse(t.value))) say(`${where}：in 的值得是一份列表，现在是 ${t.value}`);
+            if (!Array.isArray(JSON.parse(t.value))) say(`${where}: the value for in must be a list, but it is ${t.value}`);
           } catch {
-            say(`${where}：in 的值不是能读的 JSON：${t.value}`);
+            say(`${where}: the value for in is not readable JSON: ${t.value}`);
           }
         }
         // 关键词带空格 = 把几个词写一起了。系统不替你猜要的是相邻还是有序。
         if (t.op !== "in" && /\s/.test(t.value) && t.dim !== "task") {
-          say(`${where}：值里带空格（${JSON.stringify(t.value)}）—— 拆成同一组的两条，别让系统猜`);
+          say(`${where}: the value contains a space (${JSON.stringify(t.value)}) - split it into two terms in the same group rather than letting the system guess`);
         }
       }
     }
@@ -489,62 +489,62 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
   // ── 工具 ──────────────────────────────────────────────────────────────
   const tools = new Set<string>();
   for (const t of d.tools ?? []) {
-    const at = `tool ${t.name || "(没名字)"}`;
+    const at = `tool ${t.name || "(unnamed)"}`;
     if (!t.name || !t.name.trim()) {
-      say(`有一个 tool 没名字`);
+      say(`a tool has no name`);
       continue;
     }
-    if (tools.has(t.name)) say(`${at}：这一份里出现了两次`);
+    if (tools.has(t.name)) say(`${at}: appears twice in this declaration`);
     tools.add(t.name);
     if (!t.identity || !handleThere(t.identity)) {
-      say(`${at}：identity 是 ${t.identity ?? "(空)"}，但${noHandle(String(t.identity))}`);
+      say(`${at}: identity is ${t.identity ?? "(empty)"}, but ${noHandle(String(t.identity))}`);
     }
-    if (!t.does) say(`${at}：没有 does —— 那是给模型看的描述，空着模型不知道它是干什么的`);
-    if (t.params === undefined || t.params === null) say(`${at}：没有 params —— 那是给模型看的参数 schema`);
-    if (t.output === undefined || t.output === null) say(`${at}：没有 output —— 那是给模型看的返回值 schema`);
+    if (!t.does) say(`${at}: does is missing - that is the description the model reads; empty means the model has no idea what it is for`);
+    if (t.params === undefined || t.params === null) say(`${at}: params is missing - that is the argument schema the model reads`);
+    if (t.output === undefined || t.output === null) say(`${at}: output is missing - that is the result schema the model reads`);
     checkWhen(at, t.when);
     // 不是系统工具、又一条条件都没有 = 谁都拿不到它。**合法，但一定不是本意。**
     if (!t.system && (t.when ?? []).length === 0) {
-      say(`${at}：不是系统工具，又一条触发条件都没有 —— 它永远不会被挂给任何一个智能体`);
+      say(`${at}: not a system tool and it has no trigger terms - it would never be attached to any agent`);
     }
   }
 
   // ── 规则 ──────────────────────────────────────────────────────────────
   const rules = new Set<string>();
   for (const r of d.rules ?? []) {
-    const at = `rule ${r.identity || "(没名字)"}`;
+    const at = `rule ${r.identity || "(unnamed)"}`;
     if (!r.identity || !r.identity.trim()) {
-      say(`有一个 rule 没有 identity`);
+      say(`a rule has no identity`);
       continue;
     }
-    if (rules.has(r.identity)) say(`${at}：这一份里出现了两次`);
+    if (rules.has(r.identity)) say(`${at}: appears twice in this declaration`);
     rules.add(r.identity);
     if (!handleThere(r.identity)) {
-      say(`${at}：规则的 identity 就是句柄名，而${noHandle(r.identity)}`);
+      say(`${at}: a rule identity is the handle name, and ${noHandle(r.identity)}`);
     }
-    if (r.writes === undefined || r.writes === null) say(`${at}：没有 writes —— 它会动哪几张表怎么动，得声明出来`);
-    if (r.scope === undefined || r.scope === null) say(`${at}：没有 scope —— 它能动哪些行，得声明出来`);
+    if (r.writes === undefined || r.writes === null) say(`${at}: writes is missing - which tables it touches and how must be declared`);
+    if (r.scope === undefined || r.scope === null) say(`${at}: scope is missing - which rows it may touch must be declared`);
     checkWhen(at, r.when);
-    if ((r.when ?? []).length === 0) say(`${at}：一条触发条件都没有 —— 它永远不会被跑到`);
+    if ((r.when ?? []).length === 0) say(`${at}: no trigger terms at all - it would never run`);
   }
 
   // ── skill ─────────────────────────────────────────────────────────────
   const skills = new Set<string>();
   for (const s of d.skills ?? []) {
-    const at = `skill ${s.identity || "(没名字)"}`;
+    const at = `skill ${s.identity || "(unnamed)"}`;
     if (!s.identity || !s.identity.trim()) {
-      say(`有一个 skill 没有 identity`);
+      say(`a skill has no identity`);
       continue;
     }
-    if (skills.has(s.identity)) say(`${at}：这一份里出现了两次`);
+    if (skills.has(s.identity)) say(`${at}: appears twice in this declaration`);
     skills.add(s.identity);
     // `body` 留空 = 动态生成，那就得真有个句柄现给；写死了的就不用。
     if (!s.body && !handleThere(s.identity)) {
-      say(`${at}：body 留空（动态生成），但${noHandle(s.identity)} —— 没人能把内容现给出来`);
+      say(`${at}: body is empty (dynamically generated), but ${noHandle(s.identity)} - nobody can produce the content on demand`);
     }
-    if (!s.role) say(`${at}：没有 role`);
+    if (!s.role) say(`${at}: role is missing`);
     checkWhen(at, s.when);
-    if ((s.when ?? []).length === 0) say(`${at}：一条触发条件都没有 —— 它永远不会被塞进去`);
+    if ((s.when ?? []).length === 0) say(`${at}: no trigger terms at all - it would never be injected`);
   }
 
   return bad;
@@ -562,7 +562,7 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
 export async function apply(db: Conn, reg: Registry, pool: Servers, d: Declare): Promise<Declared> {
   const bad = inspect(db, reg, d);
   if (bad.length) {
-    const e = new Error(`这份声明有 ${bad.length} 处不对，什么都没写`) as Error & {
+    const e = new Error(`this declaration has ${bad.length} problems; nothing was written`) as Error & {
       statusCode?: number;
       problems?: string[];
     };

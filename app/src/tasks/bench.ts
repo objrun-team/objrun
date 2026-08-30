@@ -53,11 +53,11 @@ export interface Score {
  */
 export function runBench(db: Conn, b: Bench, sealed: Sealed): { run: string; ids: string[] } {
   // 同 `publish`：先问「这是不是一份东西」。空请求打进来不该崩在字段上。
-  if (b === null || typeof b !== "object") throw new Error("请求体得是一行 JSON 对象");
-  if (!Array.isArray(b.tasks) || b.tasks.length === 0) throw new Error("这一批一道题都没有");
+  if (b === null || typeof b !== "object") throw new Error("the request body must be a JSON object");
+  if (!Array.isArray(b.tasks) || b.tasks.length === 0) throw new Error("this batch contains no tasks");
   const run = (b.run ?? "").trim() || new Date().toISOString().replace(/[:.]/g, "-");
   if (all(db, `select 1 from task where run = ? limit 1`, [run]).length > 0) {
-    throw new Error(`已经有一跑叫 ${run} 了 —— 换个名字，别把两次的成绩混在一起`);
+    throw new Error(`a run named ${run} already exists - pick another name rather than mixing two scorecards`);
   }
 
   const ids: string[] = [];
@@ -73,7 +73,7 @@ export function runBench(db: Conn, b: Bench, sealed: Sealed): { run: string; ids
     // G 是在 publish 里封存的，回滚不管它 —— 手动把这一批已经封进去的抹掉，
     // 否则下次同名重发会撞上一堆孤儿 G。
     for (const id of ids) sealed.forget(id);
-    throw new Error(`这一批没发成（一道不过就整批不发）：${e instanceof Error ? e.message : String(e)}`);
+    throw new Error(`the batch was not sent (one bad task rejects the whole batch): ${e instanceof Error ? e.message : String(e)}`);
   }
   return { run, ids };
 }

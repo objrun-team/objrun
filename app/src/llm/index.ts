@@ -60,10 +60,10 @@ export const VENDORS: Record<string, { baseURL: string; keyEnv: string; ws?: str
  * 那条轨永远挑不中，系统照常跑，零报错。
  */
 export const MODES: [string, string][] = [
-  ["chat", "一问一答。一次调用 = 一个执行单元"],
-  ["tools", "这条轨挂得了工具"],
-  ["vision", "看得了图"],
-  ["duplex", "实时双向。不是一次调用，是一条会话；一个执行单元 = 会话里的一个来回"],
+  ["chat", "One question, one answer. One call = one execution unit"],
+  ["tools", "This lane can carry tools"],
+  ["vision", "This lane can see images"],
+  ["duplex", "Realtime, both directions. Not a call but a session; one execution unit = one turn in it"],
 ];
 
 /** 光是名字，比对用。 */
@@ -123,6 +123,15 @@ export interface Unit {
     task: Row;
     here: { cycle: string; unit: number; chain: string };
     tried: { at: string; from: string | null; status: string | null; done: boolean }[];
+    /**
+     * 还剩多少额度。**只有事实** —— 该在哪一站交卷、用哪个工具交，是声明层说的事
+     * （流转表上摆着有哪几站，规矩写在 skill / 任务描述里）。
+     */
+    budget?: {
+      units?: { cycle: string; used: number; cap: number; left: number }[];
+      secondsLeft?: number;
+      submitted?: boolean;
+    };
   };
   tools: Row[];
   rules: string[];
@@ -130,7 +139,7 @@ export interface Unit {
 
 function key(keyEnv: string): string {
   const v = process.env[keyEnv];
-  if (!v) throw new Error(`环境变量 ${keyEnv} 里没有钥匙 —— 见 .env`);
+  if (!v) throw new Error(`no key in environment variable ${keyEnv} - see .env`);
   return v;
 }
 
@@ -263,28 +272,42 @@ export function viewOf(u: Unit): string {
   if (!v) return "";
   const t = v.task;
   const lines = [
-    "## 这道题",
+    "## The task",
     `${String(t.description ?? "")}`,
     "",
-    `任务 ${String(t.id)}｜领域 ${String(t.domain) || "（没分类）"}｜在 ${String(t.place)}${
+    `id ${String(t.id)} | domain ${String(t.domain) || "(none)"} | at ${String(t.place)}${
       t.workdir ? `:${String(t.workdir)}` : ""
-    }${t.objective ? "｜**这道题有验证函数 G，做完由它判**" : ""}`,
+    }${t.objective ? " | this task is graded by a verification function" : ""}`,
   ];
+
+  // 额度只报事实。**该在哪一站交卷、用哪个工具交，是声明层说的事** ——
+  // 流转表上摆着有哪几站，规矩写在 skill / 任务描述里。内核不在这儿塞口径。
+  const b = v.budget;
+  if (b) {
+    const units = (b.units ?? []).map((x) => `${x.cycle} ${x.used}/${x.cap}`).join(", ");
+    lines.push(
+      "",
+      "## Budget",
+      `units used: ${units || "(none)"}` +
+        (b.secondsLeft === undefined ? "" : ` | ${b.secondsLeft}s left`) +
+        (b.submitted === undefined ? "" : ` | submitted: ${b.submitted ? "yes" : "not yet"}`),
+    );
+  }
 
   // 只有一个节点 = 还没分叉，那就是单链，树这一段没有意义。
   if (v.tried.length > 1) {
     lines.push(
       "",
-      "## 这棵树",
-      `你在 ${v.here.chain}。**已经试过的路：**`,
+      "## This tree",
+      `You are at ${v.here.chain}. Paths already tried:`,
       ...v.tried.map(
         (n) =>
-          `- ${n.at}${n.from ? `（从 ${n.from} 接下来）` : "（根）"}` +
-          (n.status ? ` —— **${n.status}**` : n.done ? " —— 走完了" : " —— 还在跑"),
+          `- ${n.at}${n.from ? ` (continues ${n.from})` : " (root)"}` +
+          (n.status ? ` - **${n.status}**` : n.done ? " - finished" : " - still running"),
       ),
       "",
-      "判死的那几条是**别人试过、被判不成**的方向。**别再走一遍。** " +
-        "它们说了什么默认不给你看 —— 那是另一条分支的事；要看得自己去取。",
+      "The ones marked dead were tried by someone else and did not pass. Do not walk them again. " +
+        "What they said is not shown by default - that is another branch; fetch it yourself if you want it.",
     );
   }
   return lines.join("\n");
@@ -325,7 +348,7 @@ export function registerVendors(
     reg.register(db, `fn:api.${vendor}`, HARD_WALL_MS, async (arg) => {
       const u = arg as unknown as Unit;
       // 内核按周期表的 `api_mode` 已经挑好了这一站走哪条轨，这儿直接用。
-      if (!u.api) throw new Error(`fn:api.${vendor} 被调了，但内核没说这一站用哪个模型`);
+      if (!u.api) throw new Error(`fn:api.${vendor} was called, but the kernel did not say which model this station uses`);
       const { model, key_env: keyEnv } = u.api;
       const provider = createOpenAICompatible({ name: vendor, baseURL: v.baseURL, apiKey: key(keyEnv) });
 
@@ -423,7 +446,7 @@ export function registerVendors(
   }
 
   for (const [vendor, model, modes] of seed) {
-    if (!VENDORS[vendor]) throw new Error(`不认得这家：${vendor}`);
+    if (!VENDORS[vendor]) throw new Error(`unknown vendor: ${vendor}`);
     db.run(
       `insert into api (key_env, model, handle, modes) values (?, ?, ?, ?)
        on conflict(key_env, model) do update set handle = excluded.handle, modes = excluded.modes`,

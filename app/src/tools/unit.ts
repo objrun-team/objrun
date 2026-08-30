@@ -69,8 +69,8 @@ async function runOne(db: Conn, reg: Registry, c: Call, at: At): Promise<unknown
   const row = all(db, `select identity, usable from tool where name = ?`, [c.name])[0] as
     | { identity: string; usable: number }
     | undefined;
-  if (!row) return { error: `tool 表里没有 ${c.name} —— 模型请求了一个没登记的工具` };
-  if (!Number(row.usable)) return { error: `${c.name} 登记着但 usable = 0，这一次没跑` };
+  if (!row) return { error: `no tool named ${c.name} is registered` };
+  if (!Number(row.usable)) return { error: `${c.name} is registered but usable = 0, so it was not run` };
 
   try {
     // 工具句柄自己按 `workplace` 决定这一次在哪儿跑 —— 这一层不管转发。
@@ -117,10 +117,10 @@ export function registerToolUnit(db: Conn, reg: Registry): string {
       u.cycle.cycle,
       u.unit,
     ])[0] as { from_unit: number | null } | undefined;
-    if (!me || me.from_unit === null) return bookkeeping([], "这一站没有上一站，没什么可跑的");
+    if (!me || me.from_unit === null) return bookkeeping([], "this station has no previous station, nothing to run");
 
     const calls = callsOf(db, agent, u.instance, Number(me.from_unit));
-    if (calls.length === 0) return bookkeeping([], "上一站没请求任何工具");
+    if (calls.length === 0) return bookkeeping([], "the previous station requested no tools");
 
     const at: At = { place: u.place, agent, instance: u.instance, unit: u.unit };
     const ran: string[] = [];

@@ -74,7 +74,7 @@ const GATE: Record<string, { why: string; when: Term[][] }> = {
    * | 「只投方法不投答案」 = 给模型开口那一站用 | `task.mode = solve`（有 ask/act 两站的那种机制） |
    */
   "cmt-pre-symmetry-projection": {
-    why: "解题机制的提问站上，面对涉及对称性的物理题时投。关键词取自它自己的名字和正文标记",
+    why: "Injected at the asking station of the solving mechanism, on physics problems involving symmetry. The keywords come from its own name and the marker in its body",
     when: [
       [
         // 面对什么问题
@@ -122,11 +122,11 @@ for (const file of [...new Bun.Glob("*.md").scanSync(HERE)].sort()) {
   const id = name ?? file.replace(/\.md$/, "");
   const gate = GATE[id];
   if (!gate) {
-    console.log(`跳过 ${id} —— GATE 里没给门，不知道什么时候该塞`);
+    console.log(`skipping ${id} - GATE gives it no terms, so there is no telling when to inject it`);
     continue;
   }
   if (!does || !body.trim()) {
-    console.log(`跳过 ${id} —— 缺 description 或正文`);
+    console.log(`skipping ${id} - missing description or body`);
     continue;
   }
   console.log(`${id}：${gate.why}`);
@@ -134,12 +134,12 @@ for (const file of [...new Bun.Glob("*.md").scanSync(HERE)].sort()) {
 }
 
 if (skills.length === 0) {
-  console.error("一个都没有");
+  console.error("none at all");
   process.exit(1);
 }
 
 if (DRY) {
-  console.log("\n--dry，不发：");
+  console.log("\n--dry, not sending:");
   console.log(JSON.stringify({ skills }, null, 2).slice(0, 1200));
   process.exit(0);
 }
@@ -151,8 +151,8 @@ const res = await fetch(`${BASE}/declare`, {
 });
 const got = (await res.json()) as { skills?: string[]; error?: string; problems?: string[] };
 if (!res.ok) {
-  console.error(`整份都没写：${got.error}`);
+  console.error(`nothing was written at all: ${got.error}`);
   for (const p of got.problems ?? []) console.error(`  - ${p}`);
   process.exit(1);
 }
-console.log(`\n进去了：${got.skills?.join("、")}`);
+console.log(`\nwent in: ${got.skills?.join(", ")}`);

@@ -46,15 +46,15 @@ import type { Sealed } from "./store.ts";
 const VERIFY_TOOL = {
   name: "verify",
   does:
-    "把一份候选答复交给 G 复核，回「过没过」和「没过是因为什么」。" +
-    "**它不会告诉你正确答案** —— 只告诉你这一份达没达标。" +
-    "自己觉得做完了、交上去之前想先确认一下，就用它。",
+    "Submit a candidate answer to be graded. Returns whether it passes and, if not, why. " +
+    "It never reveals the correct answer - only whether what you handed in meets the bar. " +
+    "This is how you hand work in: the final grade is taken from the last answer you submit here.",
   params: {
     type: "object",
     properties: {
       answer: {
         type: "string",
-        description: "要复核的那份答复，原样给（该带 \boxed{} 就带上）——判据看的是最终那段文本，不是你的推导",
+        description: "The answer to submit, verbatim (keep the \boxed{} if the task asks for one). The grader reads this final text, not your derivation.",
       },
     },
     required: ["answer"],
@@ -62,8 +62,8 @@ const VERIFY_TOOL = {
   output: {
     type: "object",
     properties: {
-      pass: { type: "integer", description: "1 = 过了，0 = 没过" },
-      why: { type: "string", description: "没过是因为什么。过了是空的" },
+      pass: { type: "integer", description: "1 = passed, 0 = did not pass" },
+      why: { type: "string", description: "Why it did not pass. Empty when it passed." },
     },
   },
   expectMs: 120_000,
@@ -74,13 +74,13 @@ export function registerVerifyTool(db: Conn, reg: Registry, sealed: Sealed): str
   reg.register(db, `fn:tool.${VERIFY_TOOL.name}`, VERIFY_TOOL.expectMs, async (arg) => {
     const a = (arg ?? {}) as { args?: { answer?: unknown }; instance?: string };
     const answer = String(a.args?.answer ?? "");
-    if (!answer.trim()) return { error: "要给 answer —— 空的判不了" };
+    if (!answer.trim()) return { error: "answer is required - an empty one cannot be graded" };
 
     // 哪道题**从库里问**，不收调用方传的 —— 收的话模型改一个参数就能拿别人那道
     // 题的 G 来问自己这一道。
     const at = whereAmI(db, String(a.instance));
-    if (!at) return { error: `不知道 ${String(a.instance)} 在哪张子表上` };
-    if (!sealed.has(at.task)) return { error: `${at.task} 上没有 G，没什么可复核的` };
+    if (!at) return { error: `cannot tell which task ${String(a.instance)} belongs to` };
+    if (!sealed.has(at.task)) return { error: `${at.task} has no grading function, nothing to check against` };
 
     const g = sealed.open(at.task)!;
     const task = all(db, `select * from task where id = ?`, [at.task])[0] as Record<string, unknown> | undefined;

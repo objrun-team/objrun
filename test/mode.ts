@@ -33,12 +33,12 @@ import { done, machine, ok, outside, part, show, step, until } from "./_lib.ts";
 const m = await machine();
 
 /** 这台机器每一站都调它 —— 记下走过的路，好在第二部分对。 */
-const 走过: string[] = [];
+const walked: string[] = [];
 
 const out = await outside({
   "/unit": (u) => {
-    走过.push(`${u.chain}`);
-    return { role: "assistant", kind: "prompt", body: `${(u.cycle as { cycle?: string })?.cycle} 干完了` };
+    walked.push(`${u.chain}`);
+    return { role: "assistant", kind: "prompt", body: `${(u.cycle as { cycle?: string })?.cycle} finished` };
   },
   /**
    * 推断函数。**内核只把候选递过来，它在候选里挑一个。**
@@ -53,38 +53,38 @@ const out = await outside({
     if (cyc === "plan") return "work";
     if (cyc === "work") {
       // 第一个 work 再开一个 work（挂在自己底下），第二个就收尾。
-      const 第几个 = 走过.filter((c) => c.includes("/work#")).length;
-      if (第几个 <= 1) return { to: "work", from_cycle: "work", from_unit: unit };
+      const nth = walked.filter((c) => c.includes("/work#")).length;
+      if (nth <= 1) return { to: "work", from_cycle: "work", from_unit: unit };
       return "wrap";
     }
     if (cyc === "wrap") return null; // 到此为止
     return next[0] ?? null;
   },
   /** 故意挑一个候选之外的周期 —— 用来验内核不许它自由发挥。 */
-  "/infer-wild": () => "根本没有这个周期",
+  "/infer-wild": () => "no-such-cycle-at-all",
 });
 
 try {
   // ═══════════════ 第一部分：注册 ═══════════════
-  part("第一部分：注册");
+  part("Part one: registration");
 
-  step("① next 指到这个模式外面去");
-  const 指歪了 = await m.bad("POST", "/declare", {
+  step("1. next points outside this mode");
+  const strayed = await m.bad("POST", "/declare", {
     handles: [{ name: out.url("/infer"), expectMs: 10_000 }],
     modes: [
       {
         mode: "flow",
         cycles: [
           { cycle: "plan", from: [], next: ["work"], infer: out.url("/infer") },
-          { cycle: "work", from: ["plan"], next: ["收尾"], infer: out.url("/infer") },
+          { cycle: "work", from: ["plan"], next: ["wrap-up"], infer: out.url("/infer") },
         ],
       },
     ],
   });
-  show("回的是：", 指歪了.problems);
-  ok("拦住了 —— 不然流程走到那儿会**停住，不报错**", JSON.stringify(指歪了.problems).includes("不在这个模式里"), 指歪了.problems);
+  show("it answered:", strayed.problems);
+  ok("stopped - otherwise the flow would simply halt there, silently", JSON.stringify(strayed.problems).includes("not in this mode"), strayed.problems);
 
-  step("② 有个周期谁都指不到（声明里的一段死代码）");
+  step("2. a cycle nothing points at (dead code in a declaration)");
   const island = await m.bad("POST", "/declare", {
     handles: [{ name: out.url("/infer"), expectMs: 10_000 }],
     modes: [
@@ -98,11 +98,11 @@ try {
       },
     ],
   });
-  show("回的是：", island.problems);
-  ok("从起点走不到的周期被指出来了", JSON.stringify(island.problems).includes("从起点走不到它"), island.problems);
+  show("it answered:", island.problems);
+  ok("a cycle unreachable from any entry point is named", JSON.stringify(island.problems).includes("unreachable from any entry point"), island.problems);
 
-  step("③ 一个起点都没有（每个周期的 from 都非空）");
-  const 没起点 = await m.bad("POST", "/declare", {
+  step("3. no entry point at all (every cycle has a non-empty from)");
+  const noEntry = await m.bad("POST", "/declare", {
     handles: [{ name: out.url("/infer"), expectMs: 10_000 }],
     modes: [
       {
@@ -114,11 +114,11 @@ try {
       },
     ],
   });
-  show("回的是：", 没起点.problems);
-  ok("这个模式根本进不去，当场说", JSON.stringify(没起点.problems).includes("进不去"), 没起点.problems);
+  show("it answered:", noEntry.problems);
+  ok("the mode cannot be entered at all, and it says so at once", JSON.stringify(noEntry.problems).includes("cannot be entered"), noEntry.problems);
 
-  step("④ 灌一张对的图");
-  const 灌好 = await m.api<Record<string, unknown>>("POST", "/declare", {
+  step("4. load a correct graph");
+  const loaded = await m.api<Record<string, unknown>>("POST", "/declare", {
     handles: [
       { name: out.url("/unit"), expectMs: 30_000 },
       { name: out.url("/infer"), expectMs: 10_000 },
@@ -128,7 +128,7 @@ try {
     modes: [
       {
         mode: "flow",
-        note: "先想，再干几轮，最后收尾",
+        note: "think first, work a few rounds, then wrap up",
         cycles: [
           { cycle: "plan", from: [], next: ["work"], maxUnits: 1, infer: out.url("/infer") },
           { cycle: "work", from: ["plan", "work"], next: ["work", "wrap"], maxUnits: 5, infer: out.url("/infer") },
@@ -145,61 +145,61 @@ try {
     ],
     agents: [{ name: "bot", apis: [], unit: out.url("/unit") }],
   });
-  show("灌进去了：", { modes: 灌好.modes, cycles: 灌好.cycles, tables: 灌好.tables, entries: 灌好.entries });
-  ok("两种机制都进去了", (灌好.modes as string[]).length === 2, 灌好.modes);
-  ok("**起点也一并告诉你了** —— 不止一个的话发任务得指定 cycle", JSON.stringify(灌好.entries).includes("plan"), 灌好.entries);
+  show("what went in:", { modes: loaded.modes, cycles: loaded.cycles, tables: loaded.tables, entries: loaded.entries });
+  ok("both mechanisms went in", (loaded.modes as string[]).length === 2, loaded.modes);
+  ok("the entry points come back too - with more than one, a task must name a cycle", JSON.stringify(loaded.entries).includes("plan"), loaded.entries);
 
-  step("⑤ 看一眼这张图");
+  step("5. look at the graph");
   const g = await m.api<Record<string, unknown>>("GET", "/modes/flow");
   show("flow：", { entries: g.entries, walkable: g.walkable, agents: g.agents, cycles: (g.cycles as unknown[]).length });
-  ok("走得通", g.walkable === true, g);
-  ok("bot 接得住它", (g.agents as string[]).includes("bot"), g.agents);
+  ok("it is walkable", g.walkable === true, g);
+  ok("bot can serve it", (g.agents as string[]).includes("bot"), g.agents);
 
   // ═══════════════ 第二部分：使用层次的校验 ═══════════════
-  part("第二部分：使用层次的校验");
-  console.log("  图画对了 ≠ 真按它走。发个任务，看它到底走了哪条路。");
+  part("Part two: checks at the level of use");
+  console.log("  A correct graph is not the same as actually walking it. Publish a task and see which path it took.");
 
-  step("⑥ 发一个任务，让它按 plan → work → work → wrap 走完");
+  step("6. publish a task and let it walk plan -> work -> work -> wrap");
   await m.api("POST", "/tasks", {
-    id: "t-flow", mode: "flow", agent: "bot", place: "local", source: "user", description: "走一遍",
+    id: "t-flow", mode: "flow", agent: "bot", place: "local", source: "user", description: "walk it once",
   });
-  await until("t-flow 跑完", async () => {
+  await until("t-flow to finish", async () => {
     const d = await m.api<{ state: string }>("GET", "/tasks/t-flow");
     return d.state === "done" ? d : null;
   });
-  show("每一站的链路串：", 走过);
-  ok("**走的正是声明里那条路**", 走过.length === 4, 走过);
-  ok("第一站是 plan", 走过[0] === "flow/plan#1", 走过[0]);
+  show("the chain string at each station:", walked);
+  ok("it walked exactly the path in the declaration", walked.length === 4, walked);
+  ok("the first station is plan", walked[0] === "flow/plan#1", walked[0]);
   ok(
-    "链路串是从头拼到当前，一段不落",
-    走过.at(-1) === "flow/plan#1 > flow/work#2 > flow/work#3 > flow/wrap#4",
-    走过.at(-1),
+    "the chain string runs from the head to here with no segment missing",
+    walked.at(-1) === "flow/plan#1 > flow/work#2 > flow/work#3 > flow/wrap#4",
+    walked.at(-1),
   );
 
-  step("⑦ 树的形状：`{to, from_cycle, from_unit}` 那种回答真的把节点挂到了指定那一行下");
+  step("7. tree shape: a `{to, from_cycle, from_unit}` answer really hangs the node under the row it names");
   const tree = await m.api<{ roots: Record<string, unknown>[]; orphans: unknown[] }>("GET", "/tasks/t-flow/tree");
-  const 摊平 = (n: Record<string, unknown>): string[] => [
+  const flatten = (n: Record<string, unknown>): string[] => [
     `${n.cycle}#${n.unit}`,
-    ...((n.children ?? []) as Record<string, unknown>[]).flatMap(摊平),
+    ...((n.children ?? []) as Record<string, unknown>[]).flatMap(flatten),
   ];
-  show("树：", tree.roots.map(摊平));
-  ok("一棵树，不是四个各自为政的根", tree.roots.length === 1, tree.roots.length);
-  ok("没有孤儿（父指的那一行都在）", tree.orphans.length === 0, tree.orphans);
+  show("the tree:", tree.roots.map(flatten));
+  ok("one tree, not four independent roots", tree.roots.length === 1, tree.roots.length);
+  ok("no orphans (every parent row named is present)", tree.orphans.length === 0, tree.orphans);
 
-  step("⑧ 推断函数挑了一个**候选之外**的周期");
+  step("8. the inference function picks a cycle outside the candidates");
   await m.api("POST", "/tasks", {
-    id: "t-wild", mode: "wild", agent: "bot", place: "local", source: "user", description: "看它敢不敢乱挑",
+    id: "t-wild", mode: "wild", agent: "bot", place: "local", source: "user", description: "see whether it dares pick freely",
   });
-  const 卡住 = await until("内核把「走不下去」写进库", async () => {
+  const stuck = await until("the kernel to write the stuck reason into the database", async () => {
     const w = await m.api<{ problems: string[] }>("GET", "/tasks/t-wild/why");
-    return w.problems.some((p) => p.includes("不在候选里")) ? w : null;
+    return w.problems.some((p) => p.includes("not among the candidates")) ? w : null;
   });
-  show("为什么不动：", 卡住.problems);
-  ok("**内核不许它自由发挥**，而且把候选是什么一起说了", JSON.stringify(卡住.problems).includes("不在候选里"), 卡住.problems);
+  show("why it is not moving:", stuck.problems);
+  ok("the kernel does not let it improvise, and it names the candidates too", JSON.stringify(stuck.problems).includes("not among the candidates"), stuck.problems);
   ok(
-    "这句话是从接口上问出来的，不用去翻服务器日志",
-    卡住.problems.some((p) => p.includes("内核推它的时候炸了")),
-    卡住.problems,
+    "this sentence came out of the API, with no need to dig through server logs",
+    stuck.problems.some((p) => p.includes("the kernel threw while advancing it")),
+    stuck.problems,
   );
 } finally {
   out.stop();

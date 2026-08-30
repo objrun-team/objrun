@@ -48,7 +48,7 @@ export function chainOf(db: Conn, sub: string, mode: string, at: Unit): string {
 
   while (cur.from_cycle !== null && cur.from_unit !== null) {
     const key = `${cur.from_cycle}#${cur.from_unit}`;
-    if (seen.has(key)) throw new Error(`${sub} 里 ${at.task} 的链路成环了，在 ${key}`);
+    if (seen.has(key)) throw new Error(`chain for ${at.task} in ${sub} is cyclic, at ${key}`);
     seen.add(key);
     const rows = all(
       db,
@@ -57,7 +57,7 @@ export function chainOf(db: Conn, sub: string, mode: string, at: Unit): string {
       [cur.task, cur.from_cycle, cur.from_unit],
     ) as unknown as Unit[];
     if (rows.length === 0) {
-      throw new Error(`${sub} 里 ${at.task} 的 ${seg(mode, cur)} 说它从 ${key} 来，但那一行不在`);
+      throw new Error(`${sub} ${at.task} ${seg(mode, cur)} says it came from ${key}, but that row is missing`);
     }
     cur = rows[0];
     segs.unshift(seg(mode, cur));

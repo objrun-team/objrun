@@ -52,7 +52,7 @@ async function handle(m: { id?: number; method?: string; params?: unknown }): Pr
     const p = (m.params ?? {}) as { name?: string; arguments?: Record<string, unknown> };
     const t = by.get(String(p.name));
     // 没这个工具是**协议错**：调用方改参数也没用。
-    if (!t) return { jsonrpc: "2.0", id, error: { code: -32602, message: `这个运行时里没有 ${String(p.name)}` } };
+    if (!t) return { jsonrpc: "2.0", id, error: { code: -32602, message: `this runtime has no tool named ${String(p.name)}` } };
     try {
       const value = await t.run(p.arguments ?? {});
       return reply({
@@ -69,7 +69,7 @@ async function handle(m: { id?: number; method?: string; params?: unknown }): Pr
     }
   }
 
-  return { jsonrpc: "2.0", id, error: { code: -32601, message: `不认得这个方法：${String(m.method)}` } };
+  return { jsonrpc: "2.0", id, error: { code: -32601, message: `unknown method: ${String(m.method)}` } };
 }
 
 let buf = "";
@@ -95,7 +95,7 @@ process.stdin.on("data", (chunk: string) => {
           const out = await handle(JSON.parse(line) as { id?: number; method?: string });
           if (out !== null) process.stdout.write(JSON.stringify(out) + "\n");
         } catch (e) {
-          process.stderr.write(`解不开这一行：${e instanceof Error ? e.message : String(e)}\n`);
+          process.stderr.write(`cannot parse this line: ${e instanceof Error ? e.message : String(e)}\n`);
         } finally {
           inflight--;
           bye();

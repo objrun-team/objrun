@@ -1,10 +1,10 @@
 /** 写法二：进程外的 MCP server。stdio 上的 JSON-RPC。 */
 const TOOL = {
   name: "dice_out",
-  description: "掷一个 n 面骰子（进程外）",
+  description: "Roll an n-sided die (out of process)",
   inputSchema: {
     type: "object",
-    properties: { sides: { type: "integer", description: "几面" } },
+    properties: { sides: { type: "integer", description: "How many sides" } },
     required: ["sides"],
   },
   outputSchema: {
@@ -29,7 +29,7 @@ function handle(m: { id?: number; method?: string; params?: unknown }): unknown 
   if (m.method === "tools/call") {
     const p = (m.params ?? {}) as { name?: string; arguments?: { sides?: number } };
     if (p.name !== TOOL.name) {
-      return { jsonrpc: "2.0", id: m.id, error: { code: -32602, message: `没有这个工具：${String(p.name)}` } };
+      return { jsonrpc: "2.0", id: m.id, error: { code: -32602, message: `no such tool: ${String(p.name)}` } };
     }
     const sides = Number(p.arguments?.sides ?? 6);
     const value = 1 + Math.floor(Math.random() * sides);
@@ -38,10 +38,10 @@ function handle(m: { id?: number; method?: string; params?: unknown }): unknown 
     return reply({ content: [{ type: "text", text: JSON.stringify(out) }], structuredContent: out });
   }
 
-  return { jsonrpc: "2.0", id: m.id, error: { code: -32601, message: `不认得这个方法：${String(m.method)}` } };
+  return { jsonrpc: "2.0", id: m.id, error: { code: -32601, message: `unknown method: ${String(m.method)}` } };
 }
 
-process.stderr.write("[dice-server] 起来了\n");
+process.stderr.write("[dice-server] up\n");
 let buf = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", (chunk: string) => {

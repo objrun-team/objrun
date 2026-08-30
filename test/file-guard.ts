@@ -61,42 +61,42 @@ const asUnit = (instance: string, unit: number, file_path: string, content: stri
   >;
 
 try {
-  part("新建文件");
+  part("Creating a new file");
 
-  step("① write 一个不存在的文件 —— **不该**被交回「先去读」");
-  const 新建 = join(dir, "brand-new.txt");
-  const r1 = await asUnit("t#1", 1, 新建, "hello");
-  show("回的是：", r1);
-  ok("直接写了，没交回操作单元", r1.unit === undefined, r1);
-  ok("文件真落地了", readFileSync(新建, "utf8") === "hello");
-  ok("而且报了这是新建的", r1.created === true);
+  step("1. write a file that does not exist - it must NOT be handed back a read-first unit");
+  const fresh = join(dir, "brand-new.txt");
+  const r1 = await asUnit("t#1", 1, fresh, "hello");
+  show("it answered:", r1);
+  ok("it wrote straight away, handing back no unit", r1.unit === undefined, r1);
+  ok("the file really landed", readFileSync(fresh, "utf8") === "hello");
+  ok("and it reported this as a creation", r1.created === true);
 
-  part("盖掉已有文件");
+  part("Overwriting an existing file");
 
-  step("② 文件已经在那儿，之前没读过 —— 该交回「先去读」");
-  const 已有 = join(dir, "already.txt");
-  writeFileSync(已有, "老内容", "utf8");
-  const r2 = await asUnit("t#2", 1, 已有, "新内容");
-  show("回的是：", r2);
-  ok("交回了一个 read 操作单元", (r2.unit as { tool?: string })?.tool === "read", r2);
-  ok("**没动那个文件**", readFileSync(已有, "utf8") === "老内容");
+  step("2. the file is already there and was never read - it must hand back a read-first unit");
+  const existing = join(dir, "already.txt");
+  writeFileSync(existing, "old content", "utf8");
+  const r2 = await asUnit("t#2", 1, existing, "new content");
+  show("it answered:", r2);
+  ok("it handed back a read unit", (r2.unit as { tool?: string })?.tool === "read", r2);
+  ok("and it did not touch the file", readFileSync(existing, "utf8") === "old content");
 
-  step("③ 读过之后再来 —— 该放行");
+  step("3. come back after reading - it must let the write through");
   // 闸交回去的 read 落在**下一站**（unit 2），闸自己是在 unit 3 上再被问到的。
   // 只看本站的话这一条会红 —— 那正是以前的写法。
-  sawRead("t#2", 2, 已有);
-  const r3 = await asUnit("t#2", 3, 已有, "新内容");
-  show("回的是：", r3);
-  ok("放行了", r3.unit === undefined, r3);
-  ok("内容换了", readFileSync(已有, "utf8") === "新内容");
+  sawRead("t#2", 2, existing);
+  const r3 = await asUnit("t#2", 3, existing, "new content");
+  show("it answered:", r3);
+  ok("it let the write through", r3.unit === undefined, r3);
+  ok("the content changed", readFileSync(existing, "utf8") === "new content");
 
-  step("④ 读的是**别的**文件，不算读过这一个");
-  const 另一个 = join(dir, "other.txt");
-  writeFileSync(另一个, "别动我", "utf8");
-  const r4 = await asUnit("t#2", 4, 另一个, "偷偷盖掉");
-  show("回的是：", r4);
-  ok("还是交回「先去读」", (r4.unit as { tool?: string })?.tool === "read", r4);
-  ok("那个文件没被动", readFileSync(另一个, "utf8") === "别动我");
+  step("4. having read a DIFFERENT file does not count as having read this one");
+  const other = join(dir, "other.txt");
+  writeFileSync(other, "do not touch me", "utf8");
+  const r4 = await asUnit("t#2", 4, other, "quietly overwritten");
+  show("it answered:", r4);
+  ok("it still hands back a read unit", (r4.unit as { tool?: string })?.tool === "read", r4);
+  ok("that file was left alone", readFileSync(other, "utf8") === "do not touch me");
 } finally {
   store.close();
   // Windows 上 close 之后 WAL 那两个文件有时还锁着一小会儿，删不掉就算了 ——

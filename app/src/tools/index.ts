@@ -58,10 +58,10 @@ function schema(properties: Record<string, unknown>, required: string[]): Record
 function str(args: Record<string, unknown>, key: string, required = true): string {
   const v = args[key];
   if (v === undefined || v === null) {
-    if (required) throw new Error(`${key} 是必填的`);
+    if (required) throw new Error(`${key} is required`);
     return "";
   }
-  if (typeof v !== "string") throw new Error(`${key} 得是字符串`);
+  if (typeof v !== "string") throw new Error(`${key} must be a string`);
   return v;
 }
 
@@ -69,7 +69,7 @@ function num(args: Record<string, unknown>, key: string, dflt: number): number {
   const v = args[key];
   if (v === undefined || v === null) return dflt;
   const n = Number(v);
-  if (!Number.isFinite(n)) throw new Error(`${key} 得是个数`);
+  if (!Number.isFinite(n)) throw new Error(`${key} must be a number`);
   return n;
 }
 
@@ -118,7 +118,7 @@ export const read: Tool = {
     for (let i = offset - 1; i < all.length && lines.length < limit; i++) {
       let t = all[i];
       if (t.length > READ_MAX_LINE_LENGTH) {
-        t = t.slice(0, READ_MAX_LINE_LENGTH) + `…（这一行还有 ${all[i].length - READ_MAX_LINE_LENGTH} 个字符）`;
+        t = t.slice(0, READ_MAX_LINE_LENGTH) + `... (${all[i].length - READ_MAX_LINE_LENGTH} more characters on this line)`;
         truncated = true;
       }
       bytes += Buffer.byteLength(t, "utf8") + 1;
@@ -195,15 +195,15 @@ export const edit: Tool = {
     const replaceAll = Boolean(args.replace_all ?? false);
 
     // 这三条 schema 表达不了，但每一条不挡住都会变成一次静默的空改。
-    if (path.trim().length === 0) throw new Error("file_path 不能是空的");
-    if (oldStr.length === 0) throw new Error("old_string 不能是空的");
-    if (oldStr === newStr) throw new Error("old_string 和 new_string 一样，这次编辑什么都不会发生");
+    if (path.trim().length === 0) throw new Error("file_path cannot be empty");
+    if (oldStr.length === 0) throw new Error("old_string cannot be empty");
+    if (oldStr === newStr) throw new Error("old_string and new_string are identical - this edit would change nothing");
 
     const text = await readFile(path, "utf8");
     const hits = count(text, oldStr);
-    if (hits === 0) throw new Error(`在 ${path} 里没找到 old_string`);
+    if (hits === 0) throw new Error(`old_string not found in ${path}`);
     if (hits > 1 && !replaceAll) {
-      throw new Error(`old_string 在 ${path} 里出现了 ${hits} 次。给一个更具体的 old_string，或者把 replace_all 设成 true`);
+      throw new Error(`old_string occurs ${hits} times in ${path}. Give a more specific old_string, or set replace_all to true`);
     }
     const next = replaceAll ? text.split(oldStr).join(newStr) : text.replace(oldStr, newStr);
     await writeFile(path, next, "utf8");

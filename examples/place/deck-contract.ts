@@ -54,21 +54,21 @@ export async function run(arg: unknown): Promise<unknown> {
   try {
     tabs = await openTabs();
   } catch {
-    bad.push(`浏览器的调试口连不上（${CDP}）`);
+    bad.push(`cannot reach the browser debugging port (${CDP})`);
   }
   if (tabs.length && !tabs.includes(LINK)) {
-    bad.push(`那一页没开着：${LINK}（现在开着的是 ${tabs.join("、") || "空"}）`);
+    bad.push(`that page is not open: ${LINK} (currently open: ${tabs.join(", ") || "nothing"})`);
   }
 
   const have = await registered();
   const missing = WANT.filter((w) => !have.includes(w));
-  if (missing.length) bad.push(`该有的工具少了：${missing.join("、")}（有的是 ${have.join("、") || "一个都没有"}）`);
+  if (missing.length) bad.push(`expected tools are missing: ${missing.join(", ")} (present: ${have.join(", ") || "none"})`);
 
-  const where = `${String(at.task?.id)} 第 ${String(at.unit)} 站`;
+  const where = `${String(at.task?.id)} station ${String(at.unit)}`;
   if (bad.length) {
     // 抛出去。内核记一行日志，这一站照跑 —— 它拦不住，也不该拦。
-    throw new Error(`${at.place ?? "?"} 这个地方不对劲（${where}）：${bad.join("；")}`);
+    throw new Error(`something is wrong with the place ${at.place ?? "?"} (${where}): ${bad.join("; ")}`);
   }
-  console.log(`[deck-contract] ${at.place} 齐了：${have.join("、")}｜${where}`);
+  console.log(`[deck-contract] ${at.place} is complete: ${have.join(", ")} | ${where}`);
   return { place: at.place, link: LINK, tools: have };
 }

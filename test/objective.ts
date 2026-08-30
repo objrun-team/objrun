@@ -2,7 +2,7 @@
  * 例子：**给一道题绑一个目标（验证函数 G）**。
  *
  * ```
- * bun examples/objective.ts
+ * bun test/objective.ts
  * ```
  *
  * G 回答的是「**这道题算不算做成了**」。它跟别的注册不一样，有三条硬规矩：
@@ -26,10 +26,10 @@ import { done, machine, ok, outside, part, show, step, until } from "./_lib.ts";
 const m = await machine();
 
 /** G 的节点被调了几次、拿到什么 —— 用来验它是**真跑了**，不是摆设。 */
-const 判过: Record<string, unknown>[] = [];
+const graded: Record<string, unknown>[] = [];
 
 const out = await outside({
-  "/unit": () => ({ role: "assistant", kind: "prompt", body: "我说我做完了" }),
+  "/unit": () => ({ role: "assistant", kind: "prompt", body: "I say I am done" }),
   "/infer": () => null,
 
   // ── G 的节点。**回的必须落在声明的值域里** ────────────────────────────
@@ -39,18 +39,18 @@ const out = await outside({
 
   /** 观测节点：这一版看什么都说「成」。 */
   "/look-pass": (a) => {
-    判过.push({ who: "look-pass", input: a.input });
+    graded.push({ who: "look-pass", input: a.input });
     return true;
   },
   /** 观测节点：这一版看什么都说「不成」。 */
   "/look-fail": (a) => {
-    判过.push({ who: "look-fail", input: a.input });
+    graded.push({ who: "look-fail", input: a.input });
     return false;
   },
   /** 输出节点：把上游喂进来的那一位原样接出去。 */
   "/verdict": (a) => {
     const feed = (a.feed ?? []) as { value: unknown }[];
-    判过.push({ who: "verdict", feed });
+    graded.push({ who: "verdict", feed });
     return feed[0]?.value === true;
   },
 });
@@ -81,9 +81,9 @@ const G = (look: string) => ({
 
 try {
   // ═══════════════ 第一部分：注册（= 发布那一刻的准入） ═══════════════
-  part("第一部分：注册（G 是在发布那一刻绑的）");
+  part("Part one: registration (a grading function is bound at publish time)");
 
-  const 底子 = {
+  const base = {
     handles: [
       { name: out.url("/unit"), expectMs: 30_000 },
       { name: out.url("/infer"), expectMs: 10_000 },
@@ -95,46 +95,46 @@ try {
     modes: [{ mode: "demo", cycles: [{ cycle: "ask", from: [], next: [], infer: out.url("/infer") }] }],
     agents: [{ name: "bot", apis: [], unit: out.url("/unit") }],
   };
-  await m.api("POST", "/declare", 底子);
-  ok("底子灌好了", true);
+  await m.api("POST", "/declare", base);
+  ok("the base declaration went in", true);
 
-  step("① 带了 G 却没说智能体读不读得到");
-  const 没说 = await m.bad("POST", "/tasks", {
+  step("1. carries a grading function but does not say whether the agent may read it");
+  const unsaid = await m.bad("POST", "/tasks", {
     id: "t-1", mode: "demo", agent: "bot", place: "local", source: "user",
-    description: "算个东西", objective: G(out.url("/look-pass")),
+    description: "compute something", objective: G(out.url("/look-pass")),
   });
-  show("回的是：", 没说.error);
-  ok("**带 G 就必须显式给 readable，没有默认值**", String(没说.error).includes("readable"), 没说);
+  show("it answered:", unsaid.error);
+  ok("carrying one makes readable mandatory - there is no default", String(unsaid.error).includes("readable"), unsaid);
 
-  step("② 智能体派生的任务带 G（自提权）");
-  const 自提权 = await m.bad("POST", "/tasks", {
+  step("2. an agent-derived task carrying a grading function (self-granted authority)");
+  const selfGrant = await m.bad("POST", "/tasks", {
     id: "t-2", mode: "demo", agent: "bot", place: "local", source: "agent",
-    description: "我给自己定个标准", objective: G(out.url("/look-pass")), readable: true,
+    description: "I set my own bar", objective: G(out.url("/look-pass")), readable: true,
   });
-  show("回的是：", 自提权.error);
-  ok("**闸按来源判，判在唯一入口上**", String(自提权.error).length > 0, 自提权);
+  show("it answered:", selfGrant.error);
+  ok("the gate judges on source, at the single entrance", String(selfGrant.error).length > 0, selfGrant);
 
-  step("③ 一张恒定的 G（输出节点没有入边）");
-  const 恒定 = await m.bad("POST", "/tasks", {
+  step("3. a constant grading function (the output node has no incoming edge)");
+  const constant = await m.bad("POST", "/tasks", {
     id: "t-3", mode: "demo", agent: "bot", place: "local", source: "user",
-    description: "算个东西", readable: false,
+    description: "compute something", readable: false,
     objective: {
       nodes: [{ name: "verdict", moment: "done", domain: { kind: "bool" }, handle: out.url("/look-pass") }],
       edges: [],
       sink: "verdict",
     },
   });
-  show("回的是：", 恒定.error);
+  show("it answered:", constant.error);
   ok(
-    "**它的值跟候选无关，那不叫判据** —— 定义期就拒，不是发完再说",
-    String(恒定.error).includes("G 恒定"),
-    恒定,
+    "a value independent of the candidate is not a criterion - rejected at definition time, not after publishing",
+    String(constant.error).includes("constant"),
+    constant,
   );
 
-  step("④ 一张有回环的 G（求值不终止）");
-  const 回环 = await m.bad("POST", "/tasks", {
+  step("4. a cyclic grading function (evaluation would not terminate)");
+  const cyclic = await m.bad("POST", "/tasks", {
     id: "t-4", mode: "demo", agent: "bot", place: "local", source: "user",
-    description: "算个东西", readable: false,
+    description: "compute something", readable: false,
     objective: {
       nodes: [
         { name: "a", moment: "done", domain: { kind: "bool" }, handle: out.url("/look-pass") },
@@ -144,70 +144,70 @@ try {
       sink: "a",
     },
   });
-  show("回的是：", 回环.error);
-  ok("**求值不终止的 G 算不出来**，也在定义期拦下", String(回环.error).includes("回环"), 回环);
+  show("it answered:", cyclic.error);
+  ok("a non-terminating one has no value, and is stopped at definition time too", String(cyclic.error).includes("cycle"), cyclic);
 
-  step("⑤ 确认前几道题一个都没进库");
-  const 库里 = await m.api<{ total: number }>("GET", "/tasks");
-  ok("**过不了闸的题根本没发布**", 库里.total === 0, 库里);
+  step("5. confirm none of those tasks reached the database");
+  const inDb = await m.api<{ total: number }>("GET", "/tasks");
+  ok("a task that fails the gate is never published", inDb.total === 0, inDb);
 
   // ═══════════════ 第二部分：使用层次的校验 ═══════════════
-  part("第二部分：使用层次的校验");
-  console.log("  绑上了 ≠ 真去判。看它跑完之后有没有真跑 G、判决有没有写回来。");
+  part("Part two: checks at the level of use");
+  console.log("  Bound is not the same as actually judged. See whether it really ran and wrote the verdict back.");
 
-  step("⑥ 发一道 G 会说「成」的题");
+  step("6. publish a task its grading function will pass");
   await m.api("POST", "/tasks", {
     id: "t-pass", mode: "demo", agent: "bot", place: "local", source: "user",
-    description: "这道会过", objective: G(out.url("/look-pass")), readable: false,
+    description: "this one passes", objective: G(out.url("/look-pass")), readable: false,
   });
-  const 成了 = await until("t-pass 出判决", async () => {
+  const passed = await until("a verdict for t-pass", async () => {
     const d = await m.api<{ state: string; objective: { verdict: unknown } }>("GET", "/tasks/t-pass");
     return d.objective.verdict !== null ? d : null;
   });
-  show("判决：", 成了.objective);
-  ok("**G 真的被跑了**", 判过.some((x) => x.who === "look-pass"), 判过.length);
-  ok("判决写回主库了", (成了.objective.verdict as { pass?: number })?.pass === 1, 成了.objective);
-  ok("状态是 done", 成了.state === "done", 成了.state);
+  show("verdict:", passed.objective);
+  ok("the grading function really ran", graded.some((x) => x.who === "look-pass"), graded.length);
+  ok("the verdict was written back to the main database", (passed.objective.verdict as { pass?: number })?.pass === 1, passed.objective);
+  ok("state is done", passed.state === "done", passed.state);
 
-  step("⑦ 发一道 G 会说「不成」的题 —— 智能体自己说做完了也不算");
+  step("7. publish a task it will fail - the agent saying it is done does not count");
   await m.api("POST", "/tasks", {
     id: "t-fail", mode: "demo", agent: "bot", place: "local", source: "user",
-    description: "这道过不了", objective: G(out.url("/look-fail")), readable: false,
+    description: "this one does not pass", objective: G(out.url("/look-fail")), readable: false,
   });
-  const 没成 = await until("t-fail 出判决", async () => {
+  const failed = await until("a verdict for t-fail", async () => {
     const d = await m.api<{ state: string; objective: { verdict: unknown } }>("GET", "/tasks/t-fail");
     return d.objective.verdict !== null ? d : null;
   });
-  show("判决：", 没成.objective);
+  show("verdict:", failed.objective);
   ok(
-    "**智能体说「我做完了」不算数，G 说了算**",
-    没成.state === "failed",
-    { state: 没成.state, verdict: 没成.objective.verdict },
+    "the agent saying I am done does not count; the grading function has the last word",
+    failed.state === "failed",
+    { state: failed.state, verdict: failed.objective.verdict },
   );
-  ok("而且说得出为什么", String((没成.objective.verdict as { why?: string })?.why ?? "").length > 0, 没成.objective);
+  ok("and it can say why", String((failed.objective.verdict as { why?: string })?.why ?? "").length > 0, failed.objective);
 
-  step("⑧ 主库里够不够得着 G 的定义");
-  const 那一行 = await m.api<{ count: number; rows: Record<string, unknown>[] }>("POST", "/query", {
+  step("8. can the definition be reached from the main database");
+  const row = await m.api<{ count: number; rows: Record<string, unknown>[] }>("POST", "/query", {
     sql: "select id, objective, readable from task where id = 't-pass'",
   });
-  show("主库里那一行：", 那一行.rows[0]);
+  show("that row in the main database:", row.rows[0]);
   ok(
-    "**主库只记「有没有 G」，定义不在这儿** —— 它在封存区，接口开不到",
-    !JSON.stringify(那一行.rows[0]).includes("look-pass"),
-    那一行.rows[0],
+    "the main database records only whether there is one; the definition is elsewhere, in the sealed store, out of reach of the API",
+    !JSON.stringify(row.rows[0]).includes("look-pass"),
+    row.rows[0],
   );
 
-  step("⑨ 没有 G 的题：跑完就是跑完，不判");
+  step("9. a task with no grading function: finishing is finishing, nothing is judged");
   await m.api("POST", "/tasks", {
-    id: "t-none", mode: "demo", agent: "bot", place: "local", source: "user", description: "不带 G",
+    id: "t-none", mode: "demo", agent: "bot", place: "local", source: "user", description: "no grading function",
   });
-  const 无G = await until("t-none 跑完", async () => {
+  const noG = await until("t-none to finish", async () => {
     const d = await m.api<{ state: string; objective: Record<string, unknown> }>("GET", "/tasks/t-none");
     return d.state === "done" || d.state === "failed" ? d : null;
   });
-  show("它的 objective：", 无G.objective);
-  ok("没有 G 就没有判决", 无G.objective.has === false && 无G.objective.verdict === null, 无G.objective);
-  ok("跑完就是 done", 无G.state === "done", 无G.state);
+  show("its objective:", noG.objective);
+  ok("no grading function, no verdict", noG.objective.has === false && noG.objective.verdict === null, noG.objective);
+  ok("finishing is done", noG.state === "done", noG.state);
 } finally {
   out.stop();
   m.stop();

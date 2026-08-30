@@ -31,7 +31,7 @@ import { all, run } from "../H2H/db.ts";
 import { tableNameOf } from "../install/index.ts";
 
 /** 人写的那些块的前缀。**一处定义** —— 下游读它，不各写各的字面量。 */
-export const HUMAN_MARK = "【人】";
+export const HUMAN_MARK = "[human] ";
 
 /** 哪几种来源算「人给的」。**取值就是缀不缀 `HUMAN_MARK` 的判据本身。** */
 const HUMAN = new Set<By>(["user", "voice"]);
@@ -98,7 +98,7 @@ export interface Put {
 export function deliver(db: Conn, p: Put): number {
   const t = tableNameOf("agent_{}_msg", p.agent);
   const { kind, role } = FROM[p.by];
-  if (!kind) throw new Error(`不认得的投递来源：${p.by}`);
+  if (!kind) throw new Error(`unknown delivery source: ${p.by}`);
 
   // 人给的缀上标记。**在这儿缀，不在调用方缀** —— 调用方缀就成了纪律。
   // 判据是 `HUMAN`（写的、说的都算），不是某一个具体的 by —— 加一种人类来源时
@@ -201,14 +201,14 @@ export const ROLES = [...new Set(Object.values(FROM).map((f) => f.role))].sort()
 
 /** 认得的消息类型 —— `msg_kind` 表的种子。**取值就是上面那张推断表的值域。** */
 export const KINDS: [string, string][] = [
-  ["user", "真人写的。压出去前缀 " + HUMAN_MARK + "，好跟系统注入分开"],
-  ["voice", "真人说的，实时轨转写来的。role 也是 user，靠 kind 才分得出它是说的不是打的"],
-  ["inject", "系统注入的。压出去也是 role=user，靠 kind 才分得出来"],
-  ["skill", "skill 临时放的提示词"],
-  ["tool", "工具的返回结果"],
-  ["prompt", "模型自己说的"],
-  ["call", "模型请求工具那一条，body 里带着调用"],
-  ["intervene", "用户看着它执行时施加的干预标记"],
+  ["user", "Written by a person. Prefixed with " + HUMAN_MARK + " on the way out so it stays distinguishable from system injections"],
+  ["voice", "Spoken by a person, transcribed from the realtime lane. Its role is also user; only kind tells speech apart from typing"],
+  ["inject", "Injected by the system. Also goes out as role=user; only kind tells it apart"],
+  ["skill", "A prompt placed by a skill"],
+  ["tool", "A tool result"],
+  ["prompt", "What the model itself said"],
+  ["call", "The model requesting tools; the calls ride in body"],
+  ["intervene", "A mark left by a user intervening while it runs"],
 ];
 
 /** 把认得的消息类型灌进 `msg_kind`。幂等。 */

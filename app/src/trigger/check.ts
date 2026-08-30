@@ -71,48 +71,48 @@ export function check(db: Conn): Problem[] {
   for (const t of terms) {
     // 维度 / 比法：认不得就是永远不触发，而且一个字母的差别看不出来
     if (!(DIMS as readonly string[]).includes(t.dim)) {
-      say(t, `不认得的维度 ${t.dim}（认得的是 ${DIMS.join(" / ")}）`);
+      say(t, `unknown dimension ${t.dim} (known: ${DIMS.join(" / ")})`);
       continue;
     }
     if (!(OPS as readonly string[]).includes(t.op)) {
-      say(t, `不认得的比法 ${t.op}（认得的是 ${OPS.join(" / ")}）`);
+      say(t, `unknown operator ${t.op} (known: ${OPS.join(" / ")})`);
       continue;
     }
 
     // 属性：`chain` / `moment` / `place` 不看属性，别的维度得是那张表真有的列
     if (t.dim === "chain" || t.dim === "moment" || t.dim === "place") {
-      if (t.key.trim() !== "") say(t, `${t.dim} 维度不看属性，key 该留空，现在写着 ${t.key}`);
+      if (t.key.trim() !== "") say(t, `dimension ${t.dim} has no attributes, so key must be empty, but it says ${t.key}`);
       if (t.dim === "moment" && !(MOMENTS as readonly string[]).includes(t.value)) {
-        say(t, `不认得的时刻 ${t.value}（内核会喊到的是 ${MOMENTS.join(" / ")}）`);
+        say(t, `unknown moment ${t.value} (the kernel raises: ${MOMENTS.join(" / ")})`);
       }
     } else {
       const ks = keys.get(t.dim) ?? [];
       if (!ks.includes(t.key)) {
-        say(t, `${t.dim} 上没有 ${t.key} 这一项（有的是 ${ks.join(" / ")}）`);
+        say(t, `dimension ${t.dim} has no attribute ${t.key} (it has: ${ks.join(" / ")})`);
       }
     }
 
     // `in` 的值得是一份能读的列表
     if (t.op === "in") {
       try {
-        if (!Array.isArray(JSON.parse(t.value))) say(t, `in 的值得是一份列表，现在是 ${t.value}`);
+        if (!Array.isArray(JSON.parse(t.value))) say(t, `the value for in must be a list, but it is ${t.value}`);
       } catch {
-        say(t, `in 的值不是能读的 JSON：${t.value}`);
+        say(t, `the value for in is not readable JSON: ${t.value}`);
       }
     }
 
     // 关键词不许带空格。**有空格说明把几个词写一起了** —— 系统不替你猜要的是
     // 相邻还是有序；拆开，写成同一组的两条。
     if (t.op !== "in" && /\s/.test(t.value) && t.dim !== "task") {
-      say(t, `值里带空格：${JSON.stringify(t.value)} —— 拆成同一组的两条，别让系统猜`);
+      say(t, `the value contains a space: ${JSON.stringify(t.value)} - split it into two terms in the same group rather than letting the system guess`);
     }
 
     // owner 指的那个东西存在不存在
     const at = OWNER_TABLE[t.owner_kind];
     if (!at) {
-      say(t, `不认得的 owner_kind ${t.owner_kind}（认得的是 ${Object.keys(OWNER_TABLE).join(" / ")}）`);
+      say(t, `unknown owner_kind ${t.owner_kind} (known: ${Object.keys(OWNER_TABLE).join(" / ")})`);
     } else if (all(db, `select 1 from "${at.table}" where "${at.col}" = ?`, [t.owner]).length === 0) {
-      say(t, `${at.table} 表里没有 ${t.owner} —— 这条条件永远不会有人用`);
+      say(t, `no row in ${at.table} for ${t.owner} - nothing will ever use this term`);
     }
   }
 
@@ -126,7 +126,7 @@ export function check(db: Conn): Problem[] {
         const sys = all(db, `select system from tool where name = ?`, [id])[0] as { system: number } | undefined;
         if (sys && Number(sys.system)) continue; // 系统工具不看 trigger，正常
       }
-      out.push({ owner_kind: kind, owner: id, group: 0, why: "一条触发条件都没有 —— 它永远不会被挂上" });
+      out.push({ owner_kind: kind, owner: id, group: 0, why: "no trigger terms at all - it will never be attached to anything" });
     }
   }
 

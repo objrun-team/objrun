@@ -180,20 +180,20 @@ export class Session {
     });
 
     this.#ready = new Promise<void>((ok, fail) => {
-      const wall = setTimeout(() => fail(new Error(`开实时会话超过 ${OPEN_MS}ms 还没等到 session.created`)), OPEN_MS);
+      const wall = setTimeout(() => fail(new Error(`opening the realtime session took over ${OPEN_MS}ms with no session.created`)), OPEN_MS);
       this.#opened = () => {
         clearTimeout(wall);
         ok();
       };
-      this.#ws.addEventListener("error", () => fail(this.#dead ?? new Error("实时会话连不上")));
-      this.#ws.addEventListener("close", () => fail(this.#dead ?? new Error("实时会话还没开起来就被关了")));
+      this.#ws.addEventListener("error", () => fail(this.#dead ?? new Error("cannot reach the realtime session")));
+      this.#ws.addEventListener("close", () => fail(this.#dead ?? new Error("the realtime session closed before it opened")));
     });
 
     this.#ws.addEventListener("message", (e: MessageEvent) => this.#take(String(e.data)));
     // 连接断了 = 在途的那个来回永远等不到 response.done。**当场把它结掉** ——
     // 不结的话它挂到 TURN_MS 才超时，而日志上看不出是断了还是那边不说话。
-    this.#ws.addEventListener("close", () => this.#die(new Error("实时会话断了")));
-    this.#ws.addEventListener("error", () => this.#die(new Error("实时会话出错断了")));
+    this.#ws.addEventListener("close", () => this.#die(new Error("the realtime session dropped")));
+    this.#ws.addEventListener("error", () => this.#die(new Error("the realtime session dropped on an error")));
   }
 
   #opened: () => void = () => {};
@@ -244,7 +244,7 @@ export class Session {
       this.#dispatch(type, d);
     } catch (e) {
       this.skipped++;
-      this.#turn?.errors.push(`${beta} 这条处理不了：${e instanceof Error ? e.message : String(e)}`);
+      this.#turn?.errors.push(`cannot handle ${beta}: ${e instanceof Error ? e.message : String(e)}`);
       if (type === "response.done") this.#turn?.settle(null);
     }
   }
@@ -304,7 +304,7 @@ export class Session {
         const known = this.#fn.get(itemId);
         const name = String(d.name ?? known?.name ?? "");
         const call = String(d.call_id ?? known?.call ?? itemId);
-        if (!name) throw new Error(`工具调用没说是哪个工具（item_id=${itemId}）`);
+        if (!name) throw new Error(`a tool call did not name a tool (item_id=${itemId})`);
         this.#turn?.calls.push({ id: call, name, input: JSON.parse(String(d.arguments ?? "{}")) });
         return;
       }
@@ -383,8 +383,8 @@ export class Session {
       // 硬墙。**不设的话这一行就挂在那儿**，只能等内核按 expect_ms 判死，
       // 而那时候日志上一条线索都没有 —— 连那边报过什么错都丢了。
       const wall = setTimeout(() => {
-        const why = t.errors.length ? `；那边报过：${t.errors.join("；")}` : "";
-        fail(new Error(`一个来回超过 ${TURN_MS}ms 还没等到 response.done${why}`));
+        const why = t.errors.length ? `; the far side reported: ${t.errors.join("; ")}` : "";
+        fail(new Error(`a turn took over ${TURN_MS}ms with no response.done${why}`));
       }, TURN_MS);
       let settled = false;
       t.settle = (e) => {
@@ -417,7 +417,7 @@ export class Session {
   }
 
   close(): void {
-    this.#dead ??= new Error("会话已经关了");
+    this.#dead ??= new Error("the session is already closed");
     try {
       this.#ws.close();
     } catch {
@@ -543,10 +543,10 @@ export function registerDuplex(db: Conn, reg: Registry, pool: Sessions, seed: [s
     // 时限是**一个来回**的时限，不是一条会话的。会话能活很久，一个来回不该。
     reg.register(db, name, TURN_MS, async (arg) => {
       const u = arg as unknown as Unit;
-      if (!u.api) throw new Error(`${name} 被调了，但内核没说这一站用哪个模型`);
+      if (!u.api) throw new Error(`${name} was called, but the kernel did not say which model this station uses`);
       const keyEnv = u.api.key_env;
       const secret = process.env[keyEnv];
-      if (!secret) throw new Error(`环境变量 ${keyEnv} 里没有钥匙 —— 见 .env`);
+      if (!secret) throw new Error(`no key in environment variable ${keyEnv} - see .env`);
       const model = u.api.model;
 
       // 会话跟着 instance 走。头一个单元开会话、发 instructions；后面的直接接着讲。
@@ -593,13 +593,13 @@ export function registerDuplex(db: Conn, reg: Registry, pool: Sessions, seed: [s
         // 所以把线索一次说全：跳过了几条、见过哪些事件名、那边报过什么。
         // 只说「什么都没回来」的话，人得从头猜起。
         const why = [
-          `${vendor}/${model} 走完一个来回但什么都没回来`,
-          `跳过 ${out.skipped} 条事件`,
-          out.audio ? `丢了 ${out.audio} 块音频` : "",
-          out.errors.length ? `那边报过：${out.errors.join("；")}` : "",
-          `见过的事件名：${[...s.seen].join("、") || "（一条都没有）"}`,
+          `${vendor}/${model} finished a turn but returned nothing`,
+          `skipped ${out.skipped} events`,
+          out.audio ? `dropped ${out.audio} audio chunks` : "",
+          out.errors.length ? `the far side reported: ${out.errors.join("; ")}` : "",
+          `event names seen: ${[...s.seen].join(", ") || "(none)"}`,
         ].filter(Boolean);
-        throw new Error(why.join("；"));
+        throw new Error(why.join("; "));
       }
 
       return { role: "assistant", kind: "prompt", body: out.text };
@@ -608,8 +608,8 @@ export function registerDuplex(db: Conn, reg: Registry, pool: Sessions, seed: [s
 
   for (const [vendor, model] of seed) {
     const v = VENDORS[vendor];
-    if (!v) throw new Error(`不认得这家：${vendor}`);
-    if (!v.ws) throw new Error(`${vendor} 没有实时轨的地址，给不了 ${model} 一条 duplex 轨`);
+    if (!v) throw new Error(`unknown vendor: ${vendor}`);
+    if (!v.ws) throw new Error(`${vendor} has no realtime endpoint, so ${model} cannot get a duplex lane`);
     db.run(
       `insert into api (key_env, model, handle, modes) values (?, ?, ?, 'duplex')
        on conflict(key_env, model) do update set handle = excluded.handle, modes = excluded.modes`,

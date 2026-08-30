@@ -40,26 +40,26 @@ interface TemplateDecl {
 }
 
 function ident(s: string, what: string): string {
-  if (!IDENT.test(s)) throw new Error(`${what}不认得：${s}`);
+  if (!IDENT.test(s)) throw new Error(`illegal ${what}: ${s}`);
   return s;
 }
 
 /** 一张表的建表语句。列的顺序就是声明里的顺序。 */
 export function ddl(t: TableDecl): string {
-  ident(t.name, "表名");
-  if (t.columns.length === 0) throw new Error(`表 ${t.name} 一列都没有`);
+  ident(t.name, "table name");
+  if (t.columns.length === 0) throw new Error(`table ${t.name} has no columns`);
   const cols = t.columns.map((c) => {
-    ident(c.name, "列名");
+    ident(c.name, "column name");
     return `"${c.name}" ${c.type}${c.notnull ? " not null" : ""}`;
   });
-  if (t.pk.length === 0) throw new Error(`表 ${t.name} 没有主键`);
+  if (t.pk.length === 0) throw new Error(`table ${t.name} has no primary key`);
   t.pk.forEach((c) => {
-    if (!t.columns.some((x) => x.name === c)) throw new Error(`表 ${t.name} 的主键 ${c} 不在列里`);
+    if (!t.columns.some((x) => x.name === c)) throw new Error(`primary key ${c} of table ${t.name} is not among its columns`);
   });
   const parts = [...cols, `primary key (${t.pk.map((c) => `"${c}"`).join(", ")})`];
   for (const u of t.unique ?? []) {
     u.forEach((c) => {
-      if (!t.columns.some((x) => x.name === c)) throw new Error(`表 ${t.name} 的唯一约束 ${c} 不在列里`);
+      if (!t.columns.some((x) => x.name === c)) throw new Error(`unique constraint ${c} of table ${t.name} is not among its columns`);
     });
     parts.push(`unique (${u.map((c) => `"${c}"`).join(", ")})`);
   }
@@ -74,7 +74,7 @@ export function ddl(t: TableDecl): string {
 export function tableNameOf(pattern: string, value: string): string {
   const safe = value.replace(/[^A-Za-z0-9_]/g, "_");
   const name = pattern.replace("{}", safe);
-  return ident(name, "长出来的表名");
+  return ident(name, "grown table name");
 }
 
 /** 库里现在有这张表没有；有的话它是什么形状。 */
@@ -95,14 +95,14 @@ export function subTables(db: Conn): TableDecl[] {
     if (shapeOf(db, t.source.table) === null) continue; // 源表还没建，谈不上长
     const rows = all(
       db,
-      `select distinct "${ident(t.source.column, "列名")}" as v from "${ident(t.source.table, "表名")}"`,
+      `select distinct "${ident(t.source.column, "column name")}" as v from "${ident(t.source.table, "table name")}"`,
     ) as { v: string }[];
     for (const r of rows) {
       const name = tableNameOf(t.pattern, String(r.v));
       const from = `${t.source.table}.${t.source.column} = ${r.v}`;
       const already = seen.get(name);
       if (already && already !== from) {
-        throw new Error(`两个不同的值长出同一张表名 ${name}：${already} 和 ${from}`);
+        throw new Error(`two different values grow the same table name ${name}: ${already} and ${from}`);
       }
       seen.set(name, from);
       out.push({ name, columns: t.columns, pk: t.pk, ...(t.unique ? { unique: t.unique } : {}) });
@@ -130,18 +130,18 @@ function compare(db: Conn, want: TableDecl[], plan: Plan, declared: Set<string>)
     for (const c of t.columns) {
       const hit = got.find((g) => g.name === c.name);
       if (!hit) {
-        why.push(`少了列 ${c.name}`);
+        why.push(`missing column ${c.name}`);
         continue;
       }
       if (hit.type.toLowerCase() !== c.type.toLowerCase()) {
-        why.push(`列 ${c.name} 类型：声明 ${c.type}，库里 ${hit.type || "(空)"}`);
+        why.push(`column ${c.name} type: declared ${c.type}, in database ${hit.type || "(empty)"}`);
       }
       if (Boolean(hit.notnull) !== Boolean(c.notnull)) {
-        why.push(`列 ${c.name} not null：声明 ${Boolean(c.notnull)}，库里 ${Boolean(hit.notnull)}`);
+        why.push(`column ${c.name} not null: declared ${Boolean(c.notnull)}, in database ${Boolean(hit.notnull)}`);
       }
     }
     for (const g of got) {
-      if (!t.columns.some((c) => c.name === g.name)) why.push(`多了列 ${g.name}（声明里没有）`);
+      if (!t.columns.some((c) => c.name === g.name)) why.push(`extra column ${g.name} (not in the declaration)`);
     }
     if (why.length) plan.drift.push({ table: t.name, why });
     else plan.ok.push(t.name);
@@ -195,6 +195,6 @@ export function install(db: Conn): Plan {
 
 function bail(p: Plan) {
   if (!p.drift.length) return;
-  const lines = p.drift.map((d) => `  ${d.table}：${d.why.join("；")}`).join("\n");
-  throw new Error(`库里的表跟声明对不上，没动任何东西：\n${lines}`);
+  const lines = p.drift.map((d) => `  ${d.table}: ${d.why.join("; ")}`).join("\n");
+  throw new Error(`the tables in the database do not match the declaration; nothing was changed:\n${lines}`);
 }

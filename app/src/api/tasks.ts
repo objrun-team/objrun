@@ -30,7 +30,7 @@ import type { Sealed } from "../objective/store.ts";
 import { publish, SOURCES, STATES, type Publish } from "../tasks/publish.ts";
 import type { Route } from "./spec.ts";
 
-const TASK = "任务";
+const TASK = "tasks";
 
 type Row = Record<string, unknown>;
 
@@ -106,7 +106,7 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
           return chainOf(store.ro, t.sub, String(t.mode), u as never);
         } catch (e) {
           // 链路拼不出来（数据坏了）不该让整个任务查不了 —— 把话带上就行。
-          return `（拼不出来：${e instanceof Error ? e.message : String(e)}）`;
+          return `(cannot be assembled: ${e instanceof Error ? e.message : String(e)})`;
         }
       })(),
     };
@@ -117,29 +117,29 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
       method: "POST",
       path: "/tasks",
       group: TASK,
-      does: "发一个任务",
-      why: "**外面往系统里放活，只走这一个口。** 准入闸（来源、G、readable）判在这儿 —— 绕过它直接往 `task` 表插行，那道闸就等于没有。",
+      does: "Publish one task",
+      why: "Work enters the system through this route and no other. The admission gate (source, grading function, readable) is judged here - insert into the `task` table directly and the gate may as well not exist.",
       params: [
-        { name: "id", in: "body", kind: "string", required: true, note: "任务 id，全库唯一。重了当场拒" },
-        { name: "mode", in: "body", kind: "string", required: true, note: "走哪种执行模式 → `GET /modes`" },
-        { name: "agent", in: "body", kind: "string", required: true, note: "交给哪个智能体 → `GET /agents`" },
-        { name: "place", in: "body", kind: "string", required: true, note: "在哪儿干 → `GET /places`" },
-        { name: "source", in: "body", kind: "string", required: true, only: SOURCES, note: "谁发的。**这是准入判据不是元数据** —— 只有 `user` 能带 G" },
-        { name: "description", in: "body", kind: "string", required: true, note: "自然语言的任务描述。内核透明，怎么解读是智能体的事" },
-        { name: "domain", in: "body", kind: "string", note: "这是哪一类问题（`physics` / `chem` / `coding` …）。**扩展按它分发** —— skill / tool / rule 的适用范围写成 `dim=task, key=domain` 的条件。跟 `mode` 是两回事：`mode` 是推理机制，这个是领域" },
-        { name: "cycle", in: "body", kind: "string", note: "从哪个周期起步。不给就取 `from` 为空的那一个；**起点不止一个时必须给**" },
-        { name: "instance", in: "body", kind: "string", note: "哪个实例。不给按任务 id 生一个" },
-        { name: "workdir", in: "body", kind: "string", note: "那个场所里的落脚路径。空 = 那台机器上的 cwd" },
-        { name: "run", in: "body", kind: "string", note: "属于哪一跑（bench 用）。空 = 不属于任何一跑" },
-        { name: "maxBranches", in: "body", kind: "int", note: "同时最多开几条分支" },
-        { name: "maxDeadSiblings", in: "body", kind: "int", note: "同一个父底下判死几个兄弟就回退到更上层换方向" },
-        { name: "solveSeconds", in: "body", kind: "int", note: "整道题的求解时长上限，秒。到点内核判 failed" },
-        { name: "objective", in: "body", kind: "object", of: "G 的 DAG 定义", note: "验证函数 G。**绑定发生在发布这一刻，是准入条件**；过不了定义期检测就拒收整个任务" },
-        { name: "readable", in: "body", kind: "boolean", note: "智能体能不能直接读到 G 的定义。**带 G 就必须显式给，没有默认值**" },
+        { name: "id", in: "body", kind: "string", required: true, note: "Task id, unique across the database. A duplicate is rejected outright" },
+        { name: "mode", in: "body", kind: "string", required: true, note: "Which execution mode to walk -> `GET /modes`" },
+        { name: "agent", in: "body", kind: "string", required: true, note: "Which agent it goes to -> `GET /agents`" },
+        { name: "place", in: "body", kind: "string", required: true, note: "Where the work happens -> `GET /places`" },
+        { name: "source", in: "body", kind: "string", required: true, only: SOURCES, note: "Who published it. This is an admission criterion, not metadata - only `user` may carry a grading function" },
+        { name: "description", in: "body", kind: "string", required: true, note: "The task description in natural language. Transparent to the kernel; how to read it is the agent business" },
+        { name: "domain", in: "body", kind: "string", note: "Which kind of problem this is (`physics` / `chem` / `coding` ...). Extensions dispatch on it: a skill / tool / rule states its applicability as a `dim=task, key=domain` term. A different axis from `mode`: `mode` is the reasoning mechanism, this is the field" },
+        { name: "cycle", in: "body", kind: "string", note: "Which cycle to start from. Omitted, the one with an empty `from` is taken; required when there is more than one entry point" },
+        { name: "instance", in: "body", kind: "string", note: "Which instance. Omitted, one is generated from the task id" },
+        { name: "workdir", in: "body", kind: "string", note: "The landing path inside that place. Empty = the cwd on that machine" },
+        { name: "run", in: "body", kind: "string", note: "Which run it belongs to (used by bench). Empty = no run" },
+        { name: "maxBranches", in: "body", kind: "int", note: "How many branches may be open at once" },
+        { name: "maxDeadSiblings", in: "body", kind: "int", note: "How many dead siblings under one parent before backtracking a level to change direction" },
+        { name: "solveSeconds", in: "body", kind: "int", note: "Upper bound on solving time for the whole task, in seconds. At the limit the kernel marks it failed" },
+        { name: "objective", in: "body", kind: "object", of: "The DAG definition of the grading function", note: "The verification function. Binding happens at publish time and is an admission condition; failing the definition-time checks rejects the whole task" },
+        { name: "readable", in: "body", kind: "boolean", note: "Whether the agent may read the definition of the grading function directly. Required whenever one is carried; there is no default" },
       ],
       returns: { id: "t-1", mode: "dfs", cycle: "open", instance: "t-1#1", objective: false },
       errs: [
-        { code: 400, when: "**这道题根本别发布**：id 重了、模式/地方没登记、来源不许带 G、G 过不了定义期检测" },
+        { code: 400, when: "this task should not be published at all: duplicate id, unregistered mode or place, a source not allowed to carry a grading function, or one that fails the definition-time checks" },
       ],
       handler: async (a, _req, reply) => {
         // **发布这一路的拒收全是 400。** 「这道题根本别发布」是请求的问题，
@@ -159,19 +159,19 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
       method: "GET",
       path: "/tasks",
       group: TASK,
-      does: "列任务，可按状态 / 模式 / 智能体 / 一跑 / 来源筛",
-      why: "**带上进度**（几个执行单元、干完几个）。客户端要显示一条进度条，否则得对每个任务再打一次子表。",
+      does: "List tasks, filtered by state / mode / agent / run / source",
+      why: "Progress is included (how many execution units, how many finished). Without it, a client showing a progress bar would have to hit the sub-table once per task.",
       params: [
-        { name: "state", in: "query", kind: "string", only: STATES, note: "只看这个状态的" },
-        { name: "mode", in: "query", kind: "string", note: "只看这个模式的" },
-        { name: "agent", in: "query", kind: "string", note: "只看这个智能体接的" },
-        { name: "run", in: "query", kind: "string", note: "只看这一跑的" },
-        { name: "source", in: "query", kind: "string", only: SOURCES, note: "只看这个来源的" },
-        { name: "q", in: "query", kind: "string", note: "描述里搜一段字" },
-        { name: "limit", in: "query", kind: "int", def: 50, note: "要几条" },
-        { name: "offset", in: "query", kind: "int", def: 0, note: "从第几条开始" },
-        { name: "order", in: "query", kind: "string", only: ["created_at", "id", "state"], def: "created_at", note: "按什么排" },
-        { name: "dir", in: "query", kind: "string", only: ["asc", "desc"], def: "desc", note: "升还是降" },
+        { name: "state", in: "query", kind: "string", only: STATES, note: "Only this state" },
+        { name: "mode", in: "query", kind: "string", note: "Only this mode" },
+        { name: "agent", in: "query", kind: "string", note: "Only what this agent took" },
+        { name: "run", in: "query", kind: "string", note: "Only this run" },
+        { name: "source", in: "query", kind: "string", only: SOURCES, note: "Only this source" },
+        { name: "q", in: "query", kind: "string", note: "Search a substring in the description" },
+        { name: "limit", in: "query", kind: "int", def: 50, note: "How many rows" },
+        { name: "offset", in: "query", kind: "int", def: 0, note: "Which row to start at" },
+        { name: "order", in: "query", kind: "string", only: ["created_at", "id", "state"], def: "created_at", note: "What to order by" },
+        { name: "dir", in: "query", kind: "string", only: ["asc", "desc"], def: "desc", note: "Ascending or descending" },
       ],
       returns: {
         total: 42,
@@ -241,19 +241,19 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
       method: "GET",
       path: "/tasks/:id",
       group: TASK,
-      does: "一个任务的全貌：主表那行 + G 的判决 + 每个执行单元",
-      why: "把主表、subTable、G、时限**一次给全**。分成四个口的话客户端要打四次，而且中间库还会变 —— 拼出来的是四个时刻的快照。",
-      params: [{ name: "id", in: "path", kind: "string", required: true, note: "任务 id" }],
+      does: "The whole picture of one task: its main row, the grading verdict, and every execution unit",
+      why: "The main row, the sub-table, the grading function and the deadlines all come at once. Split across four routes, a client would make four calls while the database moved underneath - assembling a snapshot of four different moments.",
+      params: [{ name: "id", in: "path", kind: "string", required: true, note: "Task id" }],
       returns: {
         id: "t-1", state: "claimed",
         objective: { has: true, agentReadable: false, verdict: null },
         solve: { limitSeconds: 900, elapsedMs: 41000, leftMs: 859000, overdue: false },
         units: [{ cycle: "open", unit: 1, phase: "done", chain: "dfs/open#1", deadlineInMs: null }],
       },
-      errs: [{ code: 404, when: "没有这个任务" }],
+      errs: [{ code: 404, when: "no such task" }],
       handler: async (a, _req, reply) => {
         const t = taskOf(store, String(a.id));
-        if (!t) return reply.code(404).send({ error: `没有这个任务：${String(a.id)}` });
+        if (!t) return reply.code(404).send({ error: `no such task: ${String(a.id)}` });
         const units = has(store, t.sub)
           ? all(store.ro, `select * from "${t.sub}" where task = ? order by unit`, [t.id])
           : [];
@@ -289,17 +289,17 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
       method: "GET",
       path: "/tasks/:id/tree",
       group: TASK,
-      does: "执行单元的树",
-      why: "**依据是子表里的 `from_cycle`/`from_unit` 指针**，客户端拼一遍等于把内核那段抄一份。这儿直接给嵌好的树，画就是了。",
-      params: [{ name: "id", in: "path", kind: "string", required: true, note: "任务 id" }],
+      does: "The tree of execution units",
+      why: "It is built from the `from_cycle`/`from_unit` pointers in the sub-table; assembling it client-side means copying that piece of the kernel. Here the tree comes already nested, ready to draw.",
+      params: [{ name: "id", in: "path", kind: "string", required: true, note: "Task id" }],
       returns: {
         roots: [{ cycle: "open", unit: 1, status: null, phase: "done", children: [{ cycle: "act", unit: 2, children: [] }] }],
         orphans: [],
       },
-      errs: [{ code: 404, when: "没有这个任务" }],
+      errs: [{ code: 404, when: "no such task" }],
       handler: async (a, _req, reply) => {
         const t = taskOf(store, String(a.id));
-        if (!t) return reply.code(404).send({ error: `没有这个任务：${String(a.id)}` });
+        if (!t) return reply.code(404).send({ error: `no such task: ${String(a.id)}` });
         if (!has(store, t.sub)) return { roots: [], orphans: [] };
         const rows = all(store.ro, `select * from "${t.sub}" where task = ? order by unit`, [t.id]);
         const key = (c: unknown, u: unknown) => `${String(c)}#${String(u)}`;
@@ -325,14 +325,14 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
       method: "GET",
       path: "/tasks/:id/messages",
       group: TASK,
-      does: "这个任务的上下文：它看见了什么、说了什么、请求了哪个工具",
-      why: "消息存在 `agent_<名字>_msg` 里，**表名是长出来的** —— 客户端要自己拼表名就得知道那条改名规则（非法字符换下划线）。而且 `call`/`tool` 那两种的 `body` 是 JSON，这儿替它解开。",
+      does: "The context of this task: what it saw, what it said, which tools it asked for",
+      why: "Messages live in `agent_<name>_msg`, and that table name is grown - assembling it client-side means knowing the renaming rule (illegal characters become underscores). The `body` of `call` and `tool` rows is JSON, and it is unpacked here.",
       params: [
-        { name: "id", in: "path", kind: "string", required: true, note: "任务 id" },
-        { name: "unit", in: "query", kind: "int", note: "只看某一个执行单元的" },
-        { name: "kind", in: "query", kind: "string", note: "只看某一种消息 → `GET /about` 的「消息类型」" },
-        { name: "limit", in: "query", kind: "int", def: 200, note: "要几条" },
-        { name: "offset", in: "query", kind: "int", def: 0, note: "从第几条开始" },
+        { name: "id", in: "path", kind: "string", required: true, note: "Task id" },
+        { name: "unit", in: "query", kind: "int", note: "Only one execution unit" },
+        { name: "kind", in: "query", kind: "string", note: "Only one message kind -> the message kinds in `GET /about`" },
+        { name: "limit", in: "query", kind: "int", def: 200, note: "How many rows" },
+        { name: "offset", in: "query", kind: "int", def: 0, note: "Which row to start at" },
       ],
       returns: {
         total: 7,
@@ -341,10 +341,10 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
           { unit: 1, seq: 3, role: "assistant", kind: "call", body: "…", parsed: { text: "", calls: [] } },
         ],
       },
-      errs: [{ code: 404, when: "没有这个任务，或者它一个执行单元都还没有" }],
+      errs: [{ code: 404, when: "no such task, or it has no execution units yet" }],
       handler: async (a, _req, reply) => {
         const t = taskOf(store, String(a.id));
-        if (!t) return reply.code(404).send({ error: `没有这个任务：${String(a.id)}` });
+        if (!t) return reply.code(404).send({ error: `no such task: ${String(a.id)}` });
         if (!has(store, t.sub)) return { total: 0, rows: [] };
         const pairs = all(store.ro, `select distinct agent, instance from "${t.sub}" where task = ?`, [t.id]) as {
           agent: string; instance: string;
@@ -405,22 +405,22 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
       method: "POST",
       path: "/tasks/:id/messages",
       group: TASK,
-      does: "干预：在它跑的时候往上下文里插一句话",
-      why: "`msg_kind` 里一直有 `intervene`（「用户看着它执行时施加的干预标记」），**但在这个口之前没有任何一处写它** —— 那一行是个空位。人给的东西缀 `【人】`，落在哪个单元上是**算**出来的（当前那个没干完的），不用客户端自己找。",
+      does: "Intervene: put a line into the context while it runs",
+      why: "`msg_kind` has always had `intervene` (a mark left by a user intervening while it runs), but before this route nothing ever wrote it - that row was an empty slot. Anything from a person is prefixed, and which unit it lands on is computed (the current unfinished one) rather than left to the client to find.",
       params: [
-        { name: "id", in: "path", kind: "string", required: true, note: "任务 id" },
-        { name: "body", in: "body", kind: "string", required: true, note: "要说的话" },
-        { name: "unit", in: "body", kind: "int", note: "插进哪个执行单元。不给就插进当前那个没干完的" },
+        { name: "id", in: "path", kind: "string", required: true, note: "Task id" },
+        { name: "body", in: "body", kind: "string", required: true, note: "What to say" },
+        { name: "unit", in: "body", kind: "int", note: "Which execution unit to insert into. Omitted, the current unfinished one" },
       ],
       returns: { task: "t-1", agent: "solver", instance: "t-1#1", unit: 3, seq: 4, kind: "user" },
       errs: [
-        { code: 404, when: "没有这个任务" },
-        { code: 409, when: "没有正在跑的执行单元可以插 —— 任务已经完了，或者一个单元都还没开" },
+        { code: 404, when: "no such task" },
+        { code: 409, when: "there is no running execution unit to insert into - the task is over, or no unit has been opened yet" },
       ],
       handler: async (a, _req, reply) => {
         const t = taskOf(store, String(a.id));
-        if (!t) return reply.code(404).send({ error: `没有这个任务：${String(a.id)}` });
-        if (!has(store, t.sub)) return reply.code(409).send({ error: `${String(a.id)} 一个执行单元都还没有` });
+        if (!t) return reply.code(404).send({ error: `no such task: ${String(a.id)}` });
+        if (!has(store, t.sub)) return reply.code(409).send({ error: `${String(a.id)} has no execution units yet` });
         const where = a.unit !== undefined ? `and unit = ?` : `and done = 0`;
         const p = a.unit !== undefined ? [t.id, Number(a.unit)] : [t.id];
         const u = one(store, `select agent, instance, unit from "${t.sub}" where task = ? ${where} order by unit desc`, p);
@@ -428,8 +428,8 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
           return reply.code(409).send({
             error:
               a.unit !== undefined
-                ? `${String(a.id)} 没有第 ${String(a.unit)} 个执行单元`
-                : `${String(a.id)} 没有正在跑的执行单元 —— 它已经完了（state=${String(t.state)}）`,
+                ? `${String(a.id)} has no execution unit ${String(a.unit)}`
+                : `${String(a.id)} has no running execution unit - it is already over (state=${String(t.state)})`,
           });
         }
         const seq = deliver(store.rw, {
@@ -447,34 +447,34 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
       method: "GET",
       path: "/tasks/:id/why",
       group: TASK,
-      does: "这个任务为什么不动",
-      why: "**「谁都不接而且不报错」是这台机器最常见的一种故障** —— 任务躺在库里，状态永远是 open，没人知道为什么。该问的这儿一次问完：模式在不在、地方登没登记、轨挑不挑得中、句柄注册没、卡在哪个单元、还有多久判死。客户端自己问一遍，就得把内核挑轨那段逻辑抄一份。",
-      params: [{ name: "id", in: "path", kind: "string", required: true, note: "任务 id" }],
+      does: "Why this task is not moving",
+      why: "Nobody picks it up and nothing reports it is the most common failure on this machine: the task sits in the database, state stays open, and no one knows why. Everything worth asking is asked here at once: is the mode there, is the place registered, can a lane be selected, is the handle registered, which unit is stuck, how long until it is declared dead. Asking it client-side means copying the kernel lane-selection logic.",
+      params: [{ name: "id", in: "path", kind: "string", required: true, note: "Task id" }],
       returns: {
         id: "t-1", state: "open", movable: false,
-        problems: ["走的模式 dfs 在任务周期表里没有 —— 这个任务谁都接不了，而且不会报错"],
+        problems: ["its mode dfs is not in the cycle table - nobody can pick this task up, and nothing reports it"],
         stuckAt: null,
       },
-      errs: [{ code: 404, when: "没有这个任务" }],
+      errs: [{ code: 404, when: "no such task" }],
       handler: async (a, _req, reply) => {
         const t = taskOf(store, String(a.id));
-        if (!t) return reply.code(404).send({ error: `没有这个任务：${String(a.id)}` });
+        if (!t) return reply.code(404).send({ error: `no such task: ${String(a.id)}` });
         const problems: string[] = [];
         const now = Date.now();
 
         if (all(store.ro, `select 1 from cycle where mode = ?`, [t.mode]).length === 0) {
-          problems.push(`走的模式 ${String(t.mode)} 在任务周期表里没有 —— 这个任务谁都接不了，而且不会报错`);
+          problems.push(`its mode ${String(t.mode)} is not in the cycle table - nobody can pick this task up, and nothing reports it`);
         }
         if (all(store.ro, `select 1 from workplace where place = ?`, [t.place]).length === 0) {
-          problems.push(`干活的地方 ${String(t.place)} 没登记`);
+          problems.push(`its place ${String(t.place)} is not registered`);
         }
-        if (!has(store, t.sub)) problems.push(`subTable ${t.sub} 还没长出来 —— 打一下 POST /install`);
+        if (!has(store, t.sub)) problems.push(`the sub-table ${t.sub} has not been grown yet - call POST /install`);
 
         const units = has(store, t.sub)
           ? (all(store.ro, `select * from "${t.sub}" where task = ? order by unit`, [t.id]) as Row[])
           : [];
         if (units.length === 0 && has(store, t.sub)) {
-          problems.push(`一个执行单元都没有 —— 多半是绕过发布口直接插的 task 行`);
+          problems.push(`no execution units at all - most likely a task row inserted directly, bypassing the publish route`);
         }
 
         let stuckAt: unknown = null;
@@ -482,15 +482,15 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
           const info = unitOf(t, u);
           if (!info.handle) {
             problems.push(
-              `${String(u.cycle)}#${String(u.unit)}：挑不出这一站该调的句柄 —— ` +
-                `多半是 ${String(u.agent)} 的 apis 里没有一条支持 ${String(t.mode)}/${String(u.cycle)} 要的调用形状`,
+              `${String(u.cycle)}#${String(u.unit)}: cannot select a handle for this station - ` +
+                `most likely none of the apis of ${String(u.agent)} serves the api mode ${String(t.mode)}/${String(u.cycle)} asks for`,
             );
           } else if (!reg.has(info.handle)) {
-            problems.push(`${String(u.cycle)}#${String(u.unit)}：要调 ${info.handle}，但进程里没有这个句柄`);
+            problems.push(`${String(u.cycle)}#${String(u.unit)}: it would call ${info.handle}, but no such handle is registered in this process`);
           }
           if (info.deadlineInMs !== null && info.deadlineInMs < 0) {
             problems.push(
-              `${String(u.cycle)}#${String(u.unit)}：已经超过时限 ${-info.deadlineInMs}ms —— 内核会判死它`,
+              `${String(u.cycle)}#${String(u.unit)}: over its deadline by ${-info.deadlineInMs}ms - the kernel will declare it dead`,
             );
           }
           stuckAt ??= info;
@@ -498,7 +498,7 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
 
         const limitMs = Number(t.solve_seconds) * 1000;
         if (String(t.state) !== "done" && String(t.state) !== "failed" && now - Number(t.created_at) > limitMs) {
-          problems.push(`整道题超过 solveSeconds=${String(t.solve_seconds)}s 了 —— 内核会判 failed`);
+          problems.push(`the whole task is over solveSeconds=${String(t.solve_seconds)}s - the kernel will mark it failed`);
         }
 
         // 内核推某一行时炸过的话，它把话落在了那一行的上下文里。**捞出来。**
@@ -513,7 +513,7 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
           ) as { body: string }[]) {
             try {
               const v = JSON.parse(r.body) as { stuck?: string };
-              if (v.stuck) problems.push(`${String(u.cycle)}#${String(u.unit)}：内核推它的时候炸了 —— ${v.stuck}`);
+              if (v.stuck) problems.push(`${String(u.cycle)}#${String(u.unit)}: the kernel threw while advancing it - ${v.stuck}`);
             } catch {
               // 不是那种记账行，跳过
             }

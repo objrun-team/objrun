@@ -15,8 +15,8 @@ import { check, explain } from "../trigger/check.ts";
 import { checkData } from "../trigger/data.ts";
 import type { Route } from "./spec.ts";
 
-const BENCH = "跑分";
-const DIAG = "诊断";
+const BENCH = "bench";
+const DIAG = "diagnostics";
 
 export function benchRoutes(store: Store, reg: Registry, sealed: Sealed, wake: () => void): Route[] {
   return [
@@ -24,14 +24,14 @@ export function benchRoutes(store: Store, reg: Registry, sealed: Sealed, wake: (
       method: "POST",
       path: "/bench",
       group: BENCH,
-      does: "发一批带 G 的题",
-      why: "**一道不过就整批不发。** 发一半的话成绩单的分母是错的，而且没人看得出来少了哪几道。",
+      does: "Publish a batch of graded tasks",
+      why: "One bad task rejects the whole batch. Publishing half of it makes the denominator on the scorecard wrong, and nobody can tell which ones are missing.",
       params: [
-        { name: "run", in: "body", kind: "string", note: "这一跑叫什么。不给按时间生一个。**重名当场拒** —— 两次的成绩混在一起就说不清了" },
-        { name: "tasks", in: "body", kind: "array", required: true, of: "跟 POST /tasks 收的一样，每道自带 objective", note: "这一批的题" },
+        { name: "run", in: "body", kind: "string", note: "What this run is called. Omitted, one is generated from the clock. A duplicate name is rejected outright - two scorecards mixed together explain nothing" },
+        { name: "tasks", in: "body", kind: "array", required: true, of: "Same shape as POST /tasks takes, each carrying its own objective", note: "The tasks in this batch" },
       ],
       returns: { run: "2026-08-29T12-00-00", ids: ["b-1", "b-2"] },
-      errs: [{ code: 400, when: "重名、一道题都没有、或者其中任一道过不了发布那道闸（整批都不发）" }],
+      errs: [{ code: 400, when: "Duplicate run name, an empty batch, or any single task failing the publish gate (the whole batch is rejected)" }],
       handler: async (a, _req, reply) => {
         // 同 `/tasks`：拒收是请求的问题，一律 400。
         let r: unknown;
@@ -48,7 +48,7 @@ export function benchRoutes(store: Store, reg: Registry, sealed: Sealed, wake: (
       method: "GET",
       path: "/bench",
       group: BENCH,
-      does: "有哪几跑",
+      does: "Which runs exist",
       returns: { runs: [{ run: "2026-08-29T12-00-00", n: 4 }] },
       handler: async () => ({ runs: runs(store.ro) }),
     },
@@ -56,9 +56,9 @@ export function benchRoutes(store: Store, reg: Registry, sealed: Sealed, wake: (
       method: "GET",
       path: "/bench/:run",
       group: BENCH,
-      does: "一跑的成绩",
-      why: "**数出来的，不是存着的。** 存一份会跟真相漂，而且漂了不报错。",
-      params: [{ name: "run", in: "path", kind: "string", required: true, note: "这一跑的名字" }],
+      does: "The scorecard for one run",
+      why: "Counted, not stored. A stored copy drifts from the truth, and the drift is never reported.",
+      params: [{ name: "run", in: "path", kind: "string", required: true, note: "The name of the run" }],
       returns: { run: "2026-08-29T12-00-00", total: 4, done: 2, failed: 1, running: 1, tasks: [] },
       handler: async (a) => score(store.ro, String(a.run)),
     },
@@ -66,11 +66,11 @@ export function benchRoutes(store: Store, reg: Registry, sealed: Sealed, wake: (
       method: "GET",
       path: "/check",
       group: DIAG,
-      does: "整库过一遍：条件写得对不对 + 数据互相对不对得上",
-      why: "**开机也自动跑一遍**，有问题打警告不拦启动。客户端该在「配置页」上直接显示它 —— 声明写错了不报错，只是那台机器什么都不干。",
+      does: "Sweep the whole database: are the trigger terms well formed, and does the data line up with itself",
+      why: "This also runs once at boot; problems warn but do not block startup. A client should surface it on its config page - a broken declaration raises no error, the machine simply does nothing.",
       returns: {
-        trigger: [{ owner_kind: "tool", owner: "read", group: 0, why: "比法 contain 不认得" }],
-        data: [{ what: "task t-1", why: "走的模式 dfs 在任务周期表里没有 —— 这个任务谁都接不了，而且不会报错" }],
+        trigger: [{ owner_kind: "tool", owner: "read", group: 0, why: "unknown operator contain" }],
+        data: [{ what: "task t-1", why: "its mode dfs is not in the cycle table - nobody can pick this task up, and nothing reports it" }],
       },
       handler: async () => ({ trigger: check(store.ro), data: checkData(store.ro, reg) }),
     },
@@ -78,8 +78,8 @@ export function benchRoutes(store: Store, reg: Registry, sealed: Sealed, wake: (
       method: "GET",
       path: "/trigger/check",
       group: DIAG,
-      does: "只把触发条件过一遍",
-      why: "**不跑系统就能验。** 条件写错了的典型后果是静默不生效 —— 那条规则永远不触发而系统照常跑，所以这不是调试功能，是这张表能不能用的前提。",
+      does: "Sweep only the trigger terms",
+      why: "Verifiable without running the system. The usual consequence of a malformed term is silence: the rule never fires while everything else carries on. So this is not a debugging convenience, it is the precondition for the table being usable at all.",
       returns: { problems: [] },
       handler: async () => ({ problems: check(store.ro) }),
     },
@@ -87,28 +87,28 @@ export function benchRoutes(store: Store, reg: Registry, sealed: Sealed, wake: (
       method: "POST",
       path: "/trigger/explain",
       group: DIAG,
-      does: "为什么这一条没命中 —— 逐组说清，**带上实际取到的值**",
-      why: "只说「没匹配」的话，人得自己猜是词写错了、还是那段文本里根本没有。带上实际值就不用猜。",
+      does: "Why this one did not match - group by group, with the values actually read",
+      why: "Saying only \"no match\" leaves the reader guessing whether the word was mistyped or simply absent from the text. Showing the actual value removes the guess.",
       params: [
-        { name: "kind", in: "body", kind: "string", required: true, only: ["rule", "skill", "tool"], note: "问哪一类的条件（`owner_kind`）" },
-        { name: "owner", in: "body", kind: "string", required: true, note: "问哪一个（规则名 / skill / 工具名）" },
-        { name: "agent", in: "body", kind: "string", note: "拿哪个智能体当事实。不给就当没有这一维" },
-        { name: "task", in: "body", kind: "string", note: "拿哪个任务当事实" },
-        { name: "mode", in: "body", kind: "string", note: "拿哪个模式的周期当事实，跟 `cycle` 一起给" },
-        { name: "cycle", in: "body", kind: "string", note: "哪个周期" },
-        { name: "chain", in: "body", kind: "string", note: "链路串，如 `dfs/open#1 > dfs/act#2`" },
-        { name: "place", in: "body", kind: "string", note: "拿哪个工作区当事实。**是执行单元那一站的，不是任务的**" },
+        { name: "kind", in: "body", kind: "string", required: true, only: ["rule", "skill", "tool"], note: "Which kind of owner to ask about (`owner_kind`)" },
+        { name: "owner", in: "body", kind: "string", required: true, note: "Which one (rule identity / skill / tool name)" },
+        { name: "agent", in: "body", kind: "string", note: "Which agent to take as fact. Omitted, that dimension is treated as absent" },
+        { name: "task", in: "body", kind: "string", note: "Which task to take as fact" },
+        { name: "mode", in: "body", kind: "string", note: "Which mode the cycle belongs to; give it together with `cycle`" },
+        { name: "cycle", in: "body", kind: "string", note: "Which cycle" },
+        { name: "chain", in: "body", kind: "string", note: "The chain string, e.g. `dfs/open#1 > dfs/act#2`" },
+        { name: "place", in: "body", kind: "string", note: "Which workplace to take as fact. This is the station of the execution unit, not the task" },
       ],
       returns: {
         fired: false,
         groups: [{ group: 0, ok: false, items: [{ dim: "task", key: "source", op: "eq", value: "user", actual: "agent", ok: false }] }],
       },
-      errs: [{ code: 400, when: "指名的 agent / task / cycle 在库里没有那一行" }],
+      errs: [{ code: 400, when: "the named agent / task / cycle has no row in the database" }],
       handler: async (a, _req, reply) => {
         try {
           const row = (what: string, sql: string, p: unknown[]) => {
             const r = all(store.ro, sql, p)[0];
-            if (!r) throw new Error(`${what} 里没有这一行`);
+            if (!r) throw new Error(`no such row in ${what}`);
             return r;
           };
           return explain(store.ro, String(a.kind), String(a.owner), {

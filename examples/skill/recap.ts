@@ -14,7 +14,7 @@ export async function run(arg: unknown): Promise<unknown> {
     };
   };
   const t = facts?.task;
-  const line = `【现生成的】这道题是 ${t?.id}（${t?.source} 发的，在 ${facts?.place}）：${t?.description}`;
+  const line = `[generated] this task is ${t?.id} (published by ${t?.source}, at ${facts?.place}): ${t?.description}`;
   console.log(`[recap] ${line}`);
   return line;
 }
