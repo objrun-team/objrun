@@ -31,8 +31,10 @@ openai / anthropic / google-genai / tqdm / dotenv —— 那是它「拿模型�
 开放也翻不出来。
 
 **还漏着一条**：solver 的 `bash` 跟引擎在同一台机器上，猜到 `127.0.0.1:7901` 的话，
-`/equiv` 就是个能刷的验证 oracle。堵死要把这个进程连题库一起塞进容器、只对引擎开口；
-这台机器上暂时没有容器 runtime，所以这一条现在**靠的是没告诉它地址，不是够不着**。
+`/equiv` 就是个能刷的验证 oracle。把这个进程装进容器**堵不住它** —— 端口还是发布在
+同一台机器上。往句柄名里塞 token 也不行：句柄是主库 `handle` 表里的一行，`/query`
+一条 SQL 就读出来了。真堵死得让 solver 那个 place 够不着这个端口（网络受限的沙箱），
+那是 `place` 这一维的事。**这一条现在靠的是没告诉它地址，不是够不着。**
 """
 
 from __future__ import annotations

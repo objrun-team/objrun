@@ -141,6 +141,39 @@ curl -s http://127.0.0.1:7901/health
 {"ok": true, "items": 50}
 ```
 
+### 换成容器（题库和判据一起打包进去）
+
+```bash
+docker compose -f examples/benchmark/cmt/compose.yaml up -d --build
+```
+
+[`Dockerfile`](./Dockerfile) 把题库、官方判据（钉在 `c114183`）、三个 python 包和
+`grader.py` 全封进镜像，构建时跑一遍 `--selftest`（拿 GT 当回答喂回去，该 5/5）
+—— **装错了在 build 就炸，不会等到跑 bench 才发现**。
+
+**引擎一个字不用改。** 它只认 `http://127.0.0.1:7901/{parsed,equiv}` 这两个名字，
+后面是 WSL 里的一个 venv 还是一个容器，跟它无关 —— 这正是「句柄名就是地址」这条的用处。
+
+`compose.yaml` 里 `127.0.0.1:7901:7901` 的 `127.0.0.1:` 别去掉：不写的话 Docker 会把
+这个口发布到所有网卡，判卷台就从「本机一个进程」变成「局域网里谁都能打」。
+
+**它解决的是可移植和可复现，不是那个洞。** 见下。
+
+### 容器堵不住的那一条
+
+上面说过 `/equiv` 能被 solver 当验证 oracle 刷。装进容器**不解决这个** ——
+端口还是发布在同一台机器的 `127.0.0.1` 上，solver 的 `bash` 照样打得到。
+
+往句柄名里塞个随机 token（`…/equiv?k=xxx`）也不行，我查过了：句柄是主库
+`handle` 表里的一行，而 `/query` 是开放接口，solver 一条 SQL 就把 token 读出来了。
+`readable: false` 封的是 **G 的定义**（在另一个库里），封不住句柄名。
+
+真要堵死只有一条路：**让 solver 那个 place 够不着这个端口** —— 把执行单元也放进
+一个网络受限的容器/沙箱里，只放行它该有的出口。那是 `place` 这一维的事，不是判卷台的事。
+
+在那之前，这一条的实际状态是：**没把地址写进任务描述，仅此而已。** 记在这儿，
+别让它被当成已经堵上了。
+
 ## 三、引擎
 
 ```bash
@@ -535,7 +568,8 @@ moment（只有规则走的 `#atMoment` 才设）—— 写了就永远不中，
 
 | | |
 | --- | --- |
-| [`setup.sh`](./setup.sh) | 备料。题库 + 官方判据 + venv，幂等 |
+| [`setup.sh`](./setup.sh) | 备料。题库 + 官方判据 + venv，幂等（不用容器那条路） |
+| [`Dockerfile`](./Dockerfile) · [`compose.yaml`](./compose.yaml) | 判卷台连题库一起打包（用容器那条路，二选一） |
 | [`grader.py`](./grader.py) | 判卷台。**判据是官方的，这个文件只接 HTTP**；另开一个 `/problems` 发题面 |
 | [`send.ts`](./send.ts) | 从 `/problems` 取题，拼 `POST /bench` 的请求体 |
 | [`run.sh`](./run.sh) | 声明 → 挂扩展 → 发批 → 等 → 成绩单 |
