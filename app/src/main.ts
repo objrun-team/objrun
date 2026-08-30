@@ -20,7 +20,7 @@ import { Registry } from "./engine/registry.ts";
 import { readConfig } from "./H2H/config.ts";
 import { all, run } from "./H2H/db.ts";
 import { build } from "./H2H/server.ts";
-import { install } from "./install/index.ts";
+import { install, tableNameOf } from "./install/index.ts";
 import { registerVendors, seedModes } from "./llm/index.ts";
 import { registerDuplex, Sessions } from "./llm/duplex.ts";
 import { Servers } from "./mcp/client.ts";
@@ -36,6 +36,32 @@ import { Places, registerTools } from "./tools/register.ts";
 import { registerToolUnit } from "./tools/unit.ts";
 
 const VERSION = pkg.version;
+
+/**
+ * 这个任务最后说的那句。
+ *
+ * G 在收尾那一刻要判「做成了没有」，而答案在消息表里 —— `task.result` 存的是判决
+ * 本身，不是答复。取的是**最后一条模型自己说的**（`prompt` 或 `call`），跟树那一路
+ * 递给 G 的 `result` 是同一样东西。
+ *
+ * 取不到就回 `undefined`：没答等于没做对，G 那边自己会归 0。
+ */
+function lastSaid(db: Parameters<typeof all>[0], task: string): { body: string } | undefined {
+  const t = all(db, `select mode from task where id = ?`, [task])[0] as { mode?: string } | undefined;
+  if (!t?.mode) return undefined;
+  const sub = tableNameOf("task_{}", String(t.mode));
+  const u = all(db, `select agent, instance from "${sub}" where task = ? order by unit desc limit 1`, [task])[0] as
+    | { agent: string; instance: string }
+    | undefined;
+  if (!u) return undefined;
+  const msg = tableNameOf("agent_{}_msg", u.agent);
+  const r = all(
+    db,
+    `select body from "${msg}" where instance = ? and kind in ('prompt', 'call') order by unit desc, seq desc limit 1`,
+    [u.instance],
+  )[0] as { body?: string } | undefined;
+  return r?.body === undefined ? undefined : { body: r.body };
+}
 
 const cfg = readConfig();
 
@@ -80,7 +106,14 @@ const kernel = new Kernel(app.store, app.log, registry, {
       const g = sealed.open(task);
       if (!g) return;
       const row = all(app.store.ro, `select id, description, place, workdir from task where id = ?`, [task])[0];
-      const v = await evaluate(g, registry, { task: row });
+      // **把最后那句答复一起递过去。** G 判的是「这道题做成了没有」，而答案在
+      // 消息表里，不在 `task` 那一行上（`task.result` 是判决本身，不是答复）。
+      // 不递的话 G 那一步拿到的是空字符串，凡是要看答案的 G 一律判 0 ——
+      // 而且它会把树那一路刚判对的结果覆盖掉，看着像判据出错。
+      //
+      // 形状跟树那一路对齐（`tree/dfs.ts` 递的是 `{task, chain, result}`），
+      // 这样一个 G 脚本两处都能用，不用问自己「这次是谁在叫我」。
+      const v = await evaluate(g, registry, { task: row, result: lastSaid(app.store.ro, String(task)) });
       run(app.store.rw, `update task set state = ?, result = ? where id = ?`, [
         v.pass === 1 ? "done" : "failed",
         JSON.stringify({ pass: v.pass, why: v.why }),

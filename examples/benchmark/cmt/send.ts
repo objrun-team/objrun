@@ -1,0 +1,88 @@
+/**
+ * 把 `cmt_data.jsonl` 拼成一批带 G 的题，发给 `POST /bench`。
+ *
+ * ```
+ * bun examples/benchmark/cmt/send.ts [几道] [这一跑叫什么]
+ * ```
+ *
+ * 50 道题没法在文档里一条条 curl，所以有这么个脚本。**它只干一件事：拼请求体**
+ * —— 一道题长什么样、G 长什么样，README 里有完整的一份。
+ *
+ * 题面进 `description`，`solution` **不进** —— 智能体那一侧看不到答案。
+ */
+
+const BASE = process.env.TGENGIN_BASE ?? "http://127.0.0.1:7801/api";
+const DATA = process.env.TGENGIN_CMT_DATA ?? "examples/benchmark/cmt/cmt_data.jsonl";
+const GRADER = process.env.TGENGIN_CMT_GRADER ?? "http://127.0.0.1:7901";
+const HOW_MANY = Number(process.argv[2] ?? 0);
+const RUN = process.argv[3] ?? `cmt-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}`;
+
+interface Item {
+  index: number;
+  prompt: string;
+  parameters: string;
+  functions: string;
+  solution: string;
+  type: string;
+}
+
+const f = Bun.file(DATA);
+if (!(await f.exists())) {
+  console.error(`没有题库：${DATA}`);
+  process.exit(1);
+}
+
+const all = (await f.text())
+  .split("\n")
+  .filter((l) => l.trim())
+  .map((l) => JSON.parse(l) as Item);
+const items = HOW_MANY > 0 ? all.slice(0, HOW_MANY) : all;
+
+/**
+ * 每道题的 G。两个节点，**句柄名就是判卷台的地址**：
+ *
+ * ```
+ *   parsed ──→ equiv        parsed：给没给出 \boxed{}
+ *                           equiv ：跟 GT 等不等价（根）
+ * ```
+ *
+ * 根**必须有入边** —— 没有的话它的值跟候选无关，G 恒定，那是个无效目标，
+ * 发布这一关就拒。而这两格正好是原基准自己报的那两栏（`parse` / `equiv`）。
+ */
+const objective = {
+  nodes: [
+    { name: "parsed", moment: "task_done", domain: "bool", handle: `${GRADER}/parsed` },
+    { name: "equiv", moment: "task_done", domain: "bool", handle: `${GRADER}/equiv` },
+  ],
+  edges: [{ src: "parsed", out: 0, dst: "equiv" }],
+  sink: "equiv",
+};
+
+const tasks = items.map((it) => ({
+  id: `cmt-${it.index}`,
+  mode: "solve",
+  agent: "bot",
+  place: "local",
+  source: "user",
+  solveSeconds: 900,
+  description:
+    `${it.prompt}\n\n` +
+    (it.parameters ? `符号：${it.parameters}\n` : "") +
+    (it.functions ? `函数：${it.functions}\n` : "") +
+    `\n把最终答案放进 \\boxed{} 里。`,
+  objective,
+  // 带 G 就必须显式给：这道题的智能体读不读得到 G 的定义。
+  readable: false,
+}));
+
+const res = await fetch(`${BASE}/bench`, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ run: RUN, tasks }),
+});
+const got = (await res.json()) as { run?: string; ids?: string[]; error?: string };
+if (!res.ok) {
+  console.error(`整批都没发出去：${got.error}`);
+  process.exit(1);
+}
+console.log(`${got.run}：${got.ids?.length} 道`);
