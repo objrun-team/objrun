@@ -121,7 +121,7 @@ dist/tgengin-win-x64.exe &
 ## 四、跑一趟
 
 ```bash
-bash examples/benchmark/cmt/run.sh 5 cmt-demo
+bash examples/benchmark/cmt/run.sh 5 cmt-w
 ```
 
 [`run.sh`](./run.sh) 把下面这几步串起来。
@@ -149,6 +149,25 @@ JSON
 
 **句柄名就是地址**，没有别的注册动作。
 
+`ask` / `act` 两站的机制：`ask` 让模型开口，`act` 走 `fn:unit.tools` 把它请求的工具
+真跑掉。`infer` 是 `fn:infer.dfs` —— 这一条决定了这是**走树的机制**，判死会开兄弟，
+而且树自省那两个工具会挂上来（见下）。
+
+### 条件有没有毛病，发批之前先问
+
+```bash
+curl -s $BASE/check
+```
+```json
+{"trigger":[],"data":[]}
+```
+
+空 = 全通。条件写错了**不报错**，只是那条永远不触发 —— 所以这一问得在发批之前，
+不能等跑起来才发现。
+
+（`run.sh` 在这两步之间还会挂一个从老仓库搬来的 skill，
+见[最后那一节](#从老仓库搬过来的那一个-skill)。）
+
 ### 每道题的 G
 
 ```json
@@ -173,10 +192,10 @@ JSON
 智能体那一侧看不到答案。
 
 ```bash
-bun examples/benchmark/cmt/send.ts 5 cmt-demo
+bun examples/benchmark/cmt/send.ts 5 cmt-w
 ```
 ```
-cmt-demo：5 道
+cmt-w：5 道
 ```
 
 一道题的完整形状（`POST /bench` 的 `tasks[]` 里一项）：
@@ -220,54 +239,114 @@ cmt-demo：5 道
 混成一个数的话，你分不清模型是不会做还是格式没对齐。论文里也是分开报的
 （`parser_stats_summary` 和 `eval_stats_summary` 是两个文件）。
 
-## 判 0 之后：换条路再来
+---
 
-判 0 的题**不会收工** —— `fn:infer.dfs` 拿到 G 的 0，把这一站盖上 `dead_failed`，
-在同一个父底下开一个兄弟换条路走：
+## 判 0 之后：判决进上下文，然后换条路
+
+判 0 的题**不会收工**。`fn:infer.dfs` 拿到 G 的 0，做两件事：
+
+**一、把判决投进上下文** —— 投成「一次带结果的工具调用」：
 
 ```bash
-curl -s $BASE/tasks/cmt-1/tree | grep -o '"chain":"[^"]*"\|"status":"[a-z_]*"'
+curl -s -X POST $BASE/query -H 'content-type: application/json' -d @- <<'JSON'
+{ "sql": "select instance, unit, body from agent_bot_msg where kind='tool' and body like '%\"name\":\"verify\"%' limit 2" }
+JSON
 ```
+```json
+{"instance":"cmt-0#1","unit":1,
+ "body":"{\"id\":\"g-cmt-0#1-1-4\",\"name\":\"verify\",\"value\":{\"pass\":0,\"why\":\"equiv 判了 false\"}}"}
 ```
-"chain":"solve/ask#1"
-"chain":"solve/ask#1 > solve/act#2"
-"status":"dead_failed"
-"chain":"solve/ask#1 > solve/act#2 > solve/ask#3"
+
+不当 `user`（模型会去接话辩解）、不当 `system`（instructions 每轮重发会糊在一起）、
+不当 `assistant`（等于伪造它的轨迹）—— 它是**外部的、这一次的观测**，正好是 tool
+结果的语义。`why` 一起给：只给 0/1 的话它只知道错了，不知道错在哪，下一条分支多半
+原样再来一遍。
+
+**二、把这一站盖上 `dead_failed`，在同一个父底下开一个兄弟换条路。**
+
+```bash
+curl -s -X POST $BASE/query -H 'content-type: application/json' -d @- <<'JSON'
+{ "sql": "select task, count(*) as units, sum(case when status is not null then 1 else 0 end) as dead from task_solve group by task" }
+JSON
+```
+```json
+{"count":5,"rows":[
+  {"task":"cmt-0","units":8, "dead":4},
+  {"task":"cmt-1","units":9, "dead":4},
+  {"task":"cmt-2","units":9, "dead":4},
+  {"task":"cmt-3","units":10,"dead":3},
+  {"task":"cmt-4","units":8, "dead":4}]}
 ```
 
 **不许节点自己说了算，这就是 verifier-guided 的全部意思。** 模型说「我做完了」只是自评；
 G 说 0，那就是「以为到了其实没到」。
 
+## 兄弟看得见什么
+
+新开的兄弟**默认只接单链**（直系祖先 root→父）。判死的那几条是别人的分支，
+**默认不接入** —— 开兄弟正是为了换条路走，把另一条分支的话直接塞进来，两次尝试就
+互相污染了。
+
+但「不默认接入」不等于「看不见」。走树的机制会额外挂上两个工具（条件
+`cycle.infer = fn:infer.dfs`，写在 `trigger` 里 —— 一条道走到黑的单链机制一个都拿不到）：
+
+| | |
+| --- | --- |
+| `task_tree` | 看全树：试过哪几条、谁被判死了 |
+| `node_load(unit)` | 读某一站说了什么，**连同它的判决** |
+
+这一跑里模型**自己**用了 11 次：
+
+```bash
+curl -s -X POST $BASE/query -H 'content-type: application/json' -d @- <<'JSON'
+{ "sql": "select count(*) as n from agent_bot_msg where kind='call' and (body like '%task_tree%' or body like '%node_load%')" }
+JSON
+```
+```json
+{"count":1,"rows":[{"n":11}]}
+```
+
+`cmt-0` 那条链看得最清楚 —— 被判死两次之后，它主动去读了前两条失败分支：
+
+```
+unit 1  答了 → G 判 0
+unit 2  兄弟：答了 → G 判 0
+unit 4  node_load(1)   ← 去读第 1 站说了什么
+unit 6  node_load(2)   ← 再读第 2 站
+unit 7  答了 → G 判 0
+```
+
+不是编排出来的：工具摆在那儿，它自己决定要看。
+
 ## 成绩单
 
 ```bash
-curl -s $BASE/bench/cmt-demo
+curl -s $BASE/bench/cmt-w
 ```
 ```json
-{"run":"cmt-demo","total":5,"passed":0,"failed":5,"running":0,"open":0,
+{"run":"cmt-w","total":5,"passed":0,"failed":5,"running":0,"open":0,
  "tasks":[
-  {"id":"cmt-0","state":"failed","result":"{\"pass\":0,\"why\":\"超过 solve_seconds=900s\"}"},
-  {"id":"cmt-1","state":"failed","result":"{\"pass\":0,\"why\":\"超过 solve_seconds=900s\"}"},
-  {"id":"cmt-2","state":"failed","result":"{\"pass\":0,\"why\":\"超过 solve_seconds=900s\"}"},
-  {"id":"cmt-3","state":"failed","result":"{\"pass\":0,\"why\":\"超过 solve_seconds=900s\"}"},
-  {"id":"cmt-4","state":"failed","result":"{\"pass\":0,\"why\":\"超过 solve_seconds=900s\"}"}]}
+  {"id":"cmt-0","state":"failed","result":"{\"pass\":0,\"why\":\"equiv 判了 false\"}"},
+  {"id":"cmt-1","state":"failed","result":"{\"pass\":0,\"why\":\"equiv 判了 false\"}"},
+  {"id":"cmt-2","state":"failed","result":"{\"pass\":0,\"why\":\"equiv 判了 false\"}"},
+  {"id":"cmt-3","state":"failed","result":"{\"pass\":0,\"why\":\"equiv 判了 false\"}"},
+  {"id":"cmt-4","state":"failed","result":"{\"pass\":0,\"why\":\"equiv 判了 false\"}"}]}
 ```
 
 **成绩是数出来的，不是存着的。** 存一份会跟真相漂，而且漂了不报错。
 
-`failed` 里混着两种，看 `why` 分：
+`failed` 得看 `why` 才知道是哪一种：
 
 | `why` | |
 | --- | --- |
-| `equiv 判了 false` | G 真判了 0 —— 收尾那一刻算出来的 |
-| `超过 solve_seconds` | **耗光了**。判 0 → 换路重试 → 一直没有哪条分支过 G，直到钟走完 |
+| `equiv 判了 false` | **G 真判了 0** —— 树把该走的路走完了，是被判不成 |
+| `超过 solve_seconds` | **耗光了** —— 一直没走到判决就没时间了 |
 
-这一跑五道全是后者：没有哪条分支通过 G。所以**一道题的耗时下界不是「答一次」，
-是 `solveSeconds`** —— 排 50 道的时候得按这个算。
+这一跑五道全是前者，一道超时都没有。
 
-> 这不是论文那张表上的数。论文是**单轮问一次**，这儿是带工具的多轮、判 0 还会重试，
-> 而且只跑了 50 道里的前 5 道（全是 HF 型）。另一遍同样的配置跑出 1/5 —— 5 道题的
-> 样本量说明不了什么（论文里 DeepSeek v3 是 4%）。要跟论文对齐得单轮、跑满 50 道。
+> 分数不是这个例子的重点。题是研究级的（论文里最好的 GPT-5 也只有 30%，
+> DeepSeek v3 是 4%），这儿只跑了 50 道里的前 5 道、全是 HF 型。要跟论文那张表对齐，
+> 得单轮问一次、跑满 50 道 —— 这儿是带工具的多轮 + 判 0 重试，本来就不是同一件事。
 
 ---
 
@@ -285,7 +364,7 @@ curl -s $BASE/bench/cmt-demo
 bun examples/benchmark/cmt/parmeras/load.ts
 ```
 ```
-cmt-pre-symmetry-projection：只投方法（群投影），不投答案
+cmt-pre-symmetry-projection：解题机制的提问站上，面对涉及对称性的物理题时投。关键词取自它自己的名字和正文标记
 
 进去了：cmt-pre-symmetry-projection
 ```
@@ -308,6 +387,23 @@ cmt-pre-symmetry-projection：只投方法（群投影），不投答案
     "body": "=== 边际处境标记 + 通用方法(symmetry_projection)===\n…",
     "when": [[ …六条，见下… ]] }] }
 ```
+
+塞进上下文之后**它的 role 是 `skill`，不是 `user`**：
+
+```bash
+curl -s -X POST $BASE/query -H 'content-type: application/json' -d @- <<'JSON'
+{ "sql": "select role, kind, count(*) as n from agent_bot_msg group by role, kind order by n desc" }
+JSON
+```
+```json
+{"rows":[{"role":"system","kind":"inject","n":58},{"role":"tool","kind":"tool","n":41},
+         {"role":"assistant","kind":"call","n":30},{"role":"assistant","kind":"prompt","n":19},
+         {"role":"skill","kind":"skill","n":12},{"role":"user","kind":"user","n":5}]}
+```
+
+`role: user` 只剩真人发的那 5 条任务描述。**skill 有自己的身份**，走 `instructions`
+不进消息流 —— 借 `user` 的话等于告诉模型「有人在跟你说这段话」，它会去接话：实测
+过一版，模型回的是「请把本题的具体选项发出来，我会逐一代入该方法判断」，不再作答。
 
 ### `trigger` 是一张关键词匹配表
 
