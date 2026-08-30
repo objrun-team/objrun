@@ -121,7 +121,7 @@ export interface Unit {
    */
   view?: {
     task: Row;
-    here: { cycle: string; unit: number; chain: string };
+    here: { cycle: string; unit: number; chain: string; next?: string[] };
     tried: { at: string; from: string | null; status: string | null; done: boolean }[];
     /**
      * 还剩多少额度。**只有事实** —— 该在哪一站交卷、用哪个工具交，是声明层说的事
@@ -279,6 +279,21 @@ export function viewOf(u: Unit): string {
       t.workdir ? `:${String(t.workdir)}` : ""
     }${t.objective ? " | this task is graded by a verification function" : ""}`,
   ];
+
+  // **你在哪一站。** 流转表上的事实：站名，以及这一站之后还能去哪几站。
+  // 「没有下一站」是这里唯一多说的一句 —— 那也是事实（`next` 是空的），
+  // 而它决定了这一站说的话有没有下一站接得住。
+  const next = v.here.next;
+  lines.push(
+    "",
+    "## Where you are",
+    `station ${v.here.cycle}#${v.here.unit}` +
+      (next === undefined
+        ? ""
+        : next.length === 0
+          ? " - this is the last station: nothing runs after it, so anything you ask for here will not happen"
+          : ` - after this comes one of: ${next.join(", ")}`),
+  );
 
   // 额度只报事实。**该在哪一站交卷、用哪个工具交，是声明层说的事** ——
   // 流转表上摆着有哪几站，规矩写在 skill / 任务描述里。内核不在这儿塞口径。

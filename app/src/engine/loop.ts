@@ -96,6 +96,19 @@ function one(db: Conn, sql: string, params: unknown[] = []): Row | null {
 }
 
 /** 内核挂出来的钩子。**内核不认得钩子里干什么** —— 它只在那一刻喊一声。 */
+/** 这一站之后还能去哪几站。**流转表上的事实**，不是判断。 */
+function nextOf(db: Conn, mode: string, cycle: string): string[] {
+  const r = all(db, `select next from cycle where mode = ? and cycle = ?`, [mode, cycle])[0] as
+    | { next?: string }
+    | undefined;
+  try {
+    const v = JSON.parse(String(r?.next ?? "[]")) as unknown;
+    return Array.isArray(v) ? v.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
 export interface Hooks {
   /** 一个任务的执行单元全干完了。判它成没成是别人的事，内核只报告「跑完了」。 */
   /** 这道题收工了。`expired` 有值 = 是被时限逼停的，不是自己走完的。 */
@@ -535,7 +548,17 @@ export class Kernel {
         workdir: task.workdir,
         objective: task.objective !== null,
       },
-      here: { cycle: p.cycle, unit: p.unit, chain: chainOf(this.#store.ro, p.sub, p.mode, p) },
+      // **你在哪一站、这一站之后还有没有下一站。** 都是流转表上的事实。
+      //
+      // 不给的话，模型不知道自己站在终点站上 —— 实测它在交卷站上调了 `bash`，
+      // 那一站之后没有跑工具的站，于是那次调用永远不会被执行，而它也就没说出
+      // 任何一句能交的话。它不是不听话，是**看不见自己在哪儿**。
+      here: {
+        cycle: p.cycle,
+        unit: p.unit,
+        chain: chainOf(this.#store.ro, p.sub, p.mode, p),
+        next: nextOf(this.#store.ro, p.mode, p.cycle),
+      },
       budget: this.#budgetOf(p, task),
       tried: nodes.map((n) => ({
         at: `${String(n.cycle)}#${String(n.unit)}`,

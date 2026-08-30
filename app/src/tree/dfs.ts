@@ -210,6 +210,25 @@ function verdictFor(
   return hit;
 }
 
+/**
+ * 这一站**开口说了什么**。
+ *
+ * `prompt` 行的 `body` 就是那段话；`call` 行的 `body` 是 `{text, calls}`，
+ * 说的话在 `text` 里 —— 原样递出去的话，拿到的是一坨 JSON。
+ */
+function spokenAt(result: unknown): string {
+  const r = (result ?? {}) as { kind?: string; body?: unknown };
+  if (r.kind === "prompt") return String(r.body ?? "");
+  if (r.kind === "call") {
+    try {
+      return String((JSON.parse(String(r.body ?? "")) as { text?: unknown }).text ?? "");
+    } catch {
+      return "";
+    }
+  }
+  return "";
+}
+
 /** 这个周期的额度用完了没有。 */
 function full(db: Conn, a: Ask, nodes: Node[], cycle: string): boolean {
   const cap = all(db, `select max_units from cycle where mode = ? and cycle = ?`, [
@@ -292,7 +311,7 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
       // 空话不算。一条什么都没生成出来的 `prompt` 不是「我做完了」，
       // 是这一发没出来 —— 按普通推进往下走，让它下一站接着说。
       const handedIn = calledSubmit(db, inst, a.unit);
-      const spoke = r.kind === "prompt" && String(r.body ?? "").trim() !== "";
+      const spoke = r.kind === "prompt" && spokenAt(a.result).trim() !== "";
       if ((handedIn || spoke) && a.next.includes(SUBMIT)) return { to: SUBMIT } satisfies Said;
 
       // 还在跑：按候选往下走一格，从当前这一行接。
@@ -317,7 +336,11 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
     // 一步**：判一次。「有没有验证过」不改交卷这件事的形状，只改这一步跑不跑得成。
     let status = "reached";
     if (sealed.has(task)) {
-      const said = String(((a.result ?? {}) as { body?: unknown }).body ?? "");
+      // 交的是**它说的那段话**。一条 `call` 行的 `body` 是 `{text, calls}` ——
+      // 原样递过去的话，G 拿到的是一坨 JSON（实测就这么判过一次 0）。它在交卷站上
+      // 还想调工具的话，那些调用不会被执行（后面没有站了），但它开口说的那半句
+      // 还是它交的东西。
+      const said = spokenAt(a.result);
       const g = sealed.open(task)!;
 
       // **验过就不必再判一次。** `verify` 是干活途中的验证，交卷是这一刻的提交；

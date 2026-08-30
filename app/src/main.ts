@@ -79,14 +79,27 @@ function lastSaid(db: Parameters<typeof all>[0], task: string): { body: string; 
 
   const spoke = (units: number[]): string | undefined => {
     if (units.length === 0) return undefined;
+    // `call` 行的 `body` 是 `{text, calls}` —— 它开口说的那半句在 `text` 里。
+    // 只认 `prompt` 的话，一个「说了两句然后去调工具」的交卷站会被读成「什么都没交」。
     const rows = all(
       db,
-      `select body from "${msg}"
-        where instance = ? and kind = 'prompt' and unit in (${units.map(() => "?").join(",")})
+      `select kind, body from "${msg}"
+        where instance = ? and kind in ('prompt', 'call') and unit in (${units.map(() => "?").join(",")})
         order by unit desc, seq desc limit 20`,
       [u.instance, ...units],
-    ) as { body?: string }[];
-    for (const r of rows) if (r.body !== undefined && r.body.trim()) return r.body;
+    ) as { kind?: string; body?: string }[];
+    for (const r of rows) {
+      if (r.body === undefined) continue;
+      let text = r.body;
+      if (r.kind === "call") {
+        try {
+          text = String((JSON.parse(r.body) as { text?: unknown }).text ?? "");
+        } catch {
+          continue;
+        }
+      }
+      if (text.trim()) return text;
+    }
     return undefined;
   };
 
