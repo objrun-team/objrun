@@ -818,12 +818,30 @@ export class Kernel {
   #arm(rows: Pending[]): void {
     if (this.#timer) clearTimeout(this.#timer);
     this.#timer = null;
-    if (this.#stopped || rows.length === 0) return;
+    if (this.#stopped) return;
     const now = Date.now();
-    const deadlines = rows.map((r) => {
-      const cap = this.#expectSafe(r);
-      return cap === null ? null : r.at + cap;
-    }).filter((d): d is number => d !== null);
+
+    // 执行单元那一层：这一步卡住了没有。
+    const deadlines = rows
+      .map((r) => {
+        const cap = this.#expectSafe(r);
+        return cap === null ? null : r.at + cap;
+      })
+      .filter((d): d is number => d !== null);
+
+    // **任务那一层也得算进来。** 只按执行单元的 deadline 设表的话，一道题可以
+    // 无限期超过它自己的 `solve_seconds`：两边的时限差着量级（一步 15 分钟、
+    // 整道题 5 分钟），而没有新写入就没有别的信号能把内核叫醒。
+    //
+    // 实测：两道 `solve_seconds=300` 的题跑到 1306 秒还挂在 claimed —— 它们
+    // 卡在长模型调用里，没人写库，于是没人去看它们超没超时。
+    for (const t of all(
+      this.#store.ro,
+      `select created_at, solve_seconds from task where state not in ('done','failed')`,
+    ) as { created_at: number; solve_seconds: number }[]) {
+      deadlines.push(Number(t.created_at) + Number(t.solve_seconds) * 1000);
+    }
+
     if (deadlines.length === 0) return;
     const soonest = Math.min(...deadlines);
     this.#timer = setTimeout(() => this.wake(), Math.max(soonest - now, 50));
