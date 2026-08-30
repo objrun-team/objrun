@@ -317,7 +317,7 @@ export function registerVendors(
   db: Conn,
   reg: Registry,
   seed: [string, string, string][],
-  knobs: { maxTokens: number; reasoningEffort: string },
+  knobs: { maxTokens: number; retryTimes: number; continueTimes: number; reasoningEffort: string },
 ): string[] {
   for (const [vendor, v] of Object.entries(VENDORS)) {
     // 这条句柄接得住哪几种 mode。**duplex 不在里面** —— 它是另一条句柄。
@@ -347,31 +347,75 @@ export function registerVendors(
       const wall = new AbortController();
       const timer = setTimeout(() => wall.abort(), HARD_WALL_MS);
       try {
-        const out = await generateText({
-          model: provider(model),
-          messages,
-          ...(instructions ? { instructions } : {}),
-          ...(Object.keys(tools).length ? { tools } : {}),
-          maxOutputTokens: knobs.maxTokens,
-          // 思考强度**原样塞进那家的请求体**（openai-compatible 会把不认得的键
-          // 直接带过去）。不认得这个参数的模型会忽略它 —— 我们不替它翻译，
-          // 也不按模型名去猜该发哪个字段名，猜错了不报错，只是那一档没生效。
-          providerOptions: { [vendor]: { reasoning_effort: knobs.reasoningEffort } },
-          maxRetries: RETRIES,
-          abortSignal: wall.signal,
-        });
+        // ── 一次调用 = 一个执行单元；但**一个执行单元不等于一次 HTTP** ─────────
+        //
+        // 没说完就接着说，最多续 `continueTimes` 次。
+        //
+        // 为什么要这一档：思考型模型的输出预算是**思考和可见文本共用**的。额度一刀切
+        // 的话，它把预算全花在思考上，最后可见文本是空的 —— 实测 19 条答复里 12 条
+        // 全空，三道题一个字都没答，而成绩单上只表现为「答错」。
+        //
+        // **「没答」和「没答完」是两回事**：前者该判错，后者该让它说完。判据是
+        // `finishReason === "length"` —— 那是模型自己说的「我被截断了」，不是我们猜的。
+        //
+        // 续的时候把已经说出来的那半截当成 assistant 的话接在最后，它会顺着往下写。
+        /**
+         * 打一发，炸了就重打，每次多等 5 秒。
+         *
+         * SDK 自己那层 `maxRetries` 管的是 HTTP（连不上、5xx、429），管不了
+         * **「200 回来了但读不懂」**（`Failed to process successful response`）——
+         * 那是它把返回体映射成自己的结构时失败，重试逻辑够不着。
+         *
+         * 而炸在这儿之后内核按设计不重试（醒了就是原地热循环），那一站只能挂着等
+         * `expect_ms` —— 一次偶发抖动烧掉 15 分钟。所以这一层得自己扛。
+         *
+         * **递增等待**：抖动多半自己会过去，等一等比立刻再打有用。
+         */
+        const ask = async (msgs: ModelMessage[]) => {
+          let boom: unknown;
+          for (let n = 0; n <= knobs.retryTimes; n++) {
+            if (n > 0) await new Promise((r) => setTimeout(r, 5000 * n));
+            try {
+              return await generateText({
+                model: provider(model),
+                messages: msgs,
+                ...(instructions ? { instructions } : {}),
+                ...(Object.keys(tools).length ? { tools } : {}),
+                maxOutputTokens: knobs.maxTokens,
+                // 思考强度**原样塞进那家的请求体**（openai-compatible 会把不认得的键
+                // 直接带过去）。不认得这个参数的模型会忽略它 —— 我们不替它翻译，
+                // 也不按模型名去猜该发哪个字段名，猜错了不报错，只是那一档没生效。
+                providerOptions: { [vendor]: { reasoning_effort: knobs.reasoningEffort } },
+                maxRetries: RETRIES,
+                abortSignal: wall.signal,
+              });
+            } catch (e) {
+              // 整次调用的硬墙到了就别再重打了 —— 那不是抖动，是这一站超时了。
+              if (wall.signal.aborted) throw e;
+              boom = e;
+            }
+          }
+          throw boom;
+        };
 
-        if (out.toolCalls.length > 0) {
-          return {
-            role: "assistant",
-            kind: "call",
-            body: JSON.stringify({
-              text: out.text,
-              calls: out.toolCalls.map((c) => ({ id: c.toolCallId, name: c.toolName, input: c.input })),
-            }),
-          };
+        let text = "";
+        let calls: { id: string; name: string; input: unknown }[] = [];
+        for (let round = 0; ; round++) {
+          // 已经说出来的那半截接在末尾 —— 让它续，而不是重来一遍。
+          const out = await ask(text ? [...messages, { role: "assistant", content: text }] : messages);
+          text += out.text;
+          calls = out.toolCalls.map((c) => ({ id: c.toolCallId, name: c.toolName, input: c.input }));
+
+          // 要工具了就停：那是一次完整的表态，续不下去也不该续。
+          if (calls.length > 0) break;
+          // 它自己说完了，或者续满了。
+          if (out.finishReason !== "length" || round >= knobs.continueTimes) break;
         }
-        return { role: "assistant", kind: "prompt", body: out.text };
+
+        if (calls.length > 0) {
+          return { role: "assistant", kind: "call", body: JSON.stringify({ text, calls }) };
+        }
+        return { role: "assistant", kind: "prompt", body: text };
       } finally {
         clearTimeout(timer);
       }

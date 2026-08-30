@@ -26,9 +26,13 @@ openai / anthropic / google-genai / tqdm / dotenv —— 那是它「拿模型�
 
 ## oracle 不进求解那一侧
 
-答案在 `cmt_data.jsonl` 里，**只有这个进程读它**。任务描述里只有题面，智能体从头到尾
-看不到 `solution` —— 不是靠纪律，是靠够不着：G 封存在引擎另一个库里，主库全接口开放
-也翻不出来；答案在这台判卷台的磁盘上，引擎自己都不读。
+答案在 `cmt_data.jsonl` 里，**只有这个进程读它**。任务描述里只有题面，`/problems`
+发题时也把 `solution` 摘掉 —— 答案不出这个进程。G 封存在引擎另一个库里，主库全接口
+开放也翻不出来。
+
+**还漏着一条**：solver 的 `bash` 跟引擎在同一台机器上，猜到 `127.0.0.1:7901` 的话，
+`/equiv` 就是个能刷的验证 oracle。堵死要把这个进程连题库一起塞进容器、只对引擎开口；
+这台机器上暂时没有容器 runtime，所以这一条现在**靠的是没告诉它地址，不是够不着**。
 """
 
 from __future__ import annotations
@@ -41,9 +45,14 @@ import types
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
-SRC = HERE / "vendor" / "cmt_benchmark_data" / "src"
-DATA = Path(os.environ.get("TGENGIN_CMT_DATA", HERE / "cmt_data.jsonl"))
+# **题库和判据不在仓库里，在判卷台这一侧。**
+#
+# solver 手上有 read / glob / bash，而它干活的地方就是引擎那台机器 —— 放仓库里的话
+# 它 glob 一下就找到。实测发生过：模型先 read grader.py 搞清楚判据怎么比，接着读官方
+# parser 源码，然后 glob 到了 cmt_data.jsonl。**够不着，不是不许。**
+HOME_DIR = Path(os.environ.get("TGENGIN_CMT_HOME", Path.home() / ".cache" / "tgengin-cmt"))
+SRC = HOME_DIR / "vendor" / "cmt_benchmark_data" / "src"
+DATA = Path(os.environ.get("TGENGIN_CMT_DATA", HOME_DIR / "cmt_data.jsonl"))
 
 
 def load_official():
@@ -158,6 +167,32 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/health":
             self._send({"ok": True, "items": len(BOOK)})
+        elif self.path.startswith("/problems"):
+            # **发题的口：给题面，不给答案。**
+            #
+            # 题库在判卷台这一侧，发批那个脚本（跑在引擎那台机器上）读不到 ——
+            # 那正是我们要的。它从这儿取题，`solution` 一个字都不过来：
+            # 答案**不出这个进程**。
+            n = 0
+            if "?" in self.path:
+                for kv in self.path.split("?", 1)[1].split("&"):
+                    if kv.startswith("n="):
+                        n = int(kv[2:] or 0)
+            items = [BOOK[i] for i in sorted(BOOK)]
+            if n > 0:
+                items = items[:n]
+            self._send(
+                [
+                    {
+                        "index": it["index"],
+                        "prompt": it["prompt"],
+                        "parameters": it.get("parameters", ""),
+                        "functions": it.get("functions", ""),
+                        "type": it["type"],
+                    }
+                    for it in items
+                ]
+            )
         else:
             self._send({"error": "404"}, 404)
 

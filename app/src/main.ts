@@ -28,7 +28,7 @@ import { attach } from "./mcp/register.ts";
 import { mcpServeRoutes } from "./mcp/serve.ts";
 import { evaluate } from "./objective/run.ts";
 import { openSealed } from "./objective/store.ts";
-import { seedKinds } from "./msg/deliver.ts";
+import { deliverVerdict, seedKinds } from "./msg/deliver.ts";
 import { registerTree } from "./tree/dfs.ts";
 import { registerTreeView } from "./tree/view.ts";
 import { check } from "./trigger/check.ts";
@@ -38,39 +38,62 @@ import { registerToolUnit } from "./tools/unit.ts";
 
 const VERSION = pkg.version;
 
-/**
- * 这个任务最后说的那句。
- *
- * G 在收尾那一刻要判「做成了没有」，而答案在消息表里 —— `task.result` 存的是判决
- * 本身，不是答复。取的是**最后一条模型自己说的**（`prompt` 或 `call`），跟树那一路
- * 递给 G 的 `result` 是同一样东西。
- *
- * 取不到就回 `undefined`：没答等于没做对，G 那边自己会归 0。
- */
-function lastSaid(db: Parameters<typeof all>[0], task: string): { body: string } | undefined {
+/** 这个任务最后一站是谁在干。 */
+function lastUnit(
+  db: Parameters<typeof all>[0],
+  task: string,
+): { agent: string; instance: string; unit: number } | undefined {
   const t = all(db, `select mode from task where id = ?`, [task])[0] as { mode?: string } | undefined;
   if (!t?.mode) return undefined;
   const sub = tableNameOf("task_{}", String(t.mode));
-  const u = all(db, `select agent, instance from "${sub}" where task = ? order by unit desc limit 1`, [task])[0] as
-    | { agent: string; instance: string }
+  return all(db, `select agent, instance, unit from "${sub}" where task = ? order by unit desc limit 1`, [task])[0] as
+    | { agent: string; instance: string; unit: number }
     | undefined;
+}
+
+/**
+ * 这个任务最后**说过的一句有内容的话**。
+ *
+ * G 在收尾那一刻要判「做成了没有」，而答案在消息表里 —— `task.result` 存的是判决
+ * 本身，不是答复。
+ *
+ * 两样东西得跳过，都是实测踩过的：
+ *
+ * | 跳什么 | 不跳会怎样 |
+ * | --- | --- |
+ * | **判决自己**（`name: "verify"` 那一对） | 判决落进上下文之后就成了「最后一句话」，G 拿着它那条空 `text` 再判一遍，把上一次判对的覆盖成 0。日志里先 `parsed=True equiv=True`，紧接着一条 `Empty solution string provided` |
+ * | **文字是空的那些** | 一条光要工具、没说话的 `call` 不是答复。取到它 = 拿空字符串去判，判卷那边只会说「没找到答案」，而看日志像是模型没答 |
+ *
+ * 往回找，找到第一条有字的为止。全都没有就回 `undefined` —— 没答等于没做对。
+ */
+function lastSaid(db: Parameters<typeof all>[0], task: string): { body: string } | undefined {
+  const u = lastUnit(db, task);
   if (!u) return undefined;
   const msg = tableNameOf("agent_{}_msg", u.agent);
-  const r = all(
+  const rows = all(
     db,
-    `select kind, body from "${msg}" where instance = ? and kind in ('prompt', 'call') order by unit desc, seq desc limit 1`,
+    `select kind, body from "${msg}"
+      where instance = ? and kind in ('prompt', 'call') and body not like '%"name":"verify"%'
+      order by unit desc, seq desc limit 20`,
     [u.instance],
-  )[0] as { kind?: string; body?: string } | undefined;
-  if (r?.body === undefined) return undefined;
-  // **`call` 那一行的 body 是个 JSON**（`{text, calls}`），模型说的话在 `text` 里。
-  // 原样递过去的话，G 拿到的是 `…"name":"bash","input":{…}}]}` 这种东西 —— 判卷那边
-  // 只会说「没找到答案」，而看日志像是模型没答，其实是我们递错了东西。
-  if (r.kind !== "call") return { body: r.body };
-  try {
-    return { body: String((JSON.parse(r.body) as { text?: unknown }).text ?? "") };
-  } catch {
-    return { body: r.body };
+  ) as { kind?: string; body?: string }[];
+
+  for (const r of rows) {
+    if (r.body === undefined) continue;
+    // **`call` 那一行的 body 是个 JSON**（`{text, calls}`），模型说的话在 `text` 里。
+    // 原样递过去的话，G 拿到的是 `…"name":"bash","input":{…}}]}` 这种东西。
+    let text = r.body;
+    if (r.kind === "call") {
+      try {
+        text = String((JSON.parse(r.body) as { text?: unknown }).text ?? "");
+      } catch {
+        // 读不出来就当它没说话
+        continue;
+      }
+    }
+    if (text.trim()) return { body: text };
   }
+  return undefined;
 }
 
 const cfg = readConfig();
@@ -124,6 +147,22 @@ const kernel = new Kernel(app.store, app.log, registry, {
       // 形状跟树那一路对齐（`tree/dfs.ts` 递的是 `{task, chain, result}`），
       // 这样一个 G 脚本两处都能用，不用问自己「这次是谁在叫我」。
       const v = await evaluate(g, registry, { task: row, result: lastSaid(app.store.ro, String(task)) });
+
+      // **拿到判决就投回上下文** —— 跟树那一路一个规矩（`tree/dfs.ts`）：
+      // 凡是问过 G 的，判决都以「一次带结果的工具调用」落在那一站上。
+      // 只写 `task.result` 的话，那是给我们看的，模型永远不知道自己被判了什么。
+      const at = lastUnit(app.store.ro, String(task));
+      if (at) {
+        deliverVerdict(app.store.rw, {
+          agent: at.agent,
+          instance: at.instance,
+          unit: at.unit,
+          name: "verify",
+          input: { task, at: "收尾" },
+          value: { pass: v.pass, why: v.why },
+        });
+      }
+
       run(app.store.rw, `update task set state = ?, result = ? where id = ?`, [
         v.pass === 1 ? "done" : "failed",
         JSON.stringify({ pass: v.pass, why: v.why }),
@@ -173,7 +212,7 @@ app.log.info(
       ["dashscope", "qwen-max", "chat,tools"],
     ],
     cfg.llm,
-  ).join("、")}｜出 ${cfg.llm.maxTokens} token｜思考 ${cfg.llm.reasoningEffort}`,
+  ).join("、")}｜出 ${cfg.llm.maxTokens} token（续写最多 ${cfg.llm.continueTimes} 次）｜思考 ${cfg.llm.reasoningEffort}`,
 );
 
 // 实时轨。**另一条句柄** —— 它不是一次调用，是一条会话，一个执行单元对应会话里的

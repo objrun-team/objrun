@@ -66,7 +66,7 @@ export async function machine(): Promise<Machine> {
       `api: { prefix: /api, token: , allowQuery: true, allowWrite: true, maxRows: 500, defaultLimit: 100 }`,
       // `config.yaml` 缺一个键就当场炸（那是故意的），所以这儿得跟着 Config 走 ——
       // 漏了的表现是引擎起不来，而 `machine()` 只会一直等，看着像测试挂死。
-      `llm: { maxTokens: 8192, reasoningEffort: high }`,
+      `llm: { maxTokens: 16384, retryTimes: 3, continueTimes: 3, reasoningEffort: high }`,
       `cors: { enabled: false, origin: "*" }`,
       "",
     ].join("\n"),

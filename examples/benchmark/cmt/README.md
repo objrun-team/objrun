@@ -33,12 +33,16 @@
 ssh wsl "bash /mnt/e/sgu-bzhc/EACN_EX/TgEngin/examples/benchmark/cmt/setup.sh"
 ```
 
-[`setup.sh`](./setup.sh) 干三件事，幂等：
+（`ssh wsl` 不通就换 `wsl.exe -d Ubuntu-24.04 -- bash -lc "..."`，等价。这台机器上
+WSL 重启之后 localhost 转发有时候回不来，sshd 明明听着 2222 也连不上。）
 
-| | 从哪儿来 |
+[`setup.sh`](./setup.sh) 干三件事，幂等。**三样全落在 `~/.cache/tgengin-cmt/`（WSL 家目录），
+一样都不落仓库**：
+
+| 落在哪儿 | 从哪儿来 |
 | --- | --- |
-| `cmt_data.jsonl` | HuggingFace `JVRoggeveen/cmt_benchmark`，50 行 |
-| `vendor/cmt_benchmark_data/` | GitHub `JamesRoggeveen/cmt_benchmark_data`，官方评分代码 |
+| `~/.cache/tgengin-cmt/cmt_data.jsonl` | HuggingFace `JVRoggeveen/cmt_benchmark`，50 行 |
+| `~/.cache/tgengin-cmt/vendor/cmt_benchmark_data/` | GitHub `JamesRoggeveen/cmt_benchmark_data`，官方评分代码 |
 | `~/.cache/tgengin-cmt/venv` | sympy 1.13.3 / numpy 2.2.5 / regex 2024.11.6 |
 
 ```
@@ -62,7 +66,33 @@ sympy 1.13.3｜numpy 2.2.5｜regex 2.5.148
 
 自检是拿题库自己的 GT 当回答喂回去 —— 判据装对了就该 5/5。
 
-前两样都不进 git（`.gitignore`）：题库带 GT，是 oracle。
+### oracle 放哪儿：这是安全边界，不是整理癖
+
+题库带 GT，是 oracle。solver 手上有 `read` / `glob` / `bash`，而它干活的地方
+（`place: local`）**就是引擎那台机器** —— 题库放仓库里的话，它 glob 一下就找到。
+
+**实测发生过**：模型先 `read grader.py` 搞清楚判据怎么比，接着 `read` 官方 parser
+源码，然后 `glob` 到了 `cmt_data.jsonl`。那一跑它还没来得及读出 GT 就被判完了，
+但路已经摸到门口。所以现在题库和判据都搬到 WSL 家目录 —— Windows 那侧的 solver
+够不着那个路径。
+
+发批的脚本也因此**读不到题库**，题得走 HTTP 取：
+
+```bash
+curl -s 'http://127.0.0.1:7901/problems?n=1'
+```
+```json
+[{"index":0,"prompt":"Consider a spinful electron system…","parameters":"$U_0;U_1$",
+  "functions":"","type":"HF"}]
+```
+
+**没有 `solution` 这一栏** —— 答案不出判卷台那个进程。
+
+> **还漏着一条，说清楚**：判卷台在 `127.0.0.1:7901` 上，而 solver 的 `bash` 跟引擎在
+> 同一台机器上。它要是猜到这个地址，`/equiv` 就成了一个免费的验证 oracle（提交候选、
+> 回一个 bool，可以刷）。`readable: false` 只挡住「读 G 的定义」，挡不住「往那个端口打」。
+> 真要堵死得把判卷台连题库一起塞进容器、只对引擎那个进程开口 —— 这台机器上暂时没有
+> 容器 runtime，所以现在这条**是靠没写在任务描述里，不是靠够不着**。
 
 ### 三个坑
 
@@ -117,6 +147,17 @@ curl -s http://127.0.0.1:7901/health
 cp config.yaml dist/
 dist/tgengin-win-x64.exe &
 ```
+```
+模型：deepseek-v4-flash｜出 16384 token（续写最多 3 次）｜思考 high
+```
+
+这三个旋钮在 `config.yaml` 的 `llm:` 底下，**这个例子对它们很敏感**：
+
+| | |
+| --- | --- |
+| `maxTokens: 16384` | 开 `reasoning_effort: high` 之后思考本身就能吃掉整个额度。8192 那一跑 19 个执行单元里 12 个**一个字都没答出来** —— 不是不会做，是没写完就到顶了 |
+| `continueTimes: 3` | `finishReason === "length"` 时把已出的这段当 assistant 前缀续写，最多三次 |
+| `retryTimes: 3` | 一次调用炸了重打，第 n 次前多等 `5n` 秒。堵的是 SDK 的 `Failed to process successful response` ——「200 回来了但读不懂」，那一层的重试管不了，而内核按设计不重试，一次抖动就挂到 `expect_ms` 到点 |
 
 ## 四、跑一趟
 
@@ -188,8 +229,8 @@ curl -s $BASE/check
 
 ### 发一批
 
-[`send.ts`](./send.ts) 读题库拼请求体。**题面进 `description`，`solution` 不进** ——
-智能体那一侧看不到答案。
+[`send.ts`](./send.ts) **从判卷台 `/problems` 取题**（它自己读不到题库，见上），拼请求体。
+**题面进 `description`，`solution` 不进** —— 智能体那一侧看不到答案。
 
 ```bash
 bun examples/benchmark/cmt/send.ts 5 cmt-w
@@ -495,9 +536,10 @@ moment（只有规则走的 `#atMoment` 才设）—— 写了就永远不中，
 | | |
 | --- | --- |
 | [`setup.sh`](./setup.sh) | 备料。题库 + 官方判据 + venv，幂等 |
-| [`grader.py`](./grader.py) | 判卷台。**判据是官方的，这个文件只接 HTTP** |
-| [`send.ts`](./send.ts) | 读题库拼 `POST /bench` 的请求体 |
-| [`run.sh`](./run.sh) | 声明 → 发批 → 等 → 成绩单 |
+| [`grader.py`](./grader.py) | 判卷台。**判据是官方的，这个文件只接 HTTP**；另开一个 `/problems` 发题面 |
+| [`send.ts`](./send.ts) | 从 `/problems` 取题，拼 `POST /bench` 的请求体 |
+| [`run.sh`](./run.sh) | 声明 → 挂扩展 → 发批 → 等 → 成绩单 |
 | [`parmeras/`](./parmeras/) | 从老仓库搬来的 skill + 注册脚本 |
-| `cmt_data.jsonl` | 题库（不进 git） |
-| `vendor/` | 官方评分代码（不进 git） |
+
+题库和官方判据**不在这个目录里**，在 `~/.cache/tgengin-cmt/`（WSL 家目录）——
+见[上面那一节](#oracle-放哪儿这是安全边界不是整理癖)。

@@ -12,31 +12,32 @@
  */
 
 const BASE = process.env.TGENGIN_BASE ?? "http://127.0.0.1:7801/api";
-const DATA = process.env.TGENGIN_CMT_DATA ?? "examples/benchmark/cmt/cmt_data.jsonl";
 const GRADER = process.env.TGENGIN_CMT_GRADER ?? "http://127.0.0.1:7901";
 const HOW_MANY = Number(process.argv[2] ?? 0);
 const RUN = process.argv[3] ?? `cmt-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}`;
 
+/** 判卷台发过来的题面。**没有 `solution`** —— 那一栏不出它的进程。 */
 interface Item {
   index: number;
   prompt: string;
   parameters: string;
   functions: string;
-  solution: string;
   type: string;
 }
 
-const f = Bun.file(DATA);
-if (!(await f.exists())) {
-  console.error(`没有题库：${DATA}`);
+// **题从判卷台取，不从磁盘读。**
+//
+// 题库跟答案在一起，装在判卷台那一侧（见 `setup.sh`）。这个脚本跑在引擎那台机器上，
+// 读不到那个路径 —— 那正是我们要的：solver 手上有 read / glob / bash，干活的地方
+// 就是这台机器，题库放这儿的话它 glob 一下就找到（实测它已经摸到门口了）。
+//
+// 所以走 HTTP 取题：`/problems` 只回题面，`solution` 一个字都不过来。
+const res0 = await fetch(`${GRADER}/problems${HOW_MANY > 0 ? `?n=${HOW_MANY}` : ""}`);
+if (!res0.ok) {
+  console.error(`判卷台取不到题（${GRADER}/problems）：${res0.status}`);
   process.exit(1);
 }
-
-const all = (await f.text())
-  .split("\n")
-  .filter((l) => l.trim())
-  .map((l) => JSON.parse(l) as Item);
-const items = HOW_MANY > 0 ? all.slice(0, HOW_MANY) : all;
+const items = (await res0.json()) as Item[];
 
 /**
  * 每道题的 G。两个节点，**句柄名就是判卷台的地址**：

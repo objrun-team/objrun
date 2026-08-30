@@ -55,8 +55,12 @@ export interface Config {
    * 再往 `agent.apis` 那一列上加，那一列本来就是 JSON。
    */
   llm: {
-    /** 一次调用最多生成多少 token。 */
+    /** **一次调用**最多生成多少 token。不是一个执行单元的上限 —— 截断了会续写。 */
     maxTokens: number;
+    /** 一次调用炸了之后最多重打几次，每次多等 5 秒。0 = 不重打。 */
+    retryTimes: number;
+    /** 截断之后最多再续几次。0 = 不续。 */
+    continueTimes: number;
     /** 思考强度。原样发给那家 —— 认不认得是那家的事，我们不替它猜。 */
     reasoningEffort: string;
   };
@@ -143,6 +147,11 @@ export function readConfig(file = findConfig()): Config {
       defaultLimit: num(doc, "api.defaultLimit"),
     },
     cors: { enabled: bool(doc, "cors.enabled"), origin: origin as string | string[] },
-    llm: { maxTokens: num(doc, "llm.maxTokens"), reasoningEffort: str(doc, "llm.reasoningEffort") },
+    llm: {
+      maxTokens: num(doc, "llm.maxTokens"),
+      retryTimes: num(doc, "llm.retryTimes"),
+      continueTimes: num(doc, "llm.continueTimes"),
+      reasoningEffort: str(doc, "llm.reasoningEffort"),
+    },
   };
 }
