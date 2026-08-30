@@ -93,7 +93,18 @@ function lastSaid(db: Parameters<typeof all>[0], task: string): { body: string; 
       let text = r.body;
       if (r.kind === "call") {
         try {
-          text = String((JSON.parse(r.body) as { text?: unknown }).text ?? "");
+          const v = JSON.parse(r.body) as { text?: unknown; calls?: { input?: { answer?: unknown } }[] };
+          // 说了话就取话；一个字没说就取它想拿去问 G 的那一份（`verify` 的 `answer`）——
+          // 跟 `tree/dfs.ts` 在交卷站上的取法是同一条，两处不许各读各的。
+          text = String(v.text ?? "");
+          if (!text.trim()) {
+            for (const c of [...(v.calls ?? [])].reverse()) {
+              if (typeof c.input?.answer === "string" && c.input.answer.trim()) {
+                text = c.input.answer;
+                break;
+              }
+            }
+          }
         } catch {
           continue;
         }

@@ -390,6 +390,7 @@ export class Kernel {
         const t = one(this.#store.ro, `select * from tool where name = ? and usable = 1`, [n]);
         if (t) tools.set(String(t.name), t);
       }
+
       const kit = [...tools.values()];
       const rules = fire(this.#store.ro, "rule", facts);
 

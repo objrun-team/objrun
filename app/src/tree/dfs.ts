@@ -229,6 +229,27 @@ function spokenAt(result: unknown): string {
   return "";
 }
 
+/**
+ * 它这一站**想拿哪一份去问 G**。
+ *
+ * 只认带 `answer` 的那种调用（`verify`）。`submit` 是无参的，没有这一栏；
+ * 内核自己投回去的判决也叫 `verify`，但它的入参是 `{task, at}` —— 一样没有。
+ * 所以「有 `answer`」这一条就把三者分开了。
+ */
+function answerAsked(result: unknown): string {
+  const r = (result ?? {}) as { kind?: string; body?: unknown };
+  if (r.kind !== "call") return "";
+  try {
+    const v = JSON.parse(String(r.body ?? "")) as { calls?: { input?: { answer?: unknown } }[] };
+    for (const c of [...(v.calls ?? [])].reverse()) {
+      if (typeof c.input?.answer === "string" && c.input.answer.trim()) return c.input.answer;
+    }
+  } catch {
+    /* 读不出来就当它没交 */
+  }
+  return "";
+}
+
 /** 这个周期的额度用完了没有。 */
 function full(db: Conn, a: Ask, nodes: Node[], cycle: string): boolean {
   const cap = all(db, `select max_units from cycle where mode = ? and cycle = ?`, [
@@ -337,10 +358,14 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
     let status = "reached";
     if (sealed.has(task)) {
       // 交的是**它说的那段话**。一条 `call` 行的 `body` 是 `{text, calls}` ——
-      // 原样递过去的话，G 拿到的是一坨 JSON（实测就这么判过一次 0）。它在交卷站上
-      // 还想调工具的话，那些调用不会被执行（后面没有站了），但它开口说的那半句
-      // 还是它交的东西。
-      const said = spokenAt(a.result);
+      // 原样递过去的话，G 拿到的是一坨 JSON（实测就这么判过一次 0）。
+      //
+      // 一个字都没说的话，再看它**想拿什么去问 G**：交卷站上工具还挂着，而模型
+      // 在那儿的第一反应常常是调 `verify`，答案就写在那次调用的 `answer` 里。
+      // 那一次调用不会被执行（后面没有站了），但「它想交的是这一份」是明摆着的 ——
+      // 因为一次不会被执行的调用就把答案丢掉，是我们读得不够，不是它没交。
+      // 实测：cmt-3 在交卷站上调了 `verify {"answer": "\\boxed{4N_q^2}"}`。
+      const said = spokenAt(a.result) || answerAsked(a.result);
       const g = sealed.open(task)!;
 
       // **验过就不必再判一次。** `verify` 是干活途中的验证，交卷是这一刻的提交；
