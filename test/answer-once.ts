@@ -44,6 +44,11 @@ let hops = 0;
  * 结果，补齐会给它补一条。**补在哪儿**正是要验的事。
  */
 let alwaysCalls = false;
+/**
+ * 第一次交卷之后就**改调别的工具** —— 那是复现「新节点一睁眼就被判成已经交过」
+ * 的关键：新节点的第一站没有按交卷，它该被送去动作站干活，而不是直接拐去交卷。
+ */
+let handIns = 0;
 
 const CALL_ID = "call-run-me-once";
 
@@ -86,7 +91,9 @@ const fake = Bun.serve({
           content: "",
           tool_calls: [
             alwaysCalls
-              ? { id: `submit-${String(asked)}`, type: "function", function: { name: "submit", arguments: "{}" } }
+              ? handIns++ < 2
+                ? { id: `submit-${String(asked)}`, type: "function", function: { name: "submit", arguments: JSON.stringify({ answer: "42" }) } }
+                : { id: `look-${String(asked)}`, type: "function", function: { name: "task_tree", arguments: "{}" } }
               : { id: CALL_ID, type: "function", function: { name: "glob", arguments: JSON.stringify({ pattern: "*.md" }) } },
           ],
         },
@@ -242,14 +249,33 @@ try {
   // `submit#8[dead_failed] → act#9 → submit#10`：两步就又交了一次，中间一次都没想过。
   const firstOf = new Map<number, string>();
   for (const r of walked) if (!firstOf.has(r.node)) firstOf.set(r.node, r.cycle);
-  const later = [...firstOf.entries()].filter(([n]) => n > 1).map(([, c]) => c);
-  show("what each new node started with:", later);
-  ok("every new node starts at the entry station", later.every((c) => c === "ask"), [...firstOf.entries()]);
+  const startsOf = [...firstOf.entries()].filter(([n]) => n > 1).map(([, c]) => c);
+  show("what each new node started with:", startsOf);
+  ok("every new node starts at the entry station", startsOf.every((c) => c === "ask"), [...firstOf.entries()]);
+
+  step("6b. and a new node gets to work before it hands in");
+  // **交卷是往回看一格认出来的**（在干活站按交卷，下一格就是交卷站，得认得出），
+  // 而新节点第一站的上一格正好是**前一个节点的交卷站** —— 那儿躺着一次 `submit`。
+  // 不限节点的话，新节点一睁眼就被判成「已经交过了」，当场又拐去交卷：它想先验
+  // 一次、想读读上一次错在哪，那些调用连跑的机会都没有，最后闭着眼交一份没改过
+  // 的答案。实测 cmt-3 的 node2 就是这么烧掉的。
+  const perNode = new Map<number, string[]>();
+  for (const r of walked) perNode.set(r.node, [...(perNode.get(r.node) ?? []), r.cycle]);
+  show("what each node actually walked:", [...perNode.entries()].map(([n, v]) => `node${String(n)}: ${v.join(" > ")}`));
+  // 第一个节点是它自己按的交卷，一步到位是对的。**后面的节点没按** —— 它们请求
+  // 的是别的工具，所以该被送去动作站干活。要是也一步就到交卷，那就是上一格那次
+  // 交卷被算到了这个节点头上。
+  const later = [...perNode.entries()].filter(([n]) => n > 1).map(([, v]) => v);
+  ok(
+    "a node that did not hand in gets sent to work, not straight to the hand-in step",
+    later.every((v) => v.length > 1 && v[1] !== "submit"),
+    [...perNode.entries()],
+  );
 
   step("7. and still: one call, one result");
   const all = (
-    await m.api<{ rows: { unit: number; seq: number; kind: string; body: string }[] }>("POST", "/query", {
-      sql: "select unit, seq, kind, body from agent_bot_msg where instance = 't-dead#1' order by unit, seq",
+    await m.api<{ rows: { unit: number; seq: number; role: string; kind: string; body: string }[] }>("POST", "/query", {
+      sql: "select unit, seq, role, kind, body from agent_bot_msg where instance = 't-dead#1' order by unit, seq",
     })
   ).rows;
   const seen = new Map<string, number>();
@@ -297,12 +323,16 @@ try {
   // 现在补的那条紧跟在它答的那次调用后面。
   const idsIn = (body: string) =>
     ((JSON.parse(body) as { calls?: { id?: string }[] }).calls ?? []).map((c) => String(c.id));
+  // **只看真正进消息流的那些行。** `inject` 那一类 role 是 system，走的是
+  // instructions，压根不在消息数组里 —— 拿它们算相邻，会把「结果落在下一格」这种
+  // 完全正常的形状误判成错位。
+  const stream = all.filter((r) => r.role === "user" || r.role === "assistant" || r.role === "tool");
   const bad: string[] = [];
-  for (let i = 0; i < all.length; i++) {
-    const r = all[i];
+  for (let i = 0; i < stream.length; i++) {
+    const r = stream[i];
     if (r.kind !== "call" && r.kind !== "graded") continue;
     for (const want of idsIn(r.body)) {
-      const next = all[++i];
+      const next = stream[++i];
       const got = next && next.kind === "tool" ? (JSON.parse(next.body) as { id?: string }).id : undefined;
       if (got !== want) bad.push(`u${String(r.unit)}.${String(r.seq)} asked ${want}, next row answered ${String(got)}`);
     }

@@ -188,25 +188,41 @@ function nodesOf(db: Conn, sub: string, task: string): Node[] {
 }
 
 /**
- * 这一站（或它上一站）交上来的那份答案。没交过就回 `null`。
+ * 这一格（或它同一个节点里的上一格）交上来的那份答案。没交过就回 `null`。
  *
  * **答案在调用的参数里，不从它说的话里解析。** 解析是兜底：模型可能说三段话、
  * 每段里都有一个式子，挑哪一段都是猜。而猜错的表现是「答案明明写对了却判 0」——
  * 那种事查起来最费劲，因为看日志它确实答对了。
  *
- * 上一版交的是「它在交卷站说的那段话」，还带一层从别的工具调用里翻 `answer`
- * 字段的兜底。两层都拿掉了：**交，就是调一次 `submit` 并把答案放进去。**
+ * ## 为什么要往回看一格，又为什么必须限在同一个节点里
  *
- * 上一站也算，因为在干活站上按交卷是允许的 —— 那一次就是交，交卷站不必再交一遍。
+ * 在干活站上按交卷是允许的：那一次就是交，流转把它送到交卷站，交卷站不必再交
+ * 一遍。所以交卷站得认得出上一格那次调用 —— 这就是往回看一格。
+ *
+ * **但上一格未必是同一个节点的。** 判死之后开的新节点，它第一站的上一格正好是
+ * **前一个节点的交卷站**，那儿躺着一次 `submit`。不限节点的话，新节点一睁眼就
+ * 被判成「已经交过了」，当场又拐去交卷 —— 它想先验一次、想读读上一次错在哪，
+ * 那些调用连跑的机会都没有，最后闭着眼交一份没改过的答案。
+ *
+ * 实测：cmt-3 的 node2 就是这么烧掉的（`ask#5` 调了四次 `verify`，一次没跑成，
+ * 一站就被拐去 `submit#6` 判死）。它的 node3 侥幸正常，是因为 node2 的交卷站
+ * 压根没交出东西 —— 靠的是运气，不是规矩。
  */
-function submitted(db: Conn, inst: { agent: string; instance: string } | undefined, unit: number): string | null {
+function submitted(
+  db: Conn,
+  inst: { agent: string; instance: string } | undefined,
+  unit: number,
+  sameNode: (u: number) => boolean,
+): string | null {
   if (!inst) return null;
+  const look = [unit, unit - 1].filter((u) => u > 0 && sameNode(u));
+  if (look.length === 0) return null;
   const t = tableNameOf("agent_{}_msg", inst.agent);
-  const rows = all(db, `select body from "${t}" where instance = ? and unit in (?, ?) and kind = 'call' order by unit, seq`, [
-    inst.instance,
-    unit,
-    unit - 1,
-  ]) as { body: string }[];
+  const rows = all(
+    db,
+    `select body from "${t}" where instance = ? and unit in (${look.map(() => "?").join(", ")}) and kind = 'call' order by unit, seq`,
+    [inst.instance, ...look],
+  ) as { body: string }[];
   let found: string | null = null;
   for (const r of rows) {
     try {
@@ -369,7 +385,10 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
       //
       // 空话不算。一条什么都没生成出来的 `prompt` 不是「我做完了」，
       // 是这一发没出来 —— 按普通推进往下走，让它下一站接着说。
-      const handedIn = submitted(db, inst, a.unit) !== null;
+      // 哪几格算这一个节点的 —— `node` 那一列说了算。
+      const here_node = Number(me.node);
+      const sameNode = (u: number) => nodes.some((n) => Number(n.unit) === u && Number(n.node) === here_node);
+      const handedIn = submitted(db, inst, a.unit, sameNode) !== null;
       const spoke = r.kind === "prompt" && spokenAt(a.result).trim() !== "";
 
       // **拐去交卷是节点级的规矩，而这条规矩写在表上。** 每一站的 `next` 里都有
@@ -401,7 +420,10 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
       // 而猜错的表现是「答案明明写对了却判 0」—— 那种最难查，因为看日志它确实答对了。
       //
       // 现在只有一条路：调一次 `submit`，把答案放进去。没调 = 什么都没交。
-      const said = submitted(db, inst, a.unit);
+      // 哪几格算这一个节点的 —— `node` 那一列说了算。
+      const here_node = Number(me.node);
+      const sameNode = (u: number) => nodes.some((n) => Number(n.unit) === u && Number(n.node) === here_node);
+      const said = submitted(db, inst, a.unit, sameNode);
       // **什么都没交。** 这一站只能干一件事，而它没干 —— 没得判，这个节点到此为止。
       //
       // 「交了一份错的」和「什么都没交」不是一回事，所以话要说清楚：前者的判决里带着

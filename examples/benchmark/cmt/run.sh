@@ -26,8 +26,8 @@ step "1 底子：一个地方、两周期的机制、一个智能体，外加判
 curl -s -X POST "$BASE/declare" -H 'content-type: application/json' -d @- <<JSON
 { "places":[{"place":"local"}],
   "modes":[{"mode":"solve","cycles":[
-    {"cycle":"ask","apiMode":"chat","maxUnits":12,"from":[],      "next":["act"],"infer":"fn:infer.dfs"},
-    {"cycle":"act",                 "maxUnits":12,"from":["ask"], "next":["ask"],"infer":"fn:infer.dfs"}]}],
+    {"cycle":"ask","apiMode":"chat","maxUnits":20,"from":[],      "next":["act"],"infer":"fn:infer.dfs"},
+    {"cycle":"act",                 "maxUnits":20,"from":["ask"], "next":["ask"],"infer":"fn:infer.dfs"}]}],
   "agents":[{"name":"bot","apis":[["DEEPSEEK_API_KEY","deepseek-v4-flash"]],"unit":"fn:unit.tools"}],
   "handles":[
     {"name":"$GRADER/parsed","expectMs":60000},
@@ -67,7 +67,7 @@ bun examples/benchmark/cmt/send.ts "$HOW_MANY" "$RUN"
 step "4 等它跑完"
 # 判 0 的题会被树判死、开兄弟换条路重试，所以「跑完」得等到 running 和 open 都归零
 # —— 要么做对了，要么 solveSeconds 到点被判 failed。
-for i in $(seq 1 200); do
+for i in $(seq 1 400); do
   sleep 10
   r=$(curl -s "$BASE/bench/$RUN")
   left=$(echo "$r" | grep -o '"running":[0-9]*' | grep -o '[0-9]*$')

@@ -75,9 +75,18 @@ const tasks = items.map((it) => ({
   //
   // This is room to run, not tuning: picking numbers by watching this dataset would be
   // fitting the benchmark, and the score would mean nothing.
-  solveSeconds: 900,
-  maxBranches: 2,
-  maxDeadSiblings: 3,
+  // **时限要长过一次调用的死期，不能等于它。** 模型那条句柄的 `expect_ms` 是 15 分钟；
+  // 时限也给 15 分钟的话，两个钟同时响，而任务那个先赢 —— 于是「一次调用卡住 →
+  // 判死这一站 → 换个节点重来」那条路永远走不到，整道题跟着一次抖动一起没。
+  //
+  // 而且 15 分钟本身就不够：实测慢的那几道走到第七站才用掉十二格额度里的四格，
+  // 时间先没了 —— 它们从来没走到过交卷站，连一份错答案都交不出来。
+  solveSeconds: 1800,
+  // **只留时间这一个闸。** 额度、分支、判死重来的次数都给够 —— 卡在哪儿就该是
+  // 「时间到了」，不该是「格子用完了」。哪一样先撞上，成绩单说的就是哪一样，
+  // 而我们想量的是前者。
+  maxBranches: 4,
+  maxDeadSiblings: 8,
   description:
     `${it.prompt}\n\n` +
     (it.parameters ? `Symbols: ${it.parameters}\n` : "") +
