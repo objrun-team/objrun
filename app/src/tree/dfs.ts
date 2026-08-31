@@ -86,6 +86,8 @@ interface Said {
 interface Node {
   cycle: string;
   unit: number;
+  /** 这一行属于哪个节点。一个节点是一次完整的尝试，它自己有一份额度。 */
+  node: number;
   from_cycle: string | null;
   from_unit: number | null;
   status: string | null;
@@ -165,7 +167,7 @@ export function withSubmit(cycles: DeclaredCycle[]): DeclaredCycle[] {
 }
 
 function nodesOf(db: Conn, sub: string, task: string): Node[] {
-  return all(db, `select cycle, unit, from_cycle, from_unit, status, done from "${sub}" where task = ?`, [
+  return all(db, `select cycle, unit, node, from_cycle, from_unit, status, done from "${sub}" where task = ?`, [
     task,
   ]) as unknown as Node[];
 }
@@ -266,38 +268,20 @@ function answerAsked(result: unknown): string {
   return "";
 }
 
-/**
- * 还有没有地方能**再想一遍**。
- *
- * 看的不是「哪个周期还没用满」，而是「哪个**会开口的**周期还没用满」：一个没有
- * `api_mode` 的站不叫模型（它跑的是上一站请求的工具），退到那儿产不出新答案，
- * 只会立刻再拐回交卷站 —— 交的还是同一份东西。
- *
- * 实测就这么空转过：ask 用满、act 还有额度，于是
- * submit[dead] → act → submit[dead] → act → submit[dead]，
- * 三次判一样的 0，中间一个新想法都没有。
- *
- * 一个会开口的站都没有的机制（`agent.unit` 走外部句柄那种），退回看所有站。
- */
-function noRoomToRetry(db: Conn, a: Ask, nodes: Node[]): boolean {
-  const cycles = all(db, `select cycle, api_mode, max_units from cycle where mode = ?`, [
-    String(a.task.mode),
-  ]) as { cycle: string; api_mode: string | null; max_units: number }[];
-  const work = cycles.filter((c) => c.cycle !== SUBMIT);
-  if (work.length === 0) return true;
-  const speaks = work.filter((c) => (c.api_mode ?? "").trim() !== "");
-  const room = speaks.length > 0 ? speaks : work;
-  return room.every((c) => nodes.filter((n) => n.cycle === c.cycle).length >= Number(c.max_units));
-}
 
-/** 这个周期的额度用完了没有。 */
-function full(db: Conn, a: Ask, nodes: Node[], cycle: string): boolean {
+/**
+ * 这个周期在**这一个节点里**的额度用完了没有。
+ *
+ * 按整道题数的话，第一个节点就把预算吃光了 —— 一道题只可能有一次提交，
+ * 「判死 → 换条路」永远跑不起来。一个节点是一次尝试，它自己有一份预算。
+ */
+function full(db: Conn, a: Ask, nodes: Node[], cycle: string, node: number): boolean {
   const cap = all(db, `select max_units from cycle where mode = ? and cycle = ?`, [
     String(a.task.mode),
     cycle,
   ])[0] as { max_units?: number } | undefined;
   if (!cap) return false;
-  return nodes.filter((n) => n.cycle === cycle).length >= Number(cap.max_units);
+  return nodes.filter((n) => n.cycle === cycle && Number(n.node) === node).length >= Number(cap.max_units);
 }
 
 /** 同一个父底下的兄弟（不含自己）。 */
@@ -388,7 +372,7 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
 
       // 干活那几站的额度花完了 —— 该交卷了。**这一条不看它想不想交。**
       const to = a.next.find((c) => c !== SUBMIT) ?? null;
-      if (to === null || full(db, a, nodes, to)) return toSubmit;
+      if (to === null || full(db, a, nodes, to, Number(me.node))) return toSubmit;
 
       // 还有额度：按候选往下走一格，从当前这一行接。
       return { to } satisfies Said;
@@ -453,13 +437,12 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
 
     // ── 判死了 ────────────────────────────────────────────────────────────
 
-    // **干活的站全满了就到此为止。** 判死之后往回退是为了「换条路走」，而换路要有
-    // 地方走：退回去的那一层还得能再想一遍。每一个能干活的周期都用满的时候，
-    // 退到哪儿都只是立刻再拐回交卷站，交的还是同一份东西。
+    // 「一道题能试几个节点」不在这儿管 —— 那是 `max_dead_siblings`（这一层试过
+    // 几个方向就回退）和 `solve_seconds`（总时长）的事，下面那两道闸就是。
     //
-    // 实测就这么空转过：submit[dead] → act → submit[dead] → act → submit[dead]，
-    // 三次都判一样的 0，中间一个新想法都没有。
-    if (noRoomToRetry(db, a, nodes)) return { to: null, status } satisfies Said;
+    // 一度在这儿写过「能开口的站全满了就到此为止」，那是在拿**整道题**的额度当
+    // 节点的额度用：额度按节点数之后，新节点本来就有自己的一份，那一条会把树
+    // 卡在第一个节点上。
 
     const maxBranches = Number(a.task.max_branches ?? 2);
     const maxDead = Number(a.task.max_dead_siblings ?? 3);

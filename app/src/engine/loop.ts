@@ -621,9 +621,14 @@ export class Kernel {
     }[];
     const used = new Map(
       (
-        all(this.#store.ro, `select cycle, count(*) as n from "${p.sub}" where task = ? group by cycle`, [
-          p.task,
-        ]) as { cycle: string; n: number }[]
+        // 报的是**这一个节点**的额度 —— 那才是它现在花得起多少。
+        all(
+          this.#store.ro,
+          `select cycle, count(*) as n from "${p.sub}"
+            where task = ? and node = (select node from "${p.sub}" where task = ? and cycle = ? and unit = ?)
+            group by cycle`,
+          [p.task, p.task, p.cycle, p.unit],
+        ) as { cycle: string; n: number }[]
       ).map((r) => [r.cycle, Number(r.n)]),
     );
     const left = Math.max(
@@ -770,13 +775,47 @@ export class Kernel {
       if (!saidFrom && !next.includes(to)) {
         throw new Error(`${cyc.infer} returned ${to}, which is not among the candidates (${next.join(", ")})`);
       }
+      // **这一行属于哪个节点。**
+      //
+      // 一个节点是一次完整的尝试：好几个执行单元拼起来，由拿到终止状态的那一行
+      // 收口（`status` 非空 = reached / dead_*，出生即定不回改）。所以：
+      //
+      //   父亲还没收口 → 跟父亲同一个节点
+      //   父亲收口了   → 从这一行起是下一个节点
+      //
+      // **记下来，不要每次去推。** 推的话得走一遍父链，还得知道「哪一个周期收口
+      // 一个节点」—— 那件事一旦写进代码，换套机制就全读错，而且不报错。
+      const parent =
+        fromCycle === null || fromUnit === null
+          ? undefined
+          : (one(this.#store.ro, `select node, status from "${p.sub}" where task = ? and cycle = ? and unit = ?`, [
+              p.task,
+              fromCycle,
+              fromUnit,
+            ]) as { node?: number; status?: string | null } | undefined);
+      const node = parent === undefined ? 1 : Number(parent.node ?? 1) + (parent.status == null ? 0 : 1);
+
       const cap = one(this.#store.ro, `select max_units from cycle where mode = ? and cycle = ?`, [p.mode, to]);
       if (!cap) throw new Error(`no row in cycle for ${p.mode}/${to}`);
+
+      // **额度在【这一个节点】里数，不是整道题。**
+      //
+      // 一个节点是一次完整的尝试，它自己有一份预算：花完了就该交卷，交完判死就换
+      // 下一个节点，那个节点又有自己的一份。按整道题数的话，第一个节点就把预算吃
+      // 光了 —— 于是一道题只可能有一次提交，「判死 → 换条路」永远跑不起来。
+      //
+      // 「一道题能试几个节点」是另一根轴，由 `max_dead_siblings` 和 `solve_seconds` 管。
       const used = Number(
-        one(this.#store.ro, `select count(*) as c from "${p.sub}" where task = ? and cycle = ?`, [p.task, to])!.c,
+        one(this.#store.ro, `select count(*) as c from "${p.sub}" where task = ? and cycle = ? and node = ?`, [
+          p.task,
+          to,
+          node,
+        ])!.c,
       );
       if (used >= Number(cap.max_units)) {
-        this.#log.warn(`${p.task}: ${p.mode}/${to} has used all ${cap.max_units} units, not opening more`);
+        this.#log.warn(
+          `${p.task}: ${p.mode}/${to} has used all ${cap.max_units} units of node ${node}, not opening more`,
+        );
       } else {
         // **编号在一个任务里单调递增，不按周期重新数。** 智能体那边的
         // ctx 表主键是 (instance, unit)，不带周期 —— 每个周期重数的话，
@@ -785,25 +824,6 @@ export class Kernel {
         const unit =
           Number(one(this.#store.ro, `select coalesce(max(unit), 0) as m from "${p.sub}" where task = ?`, [p.task])!.m) +
           1;
-        // **这一行属于哪个节点。**
-        //
-        // 一个节点是一次完整的尝试：好几个执行单元拼起来，由拿到终止状态的那一行
-        // 收口（`status` 非空 = reached / dead_*，出生即定不回改）。所以：
-        //
-        //   父亲还没收口 → 跟父亲同一个节点
-        //   父亲收口了   → 从这一行起是下一个节点
-        //
-        // **记下来，不要每次去推。** 推的话得走一遍父链，还得知道「哪一个周期收口
-        // 一个节点」—— 那件事一旦写进代码，换套机制就全读错，而且不报错。
-        const parent =
-          fromCycle === null || fromUnit === null
-            ? undefined
-            : (one(this.#store.ro, `select node, status from "${p.sub}" where task = ? and cycle = ? and unit = ?`, [
-                p.task,
-                fromCycle,
-                fromUnit,
-              ]) as { node?: number; status?: string | null } | undefined);
-        const node = parent === undefined ? 1 : Number(parent.node ?? 1) + (parent.status == null ? 0 : 1);
         run(
           this.#store.rw,
           `insert into "${p.sub}" (task, cycle, unit, node, from_cycle, from_unit, agent, instance, place, at, done)
