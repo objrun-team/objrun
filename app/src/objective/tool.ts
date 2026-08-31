@@ -41,40 +41,40 @@ import { SUBMIT } from "../tree/dfs.ts";
 import { all, run } from "../H2H/db.ts";
 import type { Registry } from "../engine/registry.ts";
 import { whereAmI } from "../tasks/where.ts";
+import { tableNameOf } from "../install/index.ts";
 import { evaluate } from "./run.ts";
 import type { Sealed } from "./store.ts";
 
 const VERIFY_TOOL = {
   name: "verify",
   does:
-    "Submit a candidate answer to be graded. Returns whether it passes and, if not, why. " +
-    "It never reveals the correct answer - only whether what you handed in meets the bar. " +
-    "This is how you hand work in: the final grade is taken from the last answer you submit here.",
-  // **参数表就是 G 收什么** —— 它跟着 G 一起封在那张表里（`objective.params`）。
-  // 这个工具本来就是内核把 G 包装出来的，形状当然该由 G 说了算。
+    "Check one candidate answer against the bar for this task. Says whether it meets the bar and, when it does " +
+    "not, what is wrong with it. It never reveals the correct answer. Use what it tells you to find the mistake " +
+    "in your reasoning - it is not a way to search for the answer, and there are only a few checks per attempt.",
   params: CANDIDATE,
   output: {
     type: "object",
     properties: {
-      pass: { type: "integer", description: "1 = passed, 0 = did not pass" },
-      why: { type: "string", description: "Why it did not pass. Empty when it passed." },
+      pass: { type: "integer", description: "1 = meets the bar, 0 = does not" },
+      why: { type: "string", description: "What is wrong with it. Empty when it passed." },
       graded: { type: "string", description: "The exact text this verdict is about. If it passed, hand in this text unchanged." },
+      left: { type: "integer", description: "How many checks remain in this attempt" },
     },
   },
   prompt:
-    "You may check a candidate with verify before handing it in. A verdict is about the exact text it echoes " +
-    "back in `graded` and nothing else: change one character and it no longer applies. If a check passes, " +
-    "hand that text in unchanged - do not rewrite it. " +
-    "**Several checks in one turn cost the same as one.** Every tool call you make in a turn is run before you " +
-    "are asked again, and the results come back together - so when a quantity could plausibly be any of a few " +
-    "forms, check them all at once rather than one per turn. What is scarce is turns, not checks.",
+    "You get a few checks per attempt - the number is fixed before you start, and every call spends one whether " +
+    "it passes or not. **A check is for finding the mistake, not for finding the answer.** When one comes back " +
+    "negative, read what it says is wrong and fix the reasoning that produced it; sending a variation of the same " +
+    "answer spends a check and teaches you nothing. Work the problem out first and check once you believe you " +
+    "have it. A verdict is about the exact text echoed back in `graded` and nothing else: change one character " +
+    "and it no longer applies, so hand a passing text in unchanged.",
   expectMs: 120_000,
 };
 
 /** 注册 `verify`。`sealed` 是封存区 —— G 的定义只在那儿，主库全接口开放也翻不出来。 */
 export function registerVerifyTool(db: Conn, reg: Registry, sealed: Sealed): string {
   reg.register(db, `fn:tool.${VERIFY_TOOL.name}`, VERIFY_TOOL.expectMs, async (arg) => {
-    const a = (arg ?? {}) as { args?: { answer?: unknown }; instance?: string };
+    const a = (arg ?? {}) as { args?: { answer?: unknown }; instance?: string; agent?: string; unit?: number };
     const answer = String(a.args?.answer ?? "");
     if (!answer.trim()) return { error: "answer is required - an empty one cannot be graded" };
 
@@ -86,6 +86,37 @@ export function registerVerifyTool(db: Conn, reg: Registry, sealed: Sealed): str
 
     const g = sealed.open(at.task)!;
     const task = all(db, `select * from task where id = ?`, [at.task])[0] as Record<string, unknown> | undefined;
+
+    // ── 一轮里只许验这么几次 ──────────────────────────────────────────────
+    //
+    // **没有上限的话，最省事的策略是把答案空间枚举一遍。** 实测过：一道选项题
+    // 被连着试了七十七个排列组合（`b;a` / `c;d` / `b;c;d` / `b;a;c;d` …），一次
+    // 推理都没有。那样得来的分数量的是答案空间有多大，不是它会不会做。
+    //
+    // 而且**执行单元那个额度拦不住它**：一次请求可以带很多个工具调用，一格里
+    // 试二十次跟试一次一样贵。所以闸得按「问了 G 几次」来算，不是按走了几站。
+    //
+    // 上限由**发布方**定（`task.max_checks`）。一轮 = 一个节点：判死之后开的新
+    // 节点是一次全新的尝试，额度也是新的。**交卷那一次不算** —— 那一次是内核
+    // 替它问的，落的是 `graded` 行，不是它自己调的 `call`。
+    const here = numberOf(task?.max_checks, 3);
+    const spent = checksIn(db, {
+      sub: at.sub,
+      task: at.task,
+      agent: String(a.agent ?? ""),
+      instance: String(a.instance ?? ""),
+      unit: Number(a.unit ?? 0),
+    });
+    if (spent >= here) {
+      return {
+        error:
+          `the ${String(here)} checks for this attempt are spent. A check is for finding the mistake in your ` +
+          `reasoning, not for trying answers one after another - work out what the last verdict told you, and ` +
+          `hand in what you get. What you hand in is graded either way.`,
+        left: 0,
+      };
+    }
+
     // 形状跟 `tree/dfs.ts` 里那次一致 —— 同一个 G，同一批句柄，喂进去的东西
     // 不该因为「是谁问的」而变形。
     const v = await evaluate(g, reg, {
@@ -98,9 +129,8 @@ export function registerVerifyTool(db: Conn, reg: Registry, sealed: Sealed): str
     // `{pass:1, why:""}` 没说过的是哪一段，等于验了个寂寞。
     //
     // `trace`（每个节点算出了什么）仍然不回，那是给我们排障看的。
-    return { pass: v.pass, why: v.why, graded: answer };
+    return { pass: v.pass, why: v.why, graded: answer, left: here - spent - 1 };
   });
-
   run(
     db,
     `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable)
@@ -142,3 +172,59 @@ export function registerVerifyTool(db: Conn, reg: Registry, sealed: Sealed): str
   return VERIFY_TOOL.name;
 }
 
+function numberOf(v: unknown, fallback: number): number {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+/**
+ * 这一轮已经问过 G 几次。**一轮 = 一个节点。**
+ *
+ * 数的是**模型自己调的那几次**（`kind = 'call'`，名字是 `verify`）—— 交卷那一次
+ * 不算：那是内核替它问的，落的是 `graded` 行，不是它调的。
+ *
+ * 按节点数，不按整道题：判死之后开的新节点是一次全新的尝试，上一轮花掉的不该
+ * 算在它头上 —— 不然「重来一次」就成了空话。
+ *
+ * 没有节点这一列的机制（不走树的那些）就按整条实例数：那种机制本来也只有一轮。
+ */
+function checksIn(db: Conn, at: { sub: string; task: string; agent: string; instance: string; unit: number }): number {
+  const sub = at.sub;
+  if (!at.agent || !at.instance) return 0;
+
+  let units: number[] = [];
+  try {
+    const me = all(db, `select node from "${sub}" where task = ? and unit = ?`, [at.task, at.unit])[0] as
+      | { node?: number }
+      | undefined;
+    const rows =
+      me?.node === undefined || me.node === null
+        ? (all(db, `select unit from "${sub}" where task = ?`, [at.task]) as { unit: number }[])
+        : (all(db, `select unit from "${sub}" where task = ? and node = ?`, [at.task, me.node]) as { unit: number }[]);
+    units = rows.map((r) => Number(r.unit));
+  } catch {
+    return 0; // 这张表还没长出来，那就还没问过
+  }
+  if (units.length === 0) return 0;
+
+  const t = tableNameOf("agent_{}_msg", at.agent);
+  const rows = all(
+    db,
+    `select body from "${t}" where instance = ? and kind = 'call' and unit in (${units.map(() => "?").join(", ")})`,
+    [at.instance, ...units],
+  ) as { body: string }[];
+
+  let n = 0;
+  for (const r of rows) {
+    try {
+      for (const c of (JSON.parse(r.body) as { calls?: { name?: string }[] }).calls ?? []) {
+        if (c.name === VERIFY_TOOL.name) n++;
+      }
+    } catch {
+      // 读不出来的行不算
+    }
+  }
+  // 这一次自己还没落库，所以算上它就是「用掉的第几次」—— 但闸比的是已经用掉的，
+  // 所以这儿回的是**不含这一次**的数，上限那一句自己去比。
+  return n;
+}

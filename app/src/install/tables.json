@@ -234,6 +234,12 @@
           "_": "How many dead siblings under one parent before backtracking a level to change direction"
         },
         {
+          "name": "max_checks",
+          "type": "integer",
+          "notnull": true,
+          "_": "How many times the grading function may be consulted within one attempt, before the hand-in. The hand-in's own verdict does not count. Past it the tool answers that the limit is spent, and says nothing about the candidate - a verdict is there to correct the reasoning, not to be a search oracle: with no limit the cheapest strategy is to enumerate the answer space, and a score got that way measures the size of that space rather than the work"
+        },
+        {
           "name": "solve_seconds",
           "type": "integer",
           "_": "Upper bound on solving time, in seconds",

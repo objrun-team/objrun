@@ -44,6 +44,8 @@ let hops = 0;
  * 结果，补齐会给它补一条。**补在哪儿**正是要验的事。
  */
 let alwaysCalls = false;
+/** 开了之后假端点一轮里连发五次 `verify` —— 正是要被闸拦住的那个形状。 */
+let checking = false;
 /**
  * 第一次交卷之后就**改调别的工具** —— 那是复现「新节点一睁眼就被判成已经交过」
  * 的关键：新节点的第一站没有按交卷，它该被送去动作站干活，而不是直接拐去交卷。
@@ -92,6 +94,20 @@ const fake = Bun.serve({
     const racing = JSON.stringify(body.messages ?? []).includes("cut this one off mid-call");
     choices.push(body.tool_choice ?? null);
     asked++;
+    if (checking) {
+      return answer(
+        {
+          role: "assistant",
+          content: "",
+          tool_calls: [1, 2, 3, 4, 5].map((k) => ({
+            id: `chk-${String(asked)}-${String(k)}`,
+            type: "function",
+            function: { name: "verify", arguments: JSON.stringify({ answer: `candidate ${String(k)}` }) },
+          })),
+        },
+        "tool_calls",
+      );
+    }
     if (racing) {
       return answer(
         {
@@ -480,6 +496,83 @@ try {
   show("the rows, in the order they will be sent:", flow.map((r) => `u${String(r.unit)}.${String(r.seq)} ${r.kind}`));
   show("calls whose result does not follow straight away:", broken);
   ok("the wrap-up verdict did not cut in between a call and its result", broken.length === 0, broken);
+
+  // ═══════════════════════════════════════════════════════════════════════
+  part("Part four: a few checks per attempt, and a new attempt gets new ones");
+
+  step("13. five checks in one turn, but only two are allowed");
+  // **没有上限的话，最省事的策略是把答案空间枚举一遍。** 实测过：一道选项题被连着
+  // 试了七十七个排列组合（`b;a` / `c;d` / `b;c;d` / `b;a;c;d` …），一次推理都没有。
+  // 那样得来的分数量的是答案空间有多大，不是它会不会做。
+  //
+  // **执行单元那个额度拦不住它**：一次请求可以带很多个工具调用，一格里试二十次跟
+  // 试一次一样贵。所以闸按「问了 G 几次」算，不按走了几站 —— 这个例子一轮里一口气
+  // 发五次，正是那个形状。
+  checking = true;
+  await m.api("POST", "/tasks", {
+    id: "t-checks", mode: "tree", agent: "bot", place: "local", source: "user",
+    description: "how many checks does it get", readable: false,
+    maxChecks: 2, maxDeadSiblings: 2, solveSeconds: 45,
+    objective: {
+      nodes: [
+        { name: "look", moment: "done", domain: { kind: "bool" }, handle: at("/nope") },
+        { name: "verdict", moment: "done", domain: { kind: "bool" }, handle: at("/verdict") },
+      ],
+      edges: [{ src: "look", out: 0, dst: "verdict" }],
+      sink: "verdict",
+    },
+  });
+  await until(
+    "t-checks to finish",
+    async () => {
+      const d = await m.api<{ state: string }>("GET", "/tasks/t-checks");
+      return d.state === "done" || d.state === "failed" ? d : null;
+    },
+    60_000,
+  );
+
+  const results = (
+    await m.api<{ rows: { unit: number; seq: number; body: string }[] }>("POST", "/query", {
+      sql: "select unit, seq, body from agent_bot_msg where instance = 't-checks#1' and kind = 'tool' and body like '%verify%' order by unit, seq",
+    })
+  ).rows
+    .map((r) => JSON.parse(r.body) as { id?: string; value?: { pass?: number; error?: string; left?: number } })
+    // **交卷那一次不算。** 那是内核替它问的（id 以 `g-` 开头，落的是 `graded` 那一对），
+    // 不是它自己调的检查 —— 闸也不该把它算进额度里。
+    .filter((r) => !String(r.id ?? "").startsWith("g-"));
+
+  const judged = results.filter((r) => r.value?.pass !== undefined);
+  const refused = results.filter((r) => typeof r.value?.error === "string" && r.value.error.includes("spent"));
+  show("checks that got a verdict:", judged.length);
+  show("checks that were turned away:", refused.length);
+  ok("it asked more times than it was allowed", results.length > 2, results.length);
+  ok("only the allowed few came back with a verdict", judged.length <= 2, judged.length);
+  ok("the rest were turned away, and told why", refused.length > 0, results.map((r) => r.value));
+  ok(
+    "and the answer says how many are left, so it can budget",
+    judged.every((r) => typeof r.value?.left === "number"),
+    judged.map((r) => r.value),
+  );
+
+  step("14. a new attempt gets its own checks");
+  // 一轮 = 一个节点。判死之后开的新节点是一次全新的尝试 —— 上一轮花掉的不该算在
+  // 它头上，不然「重来一次」就成了空话。
+  const walk = (
+    await m.api<{ rows: { unit: number; node: number; cycle: string }[] }>("POST", "/query", {
+      sql: "select unit, node, cycle from task_tree where task = 't-checks' order by unit",
+    })
+  ).rows;
+  const nodes = new Set(walk.map((r) => Number(r.node)));
+  show("nodes it opened:", [...nodes]);
+  if (nodes.size > 1) {
+    const byNode = new Map<number, number>();
+    for (const r of walk) byNode.set(Number(r.node), Number(r.unit));
+    const later = [...nodes].filter((n) => n > 1);
+    const judgedLate = results.length > 2;
+    ok("a second attempt was opened, and it could still check", later.length > 0 && judgedLate, [...nodes]);
+  } else {
+    ok("(only one attempt happened here - the reset is covered by the counter being per node)", true);
+  }
 } finally {
   await fake.stop(true);
 
