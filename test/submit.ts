@@ -111,11 +111,10 @@ try {
   );
   ok("and the table records where it can be entered from", JSON.stringify(submit?.from) === JSON.stringify(["ask"]), submit?.from);
   ok("the working cycle can now route to it", JSON.stringify(graph.cycles.find((c) => c.cycle === "ask")?.next).includes("submit"), graph.cycles);
-  ok(
-    "its budget is not the binding one - it takes the sum of the working cycles",
-    Number(submit?.maxUnits) === 4,
-    submit?.maxUnits,
-  );
+  // **一个节点只交一次。** 交卷站每次都落一个终态（判活或判死），落了节点就结束 ——
+  // 结构上不可能有第二个。所以这一列写 1 才是这张表在说实话；写成「干活那几站之和」
+  // 那种够大的数，读表的人会以为一个节点能交好多次。
+  ok("a node hands in once, and the table says so", Number(submit?.maxUnits) === 1, submit?.maxUnits);
   ok("the whole-database check is clean", ((await m.api<{ data: unknown[] }>("GET", "/check")).data).length === 0);
 
   step("2. a mode that does not use the tree mechanism gets no submit cycle");
