@@ -151,10 +151,27 @@ export class Kernel {
   #scan(): Pending[] {
     const out: Pending[] = [];
     for (const { mode, sub } of this.#subs()) {
+      // **打完分的题，它的行就不该再被挑走。**
+      //
+      // 判死那一段的原话是「先落一个失败，让它别再被排上」—— 可这儿以前只问
+      // 「这一行做完没有」，从不问「这道题还在不在」。于是超时收工之后，那道题
+      // 底下没做完的行照样被扫出来、照样派给模型：实测一跑有 15 道题在死后又开了
+      // 105 个执行单元，最狠的一道死后还跑了 33 分钟。花的是真钱，换回来的东西
+      // 一分不进成绩单 —— 分是判死那一刻定的。
+      //
+      // 顺带堵掉一串报错：死掉那一刻在飞的调用回来之后，会在上下文尾巴上留一条
+      // 没人应答的工具调用，而收工时的补齐早跑完了。再往下派，模型那边就拒收整份
+      // 上下文（`An assistant message with 'tool_calls' must be followed by...`）。
+      // 不派了，这条路自然就没了。
+      //
+      // 写成 `not in` 而不是跟 `task` 内联：主表里没有对应行的孤儿行，行为跟以前
+      // 一模一样。内联的话它们会被悄悄丢掉，而「悄悄」是这儿最不该有的东西。
       const rows = all(
         this.#store.ro,
         `select task, cycle, unit, from_cycle, from_unit, agent, instance, place, at
-           from "${sub}" where done = 0`,
+           from "${sub}"
+          where done = 0
+            and task not in (select id from task where state in ('done', 'failed'))`,
       ) as unknown as Pending[];
       for (const r of rows) out.push({ ...r, mode, sub });
     }
