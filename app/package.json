@@ -6,10 +6,11 @@
     "start": "TGENGIN_CONFIG=../config.yaml bun --env-file=../.env src/main.ts",
     "check": "tsc -p tsconfig.json",
     "verify": "bun run check && bun run build",
-    "build": "bun run build:win && bun run build:mac && bun run build:mac-x64 && bun run build:runtime",
-    "build:win": "bun build --compile --target=bun-windows-x64 --outfile=../dist/tgengin-win-x64.exe src/main.ts src/engine/plugin-host.ts",
-    "build:mac": "bun build --compile --target=bun-darwin-arm64 --outfile=../dist/tgengin-mac-arm64 src/main.ts src/engine/plugin-host.ts",
-    "build:mac-x64": "bun build --compile --target=bun-darwin-x64 --outfile=../dist/tgengin-mac-x64 src/main.ts src/engine/plugin-host.ts",
+    "build": "bun run build:pyodide && bun run build:win && bun run build:mac && bun run build:mac-x64 && bun run build:runtime",
+    "build:pyodide": "bun scripts/stage-pyodide.ts",
+    "build:win": "bun build --compile --target=bun-windows-x64 --outfile=../dist/tgengin-win-x64.exe src/main.ts src/engine/plugin-host.ts src/tools/python-host.ts",
+    "build:mac": "bun build --compile --target=bun-darwin-arm64 --outfile=../dist/tgengin-mac-arm64 src/main.ts src/engine/plugin-host.ts src/tools/python-host.ts",
+    "build:mac-x64": "bun build --compile --target=bun-darwin-x64 --outfile=../dist/tgengin-mac-x64 src/main.ts src/engine/plugin-host.ts src/tools/python-host.ts",
     "build:runtime": "bun build --compile --target=bun-linux-x64 --outfile=../dist/tgengin-runtime-linux-x64 src/place/runtime.ts"
   },
   "type": "module",
@@ -18,6 +19,7 @@
     "@fastify/cors": "^11.3.0",
     "ai": "^7.0.83",
     "fastify": "^5.12.1",
+    "pyodide": "^314.0.6",
     "yaml": "^2.9.0"
   },
   "devDependencies": {

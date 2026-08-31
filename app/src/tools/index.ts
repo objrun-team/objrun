@@ -18,6 +18,8 @@ import { constants } from "node:fs";
 import { access, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 
+import { python } from "./python.ts";
+
 /** 一次 read 默认/最多返回多少行。 */
 export const READ_LIMIT = 2000;
 /** 单行超过这么多字符就截断 —— 一行几十万字符会把上下文顶爆。 */
@@ -497,4 +499,4 @@ async function exists(path: string): Promise<boolean> {
 }
 
 /** 全部基础工具。**内核不认得这个名单** —— 它只查 `tool` 表。 */
-export const TOOLS: Tool[] = [read, write, edit, glob, grep, bash];
+export const TOOLS: Tool[] = [read, write, edit, glob, grep, bash, python];

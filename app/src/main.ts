@@ -35,6 +35,7 @@ import { registerTreeView } from "./tree/view.ts";
 import { check } from "./trigger/check.ts";
 import { checkData } from "./trigger/data.ts";
 import { Places, registerTools } from "./tools/register.ts";
+import { closePython } from "./tools/python.ts";
 import { registerToolUnit } from "./tools/unit.ts";
 
 const VERSION = pkg.version;
@@ -296,6 +297,7 @@ for (const sig of ["SIGINT", "SIGTERM"] as const) {
       .then(() => {
         clearTimeout(hard);
         kernel.stop();
+        closePython();
         places.closeAll();
         sessions.closeAll();
         servers.closeAll();

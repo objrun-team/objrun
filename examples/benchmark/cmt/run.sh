@@ -37,8 +37,9 @@ echo
 
 step "2a 关掉这道题用不上的那几个工具"
 # **一道纯推导题不需要文件系统。** 这几个是 system 工具（谁都有、不看条件），
-# 而这台机器上连可用的 python 都没有 —— 实测模型拿 12 个执行单元去查
-# `python --version`，一个字答案都没写。伸手要算力却摸到空气，额度就这么没的。
+# 留着只会分散注意力：实测模型拿 12 个执行单元去 `bash` 里查 `python --version`，
+# 一个字答案都没写。伸手要算力却摸到空气，额度就这么没的 —— 而现在算力有了，
+# 是 `python_exec`，不在这一行里。
 #
 # 关的是 usable 那一列，纯数据；`does`/`params` 一个字不动，想开回来把 0 改成 1。
 curl -s -X POST "$BASE/exec" -H 'content-type: application/json' -d @- <<'JSON'
@@ -46,28 +47,10 @@ curl -s -X POST "$BASE/exec" -H 'content-type: application/json' -d @- <<'JSON'
 JSON
 echo
 
-step "2b 给它一个能算的沙箱"
-# **老仓库跑这套 bench 时，智能体手上只有两个工具：交卷，和 `python_exec`。**
-# 我们这边原来给的是 `bash` —— 而这台机器上没有可用的 python，于是模型伸手要
-# 算力却摸到空气，一道题 12 个执行单元全花在查 `python --version` 上。
-#
-# 沙箱是一次性容器，`--network none`，而且**不是判卷台那个镜像**（那里面装着
-# 答案）。见 python-server.ts 和 sandbox.Dockerfile。
-#
-# 门按 `task.domain` 分发：会算的题给算力，跟是哪一套 benchmark 无关。
-curl -s -X POST "$BASE/declare" -H 'content-type: application/json' -d @- <<'JSON'
-{ "handles": [{ "name": "http://127.0.0.1:7902/python_exec", "expectMs": 60000 }],
-  "tools": [{
-    "name": "python_exec",
-    "identity": "http://127.0.0.1:7902/python_exec",
-    "does": "Run a short Python program in a throwaway sandbox and get its output back. sympy, numpy and scipy are installed. There is no network and no filesystem to explore - use it to compute and to check, not to look around.",
-    "params": { "type": "object", "properties": { "code": { "type": "string", "description": "The program. Print what you want to see." } }, "required": ["code"] },
-    "output": { "type": "object", "properties": { "exitCode": { "type": "integer" }, "stdout": { "type": "string" }, "stderr": { "type": "string" } } },
-    "prompt": "Prefer computing over guessing. If a quantity can be counted, enumerated, expanded or checked numerically, write the program and read the answer off it. Several calls in one turn cost the same as one - every tool call you make is run before you are asked again, so batch the work rather than spending a turn per question. What is scarce is turns.",
-    "when": [[{ "dim": "task", "key": "domain", "op": "eq", "value": "physics" }]] }] }
-JSON
-echo
-
+# **算力不用在这儿声明了。** `python_exec` 现在是随二进制走的基础工具
+# （`app/src/tools/python.ts`，Pyodide 跑在一个 worker 里），跟 read/write 一样
+# 谁都有。以前这儿要起一个容器、再声明一条 http 句柄 —— 那套只在装了
+# Docker-in-WSL 的机器上活得下去。
 step "2 挂扩展"
 bun examples/benchmark/cmt/parmeras/load.ts
 

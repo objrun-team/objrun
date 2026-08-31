@@ -52,7 +52,13 @@ function hostPath(): string {
   } catch {
     // 打包了，或者文件不在 —— 落到下面那个
   }
-  return "./src/engine/plugin-host.ts";
+  // **打包之后这条路是相对主入口那个目录解析的**，不是相对进程 cwd，也不是
+  // 源码里那条路径。主入口是 `src/main.ts`，所以这儿写的是从 `src/` 出发的
+  // 相对路径。写错了得到的是
+  //   `BuildMessage: ModuleNotFound resolving "..." (entry point)`,
+  // 而这句话只出现在 worker 的 error 事件里 —— 不把它带出来的话，现场只有
+  // 一句「起不来」。
+  return "./engine/plugin-host.ts";
 }
 
 const HOST = hostPath();
