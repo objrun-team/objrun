@@ -87,6 +87,13 @@ const tasks = items.map((it) => ({
   // 而我们想量的是前者。
   maxBranches: 4,
   maxDeadSiblings: 8,
+  // **一轮里能问几次 G。** 不设上限的话，最省事的策略是把答案空间枚举一遍 ——
+  // 实测一道选项题被连着试了七十七个排列组合，一次推理都没有，而那样得来的分数量的
+  // 是答案空间有多大，不是它会不会做。
+  //
+  // 给 5：够它「算出来 → 验一次 → 不对就照着 why 改 → 再验」走上两三个来回，不够它
+  // 穷举。判死之后开的新节点是新的一轮，又有 5 次。
+  maxChecks: 5,
   description:
     `${it.prompt}\n\n` +
     (it.parameters ? `Symbols: ${it.parameters}\n` : "") +

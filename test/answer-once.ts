@@ -546,7 +546,21 @@ try {
   show("checks that got a verdict:", judged.length);
   show("checks that were turned away:", refused.length);
   ok("it asked more times than it was allowed", results.length > 2, results.length);
-  ok("only the allowed few came back with a verdict", judged.length <= 2, judged.length);
+  // **额度是每轮的，不是整道题的。** 这道题开了几个节点就有几轮，所以拿到判决的
+  // 次数应该是「轮数 × 每轮上限」—— 写成一个总数的话，判死重来那条路一走就假了。
+  const rounds = new Set(
+    (
+      await m.api<{ rows: { node: number }[] }>("POST", "/query", {
+        sql: "select distinct node from task_tree where task = 't-checks'",
+      })
+    ).rows.map((r) => Number(r.node)),
+  ).size;
+  show("how many attempts it made:", rounds);
+  ok(
+    "each attempt got its own few, and no more",
+    judged.length <= 2 * rounds && judged.length > 0,
+    { judged: judged.length, rounds, perRound: 2 },
+  );
   ok("the rest were turned away, and told why", refused.length > 0, results.map((r) => r.value));
   ok(
     "and the answer says how many are left, so it can budget",

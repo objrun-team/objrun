@@ -211,7 +211,7 @@ ${JSON.stringify(p.objective, null, 2)}` : p.description;
       [
         p.id, p.mode, p.place, p.run ?? "", p.source, p.domain ?? "", description, now, p.workdir ?? "",
         g ? "sealed" : null, g ? (p.readable ? 1 : 0) : null,
-        p.maxBranches ?? 2, p.maxDeadSiblings ?? 3, p.maxChecks ?? 3, p.solveSeconds ?? 1800,
+        p.maxBranches ?? 2, p.maxDeadSiblings ?? 3, p.maxChecks ?? 5, p.solveSeconds ?? 1800,
       ],
     );
     run(

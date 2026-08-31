@@ -99,7 +99,7 @@ export function registerVerifyTool(db: Conn, reg: Registry, sealed: Sealed): str
     // 上限由**发布方**定（`task.max_checks`）。一轮 = 一个节点：判死之后开的新
     // 节点是一次全新的尝试，额度也是新的。**交卷那一次不算** —— 那一次是内核
     // 替它问的，落的是 `graded` 行，不是它自己调的 `call`。
-    const here = numberOf(task?.max_checks, 3);
+    const here = numberOf(task?.max_checks, 5);
     const spent = checksIn(db, {
       sub: at.sub,
       task: at.task,
@@ -178,13 +178,19 @@ function numberOf(v: unknown, fallback: number): number {
 }
 
 /**
- * 这一轮已经问过 G 几次。**一轮 = 一个节点。**
+ * 这一轮已经**用掉**几次检查。**一轮 = 一个节点。**
  *
- * 数的是**模型自己调的那几次**（`kind = 'call'`，名字是 `verify`）—— 交卷那一次
- * 不算：那是内核替它问的，落的是 `graded` 行，不是它调的。
+ * 数的是**拿到过判决的次数**，不是它调了几次：
  *
- * 按节点数，不按整道题：判死之后开的新节点是一次全新的尝试，上一轮花掉的不该
- * 算在它头上 —— 不然「重来一次」就成了空话。
+ * - 一轮里那几个调用可能**在同一行里**（一次请求可以带很多个工具调用）。按行数的话，
+ *   第一个执行的时候就已经看见五个了，于是五个全被拦 —— 而它其实一次都还没用过
+ * - 被拦下的那几次**不该扣数**：它没拿到任何关于候选的信息，凭什么算一次
+ *
+ * 工具结果是一个一个落的，所以按判决数天然就对：前几个拿到判决，后面的看见额度
+ * 用完了被拦，而拦下来的不产生判决、也就不占额度。
+ *
+ * **交卷那一次不算** —— 那是内核替它问的（id 以 `g-` 开头，落的是 `graded` 那一对），
+ * 不是它自己调的检查。
  *
  * 没有节点这一列的机制（不走树的那些）就按整条实例数：那种机制本来也只有一轮。
  */
@@ -203,28 +209,28 @@ function checksIn(db: Conn, at: { sub: string; task: string; agent: string; inst
         : (all(db, `select unit from "${sub}" where task = ? and node = ?`, [at.task, me.node]) as { unit: number }[]);
     units = rows.map((r) => Number(r.unit));
   } catch {
-    return 0; // 这张表还没长出来，那就还没问过
+    return 0; // 这张表还没长出来，那就还没用过
   }
   if (units.length === 0) return 0;
 
   const t = tableNameOf("agent_{}_msg", at.agent);
   const rows = all(
     db,
-    `select body from "${t}" where instance = ? and kind = 'call' and unit in (${units.map(() => "?").join(", ")})`,
+    `select body from "${t}" where instance = ? and kind = 'tool' and unit in (${units.map(() => "?").join(", ")})`,
     [at.instance, ...units],
   ) as { body: string }[];
 
   let n = 0;
   for (const r of rows) {
     try {
-      for (const c of (JSON.parse(r.body) as { calls?: { name?: string }[] }).calls ?? []) {
-        if (c.name === VERIFY_TOOL.name) n++;
-      }
+      const v = JSON.parse(r.body) as { id?: string; name?: string; value?: { pass?: unknown } };
+      if (v.name !== VERIFY_TOOL.name) continue;
+      if (String(v.id ?? "").startsWith("g-")) continue; // 交卷那一次
+      if (typeof v.value?.pass !== "number") continue; // 被拦下的那几次不算
+      n++;
     } catch {
       // 读不出来的行不算
     }
   }
-  // 这一次自己还没落库，所以算上它就是「用掉的第几次」—— 但闸比的是已经用掉的，
-  // 所以这儿回的是**不含这一次**的数，上限那一句自己去比。
   return n;
 }
