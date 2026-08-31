@@ -240,6 +240,11 @@
           "notnull": true
         },
         {
+          "name": "max_searches",
+          "type": "integer",
+          "_": "How many searches one attempt gets. Null or absent means no limit. Counted per attempt the way the grading function's checks are - a fresh attempt gets a fresh allowance - and a refused call costs nothing, because nothing was looked up. It exists because searching spends the clock, not the unit budget: in one measured run the timed-out tasks put about half their hour into it while never coming close to their per-station cap, so the limit that binds has to be on searches themselves."
+        },
+        {
           "name": "no_search",
           "type": "text",
           "_": "A JSON list of strings the publisher forbids searching around. If any of them turns up ANYWHERE in what a search brings back - the prose, the queries it ran, the pages it opened - the whole result is dropped and the caller is told the publisher does not allow it. Empty or absent means no restriction. It exists because a graded problem usually has its answer published somewhere: one measured run went after the dataset itself by name, and when the front door did not open it tried a mirror, then a text-extraction proxy, then the Internet Archive - all with queries like 'row 1 answer'. Blocking by URL alone does not hold, which is why the check is on the whole payload, and why it happens before the model ever sees it: once an answer is in the context the problem is already spent, and voiding it afterwards only records the loss."

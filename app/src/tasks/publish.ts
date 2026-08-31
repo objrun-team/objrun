@@ -73,6 +73,17 @@ export interface Publish {
    */
   noSearch?: string[];
   /**
+   * **一轮里能搜几次。** 不给 = 不限。
+   *
+   * 跟 G 那个 `checks` 是同一个形状：一轮 = 一次尝试（树上一个节点），判死重来是
+   * 新的一轮、新的额度；被拦下的那次不扣数，因为它什么都没查到。
+   *
+   * 要这道闸是因为**检索花的是钟，不是格子**：实测一跑，超时那批把一小时里的一半
+   * 花在检索上，而每站的格子额度**一次都没碰到**。格子放宽治不了这个，只有按次数
+   * 限才治得了。
+   */
+  maxSearches?: number;
+  /**
    * 验证函数 `G` —— 「这个任务算不算做成了」的标准。
    *
    * **绑定发生在发布这一刻，是准入条件。** 给了就当场检、当场封存；过不了
@@ -216,12 +227,16 @@ ${JSON.stringify(p.objective, null, 2)}` : p.description;
     run(
       db,
       `insert into task (id, mode, place, run, source, domain, description, created_at, workdir, objective, readable,
-                         claimed_by, result, max_branches, max_dead_siblings, solve_seconds, no_search, state)
-       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, ?, ?, ?, ?, 'open')`,
+                         claimed_by, result, max_branches, max_dead_siblings, solve_seconds,
+                         max_searches, no_search, state)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, ?, ?, ?, ?, ?, 'open')`,
       [
         p.id, p.mode, p.place, p.run ?? "", p.source, p.domain ?? "", description, now, p.workdir ?? "",
         g ? "sealed" : null, g ? (p.readable ? 1 : 0) : null,
         p.maxBranches ?? 2, p.maxDeadSiblings ?? 3, p.solveSeconds ?? 1800,
+        // 不给就是不限。**0 和负数也当成不给** —— 「一次都不许搜」该用 `noSearch`
+        // 那条路说，或者干脆别挂这件工具；一个额度字段表达不了「禁用」。
+        Number.isFinite(Number(p.maxSearches)) && Number(p.maxSearches) > 0 ? Number(p.maxSearches) : null,
         // **发布方说不许搜什么，原样存着。** 不给就是不限制 —— 空列表和「没有这一栏」
         // 是同一件事，没必要让调用方在两种「没有」之间选。
         p.noSearch && p.noSearch.length ? JSON.stringify(p.noSearch) : null,

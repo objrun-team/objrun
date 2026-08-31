@@ -99,7 +99,9 @@ const out = await outside({
     };
   },
 
-  "/infer": (u) => (String((u as { cycle?: { cycle?: string } }).cycle?.cycle) === "ask" ? "act" : null),
+  // ask → act → ask …，靠格子额度自己停。**第二轮是第 7 步的全部意义**：
+  // 只走一轮的话，「超额被拒」那条断言对着空数组恒真，什么都没证明。
+  "/infer": (u) => (String((u as { cycle?: { cycle?: string } }).cycle?.cycle) === "ask" ? "act" : "ask"),
 });
 
 /** 这道题跑完之后，`web_search` 那次调用的结果。 */
@@ -135,8 +137,10 @@ try {
       {
         mode: "one",
         cycles: [
+          // **转起来**：ask → act → ask …，靠格子额度停。第 7 步要的就是第二轮 ——
+          // 只走一轮的话，「超额被拒」那条断言对着空数组恒真，什么都没证明。
           { cycle: "ask", apiMode: "chat", maxUnits: 3, from: [], next: ["act"], infer: out.url("/infer") },
-          { cycle: "act", maxUnits: 3, from: ["ask"], next: [], infer: out.url("/infer") },
+          { cycle: "act", maxUnits: 3, from: ["ask"], next: ["ask"], infer: out.url("/infer") },
         ],
       },
     ],
@@ -246,6 +250,38 @@ try {
   ok("and so is every trace of where it had been", !banned.opened && !banned.queries, banned);
   // **花掉的钱照报。** 被拦下不等于没花过，快照要能把这笔算进去。
   ok("but what it cost is still on the books", banned.spent?.total_tokens === 999, banned.spent);
+
+  step("7. the publisher capped how many searches one attempt gets");
+  // **闸在次数上，不在格子上。** 实测一跑：超时那批把一小时的一半花在检索上，
+  // 而每站的格子额度一次都没碰到 —— 检索花的是钟，放宽格子治不了。
+  ask = "how many KT transitions does the triangular lattice TFIM have?";
+  await m.api("POST", "/tasks", {
+    id: "t-search-capped", mode: "one", agent: "bot", place: "local", source: "user",
+    description: "search more than you are allowed to", solveSeconds: 60,
+    maxSearches: 1,
+  });
+  await until("t-search-capped to finish", async () => {
+    const d = await m.api<{ state: string }>("GET", "/tasks/t-search-capped");
+    return d.state === "done" || d.state === "failed" ? d : null;
+  }, 40_000);
+
+  const capped = (
+    await m.api<{ rows: { body: string }[] }>("POST", "/query", {
+      sql: "select body from agent_bot_msg where instance = 't-search-capped#1' and kind = 'tool' order by unit, seq",
+    })
+  ).rows
+    .map((r) => JSON.parse(r.body) as { name?: string; value?: { answer?: string; error?: string; left?: number } })
+    .filter((v) => v.name === "web_search")
+    .map((v) => v.value ?? {});
+  show("what each search call got back:", capped.map((v) => (v.answer ? `answered (left ${String(v.left)})` : v.error)));
+  ok("the first one went through", Boolean(capped[0]?.answer), capped[0]);
+  ok("and it says nothing is left", capped[0]?.left === 0, capped[0]);
+  ok("it did try again after the allowance ran out", capped.length >= 2, capped.length);
+  ok(
+    "and every later one is refused",
+    capped.length >= 2 && capped.slice(1).every((v) => String(v.error).includes("for this attempt is spent")),
+    capped.slice(1),
+  );
 } finally {
   out.stop();
   m.stop();

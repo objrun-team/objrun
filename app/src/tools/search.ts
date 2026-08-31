@@ -45,18 +45,21 @@
  * 摆一件「调用起来才报错」的工具是最坏的那一档：模型看得见它、会去用它、然后拿一条
  * 错误回来，而那一格已经花掉了。工具列表说的该是「这儿真有的能力」。
  *
- * ## 搜几步管不了，只能管钟
+ * ## 一次搜多深管不了，搜几次管得了
  *
- * `/responses` 收 `max_tool_calls`，但**不照办**：回执里那一栏原样是 `null`，给 2
- * 搜 11 次，给 8 搜 13 次，一模一样。所以那个参数不发了 —— 发一个不生效的参数比
- * 不发更坏，下一个人看见它会以为这儿有道闸。
+ * **管不了的那半**：`/responses` 收 `max_tool_calls` 但不照办 —— 回执里那一栏原样是
+ * `null`，给 2 搜 11 次，给 8 搜 13 次，一模一样。那个参数因此不发了：发一个不生效
+ * 的参数比不发更坏，下一个人看见它会以为这儿有道闸。所以一次搜有多贵拦不住，实测
+ * 中位 13 万 token、最多 25 万，还有**四成搜完一个字答案都没有**。
  *
- * 剩下的闸只有一道，是我们自己的：`SEARCH_WALL_MS`。到点断掉，那一格拿一条错误
- * 继续走，不会挂到句柄的死期。
+ * **管得了的那半**：`task.max_searches` —— 一轮里准搜几次，跟 G 那个 `checks` 同一
+ * 套规矩（一轮 = 一个节点，判死重来是新额度，被拒的不扣数）。
  *
- * 于是这件工具的开销天生就大：实测一次搜中位 13 万 token，最多 25 万，而且**四成
- * 搜完一个字答案都没有**（最后一条输出还是 `web_search_call`）。这不是配错了，是
- * 这条端点本来的样子 —— 一次搜要把整页整页读进去。`spent` 那一栏就是拿来看着它的。
+ * 为什么闸在「次数」上而不在「格子」上，是量出来的：实测一跑，超时那批把一小时里
+ * 的**一半**花在检索上，而每站的格子额度**一次都没碰到**（用得最多的一站 30 格，
+ * 上限 35）。检索花的是钟，不是格子 —— 放宽格子治不了，限次数才治得了。
+ *
+ * 外加一道我们自己的钟：`SEARCH_WALL_MS`，单次到点就断。
  *
  * ## 留痕
  *
@@ -70,12 +73,13 @@ import { all } from "../H2H/db.ts";
 import type { Registry } from "../engine/registry.ts";
 import { declareTool } from "./register.ts";
 import { whereAmI } from "../tasks/where.ts";
+import { tableNameOf } from "../install/index.ts";
 import { VENDORS } from "../llm/index.ts";
 
 /**
- * 整次调用的硬墙，**这是唯一一道闸**。
+ * 单次调用的硬墙。**管的是一次搜能拖多久**，不是能搜几次 —— 后者是
+ * `task.max_searches`，见文件开头。
  *
- * 按次数封顶那条走不通（见文件开头）：那个参数收下了但不照办。所以只剩钟 ——
  * 到点断掉，那一格拿一条错误继续走，不会挂到句柄的死期上。
  */
 export const SEARCH_WALL_MS = 240_000;
@@ -121,7 +125,8 @@ const SEARCH_TOOL = {
       answer: { type: "string", description: "What it found, in prose, with sources named" },
       queries: { type: "array", items: { type: "string" }, description: "The searches it ran" },
       opened: { type: "array", items: { type: "string" }, description: "The pages it opened" },
-      searches: { type: "integer", description: "How many moves it made, out of the limit" },
+      searches: { type: "integer", description: "How many moves it made inside this one search" },
+      left: { type: "integer", description: "Searches remaining in this attempt, when the publisher set a limit" },
       spent: {
         type: "object",
         description: "What this search cost. Searching reads whole pages, so it is dearer than asking is.",
@@ -227,6 +232,53 @@ function tripped(got: unknown, banned: string[]): string | null {
   return null;
 }
 
+/**
+ * 这一轮已经搜了几次。**一轮 = 一个节点**，跟 G 那个 `checks` 是同一套规矩：
+ * 判死重来是新的一轮、新的额度。
+ *
+ * 数的是**真搜过的次数** —— 被拦下的那几次不算，它们什么都没查到。
+ *
+ * 没有节点这一列的机制（不走树的那些）就按整条实例数：那种机制本来也只有一轮。
+ */
+function searchesIn(db: Conn, at: { sub: string; task: string }, agent: string, instance: string, unit: number): number {
+  if (!agent || !instance) return 0;
+  let units: number[];
+  try {
+    const me = all(db, `select node from "${at.sub}" where task = ? and unit = ?`, [at.task, unit])[0] as
+      | { node?: number }
+      | undefined;
+    const rows =
+      me?.node === undefined || me.node === null
+        ? (all(db, `select unit from "${at.sub}" where task = ?`, [at.task]) as { unit: number }[])
+        : (all(db, `select unit from "${at.sub}" where task = ? and node = ?`, [at.task, me.node]) as { unit: number }[]);
+    units = rows.map((r) => Number(r.unit));
+  } catch {
+    return 0; // 子表还没长出来，那就还没搜过
+  }
+  if (units.length === 0) return 0;
+
+  const rows = all(
+    db,
+    `select body from "${tableNameOf("agent_{}_msg", agent)}"
+      where instance = ? and kind = 'tool' and unit in (${units.map(() => "?").join(", ")})`,
+    [instance, ...units],
+  ) as { body: string }[];
+
+  let n = 0;
+  for (const r of rows) {
+    try {
+      const v = JSON.parse(r.body) as { name?: string; value?: { error?: unknown; answer?: unknown } };
+      if (v.name !== SEARCH_TOOL.name) continue;
+      // 拦下的、以及超额被拒的，都没查到东西 —— 不扣数。
+      if (typeof v.value?.answer !== "string") continue;
+      n++;
+    } catch {
+      // 读不出来的行不算
+    }
+  }
+  return n;
+}
+
 /** 钥匙只在这一刻取，不留。 */
 function keyOf(keyEnv: string): string {
   const k = process.env[keyEnv];
@@ -302,7 +354,7 @@ function unpack(d: Answer): {
  */
 export function registerSearchTool(db: Conn, reg: Registry): string {
   reg.register(db, `fn:tool.${SEARCH_TOOL.name}`, SEARCH_TOOL.expectMs, async (arg) => {
-    const a = (arg ?? {}) as { args?: { question?: unknown }; agent?: string; instance?: string };
+    const a = (arg ?? {}) as { args?: { question?: unknown }; agent?: string; instance?: string; unit?: number };
     const question = String(a.args?.question ?? "").trim();
     if (!question) return { error: "question is required - there is nothing to search for" };
     if (!a.agent) return { error: "the kernel did not say which agent is searching, so there is no api to use" };
@@ -310,6 +362,33 @@ export function registerSearchTool(db: Conn, reg: Registry): string {
     // 哪道题**从库里问**，不收调用方传的 —— 收的话，改一个参数就能把闸关掉。
     // 跟 `verify` 那儿是同一条理由、同一个办法。
     const at = whereAmI(db, String(a.instance ?? ""));
+
+    // ── 一轮里能搜几次 ──────────────────────────────────────────────────
+    //
+    // **这道闸管的是钟，不是格子。** 实测一跑：超时那批把一小时里的一半花在检索上，
+    // 而每站的格子额度**一次都没碰到**（用得最多的一站 30 格，上限 35）。所以放宽
+    // 格子治不了 —— 只有按次数限才治得了。
+    //
+    // 一轮 = 一个节点，判死重来是新的额度。超了当场回绝，**不扣数**（本来也没查到）。
+    let left: number | undefined;
+    if (at) {
+      const cap = Number(
+        (all(db, `select max_searches from task where id = ?`, [at.task])[0] as { max_searches?: number } | undefined)
+          ?.max_searches ?? 0,
+      );
+      if (cap > 0) {
+        const spent = searchesIn(db, at, String(a.agent), String(a.instance ?? ""), Number(a.unit ?? 0));
+        left = cap - spent - 1;
+        if (spent >= cap) {
+          return {
+            error:
+              `the ${cap === 1 ? "one search" : `${String(cap)} searches`} for this attempt ${cap === 1 ? "is" : "are"} spent. Searching ` +
+              `costs time you need for the problem itself - work with what you already found, and reason the rest out.`,
+            left: 0,
+          };
+        }
+      }
+    }
 
     const lane = laneOf(db, a.agent);
     const wall = AbortSignal.timeout(SEARCH_WALL_MS);
@@ -363,7 +442,7 @@ export function registerSearchTool(db: Conn, reg: Registry): string {
           `nothing to say; the queries it tried are listed, so try asking for something narrower`,
       };
     }
-    return got;
+    return left === undefined ? got : { ...got, left };
   });
 
   declareTool(db, { ...SEARCH_TOOL, when: OFFERED_TO });
