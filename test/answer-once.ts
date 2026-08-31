@@ -441,6 +441,26 @@ try {
     60_000,
   );
 
+  step("11b. what it handed in has one source, not two");
+  // **「交了什么」只能有一个出处。** 交卷站按 `submit` 那次调用里的答案判，而收尾
+  // 那一路要是自己另读一遍「它在交卷站说的那段话」，同一份东西就有了两个答案 ——
+  // 两边判出不同结果，而成绩以后者为准。
+  //
+  // 实测丢过题：交卷站判 1、树正常收工（`status = reached`），收尾又判一次判 0，
+  // 成绩单上是没过。真的做对了的题被判成没做对。
+  const verdicts = late.filter((r) => r.kind === "graded");
+  const answers = late
+    .filter((r) => r.kind === "call")
+    .flatMap((r) => (JSON.parse(r.body) as { calls?: { name?: string; input?: { answer?: unknown } }[] }).calls ?? [])
+    .filter((c) => c.name === "submit")
+    .map((c) => String(c.input?.answer ?? ""));
+  show("what it handed in:", answers);
+  show("how many verdicts landed:", verdicts.length);
+  ok(
+    "every verdict is about something it actually handed in",
+    answers.length === 0 || verdicts.length > 0,
+    { answers, verdicts: verdicts.length },
+  );
   step("12. the wrap-up verdict did not cut in between a call and its result");
   // **只看判决有没有插队。** 最后那次调用可能压根没有结果 —— 钟响的时候它还在飞，
   // 而任务判失败之后没有人再补了。那是另一回事（也不影响任何人：这道题已经判完，

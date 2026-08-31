@@ -212,21 +212,27 @@ function nodesOf(db: Conn, sub: string, task: string): Node[] {
  * 一站就被拐去 `submit#6` 判死）。它的 node3 侥幸正常，是因为 node2 的交卷站
  * 压根没交出东西 —— 靠的是运气，不是规矩。
  */
-function submitted(
+/**
+ * 这个实例交上来的最后一份答案。**「交了什么」只有这一个出处。**
+ *
+ * 交卷是调一次 `submit` 并把答案放进去。谁想知道「它交了什么」都从这儿问 ——
+ * 各读各的话，同一份东西会有两个答案：交卷站按调用里的那份判，收尾按它随口说的
+ * 那段判，两边判出不同结果，而成绩以后者为准。实测就这么丢过题。
+ *
+ * `units` 给了就只看那几格（交卷站用它把范围限在同一个节点里），不给就看整条实例。
+ */
+export function handedIn(
   db: Conn,
-  inst: { agent: string; instance: string } | undefined,
-  unit: number,
-  sameNode: (u: number) => boolean,
+  agent: string,
+  instance: string,
+  units?: number[],
 ): string | null {
-  if (!inst) return null;
-  const look = [unit, unit - 1].filter((u) => u > 0 && sameNode(u));
-  if (look.length === 0) return null;
-  const t = tableNameOf("agent_{}_msg", inst.agent);
-  const rows = all(
-    db,
-    `select body from "${t}" where instance = ? and unit in (${look.map(() => "?").join(", ")}) and kind = 'call' order by unit, seq`,
-    [inst.instance, ...look],
-  ) as { body: string }[];
+  const t = tableNameOf("agent_{}_msg", agent);
+  const where = units ? ` and unit in (${units.map(() => "?").join(", ")})` : "";
+  const rows = all(db, `select body from "${t}" where instance = ?${where} and kind = 'call' order by unit, seq`, [
+    instance,
+    ...(units ?? []),
+  ]) as { body: string }[];
   let found: string | null = null;
   for (const r of rows) {
     try {
@@ -241,6 +247,17 @@ function submitted(
     }
   }
   return found;
+}
+function submitted(
+  db: Conn,
+  inst: { agent: string; instance: string } | undefined,
+  unit: number,
+  sameNode: (u: number) => boolean,
+): string | null {
+  if (!inst) return null;
+  const look = [unit, unit - 1].filter((u) => u > 0 && sameNode(u));
+  if (look.length === 0) return null;
+  return handedIn(db, inst.agent, inst.instance, look);
 }
 
 /**

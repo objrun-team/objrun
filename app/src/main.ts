@@ -29,7 +29,7 @@ import { mcpServeRoutes } from "./mcp/serve.ts";
 import { evaluate } from "./objective/run.ts";
 import { openSealed } from "./objective/store.ts";
 import { deliverVerdict, seedKinds, seedRoles } from "./msg/deliver.ts";
-import { registerTree, SUBMIT } from "./tree/dfs.ts";
+import { handedIn, registerTree, SUBMIT } from "./tree/dfs.ts";
 import { registerVerifyTool } from "./objective/tool.ts";
 import { registerTreeView } from "./tree/view.ts";
 import { check } from "./trigger/check.ts";
@@ -145,14 +145,19 @@ function lastSaid(db: Parameters<typeof all>[0], task: string): { body: string; 
     return undefined;
   };
 
-  const submits = sub
-    ? (all(db, `select unit from "${sub}" where task = ? and cycle = ? order by unit desc`, [task, SUBMIT]) as {
-        unit: number;
-      }[]).map((r) => Number(r.unit))
-    : [];
-  const handed = spoke(submits);
-  if (handed) return { body: handed, how: "submitted" };
+  // **先看它交了什么，再看它说了什么 —— 而「交了什么」只有一个出处。**
+  //
+  // 交卷是调一次 `submit` 并把答案放进去（见 `tree/dfs.ts`）。收尾这一路要是自己
+  // 另读一遍「它在交卷站说的那段话」，同一份东西就有了两个答案：交卷站按调用里的
+  // 那份判，收尾按它随口说的那段判，两边判出不同的结果，而成绩以后者为准。
+  //
+  // 实测就这么丢过题：交卷站判 1、树正常收工（`status = reached`），收尾又判了
+  // 一次判 0，成绩单上是没过。**真的做对了的题被判成没做对。**
+  const answer = handedIn(db, u.agent, u.instance);
+  if (answer !== null && answer.trim()) return { body: answer, how: "submitted" };
 
+  // 没有交卷那一站的机制（不走树的那些）到这儿 —— 它们没有 `submit` 可调，
+  // 「交了什么」就只能是它最后说的那段话。
   const anywhere = sub
     ? (all(db, `select unit from "${sub}" where task = ? order by unit desc`, [task]) as { unit: number }[]).map(
         (r) => Number(r.unit),
