@@ -131,18 +131,29 @@ export function withSubmit(cycles: DeclaredCycle[]): DeclaredCycle[] {
   const tree = cycles.filter((c) => c.infer === TREE_INFER);
   if (tree.length === 0) return cycles;
   if (cycles.some((c) => c.cycle === SUBMIT)) return cycles;
+
+  // **交卷接在动作阶段后面。** 动作阶段是不叫模型的那一站（`api_mode` 为空）：
+  // 它跑的是上一站请求的工具，跑完那一轮工作就完整了，该轮到「交不交」。
+  // 思考站不直接接交卷 —— 刚开口说完就交，中间那一步工具还没跑。
+  //
+  // 一个动作阶段都没有的机制（每一站都叫模型），退回接在所有站后面。
+  const acts = tree.filter((c) => (c.apiMode ?? "").trim() === "");
+  const before = acts.length > 0 ? acts : tree;
+  const names = new Set(before.map((c) => c.cycle));
+
   return [
-    ...cycles.map((c) =>
-      c.infer === TREE_INFER ? { ...c, next: [...new Set([...(c.next ?? []), SUBMIT])] } : c,
-    ),
+    ...cycles.map((c) => (names.has(c.cycle) ? { ...c, next: [...new Set([...(c.next ?? []), SUBMIT])] } : c)),
     {
       cycle: SUBMIT,
       // **跟干活那几站同一种轨。** 硬写 chat 的话，一个不用模型的机制（`agent.unit`
       // 走外部句柄那种）会在这一站上卡死：它的智能体一条 chat 轨都没有。
       apiMode: tree.map((c) => (c.apiMode ?? "").trim()).find((x) => x !== "") ?? "",
       maxUnits: tree.reduce((n, c) => n + Number(c.maxUnits ?? 1), 0),
-      from: tree.map((c) => c.cycle),
-      next: [],
+      from: before.map((c) => c.cycle),
+      // **交完接下一个节点的动作阶段，不是走到头。** 判 0 之后该往前走进下一次
+      // 尝试，而不是靠回退硬凑 —— 做成终点站的那一版只能退到父节点，而父节点
+      // 又立刻拐回交卷，交的还是同一份东西（实测空转过三轮）。
+      next: before.map((c) => c.cycle),
       infer: TREE_INFER,
     },
   ];
@@ -426,7 +437,20 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
       if (v.pass !== 1) status = "dead_failed";
     }
 
+    // 判 1 = 这道题做成了，树到此为止。
     if (status === "reached") return { to: null, status } satisfies Said;
+
+    // **判 0 只说明这一次交的不成，不说明这道题到头了。**
+    //
+    // 往前走进下一个节点的动作阶段：那一站把上一轮请求的工具跑掉，然后又是一次
+    // 交卷的机会。做成终点站的那一版只能往回退，而退到父节点又立刻拐回交卷，
+    // 交的还是同一份东西 —— 实测空转过三轮，三次判一样的 0。
+    //
+    // 走不动了（能开口的站都用满了）就到此为止，这一条在下面。
+    if (!noRoomToRetry(db, a, nodes)) {
+      const on = a.next.find((c) => c !== SUBMIT) ?? null;
+      if (on !== null) return { to: on, status } satisfies Said;
+    }
 
     // ── 判死了 ────────────────────────────────────────────────────────────
 
