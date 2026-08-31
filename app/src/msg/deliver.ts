@@ -162,11 +162,9 @@ export function answerMissing(
     }
   }
 
-  const t = tableNameOf("agent_{}_msg", agent);
-  const tail = new Map<number, number>();
-  for (const r of rows) tail.set(r.unit, Math.max(tail.get(r.unit) ?? 0, r.seq));
-
-  let put = 0;
+  // 要补哪几条：哪一格、答的是谁。**先收集，再动手** —— 每补一条都会推动后面行的
+  // `seq`，边遍历边改的话，第二条就按着过期的位置去插。
+  const todo: { unit: number; id: string; name: string }[] = [];
   for (const r of rows) {
     // `graded` 不在此列：它写进来的时候结果就配好了，没有人在等。
     if (r.kind !== "call") continue;
@@ -178,26 +176,54 @@ export function answerMissing(
     }
     for (const c of calls) {
       if (!c.id || answered.has(c.id)) continue;
-      // 补在**发起调用的那个单元**末尾 —— 排序是 (unit, seq)，所以它紧跟在那一行
-      // 后面，读起来就是「调了，没跑成」。
-      const seq = (tail.get(r.unit) ?? r.seq) + 1;
-      tail.set(r.unit, seq);
       answered.add(c.id);
-      run(db, `insert into "${t}" (instance, unit, seq, role, kind, body, at) values (?, ?, ?, 'tool', 'tool', ?, ?)`, [
-        instance,
-        r.unit,
-        seq,
-        JSON.stringify({
-          id: c.id,
-          name: c.name ?? "",
-          value: { ran: false, why: "this station ended before the call was run" },
-        }),
-        Date.now(),
-      ]);
-      put++;
+      todo.push({ unit: r.unit, id: c.id, name: c.name ?? "" });
     }
   }
-  return put;
+  if (todo.length === 0) return 0;
+
+  const t = tableNameOf("agent_{}_msg", agent);
+  for (const job of todo) {
+    // 那一行现在排在第几 —— 现查，因为上一轮补齐可能已经把它往后推过。
+    const host = all(
+      db,
+      `select seq, body from "${t}" where instance = ? and unit = ? and kind = 'call' order by seq`,
+      [instance, job.unit],
+    ) as { seq: number; body: string }[];
+    const at = host.find((h) => h.body.includes(`"${job.id}"`));
+    if (!at) continue;
+
+    // **紧跟在它答的那次调用后面，不是追加到这一格末尾。** 模型那边要求「带
+    // tool_calls 的那条助手消息，后面**紧接着**就是它那几条结果」；中间隔了别的
+    // 助手消息就直接拒：`An assistant message with 'tool_calls' must be followed by
+    // tool messages responding to each of them`。追加到末尾的那一版，判决那一对
+    // 正好插在中间，于是每一道判死的题都在下一站卡住。
+    //
+    // 腾位子分两步走，是因为 `(instance, unit, seq)` 是主键：直接 +1 会在挪的过程中
+    // 撞上还没挪走的那一行。先整体推远，插进去，再拉回来。
+    const pos = Number(at.seq) + 1;
+    run(db, `update "${t}" set seq = seq + 1000000 where instance = ? and unit = ? and seq >= ?`, [
+      instance,
+      job.unit,
+      pos,
+    ]);
+    run(db, `insert into "${t}" (instance, unit, seq, role, kind, body, at) values (?, ?, ?, 'tool', 'tool', ?, ?)`, [
+      instance,
+      job.unit,
+      pos,
+      JSON.stringify({
+        id: job.id,
+        name: job.name,
+        value: { ran: false, why: "this station ended before the call was run" },
+      }),
+      Date.now(),
+    ]);
+    run(db, `update "${t}" set seq = seq - 999999 where instance = ? and unit = ? and seq >= 1000000`, [
+      instance,
+      job.unit,
+    ]);
+  }
+  return todo.length;
 }
 
 export function deliver(db: Conn, p: Put): number {

@@ -32,8 +32,15 @@ import { done, machine, ok, part, show, step, until } from "./_lib.ts";
 
 /** 假端点被问了几次。第一次要工具，之后说完就走。 */
 let asked = 0;
-/** 走到第几站了 —— 这个例子的流转就三步。 */
+/** 走到第几站了 —— 第一部分的流转就三步。 */
 let hops = 0;
+/**
+ * 第二部分开始之后，假端点**每一次都要一次工具**（交卷那一次也要）。
+ *
+ * 交卷站是模型站，它的下一站也是模型站 —— 没有人跑工具。所以那次调用注定没有
+ * 结果，补齐会给它补一条。**补在哪儿**正是要验的事。
+ */
+let alwaysCalls = false;
 
 const CALL_ID = "call-run-me-once";
 
@@ -66,13 +73,15 @@ const fake = Bun.serve({
       });
     }
     asked++;
-    if (asked === 1) {
+    if (asked === 1 || alwaysCalls) {
       return answer(
         {
           role: "assistant",
           content: "",
           tool_calls: [
-            { id: CALL_ID, type: "function", function: { name: "glob", arguments: JSON.stringify({ pattern: "*.md" }) } },
+            alwaysCalls
+              ? { id: `submit-${String(asked)}`, type: "function", function: { name: "submit", arguments: "{}" } }
+              : { id: CALL_ID, type: "function", function: { name: "glob", arguments: JSON.stringify({ pattern: "*.md" }) } },
           ],
         },
         "tool_calls",
@@ -151,6 +160,7 @@ try {
   part("Part two: the verdict is a call that already has its answer - nobody re-runs it");
 
   step("5. a tree whose grading function always says no, so a node really dies");
+  alwaysCalls = true;
   // **这一条焊的是真丢过的两跑。** 判死之后开新节点，新节点的第一站是动作站
   // （跑工具的那个）。它去看上一站请求了什么 —— 而上一站是交卷站，那儿躺着
   // **判决那一对**：`deliverVerdict` 写的「调用 + 结果」，结果当场就配好了。
@@ -259,6 +269,28 @@ try {
   ).rows.map((r) => r.kind);
   show("the kinds on the task where the model did ask for a tool:", asked);
   ok("what the model asked for stayed a plain call", asked.includes("call"), asked);
+
+  step("9. and every set of calls is followed straight away by its own results");
+  // 模型那边这条规矩是死的：**带 `tool_calls` 的那条助手消息，后面紧接着就得是
+  // 它那几条结果**。中间夹一条别的带 `tool_calls` 的助手消息就直接拒。
+  //
+  // 补齐原先是**追加到这一格末尾**的，而判决那一对正好插在中间，于是顺序成了
+  // 「调用 / 判决 / 判决的结果 / 调用的结果」—— 每一道判死的题都在下一站卡住。
+  // 现在补的那条紧跟在它答的那次调用后面。
+  const idsIn = (body: string) =>
+    ((JSON.parse(body) as { calls?: { id?: string }[] }).calls ?? []).map((c) => String(c.id));
+  const bad: string[] = [];
+  for (let i = 0; i < all.length; i++) {
+    const r = all[i];
+    if (r.kind !== "call" && r.kind !== "graded") continue;
+    for (const want of idsIn(r.body)) {
+      const next = all[++i];
+      const got = next && next.kind === "tool" ? (JSON.parse(next.body) as { id?: string }).id : undefined;
+      if (got !== want) bad.push(`u${String(r.unit)}.${String(r.seq)} asked ${want}, next row answered ${String(got)}`);
+    }
+  }
+  show("calls whose results do not follow straight away:", bad);
+  ok("none - every one is answered right where it was asked", bad.length === 0, bad);
 } finally {
   await fake.stop(true);
 
