@@ -70,9 +70,13 @@ llm:
   # 三道题因此一个字都没答）。改成「每次少给一点，没说完就接着说」——
   # 模型「没答」和「没答完」是两回事，前者该判错，后者该给它说完。
   continueTimes: 3
-  # 思考强度：none / low / medium / high。**原样发给那家** —— 认不认得是那家的事，
-  # 我们不替它猜。不认得这个参数的模型会忽略它。
-  reasoningEffort: high
+  # 思考强度。**原样发给那家** —— 认不认得是那家的事，我们不替它猜；不认得这个
+  # 参数的模型会忽略它。
+  #
+  # DeepSeek 那边实际只有三档：`max` / `high` / `none`。**`low` 和 `medium` 是假的**,
+  # 服务端直接映射成 `high`，填了跟没填一样 —— 所以「调低一点」这件事只有一个选择，
+  # 就是彻底关掉。
+  reasoningEffort: none
   # Sampling temperature. **0 for a benchmark**: without it there is no telling how
   # much of a score change came from an edit and how much from sampling noise.
   temperature: 0

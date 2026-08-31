@@ -36,6 +36,7 @@
  */
 
 import type { Conn } from "../H2H/db.ts";
+import { CANDIDATE } from "./store.ts";
 import { SUBMIT } from "../tree/dfs.ts";
 import { all, run } from "../H2H/db.ts";
 import type { Registry } from "../engine/registry.ts";
@@ -49,16 +50,9 @@ const VERIFY_TOOL = {
     "Submit a candidate answer to be graded. Returns whether it passes and, if not, why. " +
     "It never reveals the correct answer - only whether what you handed in meets the bar. " +
     "This is how you hand work in: the final grade is taken from the last answer you submit here.",
-  params: {
-    type: "object",
-    properties: {
-      answer: {
-        type: "string",
-        description: "The answer to submit, verbatim (keep the \boxed{} if the task asks for one). The grader reads this final text, not your derivation.",
-      },
-    },
-    required: ["answer"],
-  },
+  // **参数表就是 G 收什么** —— 它跟着 G 一起封在那张表里（`objective.params`）。
+  // 这个工具本来就是内核把 G 包装出来的，形状当然该由 G 说了算。
+  params: CANDIDATE,
   output: {
     type: "object",
     properties: {

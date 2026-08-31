@@ -36,11 +36,22 @@ let attached: string[] = [];
 const attachedAt: Record<string, string[]> = {};
 
 const out = await outside({
-  // 干活那一站：第一次说一句话就算做完了。
+  // 干活那一站：**调一次 `submit` 把答案交上去**。
+  //
+  // 交什么写在调用里，不写在它说的话里 —— 说的话是给人看的，答案是给判据看的，
+  // 从前者里挑出后者只能靠猜。在干活站上按交卷是允许的：那一次就是交，流转会把它
+  // 送到交卷站，交卷站直接判这一份。
   "/unit": (u) => {
     attached = ((u.tools ?? []) as { name: string }[]).map((t) => t.name);
     attachedAt[String((u.cycle as { cycle?: string } | undefined)?.cycle ?? "")] = attached;
-    return { role: "assistant", kind: "prompt", body: "the answer is 42" };
+    return {
+      role: "assistant",
+      kind: "call",
+      body: JSON.stringify({
+        text: "",
+        calls: [{ id: `hand-in-${String(u.unit)}`, name: "submit", input: { answer: "the answer is 42" } }],
+      }),
+    };
   },
   // 干活那一站：**永远只调工具，一句完整的话都不说**。
   // 一直在调工具的题走不到「说完了」那条路，只能靠额度用完那条路拐去交卷。
@@ -164,10 +175,19 @@ try {
     })
   ).rows[0];
   show("the row it registered:", row);
+  // **交什么，写在调用里。** 上一版这个工具不收参数，交上去的是「它在交卷站说的
+  // 那段话」—— 那是猜：它可能说三段话、每段里都有一个式子，挑哪一段都是猜，而猜错
+  // 的表现是「答案明明写对了却判 0」。
+  //
+  // 参数表**跟着 G 走**（`objective.params`）：内核把 G 包装成 `verify`，交卷这一步
+  // 内部问的又是同一个 G，两处当然要一样的东西。抄成两份字面量的话，G 哪天多一个
+  // 字段就只会改到一边。
+  const shape = JSON.parse(String(row?.params ?? "{}")) as { properties?: Record<string, unknown> };
+  show("what it takes:", Object.keys(shape.properties ?? {}));
   ok(
-    "it takes no arguments - what gets handed in is what is said at that step",
-    JSON.stringify(JSON.parse(String(row.params)).properties ?? {}) === "{}",
-    row.params,
+    "it takes the answer itself, the same shape the grading function takes",
+    Object.keys(shape.properties ?? {}).includes("answer"),
+    row?.params,
   );
   ok("it is not a system tool - it is attached by a term, like the other tree tools", Number(row.system) === 0, row.system);
   step("5. a task that only ever calls tools still reaches the hand-in step");

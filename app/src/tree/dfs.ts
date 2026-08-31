@@ -57,7 +57,7 @@ import type { Registry } from "../engine/registry.ts";
 import { deliverVerdict } from "../msg/deliver.ts";
 import { tableNameOf } from "../install/index.ts";
 import { evaluate } from "../objective/run.ts";
-import type { Sealed } from "../objective/store.ts";
+import { CANDIDATE, type Sealed } from "../objective/store.ts";
 
 type Row = Record<string, unknown>;
 
@@ -100,6 +100,9 @@ const DEAD = new Set(["dead_failed", "dead_below_bar"]);
 export const TREE_INFER = "fn:infer.dfs";
 
 /** 这套机制自带的那一站：**交卷**。 */
+/** 判据那个工具叫什么。**只有一个出处** —— 交卷这一步落判决时也用它。 */
+export const VERIFY = "verify";
+
 export const SUBMIT = "submit";
 
 /** 声明里一个周期的形状（`declare/index.ts` 收的那一份）。 */
@@ -178,23 +181,40 @@ function nodesOf(db: Conn, sub: string, task: string): Node[] {
   ]) as unknown as Node[];
 }
 
-/** 这一站（或它上一站）调过交卷工具没有。**只看这条链上刚发生的那一次**。 */
-function calledSubmit(db: Conn, inst: { agent: string; instance: string } | undefined, unit: number): boolean {
-  if (!inst) return false;
+/**
+ * 这一站（或它上一站）交上来的那份答案。没交过就回 `null`。
+ *
+ * **答案在调用的参数里，不从它说的话里解析。** 解析是兜底：模型可能说三段话、
+ * 每段里都有一个式子，挑哪一段都是猜。而猜错的表现是「答案明明写对了却判 0」——
+ * 那种事查起来最费劲，因为看日志它确实答对了。
+ *
+ * 上一版交的是「它在交卷站说的那段话」，还带一层从别的工具调用里翻 `answer`
+ * 字段的兜底。两层都拿掉了：**交，就是调一次 `submit` 并把答案放进去。**
+ *
+ * 上一站也算，因为在干活站上按交卷是允许的 —— 那一次就是交，交卷站不必再交一遍。
+ */
+function submitted(db: Conn, inst: { agent: string; instance: string } | undefined, unit: number): string | null {
+  if (!inst) return null;
   const t = tableNameOf("agent_{}_msg", inst.agent);
-  const rows = all(db, `select body from "${t}" where instance = ? and unit in (?, ?) and kind = 'call'`, [
+  const rows = all(db, `select body from "${t}" where instance = ? and unit in (?, ?) and kind = 'call' order by unit, seq`, [
     inst.instance,
     unit,
     unit - 1,
   ]) as { body: string }[];
-  return rows.some((r) => {
+  let found: string | null = null;
+  for (const r of rows) {
     try {
-      const v = JSON.parse(r.body) as { calls?: { name?: string }[] };
-      return (v.calls ?? []).some((c) => c.name === SUBMIT);
+      const v = JSON.parse(r.body) as { calls?: { name?: string; input?: { answer?: unknown } }[] };
+      for (const c of v.calls ?? []) {
+        if (c.name !== SUBMIT) continue;
+        // 交了一份空的也算交 —— 那是它的答案，判 0 是判卷台的事，不是这儿的事。
+        found = typeof c.input?.answer === "string" ? c.input.answer : "";
+      }
     } catch {
-      return false;
+      // 读不出来就当这一行没交过
     }
-  });
+  }
+  return found;
 }
 
 /**
@@ -253,26 +273,6 @@ function spokenAt(result: unknown): string {
   return "";
 }
 
-/**
- * 它这一站**想拿哪一份去问 G**。
- *
- * 只认带 `answer` 的那种调用（`verify`）。`submit` 是无参的，没有这一栏；
- * 内核自己投回去的判决也叫 `verify`，但它的入参是 `{task, at}` —— 一样没有。
- * 所以「有 `answer`」这一条就把三者分开了。
- */
-function answerAsked(result: unknown): string {
-  const r = (result ?? {}) as { kind?: string; body?: unknown };
-  if (r.kind !== "call") return "";
-  try {
-    const v = JSON.parse(String(r.body ?? "")) as { calls?: { input?: { answer?: unknown } }[] };
-    for (const c of [...(v.calls ?? [])].reverse()) {
-      if (typeof c.input?.answer === "string" && c.input.answer.trim()) return c.input.answer;
-    }
-  } catch {
-    /* 读不出来就当它没交 */
-  }
-  return "";
-}
 
 
 /**
@@ -311,15 +311,20 @@ function full(db: Conn, a: Ask, nodes: Node[], cycle: string, node: number): boo
 const SUBMIT_TOOL = {
   name: SUBMIT,
   does:
-    "Hand your work in. Takes no arguments: what gets handed in is what you say at the hand-in step, " +
-    "not an argument here. You will reach that step anyway once the working budget runs out - " +
-    "calling this only gets you there sooner.",
-  params: { type: "object", properties: {} },
+    "Hand your work in: pass the answer here. This call is what gets graded, exactly as written - " +
+    "nothing you merely say is read as an answer. You will reach the hand-in step anyway once the " +
+    "working budget runs out; calling this only gets you there sooner.",
+  // **参数表跟 G 走**（`objective.params`）。内核把 G 包装成 `verify`，交卷这一步
+  // 内部问的又是同一个 G —— 两处要的东西当然一模一样。抄成两份字面量的话，G 哪天
+  // 多一个字段就只会改到一边，而那不报错：只表现为模型照着一边的说明填，另一边
+  // 收到的少一样。
+  params: CANDIDATE,
   output: { type: "object", properties: { handingIn: { type: "boolean" } } },
   prompt:
-    "Call submit when the work is done. It takes no arguments: what gets handed in is what you say at the " +
-    "hand-in step, which comes right after. You will reach that step anyway once the working budget runs " +
-    "out - calling submit only gets you there sooner, while there is still room to be judged and try again.",
+    "At the hand-in step this is the only thing you can do, and you must do it: call submit with your " +
+    "answer. No other tool is attached there, and nothing you merely say is read as an answer. Call it " +
+    "earlier than that whenever the work is done - you reach the hand-in step on your own once the " +
+    "working budget runs out, and getting there sooner leaves room to be judged and try again.",
   expectMs: 10_000,
 };
 
@@ -358,7 +363,7 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
       //
       // 空话不算。一条什么都没生成出来的 `prompt` 不是「我做完了」，
       // 是这一发没出来 —— 按普通推进往下走，让它下一站接着说。
-      const handedIn = calledSubmit(db, inst, a.unit);
+      const handedIn = submitted(db, inst, a.unit) !== null;
       const spoke = r.kind === "prompt" && spokenAt(a.result).trim() !== "";
 
       // **拐去交卷是节点级的规矩，而这条规矩写在表上。** 每一站的 `next` 里都有
@@ -383,16 +388,32 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
     // 一步**：判一次。「有没有验证过」不改交卷这件事的形状，只改这一步跑不跑得成。
     let status = "reached";
     if (sealed.has(task)) {
-      // 交的是**它说的那段话**。一条 `call` 行的 `body` 是 `{text, calls}` ——
-      // 原样递过去的话，G 拿到的是一坨 JSON（实测就这么判过一次 0）。
+      // **交的是那次调用里的那一份，不解析它说了什么。**
       //
-      // 一个字都没说的话，再看它**想拿什么去问 G**：交卷站上工具还挂着，而模型
-      // 在那儿的第一反应常常是调 `verify`，答案就写在那次调用的 `answer` 里。
-      // 那一次调用不会被执行（后面没有站了），但「它想交的是这一份」是明摆着的 ——
-      // 因为一次不会被执行的调用就把答案丢掉，是我们读得不够，不是它没交。
-      // 实测：cmt-3 在交卷站上调了 `verify {"answer": "\\boxed{4N_q^2}"}`。
-      const said = spokenAt(a.result) || answerAsked(a.result);
-      const g = sealed.open(task)!;
+      // 上一版交的是「它在交卷站说的那段话」，还带一层从别的工具调用里翻 `answer`
+      // 字段的兜底。两层都是猜：它可能说三段话、每段里都有一个式子，挑哪一段都是猜，
+      // 而猜错的表现是「答案明明写对了却判 0」—— 那种最难查，因为看日志它确实答对了。
+      //
+      // 现在只有一条路：调一次 `submit`，把答案放进去。没调 = 什么都没交。
+      const said = submitted(db, inst, a.unit);
+      // **什么都没交。** 这一站只能干一件事，而它没干 —— 没得判，这个节点到此为止。
+      //
+      // 「交了一份错的」和「什么都没交」不是一回事，所以话要说清楚：前者的判决里带着
+      // why，下一个节点看得见、改得动；后者只有这一句，而它说的是「你那一步没做」。
+      if (said === null) {
+        if (inst) {
+          deliverVerdict(db, {
+            agent: inst.agent,
+            instance: inst.instance,
+            unit: a.unit,
+            name: VERIFY,
+            input: { task, at: `${here}#${a.unit}` },
+            value: { pass: 0, why: "nothing was handed in - this step takes an answer and none was given" },
+          });
+        }
+        status = "dead_failed";
+      } else {
+        const g = sealed.open(task)!;
 
       // **验过就不必再判一次。** `verify` 是干活途中的验证，交卷是这一刻的提交；
       // 两个时刻，但问的是同一个 G。它刚验过的正是这一份的话，那次判决就是这一次
@@ -413,7 +434,7 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
           agent: inst.agent,
           instance: inst.instance,
           unit: a.unit,
-          name: "verify",
+          name: VERIFY,
           input: { task, at: `${here}#${a.unit}` },
           // **`why` 一起给。** 只给 0/1 的话，模型只知道错了，不知道错在哪 ——
           // 那跟不给差不多，它下一条分支多半原样再来一遍。
@@ -421,7 +442,8 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
         });
       }
 
-      if (v.pass !== 1) status = "dead_failed";
+        if (v.pass !== 1) status = "dead_failed";
+      }
     }
 
     // 判 1 = 这道题做成了，树到此为止。

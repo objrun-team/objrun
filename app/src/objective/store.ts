@@ -30,11 +30,34 @@ import { Database } from "bun:sqlite";
 import type { Objective } from "./spec.ts";
 import { parseObjective, validate } from "./spec.ts";
 
+/**
+ * **一份候选长什么样** —— 也就是 G 收什么。
+ *
+ * 这份声明属于 G，不属于哪个工具：内核把 G 包装成 `verify`，交卷那一步问的又是
+ * 同一个 G，两处要的东西当然一模一样。写在这儿，那两个工具都从这儿取；抄成两份
+ * 字面量的话，哪天多一个字段就会只改到一边 —— 而那不报错，只表现为模型照着一边
+ * 的说明填，另一边收到的少一样。
+ */
+export const CANDIDATE = {
+  type: "object",
+  properties: {
+    answer: {
+      type: "string",
+      description:
+        "The answer, verbatim (keep the \\boxed{} if the task asks for one). This exact text is what gets " +
+        "graded, not your derivation.",
+    },
+  },
+  required: ["answer"],
+} as const;
+
 export interface Sealed {
   /** 封存一份 G。**过不了定义期检测就拒**，一个字都不写。 */
   seal(task: string, g: Objective): void;
   /** 取一份 G。**只有内核这一侧调得到** —— 智能体那条路只能拿判决。 */
   open(task: string): Objective | null;
+  /** 这道题的 G 收什么。没封过就回 `null`。 */
+  paramsOf(task: string): Record<string, unknown> | null;
   has(task: string): boolean;
   forget(task: string): void;
   close(): void;
@@ -45,9 +68,10 @@ export function openSealed(file: string): Sealed {
   const db = new Database(file, { create: true });
   db.exec("pragma journal_mode = WAL");
   db.exec(`create table if not exists objective (
-    task text not null primary key,
-    body text not null,
-    at   integer not null
+    task   text not null primary key,
+    body   text not null,
+    params text not null,
+    at     integer not null
   )`);
 
   return {
@@ -58,14 +82,27 @@ export function openSealed(file: string): Sealed {
         // 那道题会一直挂在系统里，判不出成败也没人知道为什么。
         throw new Error(`the grading function failed definition-time checks and was rejected:\n  - ${errs.join("\n  - ")}`);
       }
+      // **一份候选长什么样，跟着 G 一起封。** 内核把 G 包装成 `verify`，交卷那一步
+      // 问的又是同一个 G —— 两处要的东西都从这一列来，不各自抄一份字面量。
       db.prepare(
-        `insert into objective (task, body, at) values (?, ?, ?)
-         on conflict(task) do update set body = excluded.body, at = excluded.at`,
-      ).run(task, JSON.stringify(g), Date.now());
+        `insert into objective (task, body, params, at) values (?, ?, ?, ?)
+         on conflict(task) do update set body = excluded.body, params = excluded.params, at = excluded.at`,
+      ).run(task, JSON.stringify(g), JSON.stringify(CANDIDATE), Date.now());
     },
     open(task) {
       const row = db.prepare(`select body from objective where task = ?`).get(task) as { body: string } | null;
       return row ? parseObjective(JSON.parse(row.body)) : null;
+    },
+    paramsOf(task) {
+      const row = db.prepare(`select params from objective where task = ?`).get(task) as
+        | { params?: string }
+        | undefined;
+      if (!row?.params) return null;
+      try {
+        return JSON.parse(row.params) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
     },
     has(task) {
       return db.prepare(`select 1 from objective where task = ?`).get(task) !== null;
