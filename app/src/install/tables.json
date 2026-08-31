@@ -738,6 +738,31 @@
           "name": "at",
           "type": "integer",
           "notnull": true
+        },
+        {
+          "name": "thought",
+          "type": "text",
+          "_": "What the model thought before it spoke (reasoning_content). It lives here and deliberately NOT in body, because body is what gets replayed: some gateways refuse an assistant message that carries reasoning back, and the replay path has always worked. Recording it costs that path nothing and buys the only account of how an answer was arrived at. Empty for any row no thinking model produced."
+        },
+        {
+          "name": "prompt_tokens",
+          "type": "integer",
+          "_": "Tokens sent. Null on any row that did not come from a model call."
+        },
+        {
+          "name": "completion_tokens",
+          "type": "integer",
+          "_": "Every token the model produced. This INCLUDES the thinking - reasoning_tokens is a part of this number, not a second number to add to it. Subtract to get what was actually spoken."
+        },
+        {
+          "name": "reasoning_tokens",
+          "type": "integer",
+          "_": "How much of completion_tokens was thinking. This is the column that says where the wall-clock went. One run averaged 174s per model call while the text that came back averaged some 350 tokens - two tokens a second, which no model is; the gap was thinking, and with no column for it that could only be inferred, never shown. A run that cannot say what it spent cannot say whether its time limit was fair."
+        },
+        {
+          "name": "cached_tokens",
+          "type": "integer",
+          "_": "How many of prompt_tokens the vendor served from its own cache. Kept apart from prompt_tokens because the two are priced differently, and a bill nobody can reconstruct is a bill nobody can dispute."
         }
       ],
       "pk": [

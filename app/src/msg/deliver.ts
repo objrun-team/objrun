@@ -90,6 +90,24 @@ export interface Put {
 }
 
 /**
+ * 模型说完那一行**除了话之外**的东西：它想了什么，这一次花了多少。
+ *
+ * 跟 `body` 分开是有原因的，不是嫌它挤：`body` 是**重放要用的那一份**，而有的网关
+ * 不认得带思考的助手消息 —— 那条路一直是好的，不拿它换。这几样只进库、不回传，
+ * 于是「重发的还是它认得的形状」跟「当时到底想了什么、花了多少」两件事都成立。
+ *
+ * **不报的记 null，不记 0。** 哪一家的适配器填不上这几个数，看得出来是「没报」；
+ * 记成 0 的话，它跟「真的一个 token 都没花」长得一模一样，而那两件事差着一次调用。
+ */
+export interface Said {
+  thought?: string;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  reasoning_tokens?: number;
+  cached_tokens?: number;
+}
+
+/**
  * 投一条。返回它落在第几条。
  *
  * `role` 也是推出来的：模型只认那几个 role，而「这条实际是什么」得另外标着 ——

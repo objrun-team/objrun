@@ -31,7 +31,7 @@ import { tableNameOf } from "../install/index.ts";
 import { SUBMIT } from "../tree/dfs.ts";
 import { chainOf, type Unit } from "./chain.ts";
 import type { Registry } from "./registry.ts";
-import { answerMissing, checkBody, deliver, sentAsIn } from "../msg/deliver.ts";
+import { answerMissing, checkBody, deliver, type Said, sentAsIn } from "../msg/deliver.ts";
 import { fire, type Facts } from "./trigger.ts";
 
 type Row = Record<string, unknown>;
@@ -528,8 +528,8 @@ export class Kernel {
       // 回来再落一行
       // 模型自己说的那条**不走投递管道** —— 那是它自己的轨迹，直接落库；
       // 而且 kind 得由适配器说（prompt 还是 call），推不出来。
-      const r = (back ?? {}) as { role?: string; kind?: string; body?: unknown };
-      this.#push(p, r.role ?? "assistant", r.kind ?? "prompt", text(r.body ?? back));
+      const r = (back ?? {}) as { role?: string; kind?: string; body?: unknown } & Partial<Said>;
+      this.#push(p, r.role ?? "assistant", r.kind ?? "prompt", text(r.body ?? back), r);
 
       await this.#atMoment(p, facts, "post_send");
       await this.#infer(p, facts, back);
@@ -777,21 +777,35 @@ export class Kernel {
   }
 
   /** 往上下文里压一条。`seq` 在这个单元里连着排。 */
-  #push(p: Pending, role: string, kind: string, body: string): void {
+  #push(p: Pending, role: string, kind: string, body: string, said?: Said): void {
     // **这一行也得过同一道校验。** 它绕开 `deliver()` 直接 insert，而形状约束要是
     // 只有一条路上有，另一条路就是坏行漏进来的那个口子。
     checkBody(kind, body);
     const t = this.#msgTable(p.agent);
     const seq = this.#seqMax(p) + 1;
-    run(this.#store.rw, `insert into "${t}" (instance, unit, seq, role, kind, body, at) values (?, ?, ?, ?, ?, ?, ?)`, [
-      p.instance,
-      p.unit,
-      seq,
-      role,
-      kind,
-      body,
-      Date.now(),
-    ]);
+    // 账目跟着这一行走 —— **不另开一张表**：它说的就是这一行是怎么来的，
+    // 拆出去就得靠三个键接回来，而接错了没人报错。适配器没报的那几家，
+    // 这几列是 null，看得出来是「没报」，不是「零」。
+    run(
+      this.#store.rw,
+      `insert into "${t}" (instance, unit, seq, role, kind, body, at,
+                           thought, prompt_tokens, completion_tokens, reasoning_tokens, cached_tokens)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        p.instance,
+        p.unit,
+        seq,
+        role,
+        kind,
+        body,
+        Date.now(),
+        said?.thought || null,
+        said?.prompt_tokens ?? null,
+        said?.completion_tokens ?? null,
+        said?.reasoning_tokens ?? null,
+        said?.cached_tokens ?? null,
+      ],
+    );
   }
 
   /** 比条件时手上的东西。链路串按 `chain.ts` 那个拼法 —— 那是协议。 */

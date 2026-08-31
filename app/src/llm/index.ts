@@ -521,6 +521,9 @@ export function registerVendors(
         let thought = "";
         let calls: { id: string; name: string; input: unknown }[] = [];
         let this_broke = "";
+        // **一次调用花了多少，得攒着。** 续写是好几轮 `generateText`，每轮报自己那一份；
+        // 只留最后一轮的话，续过写的那些格子会把前面几轮的开销记成零。
+        const spent = { prompt_tokens: 0, completion_tokens: 0, reasoning_tokens: 0, cached_tokens: 0 };
         for (let round = 0; ; round++) {
           // 已经说出来的那半截接在末尾 —— 让它续，而不是重来一遍。
           //
@@ -558,6 +561,12 @@ export function registerVendors(
             out.reasoningText ||
             (out.reasoning ?? []).map((r) => ("text" in r ? String(r.text) : "")).join("");
           calls = out.toolCalls.map((c) => ({ id: c.toolCallId, name: c.toolName, input: c.input }));
+          // 用量按轮累加。**捞不到就记 0，不猜** —— 一个猜出来的数比没有这个数更坏，
+          // 因为它看起来像量出来的。哪一家不报，那一列就是 0，看得出来。
+          spent.prompt_tokens += Number(out.usage?.inputTokens ?? 0);
+          spent.completion_tokens += Number(out.usage?.outputTokens ?? 0);
+          spent.reasoning_tokens += Number(out.usage?.outputTokenDetails?.reasoningTokens ?? 0);
+          spent.cached_tokens += Number(out.usage?.inputTokenDetails?.cacheReadTokens ?? 0);
 
           // 要工具了就停：那是一次完整的表态，续不下去也不该续。
           if (calls.length > 0) break;
@@ -566,12 +575,20 @@ export function registerVendors(
         }
 
         if (this_broke) log.warn(`${model} could not continue; handing back what it had said. ${this_broke}`);
-        // 思考**不落库**：它只在这一次调用里有用（续写要拿它当前提）。跨执行单元
-        // 重放时，有的网关反过来不认得带思考的助手消息 —— 而重放这条路一直是好的。
+        // **思考跟着回去，但不进 `body`。**
+        //
+        // 这儿以前的决定是「思考不落库」，理由到今天还成立：`body` 是**重放要用的那一份**，
+        // 而有的网关不认得带思考的助手消息 —— 重放这条路一直是好的，不能拿它换。
+        //
+        // 但那个理由只管住「别放进 body」，管不住「别记」。思考另占一列，重放照旧只读
+        // `body`，两边都要得到：跨执行单元重发的还是那份网关认得的，而**它当时到底想了
+        // 什么**留在了库里。这条以前是丢的 —— 一次调用 174 秒、可见输出才 350 个 token，
+        // 那两百多秒去哪了，快照里一个字都答不上来。
+        const said = { thought, ...spent };
         if (calls.length > 0) {
-          return { role: "assistant", kind: "call", body: JSON.stringify({ text, calls }) };
+          return { role: "assistant", kind: "call", body: JSON.stringify({ text, calls }), ...said };
         }
-        return { role: "assistant", kind: "prompt", body: text };
+        return { role: "assistant", kind: "prompt", body: text, ...said };
       } finally {
         clearTimeout(timer);
       }
