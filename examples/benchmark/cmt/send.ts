@@ -94,6 +94,50 @@ const tasks = items.map((it) => ({
   // 而我们想量的是前者。
   maxBranches: 4,
   maxDeadSiblings: 8,
+  /**
+   * **不许搜到这套题本身。**
+   *
+   * 搜文献是本事 —— 题目的物理就发表在某篇论文里，找到它、读懂它、照着推，那是解题。
+   * 搜到**这套基准的答案册**不是：那量的是「这份数据集好不好扒」。
+   *
+   * 这条不是假想。实测一跑：十五分钟里 834 个开过的页面，**143 个落在这份数据集
+   * 上**，而且绕得很有章法 ——
+   *
+   * ```
+   * huggingface.co/datasets/…/resolve/main/cmt_data.jsonl    主站
+   * hf-mirror.com/…/raw/main/cmt_data.jsonl                  主站不通换镜像
+   * r.jina.ai/https://…/cmt_data.jsonl                       镜像不通换文本代理
+   * web.archive.org/web/…/rows?…&offset=1&length=1            再不通换存档站
+   * ```
+   *
+   * 查询串直接写着 `cmt_benchmark row 1 answer`、`"cmt_benchmark" "answer": "$\Delta"`，
+   * 甚至拿着答案原文回去反查数据集。那一跑它得手了，轨迹里留着一句
+   * 「The web search found the reference answer」。
+   *
+   * 所以**按域名挡不住** —— 每条备用路都得单列一遍，而下一条永远列不到。
+   *
+   * ## 不能是连写的，而且一条不够
+   *
+   * 列 `cmt_benchmark` 这种连写太松：同一跑里它还摸到了第三方的一份拷贝
+   * （`Infektyd/syntra-evals-dataset/…/cmt-physics.jsonl`），名字完全不一样，
+   * 连写那条一个都拦不住 —— 可那照样是答案册。
+   *
+   * 所以一条项是**一组词，全都出现才算命中**（见 `tools/search.ts` 的 `tripped`）：
+   * 中间隔着什么、连字符还是下划线、顺序如何，一概不管。
+   *
+   * 那为什么不是一条 `"cmt benchmark"` 就完了 —— 拿那一跑真实的 168 次检索量过：
+   *
+   * | 判据 | 漏 | 误伤 |
+   * | --- | --- | --- |
+   * | `cmt benchmark` | **5** | 0 |
+   * | `cmt` | 0 | **1** |
+   * | 下面这三条 | **0** | **0** |
+   *
+   * 漏的那 5 次是它**直接拉原始 jsonl**：返回里有 `cmt`，却没有 `benchmark` 这个词。
+   * 只列 `cmt` 又会误伤正经文献。三条各挡一种说法，多列两条不花什么代价，而少列
+   * 一条就是那个洞。
+   */
+  noSearch: ["cmt benchmark", "cmt dataset", "cmt jsonl"],
   description:
     `${it.prompt}\n\n` +
     (it.parameters ? `Symbols: ${it.parameters}\n` : "") +

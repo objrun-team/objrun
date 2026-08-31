@@ -62,6 +62,17 @@ export interface Publish {
   maxDeadSiblings?: number;
   solveSeconds?: number;
   /**
+   * **发布方不许它搜的东西。** 命中任何一条，那次检索的结果整份丢掉。
+   *
+   * 判据是「返回内容里任何位置出现过这个串」—— 不只是网址。一次实测里，模型按名字
+   * 去扒题库，主站不通就换镜像、换文本代理、换存档站，查询串直接写着「row 1 answer」；
+   * 光按域名挡的话，三条备用路各绕各的。
+   *
+   * 而且必须挡在**模型看见之前**：答案一旦进了上下文，那道题就已经废了，事后作废它
+   * 只是记下损失。
+   */
+  noSearch?: string[];
+  /**
    * 验证函数 `G` —— 「这个任务算不算做成了」的标准。
    *
    * **绑定发生在发布这一刻，是准入条件。** 给了就当场检、当场封存；过不了
@@ -205,12 +216,15 @@ ${JSON.stringify(p.objective, null, 2)}` : p.description;
     run(
       db,
       `insert into task (id, mode, place, run, source, domain, description, created_at, workdir, objective, readable,
-                         claimed_by, result, max_branches, max_dead_siblings, solve_seconds, state)
-       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, ?, ?, ?, 'open')`,
+                         claimed_by, result, max_branches, max_dead_siblings, solve_seconds, no_search, state)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, ?, ?, ?, ?, 'open')`,
       [
         p.id, p.mode, p.place, p.run ?? "", p.source, p.domain ?? "", description, now, p.workdir ?? "",
         g ? "sealed" : null, g ? (p.readable ? 1 : 0) : null,
         p.maxBranches ?? 2, p.maxDeadSiblings ?? 3, p.solveSeconds ?? 1800,
+        // **发布方说不许搜什么，原样存着。** 不给就是不限制 —— 空列表和「没有这一栏」
+        // 是同一件事，没必要让调用方在两种「没有」之间选。
+        p.noSearch && p.noSearch.length ? JSON.stringify(p.noSearch) : null,
       ],
     );
     run(

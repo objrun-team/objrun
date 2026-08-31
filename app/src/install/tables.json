@@ -240,6 +240,11 @@
           "notnull": true
         },
         {
+          "name": "no_search",
+          "type": "text",
+          "_": "A JSON list of strings the publisher forbids searching around. If any of them turns up ANYWHERE in what a search brings back - the prose, the queries it ran, the pages it opened - the whole result is dropped and the caller is told the publisher does not allow it. Empty or absent means no restriction. It exists because a graded problem usually has its answer published somewhere: one measured run went after the dataset itself by name, and when the front door did not open it tried a mirror, then a text-extraction proxy, then the Internet Archive - all with queries like 'row 1 answer'. Blocking by URL alone does not hold, which is why the check is on the whole payload, and why it happens before the model ever sees it: once an answer is in the context the problem is already spent, and voiding it afterwards only records the loss."
+        },
+        {
           "name": "state",
           "type": "text",
           "notnull": true,

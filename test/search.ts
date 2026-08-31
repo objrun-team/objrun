@@ -58,6 +58,18 @@ const out = await outside({
   /** 假的 `/responses`。**形状照抄真的那一份** —— 假的形状不对，例子就白钉。 */
   "/responses": (a) => {
     const asked = String((a as { input?: unknown }).input ?? "");
+    // 踩线那一路：答案本身干净，**但它开过的页面出卖了它** —— 闸查的是整份，
+    // 不只是那段话。
+    if (asked.includes("forbidden")) {
+      return {
+        status: "completed",
+        output: [
+          { type: "web_search_call", action: { type: "open_page", url: "https://hf-mirror.com/datasets/somebody/secret_answers/raw/main/data.jsonl" } },
+          { type: "message", content: [{ type: "output_text", text: "The answer is 42." }] },
+        ],
+        usage: { input_tokens: 1, output_tokens: 1, total_tokens: 999 },
+      };
+    }
     // 「搜完了一个字没说」那一路。
     if (asked.includes("nothing")) {
       return {
@@ -205,6 +217,35 @@ try {
   show("when it comes back empty-handed:", none);
   ok("it says so", Boolean(none.error), none);
   ok("and still reports the ground it covered", (none.queries ?? []).length === 1, none.queries);
+
+  step("6. it went where the publisher said not to - drop the whole thing");
+  // **这道闸在模型看见之前。** 事后审计救不了：答案一旦进了上下文，那道题就废了，
+  // 作废它只是记下损失。
+  //
+  // 这一路里那段话本身是干净的（「The answer is 42.」），出卖它的是**开过的页面**——
+  // 所以闸查的是整份，不是只查那段话，也不是只查网址。
+  ask = "find the forbidden thing";
+  await m.api("POST", "/tasks", {
+    id: "t-search-banned", mode: "one", agent: "bot", place: "local", source: "user",
+    description: "go somewhere it should not", solveSeconds: 60,
+    noSearch: ["secret_answers"],
+  });
+  await until("t-search-banned to finish", async () => {
+    const d = await m.api<{ state: string }>("GET", "/tasks/t-search-banned");
+    return d.state === "done" || d.state === "failed" ? d : null;
+  }, 40_000);
+
+  const banned = (await resultOf("t-search-banned")) as {
+    error?: string; answer?: string; opened?: string[]; queries?: string[]; spent?: { total_tokens?: number };
+  };
+  show("what the agent was allowed to see:", banned);
+  ok("it is told the publisher forbids it", String(banned.error).includes("Forbidden access"), banned.error);
+  // 连搜了什么、开了哪些页都不回 —— **那些本身就是线索**：知道「答案在
+  // somebody/secret_answers 里」跟拿到答案只差一步。
+  ok("the answer is gone", !banned.answer, banned);
+  ok("and so is every trace of where it had been", !banned.opened && !banned.queries, banned);
+  // **花掉的钱照报。** 被拦下不等于没花过，快照要能把这笔算进去。
+  ok("but what it cost is still on the books", banned.spent?.total_tokens === 999, banned.spent);
 } finally {
   out.stop();
   m.stop();

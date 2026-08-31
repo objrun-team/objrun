@@ -134,6 +134,7 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
         { name: "maxBranches", in: "body", kind: "int", note: "How many branches may be open at once" },
         { name: "maxDeadSiblings", in: "body", kind: "int", note: "How many dead siblings under one parent before backtracking a level to change direction" },
         { name: "solveSeconds", in: "body", kind: "int", note: "Upper bound on solving time for the whole task, in seconds. At the limit the kernel marks it failed" },
+        { name: "noSearch", in: "body", kind: "array", note: "Strings the publisher forbids searching around. If one turns up anywhere in what a search returns - prose, queries, opened pages - the whole result is dropped before the agent sees it. Omitted = no restriction" },
         { name: "objective", in: "body", kind: "object", of: "The DAG definition of the grading function", note: "The verification function. Binding happens at publish time and is an admission condition; failing the definition-time checks rejects the whole task" },
         { name: "readable", in: "body", kind: "boolean", note: "Whether the agent may read the definition of the grading function directly. Required whenever one is carried; there is no default" },
       ],

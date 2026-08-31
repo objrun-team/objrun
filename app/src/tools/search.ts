@@ -69,6 +69,7 @@ import type { Conn } from "../H2H/db.ts";
 import { all } from "../H2H/db.ts";
 import type { Registry } from "../engine/registry.ts";
 import { declareTool } from "./register.ts";
+import { whereAmI } from "../tasks/where.ts";
 import { VENDORS } from "../llm/index.ts";
 
 /**
@@ -175,6 +176,57 @@ function laneOf(db: Conn, agent: string): Lane {
   return { base: String(api.base_url).replace(/\/+$/, ""), model, keyEnv };
 }
 
+/**
+ * 这道题的发布方不许搜什么。取不到就是不限制。
+ *
+ * 从 `task` 表读，不收调用方传的 —— 收的话，改一个参数就能把闸关掉。
+ */
+function forbidden(db: Conn, task: string): string[] {
+  const row = all(db, `select no_search from task where id = ?`, [task])[0] as { no_search?: string } | undefined;
+  if (!row?.no_search) return [];
+  try {
+    const v = JSON.parse(row.no_search) as unknown;
+    return Array.isArray(v) ? v.map(String).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * 这份检索结果里有没有踩到线。**整份都查，不只是网址。**
+ *
+ * ## 一条项 = 一组词，**全都出现**才算命中
+ *
+ * 不是拿它当一个连写的字面串去 `includes` —— 那样太松，实测漏得很具体：
+ *
+ * ```
+ * huggingface.co/datasets/Infektyd/syntra-evals-dataset/…/cmt-physics.jsonl
+ * ```
+ *
+ * 这是第三方把同一批题另存了一份，名字完全不一样。列 `cmt_benchmark` 挡得住原版，
+ * 挡不住它 —— 而它照样是答案册。可 `cmt` 和 `benchmark` 这两个词**在那份返回里
+ * 都出现过**。所以判据是「这一项里的每个词都出现过」，中间隔着什么、顺序如何、
+ * 是连字符还是下划线，一概不管。
+ *
+ * ## 为什么整份查，不只查网址
+ *
+ * 同一跑里它绕了四条路：主站 → 镜像（`hf-mirror.com`）→ 文本代理（`r.jina.ai`）
+ * → 存档站（`web.archive.org`），后来还试了两个跨域代理（`allorigins.win`、
+ * `corsproxy.io`）。**按域名挡的话，每一条都得单列一遍，而下一条永远列不到。**
+ * 查整份就没这问题：无论它从哪条路拿的，那份东西里总会出现那几个词。
+ *
+ * 大小写不敏感 —— 发布方没有义务把每种写法列一遍。
+ */
+function tripped(got: unknown, banned: string[]): string | null {
+  if (banned.length === 0) return null;
+  const flat = JSON.stringify(got).toLowerCase();
+  for (const b of banned) {
+    const terms = b.toLowerCase().split(/\s+/).filter(Boolean);
+    if (terms.length && terms.every((t) => flat.includes(t))) return b;
+  }
+  return null;
+}
+
 /** 钥匙只在这一刻取，不留。 */
 function keyOf(keyEnv: string): string {
   const k = process.env[keyEnv];
@@ -250,10 +302,14 @@ function unpack(d: Answer): {
  */
 export function registerSearchTool(db: Conn, reg: Registry): string {
   reg.register(db, `fn:tool.${SEARCH_TOOL.name}`, SEARCH_TOOL.expectMs, async (arg) => {
-    const a = (arg ?? {}) as { args?: { question?: unknown }; agent?: string };
+    const a = (arg ?? {}) as { args?: { question?: unknown }; agent?: string; instance?: string };
     const question = String(a.args?.question ?? "").trim();
     if (!question) return { error: "question is required - there is nothing to search for" };
     if (!a.agent) return { error: "the kernel did not say which agent is searching, so there is no api to use" };
+
+    // 哪道题**从库里问**，不收调用方传的 —— 收的话，改一个参数就能把闸关掉。
+    // 跟 `verify` 那儿是同一条理由、同一个办法。
+    const at = whereAmI(db, String(a.instance ?? ""));
 
     const lane = laneOf(db, a.agent);
     const wall = AbortSignal.timeout(SEARCH_WALL_MS);
@@ -277,6 +333,24 @@ export function registerSearchTool(db: Conn, reg: Registry): string {
     }
 
     const got = unpack(d);
+
+    // **踩线的整份丢掉，一个字都不回。**
+    //
+    // 这道闸在模型看见之前 —— 事后审计救不了：答案一旦进了上下文，那道题就已经废了，
+    // 作废它只是记下损失。所以连它搜了什么、开了哪些页都不回，那些本身就是线索。
+    //
+    // `spent` 还是要报的：这次调用真的花了钱，不因为被拦下就当没花过。
+    const hit = tripped(got, at ? forbidden(db, at.task) : []);
+    if (hit) {
+      return {
+        error:
+          "Forbidden access: the publisher of this problem does not allow searching for related content. " +
+          "The whole result has been discarded and none of it will be shown to you. Work the problem out " +
+          "yourself - looking up what someone else answered is not what is being asked of you.",
+        spent: got.spent,
+      };
+    }
+
     if (!got.answer) {
       // 搜完了却一个字没说 —— 实测发生过：15 次动作、182,063 个 token、零答案。
       // 这时候把它**做过什么**交回去，比回一句「失败了」有用：模型至少知道哪些路
