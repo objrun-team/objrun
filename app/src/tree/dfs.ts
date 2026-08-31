@@ -372,21 +372,27 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
       // 是这一发没出来 —— 按普通推进往下走，让它下一站接着说。
       const handedIn = calledSubmit(db, inst, a.unit);
       const spoke = r.kind === "prompt" && spokenAt(a.result).trim() !== "";
-      if ((handedIn || spoke) && a.next.includes(SUBMIT)) return { to: SUBMIT } satisfies Said;
 
-      // 还在跑：按候选往下走一格，从当前这一行接。
+      // **拐去交卷是节点级的规矩，不看这一站的 `next` 里写没写它。**
+      //
+      // 一度写成了 `… && a.next.includes(SUBMIT)`，那是把两件事套在了一起：
+      // 「这个节点干完了」是节点的事，「这一站下一步能去哪」是流转表的事。
+      // 套上之后，`ask.next` 改成 `[act]` 就让站在 `ask` 上再也拐不过去 ——
+      // 干活的额度花完了却走不到交卷站，那一支静默停住。
+      //
+      // 不必要，也不该：内核的 `next` 白名单**只管平推**（`loop.ts`：
+      // `if (!saidFrom && !next.includes(to))`），带了父指针的不查。所以这儿显式
+      // 挂在当前这一行底下 —— 交卷本来就是这个节点走完之后的那一步。
+      const toSubmit = { to: SUBMIT, from_cycle: here, from_unit: a.unit } satisfies Said;
+
+      // 它自己说完了 / 它按了交卷 —— 提前拐过去。
+      if (handedIn || spoke) return toSubmit;
+
+      // 干活那几站的额度花完了 —— 该交卷了。**这一条不看它想不想交。**
       const to = a.next.find((c) => c !== SUBMIT) ?? null;
+      if (to === null || full(db, a, nodes, to)) return toSubmit;
 
-      // **第三条到交卷站的路：干活这边走不动了。**
-      //
-      // 一直在调工具的题永远不会说出一段完整的话，也就永远不会走上面那两条 ——
-      // 于是额度耗干，那条分支在 `#advance` 里被静静关掉，收尾一看「没交卷」。
-      // 实测这么丢过整整一道题（cmt-3：12 个单元走满，一次都没到交卷站）。
-      //
-      // 「走不动」有两种：干活那一站的额度用完了，或者候选里除了交卷站就没别的了。
-      // 两种都该交卷 —— 手上有什么交什么，总好过什么都不交。
-      const stuck = to === null || full(db, a, nodes, to);
-      if (stuck && a.next.includes(SUBMIT)) return { to: SUBMIT } satisfies Said;
+      // 还有额度：按候选往下走一格，从当前这一行接。
       return { to } satisfies Said;
     }
 
