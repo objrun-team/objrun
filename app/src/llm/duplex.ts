@@ -535,7 +535,6 @@ export function registerDuplex(db: Conn, reg: Registry, pool: Sessions, seed: [s
 
   for (const [vendor, v] of Object.entries(VENDORS)) {
     if (!v.ws) continue; // 这家没有实时轨
-    const ws = v.ws;
     const name = `fn:api.${vendor}.duplex`;
     SERVES.set(name, SERVED);
     names.push(name);
@@ -548,6 +547,10 @@ export function registerDuplex(db: Conn, reg: Registry, pool: Sessions, seed: [s
       const secret = process.env[keyEnv];
       if (!secret) throw new Error(`no key in environment variable ${keyEnv} - see .env`);
       const model = u.api.model;
+      // **地址从这一行来，不从代码来。** 这条句柄上一版是闭包里捞 `VENDORS[vendor].ws`，
+      // 于是同一份库换个二进制就可能打向别处 —— 库当不成快照。现在 `api.base_url`
+      // 说了算：那一行指哪儿，这一次就打哪儿。
+      const ws = u.api.base_url;
 
       // 会话跟着 instance 走。头一个单元开会话、发 instructions；后面的直接接着讲。
       const s = await pool.get(vendor, u.instance, async () => {
@@ -611,9 +614,11 @@ export function registerDuplex(db: Conn, reg: Registry, pool: Sessions, seed: [s
     if (!v) throw new Error(`unknown vendor: ${vendor}`);
     if (!v.ws) throw new Error(`${vendor} has no realtime endpoint, so ${model} cannot get a duplex lane`);
     db.run(
-      `insert into api (key_env, model, handle, modes, retry_on) values (?, ?, ?, 'duplex', ?)
+      `insert into api (key_env, model, handle, modes, base_url, retry_on) values (?, ?, ?, 'duplex', ?, ?)
        on conflict(key_env, model) do update set handle = excluded.handle, modes = excluded.modes`,
-      [v.keyEnv, model, `fn:api.${vendor}.duplex`, RETRY_ON],
+      // 实时轨走的是 `ws`，不是这条 http 地址；`base_url` 在这一行里只是把列填上，
+      // 让「一行 api 就知道它打向哪儿」这件事没有例外。
+      [v.keyEnv, model, `fn:api.${vendor}.duplex`, v.ws ?? v.baseURL, RETRY_ON],
     );
   }
 

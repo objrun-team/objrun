@@ -29,7 +29,8 @@
  * 拒收，那一站挂到 `expect_ms`，一个字都没交（cmt-3，submit#14）。上一站调了
  * 工具的话最后一条是 tool 结果，形状是对的，所以这个毛病看着像随机。
  *
- * 地址靠 `TGENGIN_DEEPSEEK_BASE_URL` 顶掉，这条环境变量就是为了这个留的。
+ * 假端点是**改一行数据**接进来的：`update api set base_url = ...`。以前这儿用的是
+ * 一条环境变量，那意味着同一份库换个环境变量行为就不一样 —— 库也就当不成快照了。
  */
 
 import { done, machine, ok, part, show, step, until } from "./_lib.ts";
@@ -91,8 +92,6 @@ const fake = Bun.serve({
   },
 });
 
-process.env.TGENGIN_DEEPSEEK_BASE_URL = `http://127.0.0.1:${String(fake.port)}`;
-
 // **`retryTimes` 故意开着。** 这个例子要验的一件事就是「400 不该被重打」——
 // 关掉重试的话，不重打是因为压根没开重试，什么也没验到。
 const m = await machine({ retryTimes: 3, continueTimes: 2, maxTokens: 64 });
@@ -117,6 +116,20 @@ try {
     agents: [{ name: "bot", apis: [["DEEPSEEK_API_KEY", "deepseek-v4-flash"]], unit: "fn:unit.tools" }],
   });
   ok("the declaration went in", true);
+
+  step("1b. point that model at the fake endpoint - by changing a row");
+  // **改地址是改数据。** 这一步同时也验了那件事：`api.base_url` 说了算，
+  // 代码里那份只是注册时的种子。
+  await m.api("POST", "/exec", {
+    sql: `update api set base_url = '${at("")}' where model = 'deepseek-v4-flash'`,
+  });
+  const where = (
+    await m.api<{ rows: { base_url: string }[] }>("POST", "/query", {
+      sql: "select base_url from api where model = 'deepseek-v4-flash'",
+    })
+  ).rows[0];
+  show("where that model now points:", where.base_url);
+  ok("the table says where the calls go", where.base_url === at(""), where);
 
   step("2. publish one task and let it run to the end");
   await m.api("POST", "/tasks", {

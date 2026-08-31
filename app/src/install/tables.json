@@ -54,6 +54,12 @@
           "_": "Its values are registered in the mode table"
         },
         {
+          "name": "base_url",
+          "type": "text",
+          "notnull": true,
+          "_": "Where the calls go. In the table, not in the code: an address that lives only in code cannot be seen in a snapshot, and one that lives in an environment variable cannot be seen at all. Point a row somewhere else and that row goes somewhere else"
+        },
+        {
           "name": "retry_on",
           "type": "text",
           "notnull": true,

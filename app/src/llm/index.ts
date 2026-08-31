@@ -38,7 +38,8 @@ import type { Registry } from "../engine/registry.ts";
 type Row = Record<string, unknown>;
 
 /**
- * 认得的几家。**地址在这儿，不在库里** —— 加一家 = 这儿加一行，表结构不动。
+ * 认得的几家。**这儿是种子，地址的家在 `api.base_url`** —— 注册时把这份默认值写
+ * 进那一行，之后以表为准。改地址是改数据，不用动代码，也不用重新编译。
  *
  * `ws` 是这家实时轨的地址。**没有就是这家没有实时轨** —— 不填一个假的，
  * 填了的话 `duplex` 那条句柄会给它注册出来，而真调的时候才发现连不上。
@@ -145,7 +146,7 @@ export interface Unit {
   instance: string;
   unit: number;
   /** 内核挑好的那条轨。**适配器不再自己挑** —— 挑的地方只许有一个。 */
-  api: { key_env: string; model: string; retry_on: string } | null;
+  api: { key_env: string; model: string; base_url: string; retry_on: string } | null;
   context: { seq: number; role: string; kind: string; body: string }[];
   /**
    * 这一轮的任务视图。**内核每轮现算的事实**，不是上下文里的一条消息 ——
@@ -424,11 +425,12 @@ export function registerVendors(
       if (!u.api) throw new Error(`fn:api.${vendor} was called, but the kernel did not say which model this station uses`);
       const { model, key_env: keyEnv } = u.api;
       const retryOn = retrySet(u.api.retry_on);
-      // 地址允许被一条环境变量顶掉 —— `TGENGIN_DEEPSEEK_BASE_URL` 这种。**这是给
-      // 测试留的口子**：续写被拒、半截答案怎么办这类事，只有假端点验得了，真端点
-      // 永远只发对的那套。不设这条 = 走上面写死的地址，跟没这行一样。
-      const baseURL = process.env[`TGENGIN_${vendor.toUpperCase()}_BASE_URL`] || v.baseURL;
-      const provider = createOpenAICompatible({ name: vendor, baseURL, apiKey: key(keyEnv) });
+      // **地址从表里来。** 以前它写死在 `VENDORS` 里，后来我又加了一条环境变量去顶
+      // 它 —— 那条更糟：同一份库，换个环境变量行为就不一样，而库里、代码里都看不
+      // 出来。库要能当一份跟内核无关的快照用，这种东西一个都不能有。
+      //
+      // 进了表就顺带解决了另一件事：假端点不用再靠环境变量接进来，改一行数据就行。
+      const provider = createOpenAICompatible({ name: vendor, baseURL: u.api.base_url, apiKey: key(keyEnv) });
 
       const instructions = instructionsOf(u);
       const messages = messagesOf(u);
@@ -572,9 +574,9 @@ export function registerVendors(
   for (const [vendor, model, modes] of seed) {
     if (!VENDORS[vendor]) throw new Error(`unknown vendor: ${vendor}`);
     db.run(
-      `insert into api (key_env, model, handle, modes, retry_on) values (?, ?, ?, ?, ?)
+      `insert into api (key_env, model, handle, modes, base_url, retry_on) values (?, ?, ?, ?, ?, ?)
        on conflict(key_env, model) do update set handle = excluded.handle, modes = excluded.modes`,
-      [VENDORS[vendor].keyEnv, model, `fn:api.${vendor}`, modes, RETRY_ON],
+      [VENDORS[vendor].keyEnv, model, `fn:api.${vendor}`, modes, VENDORS[vendor].baseURL, RETRY_ON],
     );
   }
 
