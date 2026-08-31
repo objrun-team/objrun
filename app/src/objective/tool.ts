@@ -67,11 +67,12 @@ const VERIFY_TOOL = {
     },
   },
   prompt:
-    "You may check a candidate with verify before handing it in, as often as your budget allows. " +
-    "A verdict is about the exact text it echoes back in `graded` and nothing else: change one character " +
-    "and it no longer applies. If a check passes, hand that text in unchanged - do not rewrite it. " +
-    "Each check costs a round trip, so do the thinking first and check once, rather than checking a guess " +
-    "and thinking afterwards.",
+    "You may check a candidate with verify before handing it in. A verdict is about the exact text it echoes " +
+    "back in `graded` and nothing else: change one character and it no longer applies. If a check passes, " +
+    "hand that text in unchanged - do not rewrite it. " +
+    "**Several checks in one turn cost the same as one.** Every tool call you make in a turn is run before you " +
+    "are asked again, and the results come back together - so when a quantity could plausibly be any of a few " +
+    "forms, check them all at once rather than one per turn. What is scarce is turns, not checks.",
   expectMs: 120_000,
 };
 
