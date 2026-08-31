@@ -121,6 +121,66 @@ wsl.exe -d Ubuntu-24.04 -- docker exec cmt-grader python -c "…"
 wsl.exe → WSL 里有 docker → 容器里有题库」）。门槛不等于边界，但对这个例子够用。
 真要堵死只有一条路：把 solver 自己关进沙箱 —— 见[最后那一节](#真要隔离-solver该动的是-place)。
 
+### 还有一扇门是从外面开的：题库在互联网上
+
+上面那一整节防的是「**这台机器上**的那份题库」。可 CMT-Benchmark 是公开数据集
+——**它在 HuggingFace 上，谁都能下**。搬走本地那份，一点没动这一条。
+
+挂上 `web_search` 的第一跑就撞穿了。十五分钟里开过 834 个页面，**143 个是这份
+数据集**，而且是有章法地绕：
+
+```
+huggingface.co/datasets/…/resolve/main/cmt_data.jsonl    主站
+hf-mirror.com/…/raw/main/cmt_data.jsonl                  主站不通 → 镜像
+r.jina.ai/https://…/cmt_data.jsonl                       镜像不通 → 文本代理
+web.archive.org/web/…/rows?…&offset=1&length=1            再不通 → 存档站
+api.allorigins.win / corsproxy.io                        还不行 → 跨域代理
+```
+
+查询串直接写着 `cmt_benchmark row 1 answer`、`"cmt_benchmark" "answer": "$\Delta"`，
+后来甚至拿着答案原文回去反查是哪一行。它得手了 —— 轨迹里留着一句
+**「The web search found the reference answer.」** 那一跑作废。
+
+#### 闸怎么设：`no_search`
+
+发布的时候给一列词组（[`send.ts`](./send.ts)）：
+
+```ts
+noSearch: ["cmt benchmark", "cmt dataset", "cmt jsonl"],
+```
+
+检索回来的**整份东西**过一遍这个列表 —— 答案、它跑过的查询串、它开过的页，全算。
+命中就整份丢掉，模型拿到的是一句 `Forbidden access: the publisher of this problem
+does not allow searching for related content.`
+
+三个决定，每一个都是被数据逼出来的：
+
+| | |
+| --- | --- |
+| **不按域名挡** | 上面那五条路，挡一条它换下一条，而下一条永远不在名单上 |
+| **挡在模型看见之前** | 事后审计救不了：答案一进上下文那道题就废了，作废它只是记下损失。所以连它搜了什么、开过哪些页都不回 —— 那些本身就是线索 |
+| **一条项是一组词，不是连写** | `cmt_benchmark` 连写挡不住第三方那份拷贝（`syntra-evals-dataset/…/cmt-physics.jsonl`），而那照样是答案册 |
+
+为什么是这三条，拿那一跑真实的 168 次检索量过：
+
+| 判据 | 漏 | 误伤 |
+| --- | --- | --- |
+| `cmt benchmark` | **5** | 0 |
+| `cmt` | 0 | **1** |
+| 上面那三条 | **0** | **0** |
+
+漏的 5 次是它**直接拉原始 jsonl**：返回里有 `cmt`，却没有 `benchmark` 这个词。
+只列 `cmt` 又会误伤正经文献。
+
+#### 这不是禁止检索
+
+**搜文献是本事。** 题目的物理本来就发表在某篇论文里，找到它、读懂它、照着推，
+那是解题 —— 挂上检索之后，同一个问题从「可能是 Moessner and Sondhi？还是 Bo
+Yang？」变成了「Isakov & Moessner, PRB 68, 104409 (2003)」，而且**比不挂检索还快**
+（输出 token 从 13,057 掉到 7,916，不用摸黑了）。
+
+挡的只有一样：**这套基准自己的答案册**。搜到它，量的就成了「这份数据集好不好扒」。
+
 ### 三个坑
 
 **版本要照抄官方 pin。** 自己搓一套 LaTeX 归一去比字符串的话，分数跟论文那张表就不可比，
