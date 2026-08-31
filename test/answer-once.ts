@@ -512,7 +512,7 @@ try {
   await m.api("POST", "/tasks", {
     id: "t-checks", mode: "tree", agent: "bot", place: "local", source: "user",
     description: "how many checks does it get", readable: false,
-    maxChecks: 2, maxDeadSiblings: 2, solveSeconds: 45,
+    maxDeadSiblings: 2, solveSeconds: 45,
     objective: {
       nodes: [
         { name: "look", moment: "done", domain: { kind: "bool" }, handle: at("/nope") },
@@ -520,6 +520,8 @@ try {
       ],
       edges: [{ src: "look", out: 0, dst: "verdict" }],
       sink: "verdict",
+      // **额度写在 G 上，不写在任务上** —— 能问几次，问的是这个盒子经得起被问几次。
+      checks: 2,
     },
   });
   await until(

@@ -92,6 +92,20 @@ export interface Objective {
   edges: Edge[];
   /** 输出节点。图上出度为 0 的那一个。 */
   sink: string;
+  /**
+   * **一轮里这个黑盒最多被问几次。**
+   *
+   * 这是 G 自己的性质，不是任务的：能问几次，问的是这个盒子经得起被问几次 ——
+   * 换一道题、换一个发布方，同一个 G 该是同一个数。
+   *
+   * 没有上限的话，最省事的策略是把答案空间枚举一遍。实测过：一道选项题被连着试了
+   * 七十七个排列组合，一次推理都没有 —— 那样得来的分数量的是答案空间有多大，
+   * 不是它会不会做。
+   *
+   * 一轮 = 一次尝试（树那套里就是一个节点）。判死之后重来是新的一轮，额度也是新的。
+   * **交卷那一次不算** —— 那是内核替它问的，不是它自己去试。
+   */
+  checks: number;
 }
 
 /** 端口序：每个节点按值域宽度摊开。 */
@@ -210,7 +224,7 @@ export function validate(o: Objective): string[] {
 /** 解析一份 G。形状不对当场炸 —— 这跟结构校验是两回事，那个查的是图对不对。 */
 export function parseObjective(raw: unknown): Objective {
   if (raw === null || typeof raw !== "object") throw new Error("the grading function must be an object");
-  const o = raw as { nodes?: unknown; edges?: unknown; sink?: unknown };
+  const o = raw as { nodes?: unknown; edges?: unknown; sink?: unknown; checks?: unknown };
   if (!Array.isArray(o.nodes)) throw new Error("the grading function needs nodes, and it must be an array");
   if (!Array.isArray(o.edges)) throw new Error("the grading function needs edges, and it must be an array");
   const nodes: Node[] = o.nodes.map((n, i) => {
@@ -229,5 +243,8 @@ export function parseObjective(raw: unknown): Objective {
     const x = e as Record<string, unknown>;
     return { src: String(x.src ?? ""), out: Number(x.out ?? 0), dst: String(x.dst ?? "") };
   });
-  return { nodes, edges, sink: String(o.sink ?? "") };
+  // 不给就用默认的五次：够「算出来 → 验一次 → 照着 why 改 → 再验」走上两三个来回，
+  // 不够穷举。给 0 或者负数当成不给 —— 「随便问」不是这个字段能表达的意思。
+  const asked = Number((o as { checks?: unknown }).checks);
+  return { nodes, edges, sink: String(o.sink ?? ""), checks: Number.isFinite(asked) && asked > 0 ? asked : 5 };
 }

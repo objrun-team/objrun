@@ -99,7 +99,9 @@ export function registerVerifyTool(db: Conn, reg: Registry, sealed: Sealed): str
     // 上限由**发布方**定（`task.max_checks`）。一轮 = 一个节点：判死之后开的新
     // 节点是一次全新的尝试，额度也是新的。**交卷那一次不算** —— 那一次是内核
     // 替它问的，落的是 `graded` 行，不是它自己调的 `call`。
-    const here = numberOf(task?.max_checks, 5);
+    // **额度是 G 的性质，不是任务的** —— 能问几次，问的是这个盒子经得起被问几次。
+    // 绑在任务上的话，同一个 G 换个发布方就能被问一百次，那道墙等于没有。
+    const here = numberOf(sealed.checksOf(at.task), 5);
     const spent = checksIn(db, {
       sub: at.sub,
       task: at.task,

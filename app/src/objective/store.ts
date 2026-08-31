@@ -58,6 +58,8 @@ export interface Sealed {
   open(task: string): Objective | null;
   /** 这道题的 G 收什么。没封过就回 `null`。 */
   paramsOf(task: string): Record<string, unknown> | null;
+  /** 一轮里这个 G 最多被问几次。没封过就回 `null`。 */
+  checksOf(task: string): number | null;
   has(task: string): boolean;
   forget(task: string): void;
   close(): void;
@@ -71,6 +73,7 @@ export function openSealed(file: string): Sealed {
     task   text not null primary key,
     body   text not null,
     params text not null,
+    checks integer not null,
     at     integer not null
   )`);
 
@@ -85,13 +88,19 @@ export function openSealed(file: string): Sealed {
       // **一份候选长什么样，跟着 G 一起封。** 内核把 G 包装成 `verify`，交卷那一步
       // 问的又是同一个 G —— 两处要的东西都从这一列来，不各自抄一份字面量。
       db.prepare(
-        `insert into objective (task, body, params, at) values (?, ?, ?, ?)
-         on conflict(task) do update set body = excluded.body, params = excluded.params, at = excluded.at`,
-      ).run(task, JSON.stringify(g), JSON.stringify(CANDIDATE), Date.now());
+        `insert into objective (task, body, params, checks, at) values (?, ?, ?, ?, ?)
+         on conflict(task) do update set body = excluded.body, params = excluded.params, checks = excluded.checks, at = excluded.at`,
+      ).run(task, JSON.stringify(g), JSON.stringify(CANDIDATE), g.checks, Date.now());
     },
     open(task) {
       const row = db.prepare(`select body from objective where task = ?`).get(task) as { body: string } | null;
       return row ? parseObjective(JSON.parse(row.body)) : null;
+    },
+    checksOf(task) {
+      const row = db.prepare(`select checks from objective where task = ?`).get(task) as
+        | { checks?: number }
+        | undefined;
+      return row?.checks === undefined ? null : Number(row.checks);
     },
     paramsOf(task) {
       const row = db.prepare(`select params from objective where task = ?`).get(task) as
