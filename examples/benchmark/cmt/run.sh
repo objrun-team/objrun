@@ -51,6 +51,10 @@ echo
 # （`app/src/tools/python.ts`，Pyodide 跑在一个 worker 里），跟 read/write 一样
 # 谁都有。以前这儿要起一个容器、再声明一条 http 句柄 —— 那套只在装了
 # Docker-in-WSL 的机器上活得下去。
+# **交卷站不摆工具这件事不在这儿办了。** 它是 dfs 这套流转自带的性质 —— 交卷站
+# 是模型站、下一站也是模型站，模型在那儿请求的工具没有人会去跑。所以条件跟着
+# 工具一起注册（`tree/dfs.ts`、`objective/tool.ts`、`tree/view.ts`、`tools/python.ts`），
+# 随二进制分发，装了这套机制的人都有，不用每个 benchmark 自己写几条 SQL。
 step "2 挂扩展"
 bun examples/benchmark/cmt/parmeras/load.ts
 

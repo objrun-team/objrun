@@ -184,16 +184,39 @@ export function registerTools(db: Conn, reg: Registry, places: Places): string[]
       return await p.call(t.name, args);
     });
 
+    // **带条件的那几件退出「系统工具」那一档。** 系统工具是「谁都有、不看条件」，
+    // 而条件正是要被看的 —— 两样同时成立的话，条件写了也没用，而且不报错。
+    const conditional = (t.when ?? []).length > 0;
     run(
       db,
       `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable)
-       values (?, ?, ?, ?, ?, ?, ?, 1, null, 1)
+       values (?, ?, ?, ?, ?, ?, ?, ?, null, 1)
        on conflict(name) do update set
          identity = excluded.identity, does = excluded.does, params = excluded.params,
          output = excluded.output, prompt = excluded.prompt,
          concurrent = excluded.concurrent, system = excluded.system`,
-      [t.name, identity, t.does, JSON.stringify(t.params), JSON.stringify(t.output), t.prompt, t.concurrent ? 1 : 0],
+      [
+        t.name,
+        identity,
+        t.does,
+        JSON.stringify(t.params),
+        JSON.stringify(t.output),
+        t.prompt,
+        t.concurrent ? 1 : 0,
+        conditional ? 0 : 1,
+      ],
     );
+    // 条件重写一遍：重装时旧的那几行不清掉的话，改了条件也不生效。
+    run(db, `delete from trigger where owner_kind = 'tool' and owner = ?`, [t.name]);
+    (t.when ?? []).forEach((group, i) => {
+      for (const term of group) {
+        run(
+          db,
+          `insert into trigger (owner_kind, owner, "group", dim, "key", op, value) values ('tool', ?, ?, ?, ?, ?, ?)`,
+          [t.name, i, term.dim, term.key, term.op, term.value],
+        );
+      }
+    });
     names.push(t.name);
   }
   return names;

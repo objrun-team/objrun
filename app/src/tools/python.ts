@@ -197,6 +197,10 @@ export const python = {
     "every call you make is run before you are asked again, so batch the work rather than spending a turn per question.",
   concurrent: false,
   expectMs: PYTHON_WALL_MS + 30_000,
+  // **交卷站不摆它。** 跑工具的只有动作站；交卷站是模型站、下一站也是模型站，
+  // 在那儿请求算力没有人会去跑 —— 那次调用会一直挂着，最后被补一条「没跑成」。
+  // 交卷交的是它说的话，本来也用不着算。
+  when: [[{ dim: "cycle", key: "cycle", op: "ne", value: "submit" }]],
   async run(args: Record<string, unknown>): Promise<unknown> {
     const code = args.code;
     if (typeof code !== "string" || code.trim() === "") throw new Error("python_exec needs code to run");

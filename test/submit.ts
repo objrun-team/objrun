@@ -32,11 +32,14 @@ const graded: unknown[] = [];
 
 /** 这一轮挂给智能体的工具名。 */
 let attached: string[] = [];
+/** 每一站分别摆了哪些工具 —— 「在哪儿摆」正是要验的事之一。 */
+const attachedAt: Record<string, string[]> = {};
 
 const out = await outside({
   // 干活那一站：第一次说一句话就算做完了。
   "/unit": (u) => {
     attached = ((u.tools ?? []) as { name: string }[]).map((t) => t.name);
+    attachedAt[String((u.cycle as { cycle?: string } | undefined)?.cycle ?? "")] = attached;
     return { role: "assistant", kind: "prompt", body: "the answer is 42" };
   },
   // 干活那一站：**永远只调工具，一句完整的话都不说**。
@@ -143,10 +146,18 @@ try {
     t.units.map((u) => ({ at: `${String(u.cycle)}#${String(u.unit)}`, status: u.status })),
   );
 
-  step("4. the hand-in tool is attached, and it takes no arguments");
-  show("tools attached this round:", attached);
-  ok("submit is attached", attached.includes("submit"), attached);
-  ok("verify is attached too (this task has a grading function)", attached.includes("verify"), attached);
+  step("4. the hand-in tool is attached where calling it means something");
+  show("what each station was given:", attachedAt);
+  ok("submit is attached at the working station", (attachedAt.ask ?? []).includes("submit"), attachedAt);
+  ok(
+    "verify too, since this task has a grading function",
+    (attachedAt.ask ?? []).includes("verify"),
+    attachedAt,
+  );
+  // **交卷站不摆工具。** 跑工具的只有动作站；交卷站是模型站、下一站也是模型站，
+  // 在那儿请求任何工具都没有人会去跑 —— 那次调用会一直挂着，最后被补一条
+  // 「没跑成」。而交卷本来就不需要工具：交的是它说的话。
+  ok("and neither is attached at the hand-in station", !(attachedAt.submit ?? []).includes("submit"), attachedAt);
   const row = (
     await m.api<{ rows: Record<string, unknown>[] }>("POST", "/query", {
       sql: "select name, params, system from tool where name = 'submit'",

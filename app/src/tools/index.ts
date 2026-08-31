@@ -46,6 +46,14 @@ export interface Tool {
   concurrent: boolean;
   /** 预期多久，超过判死。 */
   expectMs: number;
+  /**
+   * 什么时候摆给模型。**不填 = 谁都有、不看条件**（读写那一组就是这样）。
+   *
+   * 填了就落成 `trigger` 里的行，这一件工具也就从「系统工具」那一档退出来，
+   * 归条件管。一组里每条都得中，组之间是或 —— 跟外面声明的工具同一套规矩，
+   * 内核不为随二进制发的这几件另开一条路。
+   */
+  when?: { dim: string; key: string; op: string; value: string }[][];
   run(args: Record<string, unknown>): Promise<unknown>;
 }
 
