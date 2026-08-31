@@ -32,6 +32,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { dynamicTool, generateText, jsonSchema, type ModelMessage } from "ai";
 
 import type { Conn } from "../H2H/db.ts";
+import type { Log } from "../engine/loop.ts";
 import type { Registry } from "../engine/registry.ts";
 
 type Row = Record<string, unknown>;
@@ -356,6 +357,7 @@ export function messagesOf(u: Unit): ModelMessage[] {
 export function registerVendors(
   db: Conn,
   reg: Registry,
+  log: Log,
   seed: [string, string, string][],
   knobs: {
     maxTokens: number;
@@ -453,6 +455,7 @@ export function registerVendors(
         let text = "";
         let thought = "";
         let calls: { id: string; name: string; input: unknown }[] = [];
+        let this_broke = "";
         for (let round = 0; ; round++) {
           // 已经说出来的那半截接在末尾 —— 让它续，而不是重来一遍。
           //
@@ -472,9 +475,23 @@ export function registerVendors(
                 },
               ]
             : messages;
-          const out = await ask(so_far);
+          // **续写这一轮炸了，不该把整道题带走。** 已经说出半截了，那半截就是答案的
+          // 一部分；这儿抛出去的话，这一站挂到 expect_ms，一道题直接没了。截断着交
+          // 比什么都没有强 —— 第一轮除外，那时候手上一个字都没有。
+          let out;
+          try {
+            out = await ask(so_far);
+          } catch (e) {
+            if (round === 0) throw e;
+            this_broke = e instanceof Error ? e.message : String(e);
+            break;
+          }
           text += out.text;
-          thought += out.reasoningText ?? "";
+          // `reasoningText` 不是每家都填得上 —— openai-compatible 认不认得那家的
+          // `reasoning_content`，取决于版本。两处都捞一下，捞不到就当没有。
+          thought +=
+            out.reasoningText ||
+            (out.reasoning ?? []).map((r) => ("text" in r ? String(r.text) : "")).join("");
           calls = out.toolCalls.map((c) => ({ id: c.toolCallId, name: c.toolName, input: c.input }));
 
           // 要工具了就停：那是一次完整的表态，续不下去也不该续。
@@ -483,6 +500,9 @@ export function registerVendors(
           if (out.finishReason !== "length" || round >= knobs.continueTimes) break;
         }
 
+        if (this_broke) log.warn(`${model} could not continue; handing back what it had said. ${this_broke}`);
+        // 思考**不落库**：它只在这一次调用里有用（续写要拿它当前提）。跨执行单元
+        // 重放时，有的网关反过来不认得带思考的助手消息 —— 而重放这条路一直是好的。
         if (calls.length > 0) {
           return { role: "assistant", kind: "call", body: JSON.stringify({ text, calls }) };
         }

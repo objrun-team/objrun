@@ -248,6 +248,7 @@ app.log.info(
   `models: ${registerVendors(
     app.store.rw,
     registry,
+    app.log,
     [
       ["deepseek", "deepseek-v4-flash", "chat,tools"],
       ["deepseek", "deepseek-v4-pro", "chat,tools"],
