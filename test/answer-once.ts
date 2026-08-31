@@ -209,6 +209,15 @@ try {
   ok("one of them was declared dead", walked.some((r) => r.status === "dead_failed"), walked);
   ok("and a second node was opened after it", new Set(walked.map((r) => r.node)).size > 1, walked);
 
+  // **一次新的尝试从想事情开始，不从跑工具开始。** 上一版交卷之后接的是动作站，
+  // 于是新节点上来就去跑一遍自己从没请求过的工具，白花一格 —— 实测的样子是
+  // `submit#8[dead_failed] → act#9 → submit#10`：两步就又交了一次，中间一次都没想过。
+  const firstOf = new Map<number, string>();
+  for (const r of walked) if (!firstOf.has(r.node)) firstOf.set(r.node, r.cycle);
+  const later = [...firstOf.entries()].filter(([n]) => n > 1).map(([, c]) => c);
+  show("what each new node started with:", later);
+  ok("every new node starts at the entry station", later.every((c) => c === "ask"), [...firstOf.entries()]);
+
   step("7. and still: one call, one result");
   const all = (
     await m.api<{ rows: { unit: number; seq: number; kind: string; body: string }[] }>("POST", "/query", {

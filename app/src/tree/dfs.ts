@@ -134,11 +134,17 @@ export function withSubmit(cycles: DeclaredCycle[]): DeclaredCycle[] {
   if (tree.length === 0) return cycles;
   if (cycles.some((c) => c.cycle === SUBMIT)) return cycles;
 
-  // 交卷之后接**动作阶段** —— 不叫模型的那一站（`api_mode` 为空）：它跑上一站
-  // 请求的工具，跑完那一轮工作才完整。一个动作阶段都没有的机制（每一站都叫模型），
-  // 退回接在所有站后面。
-  const acts = tree.filter((c) => (c.apiMode ?? "").trim() === "");
-  const after = acts.length > 0 ? acts : tree;
+  // 交卷之后接**入口站** —— 机制里那个不从谁来的站（`from` 是空的）。
+  //
+  // 判 0 只说明这一次交的不成，接下来是**一次全新的尝试**，而一次尝试从想事情
+  // 开始。上一版接的是动作站（跑工具的那个），理由是「把上一站请求的工具跑完，
+  // 那一轮工作才完整」—— 那个理由在判死之后不成立：节点已经死了，补跑它的工具
+  // 没有意义，而新节点上来就跑一遍自己从没请求过的工具，等于白花一格。
+  //
+  // 实测的样子是 `submit#8[dead_failed] → act#9 → submit#10`：新节点两步就又交了
+  // 一次，中间一次都没想过。
+  const entry = tree.filter((c) => (c.from ?? []).length === 0);
+  const after = entry.length > 0 ? entry : tree;
   const names = new Set(tree.map((c) => c.cycle));
 
   return [
@@ -157,9 +163,9 @@ export function withSubmit(cycles: DeclaredCycle[]): DeclaredCycle[] {
       apiMode: tree.map((c) => (c.apiMode ?? "").trim()).find((x) => x !== "") ?? "",
       maxUnits: tree.reduce((n, c) => n + Number(c.maxUnits ?? 1), 0),
       from: tree.map((c) => c.cycle),
-      // 交完接下一个节点的动作阶段 —— 判 0 只说明这一次交的不成，不说明这道题
-      // 到头了。做成终点站（`next: []`）的那一版只能往回退，而退回去又立刻拐回
-      // 交卷，交的还是同一份东西。
+      // 交完接下一个节点的入口站 —— 判 0 只说明这一次交的不成，不说明这道题到头
+      // 了。做成终点站（`next: []`）的那一版只能往回退，而退回去又立刻拐回交卷，
+      // 交的还是同一份东西。
       next: after.map((c) => c.cycle),
       infer: TREE_INFER,
     },
