@@ -42,6 +42,8 @@ const out = await outside({
   // 干活那一站：**永远只调工具，一句完整的话都不说**。
   // 一直在调工具的题走不到「说完了」那条路，只能靠额度用完那条路拐去交卷。
   "/grind": () => ({ role: "assistant", kind: "call", body: JSON.stringify({ text: "", calls: [] }) }),
+  // 一个永远说不成的观测节点 —— 用来验「判死之后换个节点再来」。
+  "/nope": () => false,
   "/look": (a) => {
     graded.push(a);
     return true;
@@ -182,6 +184,48 @@ try {
     g2.units.filter((u) => u.cycle === "ask").length <= 2,
     g2.units.map((u) => `${String(u.cycle)}#${String(u.unit)}`),
   );
+  step("6. a hand-in that fails opens a NEW node, with a fresh budget");
+  await m.api("POST", "/declare", {
+    handles: [{ name: out.url("/nope"), expectMs: 10_000 }],
+    modes: [{ mode: "again", cycles: [{ cycle: "ask", maxUnits: 2, from: [], next: [], infer: "fn:infer.dfs" }] }],
+  });
+  await m.api("POST", "/tasks", {
+    id: "t-3", mode: "again", agent: "bot", place: "local", source: "user",
+    description: "never passes", readable: false,
+    maxDeadSiblings: 2,
+    objective: {
+      nodes: [
+        { name: "look", moment: "done", domain: { kind: "bool" }, handle: out.url("/nope") },
+        { name: "verdict", moment: "done", domain: { kind: "bool" }, handle: out.url("/verdict") },
+      ],
+      edges: [{ src: "look", out: 0, dst: "verdict" }],
+      sink: "verdict",
+    },
+  });
+  await until("t-3 to finish", async () => {
+    const d = await m.api<{ state: string }>("GET", "/tasks/t-3");
+    return d.state === "done" || d.state === "failed" ? d : null;
+  });
+  const rows = (
+    await m.api<{ rows: Record<string, unknown>[] }>("POST", "/query", {
+      sql: "select cycle, unit, node, status from task_again where task = 't-3' order by unit",
+    })
+  ).rows;
+  show(
+    "the stations it walked:",
+    rows.map(
+      (r) =>
+        `${String(r.cycle)}#${String(r.unit)}@node${String(r.node)}${r.status ? "[" + String(r.status) + "]" : ""}`,
+    ),
+  );
+  const seen = [...new Set(rows.map((r) => Number(r.node)))];
+  ok("a failed hand-in starts a new node rather than ending the tree", seen.length > 1, seen);
+  ok(
+    "each node gets its own budget - the working station runs again in the new node",
+    rows.filter((r) => r.cycle === "ask" && Number(r.node) === seen[1]).length > 0,
+    rows.map((r) => `${String(r.cycle)}@node${String(r.node)}`),
+  );
+  ok("and it stops after maxDeadSiblings attempts, rather than going on forever", seen.length <= 3, seen);
 } finally {
   out.stop();
   m.stop();

@@ -284,13 +284,6 @@ function full(db: Conn, a: Ask, nodes: Node[], cycle: string, node: number): boo
   return nodes.filter((n) => n.cycle === cycle && Number(n.node) === node).length >= Number(cap.max_units);
 }
 
-/** 同一个父底下的兄弟（不含自己）。 */
-function siblings(nodes: Node[], me: Node): Node[] {
-  return nodes.filter(
-    (n) => !(n.cycle === me.cycle && n.unit === me.unit) && n.from_cycle === me.from_cycle && n.from_unit === me.from_unit,
-  );
-}
-
 /**
  * **交卷那个工具。无参。**
  *
@@ -428,6 +421,30 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
     // 判 1 = 这道题做成了，树到此为止。
     if (status === "reached") return { to: null, status } satisfies Said;
 
+    // ── 判 0：换下一个节点再试一次 ────────────────────────────────────────
+    //
+    // **新节点挂在收口这一行底下。** 节点号是这么长的：
+    //
+    //   node(新行) = node(父) + (父.status 非空 ? 1 : 0)
+    //
+    // 收口那一行有终止状态，所以它的孩子就是下一个节点的头 —— 那一个节点自己
+    // 有一份新的额度。走回退那一支的话，新行挂到的是一个**没有**终止状态的祖先
+    // 底下，node 不涨、预算不重置，「换条路」就只是同一个节点里接着走。
+    //
+    // 去哪一站由表说了算（`submit.next` = 动作阶段）。
+    //
+    // 「一道题能试几个节点」是 `max_dead_siblings` 那根轴 —— 数的是**判死过的
+    // 节点**，不是行：一个节点判死一次，不该按它有几行算成几次。
+    {
+      const tried = new Set(
+        nodes.filter((n) => n.status !== null && DEAD.has(n.status)).map((n) => Number(n.node)),
+      ).size;
+      if (tried >= Number(a.task.max_dead_siblings ?? 3)) return { to: null, status } satisfies Said;
+      const on = a.next.find((c) => c !== SUBMIT) ?? null;
+      if (on !== null) return { to: on, status } satisfies Said;
+      return { to: null, status } satisfies Said;
+    }
+
     // 判 0 往下走的是**已经写好的那一套**：交卷站不开自己的兄弟（再交一遍同一份
     // 没意义），于是走回退那一支 —— `to: parent.cycle` 就是那个动作阶段，挂在
     // 祖父底下，正好是死掉那个动作阶段的兄弟。这就是「下一个节点的动作阶段」。
@@ -435,48 +452,14 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
     // 我一度在这儿加过一句「往前接一格」，那是错的：不带 `from_cycle` 的话新行
     // 挂在**死掉的交卷行**底下，树越长越深却一个分叉都没有。
 
-    // ── 判死了 ────────────────────────────────────────────────────────────
-
-    // 「一道题能试几个节点」不在这儿管 —— 那是 `max_dead_siblings`（这一层试过
-    // 几个方向就回退）和 `solve_seconds`（总时长）的事，下面那两道闸就是。
+    // ── 底下原来还有一段「开兄弟 / 回退」，删了 ──────────────────────────
     //
-    // 一度在这儿写过「能开口的站全满了就到此为止」，那是在拿**整道题**的额度当
-    // 节点的额度用：额度按节点数之后，新节点本来就有自己的一份，那一条会把树
-    // 卡在第一个节点上。
-
-    const maxBranches = Number(a.task.max_branches ?? 2);
-    const maxDead = Number(a.task.max_dead_siblings ?? 3);
-    const sibs = siblings(nodes, me);
-
-    // 并发闸：同一个父底下没干完的到了上限就不再开。这是「同时几条」。
-    const busy = sibs.filter((n) => !n.done).length;
-    if (busy >= maxBranches) return { to: null, status } satisfies Said;
-
-    // 判死闸：这一层试过的方向够多了 → 回退到更上层。
+    // 那一套是给「干活的站被判死」准备的：在同一个父底下开个兄弟换条路，
+    // 试够了就往上爬一层。可判决只在交卷站出，干活的站一个 status 都不产 ——
+    // 于是那一段永远走不到。
     //
-    // **交卷站不开兄弟。** 在交卷站旁边再开一个交卷站，交的还是同一份东西 ——
-    // 要换的是「怎么做」，那在干活那一层，所以交卷判死一律往上退。
-    const dead = sibs.filter((n) => n.status !== null && DEAD.has(n.status)).length + 1;
-    if (here !== SUBMIT && dead < maxDead) {
-      // 还能试：在**同一个父**底下开一个兄弟。
-      // 兄弟跟我挂在**同一个父**底下。我要是根（没有父），兄弟也是根。
-      return { to: here, from_cycle: me.from_cycle, from_unit: me.from_unit, status } satisfies Said;
-    }
-
-    // 回退：往上爬一层，从**祖父**底下另开。爬到根还没路就到此为止。
-    const parent =
-      me.from_cycle === null || me.from_unit === null
-        ? null
-        : nodes.find((n) => n.cycle === me.from_cycle && n.unit === me.from_unit);
-    if (!parent || parent.from_cycle === null || parent.from_unit === null) {
-      return { to: null, status } satisfies Said;
-    }
-    return {
-      to: parent.cycle,
-      from_cycle: parent.from_cycle,
-      from_unit: parent.from_unit,
-      status,
-    } satisfies Said;
+    // 换节点这件事上面已经做完了：新节点挂在收口那一行底下，node 自然涨一格，
+    // 额度也就重置了。留着那段死代码只会让人以为树还有另一套长法。
   });
 
   // **交卷那个工具跟这套机制一起装上。** 它属于机制，不属于某一份声明 ——
