@@ -30,6 +30,9 @@
 
 import { done, machine, ok, part, show, step, until } from "./_lib.ts";
 
+/** 每一次请求带的 `tool_choice` —— 「这一站必须调哪个」验的就是它。 */
+const choices: unknown[] = [];
+
 /** 假端点被问了几次。第一次要工具，之后说完就走。 */
 let asked = 0;
 /** 走到第几站了 —— 第一部分的流转就三步。 */
@@ -59,7 +62,7 @@ const answer = (message: Record<string, unknown>, why: string) =>
 
 const fake = Bun.serve({
   port: 0,
-  fetch(req) {
+  async fetch(req) {
     const path = new URL(req.url).pathname;
     // 这一站走完去哪儿：ask → act → ask，第三站收工。
     // G 的两个节点：这一版看什么都说「不成」，好让节点真的被判死。
@@ -72,6 +75,9 @@ const fake = Bun.serve({
         headers: { "content-type": "application/json" },
       });
     }
+    // 这一次请求带了什么 `tool_choice` —— 「这一站必须调哪个」验的就是它。
+    const body = (await req.json()) as { tool_choice?: unknown };
+    choices.push(body.tool_choice ?? null);
     asked++;
     if (asked === 1 || alwaysCalls) {
       return answer(
@@ -178,9 +184,21 @@ try {
     modes: [
       {
         mode: "tree",
+        // **交卷站在这儿自己声明**，因为要给它填 `mustCall` —— 那条路只有模型不思考
+        // 时才走得通（思考模式下 `tool_choice` 一律 400），所以机制不默认填，
+        // 想要的人自己写这一行数据。`withSubmit` 见到已经有交卷站就不插手。
         cycles: [
-          { cycle: "ask", apiMode: "tools", maxUnits: 3, from: [], next: ["act"], infer: "fn:infer.dfs" },
-          { cycle: "act", maxUnits: 3, from: ["ask"], next: ["ask"], infer: "fn:infer.dfs" },
+          { cycle: "ask", apiMode: "tools", maxUnits: 3, from: [], next: ["act", "submit"], infer: "fn:infer.dfs" },
+          { cycle: "act", maxUnits: 3, from: ["ask"], next: ["ask", "submit"], infer: "fn:infer.dfs" },
+          {
+            cycle: "submit",
+            apiMode: "tools",
+            mustCall: "submit",
+            maxUnits: 6,
+            from: ["ask", "act"],
+            next: ["ask"],
+            infer: "fn:infer.dfs",
+          },
         ],
       },
     ],
@@ -291,6 +309,28 @@ try {
   }
   show("calls whose results do not follow straight away:", bad);
   ok("none - every one is answered right where it was asked", bad.length === 0, bad);
+
+  step("11. the hand-in station leaves it no choice");
+  // 摆什么工具决定它**能**调什么；这一列决定它**必须**调什么 —— 两件事。只摆一个
+  // 工具挡不住它在交卷站说一堆话然后什么都没交，而「没调」在那一站就等于这一步
+  // 没做。所以请求本身带上「必须调这一个」。
+  //
+  // 有的家在思考模式下拒收（DeepSeek V4 回 400），那是 `cycle.must_call` 跟思考
+  // 强度对不上 —— 清空那一列或者关掉思考，都是改数据。
+  // 没钉的那些 SDK 会显式发 `"auto"`，不是省略 —— 所以「钉住了」的判据是「不是 auto」。
+  const forced = choices.filter((c) => c !== null && c !== "auto");
+  show("the choices that went out:", forced);
+  ok("at least one call was pinned to a single tool", forced.length > 0, choices);
+  ok(
+    "and the working stations were left to pick for themselves",
+    choices.some((c) => c === "auto"),
+    choices,
+  );
+  ok(
+    "and the one it was pinned to is the hand-in tool",
+    forced.every((c) => JSON.stringify(c).includes("submit")),
+    forced,
+  );
 } finally {
   await fake.stop(true);
 

@@ -161,6 +161,12 @@ export function withSubmit(cycles: DeclaredCycle[]): DeclaredCycle[] {
     // **交卷只有这一行。** 它自己说全了：从哪来、到哪去、谁来判。
     {
       cycle: SUBMIT,
+      // **这一站只能干一件事** —— 工具那边已经只摆了 `submit`（见 `tools/index.ts`
+      // 那条「不在交卷站」的条件）。还能再进一步：请求本身带上「必须调这一个」
+      // （`must_call`），它就连「说一堆话然后什么都没交」都做不到。
+      //
+      // **但那跟思考是互斥的**：只要模型在思考，`tool_choice` 一律 400。所以这儿
+      // 不默认填 —— 谁的模型不思考，谁自己往 `cycle.must_call` 里写一行数据。
       // 跟干活那几站同一种轨。硬写 chat 的话，一个不用模型的机制（`agent.unit`
       // 走外部句柄那种）会在这一站上卡死：它的智能体一条 chat 轨都没有。
       apiMode: tree.map((c) => (c.apiMode ?? "").trim()).find((x) => x !== "") ?? "",
@@ -515,21 +521,6 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
     `insert into trigger (owner_kind, owner, "group", dim, "key", op, value)
      values ('tool', ?, 0, 'cycle', 'infer', 'eq', ?)`,
     [SUBMIT_TOOL.name, TREE_INFER],
-  );
-  // **交卷站不摆工具。** 跑工具的只有动作站（`api_mode` 为空、走 `agent.unit` 的
-  // 那个），而交卷站是模型站、它的下一站也是模型站 —— 模型在那儿请求的任何工具
-  // 都没有人会去跑，那次调用会一直挂着，直到补齐给它写一条「没跑成」。
-  //
-  // 实测的样子：模型在交卷站调 `submit`，拿回一句「没跑成」——它调了工具，没人
-  // 给结果。而交卷本来就不需要工具：交的是它说的话。
-  //
-  // 这一条跟上面那条同一组（组内是 AND），所以是「命中原来那条**并且**这一站
-  // 不是交卷站」。
-  run(
-    db,
-    `insert into trigger (owner_kind, owner, "group", dim, "key", op, value)
-     values ('tool', ?, 0, 'cycle', 'cycle', 'ne', ?)`,
-    [SUBMIT_TOOL.name, SUBMIT],
   );
 
   return [TREE_INFER, SUBMIT_TOOL.name];

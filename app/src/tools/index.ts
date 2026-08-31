@@ -507,4 +507,19 @@ async function exists(path: string): Promise<boolean> {
 }
 
 /** 全部基础工具。**内核不认得这个名单** —— 它只查 `tool` 表。 */
-export const TOOLS: Tool[] = [read, write, edit, glob, grep, bash, python];
+/**
+ * **交卷站一个工具都不摆，除了交卷本身。**
+ *
+ * 跑工具的只有动作站；交卷站是模型站、它的下一站也是模型站 —— 在那儿请求任何
+ * 工具都没有人会去跑，那次调用会一直挂着，最后被补一条「没跑成」。而交卷本来
+ * 也不需要工具：交的是那次 `submit` 调用里的答案。
+ *
+ * 写成条件挂在每一件上，而不是让内核去认「哪一站是交卷站」——**表说了算**，
+ * 想让某件工具在那儿也摆着，改这一行数据就行。
+ */
+const NOT_AT_HAND_IN = [[{ dim: "cycle", key: "cycle", op: "ne", value: "submit" }]];
+
+export const TOOLS: Tool[] = [read, write, edit, glob, grep, bash, python].map((t) => ({
+  ...t,
+  when: t.when ?? NOT_AT_HAND_IN,
+}));

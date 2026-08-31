@@ -165,10 +165,22 @@ try {
     (attachedAt.ask ?? []).includes("verify"),
     attachedAt,
   );
-  // **交卷站不摆工具。** 跑工具的只有动作站；交卷站是模型站、下一站也是模型站，
-  // 在那儿请求任何工具都没有人会去跑 —— 那次调用会一直挂着，最后被补一条
-  // 「没跑成」。而交卷本来就不需要工具：交的是它说的话。
-  ok("and neither is attached at the hand-in station", !(attachedAt.submit ?? []).includes("submit"), attachedAt);
+  // **交卷站只摆交卷这一个。** 跑工具的只有动作站；交卷站是模型站、下一站也是
+  // 模型站，在那儿请求别的工具没有人会去跑 —— 那次调用会一直挂着，最后被补一条
+  // 「没跑成」。而这一站要干的事只有一件：把答案交出来。
+  // **别把普通推进站也一起关了。** 那几件基础工具为了「不在交卷站露面」从
+  // `system` 那一档退了出来（system = 谁都有、不看条件，而条件正是要被看的）。
+  // 退出来之后它们靠条件活着 —— 条件写错就是「哪儿都没有」，而那不报错，
+  // 只表现为模型突然什么都干不了。
+  const ordinary = ["read", "write", "edit", "glob", "grep", "bash", "python_exec"];
+  const missing = ordinary.filter((t) => !(attachedAt.ask ?? []).includes(t));
+  show("ordinary tools missing from the working station:", missing);
+  ok("the ordinary tools are all still there at the working station", missing.length === 0, attachedAt.ask);
+  ok(
+    "at the hand-in station there is nothing else it can do",
+    JSON.stringify(attachedAt.submit ?? []) === JSON.stringify(["submit"]),
+    attachedAt.submit,
+  );
   const row = (
     await m.api<{ rows: Record<string, unknown>[] }>("POST", "/query", {
       sql: "select name, params, system from tool where name = 'submit'",

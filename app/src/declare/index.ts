@@ -57,6 +57,7 @@ export interface CycleDecl {
   cycle: string;
   /** 这一站要哪种调用形状（`chat` / `duplex` / ……）。**留空 = 这一站不用模型**。 */
   apiMode?: string | null;
+  mustCall?: string | null;
   /** 这个周期最多开几个执行单位。默认 1。 */
   maxUnits?: number;
   /** 一般从这个模式里哪几个周期转过来。**空 = 它是入口**。 */
@@ -633,11 +634,12 @@ export async function apply(db: Conn, reg: Registry, pool: Servers, d: Declare):
       for (const c of m.cycles) {
         run(
           db,
-          `insert into cycle (mode, cycle, api_mode, max_units, "from", next, infer) values (?, ?, ?, ?, ?, ?, ?)`,
+          `insert into cycle (mode, cycle, api_mode, must_call, max_units, "from", next, infer) values (?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             m.mode,
             c.cycle,
             (c.apiMode ?? "").trim() || null,
+            (c.mustCall ?? "").trim() || null,
             c.maxUnits ?? 1,
             JSON.stringify(c.from ?? []),
             JSON.stringify(c.next ?? []),
@@ -755,7 +757,7 @@ export function dump(db: Conn): Declare {
 
   const modes: ModeDecl[] = [];
   for (const m of all(db, `select name, note from mode order by name`) as { name: string; note: string | null }[]) {
-    const cycles = all(db, `select cycle, api_mode, max_units, "from", next, infer from cycle where mode = ? order by cycle`, [
+    const cycles = all(db, `select cycle, api_mode, must_call, max_units, "from", next, infer from cycle where mode = ? order by cycle`, [
       m.name,
     ]) as { cycle: string; api_mode: string | null; max_units: number; from: string; next: string; infer: string }[];
     // `mode` 表登记的是**调用形状**（chat/duplex），任务模式只在 cycle 里 ——

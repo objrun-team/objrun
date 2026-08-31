@@ -431,6 +431,8 @@ export class Kernel {
         context,
         // 哪种 role 去消息流、哪种去交代 —— **表说了算**，适配器不再自己留一份。
         sentAs: sentAsIn(this.#store.ro),
+        // 这一站非调不可的那个工具（`cycle.must_call`）。空 = 它自己挑。
+        mustCall: String(facts.cycle.must_call ?? "") || null,
         // 这一轮的任务视图。**每轮现算**，不是库里存着的一条消息 ——
         // 存成消息的话，兄弟分支爬不到它（见 `#viewOf`）。
         view: this.#viewOf(p, facts.task),

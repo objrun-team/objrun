@@ -70,13 +70,16 @@ llm:
   # 三道题因此一个字都没答）。改成「每次少给一点，没说完就接着说」——
   # 模型「没答」和「没答完」是两回事，前者该判错，后者该给它说完。
   continueTimes: 3
-  # 思考强度。**原样发给那家** —— 认不认得是那家的事，我们不替它猜；不认得这个
-  # 参数的模型会忽略它。
+  # 思考强度。**原样发给那家** —— 认不认得是那家的事，我们不替它猜。
   #
-  # DeepSeek 那边实际只有三档：`max` / `high` / `none`。**`low` 和 `medium` 是假的**,
-  # 服务端直接映射成 `high`，填了跟没填一样 —— 所以「调低一点」这件事只有一个选择，
-  # 就是彻底关掉。
-  reasoningEffort: none
+  # DeepSeek 那边实测（`deepseek-v4-flash`）：`low` / `medium` / `high` / `max` 都真的
+  # 在思考，`none` 是一点都不思考。文档里只列了 low / high / max —— `none` 收得下，
+  # 但没写在册子上。
+  #
+  # **注意它跟 `cycle.must_call` 互斥**：只要在思考，`tool_choice` 一律 400
+  # （`Thinking mode does not support this tool_choice`），指名和 `required` 一视同仁，
+  # 只有 `auto` 放行。要钉死某一站必须调哪个工具，就得把这一档设成 `none`。
+  reasoningEffort: low
   # Sampling temperature. **0 for a benchmark**: without it there is no telling how
   # much of a score change came from an edit and how much from sampling noise.
   temperature: 0

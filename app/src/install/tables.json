@@ -111,6 +111,11 @@
           "_": "Which api mode this cycle needs (chat / duplex / ...). Empty = this station uses no model and goes through agent.unit"
         },
         {
+          "name": "must_call",
+          "type": "text",
+          "_": "The one tool this station has to call. Empty = it picks for itself. Set, and the call goes out with that tool forced, so the station cannot end without it. Note that some vendors refuse a forced choice while their thinking mode is on"
+        },
+        {
           "name": "max_units",
           "type": "integer",
           "notnull": true,

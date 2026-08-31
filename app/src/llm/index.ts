@@ -157,6 +157,13 @@ export interface Unit {
    */
   sentAs: Record<string, string>;
   /**
+   * 这一站非调不可的那个工具。**空 = 它自己挑。**
+   *
+   * 摆什么工具决定它**能**调什么，这一列决定它**必须**调什么 —— 两件事。只摆一个
+   * 工具挡不住它一句话都不调就走，而有些站（比如交卷）「没调」就等于这一步没做。
+   */
+  mustCall: string | null;
+  /**
    * 这一轮的任务视图。**内核每轮现算的事实**，不是上下文里的一条消息 ——
    * 消息跟着单链走，兄弟分支爬不到；视图人人有份。
    */
@@ -477,6 +484,14 @@ export function registerVendors(
                 ...(instructions ? { instructions } : {}),
                 ...(Object.keys(tools).length ? { tools } : {}),
                 maxOutputTokens: knobs.maxTokens,
+                // **钉死这一站要调的那个工具。** 有的家在思考模式下拒收它
+                // （DeepSeek V4 回 400：`Thinking mode does not support this
+                // tool_choice`）—— 那是那一列跟思考强度对不上，不是这儿的错，
+                // 错误原样抛出去，看得见就改得动（清空 `cycle.must_call`，或者
+                // 把思考关掉）。
+                ...(u.mustCall && tools[u.mustCall]
+                  ? { toolChoice: { type: "tool" as const, toolName: u.mustCall } }
+                  : {}),
                 // A benchmark run has to be reproducible: without a fixed temperature
                 // there is no telling how much of a score change came from an edit and
                 // how much from sampling noise.
