@@ -45,8 +45,17 @@ type Row = Record<string, unknown>;
  * `ws` 是这家实时轨的地址。**没有就是这家没有实时轨** —— 不填一个假的，
  * 填了的话 `duplex` 那条句柄会给它注册出来，而真调的时候才发现连不上。
  */
-export const VENDORS: Record<string, { baseURL: string; keyEnv: string; ws?: string }> = {
-  deepseek: { baseURL: "https://api.deepseek.com/v1", keyEnv: "DEEPSEEK_API_KEY" },
+/**
+ * `searches` = 这一家**自己跑检索**：它的 `/responses` 端点认
+ * `tools: [{"type": "web_search"}]`，搜什么、开哪些页都在它那一端完成。
+ *
+ * **值在代码里，跟 `MODES` 是同一个道理** —— 实现试过、认得的才写上。往表里插一行
+ * 说某家能搜，实现不认得，那条路就是永远挑不中而且零报错。这一栏决定的是
+ * `web_search` 这件工具**发不发**：一家都不认得就一件都不发，而不是发一件调用起来
+ * 才报错的。
+ */
+export const VENDORS: Record<string, { baseURL: string; keyEnv: string; ws?: string; searches?: boolean }> = {
+  deepseek: { baseURL: "https://api.deepseek.com/v1", keyEnv: "DEEPSEEK_API_KEY", searches: true },
   dashscope: {
     baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
     keyEnv: "DASHSCOPE_API_KEY",

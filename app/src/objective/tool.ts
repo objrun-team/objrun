@@ -42,6 +42,7 @@ import { all, run } from "../H2H/db.ts";
 import type { Registry } from "../engine/registry.ts";
 import { whereAmI } from "../tasks/where.ts";
 import { tableNameOf } from "../install/index.ts";
+import { declareTool } from "../tools/register.ts";
 import { evaluate } from "./run.ts";
 import type { Sealed } from "./store.ts";
 
@@ -133,44 +134,27 @@ export function registerVerifyTool(db: Conn, reg: Registry, sealed: Sealed): str
     // `trace`（每个节点算出了什么）仍然不回，那是给我们排障看的。
     return { pass: v.pass, why: v.why, graded: answer, left: here - spent - 1 };
   });
-  run(
-    db,
-    `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable)
-     values (?, ?, ?, ?, ?, ?, 0, 0, null, 1)
-     on conflict(name) do update set
-       identity = excluded.identity, does = excluded.does, params = excluded.params,
-       output = excluded.output, prompt = excluded.prompt, system = excluded.system`,
-    [
-      VERIFY_TOOL.name,
-      `fn:tool.${VERIFY_TOOL.name}`,
-      VERIFY_TOOL.does,
-      JSON.stringify(VERIFY_TOOL.params),
-      JSON.stringify(VERIFY_TOOL.output),
-      VERIFY_TOOL.prompt,
+  // **落库走同一条路。** 以前这儿是手写的一条 upsert 加两条 `insert into trigger`，
+  // 跟 `register.ts` 里那份各写各的 —— 而它们已经漂开了一列（那边更新
+  // `concurrent`，这边不更新）。现在两边都调 `declareTool`。
+  declareTool(db, {
+    ...VERIFY_TOOL,
+    concurrent: false,
+    // 两条同一组 = AND：**这道题有 G，而且这一站不是交卷站。**
+    //
+    // 第一条：有 G 就该能问 G，不按 mode 分 —— 单链机制也一样。
+    //
+    // 第二条：跑工具的只有动作站（`api_mode` 为空、走 `agent.unit` 的那个），而交卷
+    // 站是模型站、它的下一站也是模型站 —— 模型在那儿请求的任何工具都没有人会去跑，
+    // 那次调用会一直挂着，直到补齐给它写一条「没跑成」。实测的样子：模型在交卷站调
+    // `submit`，拿回一句「没跑成」。而交卷本来就不需要工具：交的是它说的话。
+    when: [
+      [
+        { dim: "task", key: "objective", op: "eq", value: "sealed" },
+        { dim: "cycle", key: "cycle", op: "ne", value: SUBMIT },
+      ],
     ],
-  );
-  run(db, `delete from trigger where owner_kind = 'tool' and owner = ?`, [VERIFY_TOOL.name]);
-  run(
-    db,
-    `insert into trigger (owner_kind, owner, "group", dim, "key", op, value)
-     values ('tool', ?, 0, 'task', 'objective', 'eq', 'sealed')`,
-    [VERIFY_TOOL.name],
-  );
-  // **交卷站不摆工具。** 跑工具的只有动作站（`api_mode` 为空、走 `agent.unit` 的
-  // 那个），而交卷站是模型站、它的下一站也是模型站 —— 模型在那儿请求的任何工具
-  // 都没有人会去跑，那次调用会一直挂着，直到补齐给它写一条「没跑成」。
-  //
-  // 实测的样子：模型在交卷站调 `submit`，拿回一句「没跑成」——它调了工具，没人
-  // 给结果。而交卷本来就不需要工具：交的是它说的话。
-  //
-  // 这一条跟上面那条同一组（组内是 AND），所以是「命中原来那条**并且**这一站
-  // 不是交卷站」。
-  run(
-    db,
-    `insert into trigger (owner_kind, owner, "group", dim, "key", op, value)
-     values ('tool', ?, 0, 'cycle', 'cycle', 'ne', ?)`,
-    [VERIFY_TOOL.name, SUBMIT],
-  );
+  });
   return VERIFY_TOOL.name;
 }
 

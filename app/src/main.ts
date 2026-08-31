@@ -35,6 +35,7 @@ import { registerTreeView } from "./tree/view.ts";
 import { check } from "./trigger/check.ts";
 import { checkData } from "./trigger/data.ts";
 import { Places, registerTools } from "./tools/register.ts";
+import { registerSearchTool } from "./tools/search.ts";
 import { closePython } from "./tools/python.ts";
 import { registerToolUnit } from "./tools/unit.ts";
 
@@ -282,6 +283,11 @@ app.log.info(`message roles: ${seedRoles(app.store.rw).join(", ")}`);
 // 基础工具：注册进内核（它才持有得住函数），同时把给模型看的那几样落进 tool 表。
 // 注册进去的函数只负责**转发** —— 按 workplace 决定这一次在哪儿跑。
 app.log.info(`tools: ${registerTools(app.store.rw, registry, places).join(", ")}`);
+
+// 检索单独一件：它不转发到 workplace（要的是网络和钥匙，不是那台机器上的文件系统），
+// 而且**摆给谁看由 `trigger` 说了算** —— 只有 apis 里是「自己会搜」那几家的智能体
+// 才拿得到。一家都不是，条件一条都不命中，谁也拿不到 —— 这正是 trigger 本来的语义。
+app.log.info(`search tool: ${registerSearchTool(app.store.rw, registry)}`);
 
 // 把上一站模型请求的工具真跑掉。**少了这一步工具那条链是断的** ——
 // 请求落了库却永远不被执行，而且不报错。周期表上 api_mode 留空的那一站走它。

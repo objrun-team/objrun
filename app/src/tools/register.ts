@@ -136,6 +136,64 @@ async function existsAt(p: Place, path: string): Promise<boolean> {
   }
 }
 
+/** 一件工具报给库的那几样。干活那个函数不在里头 —— 那是句柄的事，跟这张表无关。 */
+export interface Declared {
+  name: string;
+  does: string;
+  params: Record<string, unknown>;
+  output: Record<string, unknown>;
+  prompt: string;
+  concurrent: boolean;
+  when?: { dim: string; key: string; op: string; value: string }[][];
+}
+
+/**
+ * 把一件工具落进 `tool` 和 `trigger`。**只此一处。**
+ *
+ * 以前这段有两份：这个文件里一份（照 `when` 生成条件），`objective/tool.ts` 里
+ * `verify` 又手写了两条 `insert into trigger`。同一件事两处各写各的，那两份就会漂，
+ * 而且是**悄悄地漂**：一边改了 upsert 要更新哪几列、另一边没跟上，看着照常工作，
+ * 只是有一列永远停在第一次写进去的值上。实际就已经差了一列（`concurrent`）。
+ *
+ * `when` 一并管两件事：条件写进 `trigger`，以及**这件算不算「系统工具」**。系统工具
+ * 是「谁都有、不看条件」，所以带条件的必须退出那一档 —— 两样同时成立的话，条件写了
+ * 不生效，而且不报错。
+ *
+ * 条件**先清后写**：重装时旧的那几行留着的话，改了条件也不生效。
+ */
+export function declareTool(db: Conn, t: Declared, identity = `fn:tool.${t.name}`): void {
+  const conditional = (t.when ?? []).length > 0;
+  run(
+    db,
+    `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable)
+     values (?, ?, ?, ?, ?, ?, ?, ?, null, 1)
+     on conflict(name) do update set
+       identity = excluded.identity, does = excluded.does, params = excluded.params,
+       output = excluded.output, prompt = excluded.prompt,
+       concurrent = excluded.concurrent, system = excluded.system`,
+    [
+      t.name,
+      identity,
+      t.does,
+      JSON.stringify(t.params),
+      JSON.stringify(t.output),
+      t.prompt,
+      t.concurrent ? 1 : 0,
+      conditional ? 0 : 1,
+    ],
+  );
+  run(db, `delete from trigger where owner_kind = 'tool' and owner = ?`, [t.name]);
+  (t.when ?? []).forEach((group, i) => {
+    for (const term of group) {
+      run(
+        db,
+        `insert into trigger (owner_kind, owner, "group", dim, "key", op, value) values ('tool', ?, ?, ?, ?, ?, ?)`,
+        [t.name, i, term.dim, term.key, term.op, term.value],
+      );
+    }
+  });
+}
+
 /**
  * 注册全部基础工具。行是 upsert 的 —— 重装一次不该多出一堆重复。
  *
@@ -184,39 +242,7 @@ export function registerTools(db: Conn, reg: Registry, places: Places): string[]
       return await p.call(t.name, args);
     });
 
-    // **带条件的那几件退出「系统工具」那一档。** 系统工具是「谁都有、不看条件」，
-    // 而条件正是要被看的 —— 两样同时成立的话，条件写了也没用，而且不报错。
-    const conditional = (t.when ?? []).length > 0;
-    run(
-      db,
-      `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable)
-       values (?, ?, ?, ?, ?, ?, ?, ?, null, 1)
-       on conflict(name) do update set
-         identity = excluded.identity, does = excluded.does, params = excluded.params,
-         output = excluded.output, prompt = excluded.prompt,
-         concurrent = excluded.concurrent, system = excluded.system`,
-      [
-        t.name,
-        identity,
-        t.does,
-        JSON.stringify(t.params),
-        JSON.stringify(t.output),
-        t.prompt,
-        t.concurrent ? 1 : 0,
-        conditional ? 0 : 1,
-      ],
-    );
-    // 条件重写一遍：重装时旧的那几行不清掉的话，改了条件也不生效。
-    run(db, `delete from trigger where owner_kind = 'tool' and owner = ?`, [t.name]);
-    (t.when ?? []).forEach((group, i) => {
-      for (const term of group) {
-        run(
-          db,
-          `insert into trigger (owner_kind, owner, "group", dim, "key", op, value) values ('tool', ?, ?, ?, ?, ?, ?)`,
-          [t.name, i, term.dim, term.key, term.op, term.value],
-        );
-      }
-    });
+    declareTool(db, t, identity);
     names.push(t.name);
   }
   return names;
