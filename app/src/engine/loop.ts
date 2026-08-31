@@ -31,7 +31,7 @@ import { tableNameOf } from "../install/index.ts";
 import { SUBMIT } from "../tree/dfs.ts";
 import { chainOf, type Unit } from "./chain.ts";
 import type { Registry } from "./registry.ts";
-import { answerMissing, checkBody, deliver } from "../msg/deliver.ts";
+import { answerMissing, checkBody, deliver, sentAsIn } from "../msg/deliver.ts";
 import { fire, type Facts } from "./trigger.ts";
 
 type Row = Record<string, unknown>;
@@ -429,6 +429,8 @@ export class Kernel {
         // 这一站挑好的那条轨。适配器直接用，不用自己再挑一遍。
         api: pickd.api,
         context,
+        // 哪种 role 去消息流、哪种去交代 —— **表说了算**，适配器不再自己留一份。
+        sentAs: sentAsIn(this.#store.ro),
         // 这一轮的任务视图。**每轮现算**，不是库里存着的一条消息 ——
         // 存成消息的话，兄弟分支爬不到它（见 `#viewOf`）。
         view: this.#viewOf(p, facts.task),

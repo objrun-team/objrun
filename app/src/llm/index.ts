@@ -34,6 +34,7 @@ import { dynamicTool, generateText, jsonSchema, type ModelMessage } from "ai";
 import type { Conn } from "../H2H/db.ts";
 import type { Log } from "../engine/loop.ts";
 import type { Registry } from "../engine/registry.ts";
+import { ROLES as DELIVER_ROLES } from "../msg/deliver.ts";
 
 type Row = Record<string, unknown>;
 
@@ -149,6 +150,13 @@ export interface Unit {
   api: { key_env: string; model: string; base_url: string; retry_on: string } | null;
   context: { seq: number; role: string; kind: string; body: string }[];
   /**
+   * 哪种 role 出站时去哪儿 —— **从 `msg_role` 表读的，内核给过来。**
+   *
+   * 以前这份对照只活在这个文件的一个常量里。那意味着「一份库取出来就能打给
+   * 模型」这句话不成立：还得同时拿着那一版代码，才知道哪几行该进消息流。
+   */
+  sentAs: Record<string, string>;
+  /**
    * 这一轮的任务视图。**内核每轮现算的事实**，不是上下文里的一条消息 ——
    * 消息跟着单链走，兄弟分支爬不到；视图人人有份。
    */
@@ -191,36 +199,16 @@ function key(keyEnv: string): string {
  * chat 和 duplex 各写一份的话，就是 `deliver.ts` 开头警告的那件事：同一个 bug
  * 有两份副本，而修的时候多半只修一份。
  */
-export function sendable(r: { role: string; kind: string }): boolean {
-  return ROLES[r.role]?.where === "messages";
+export function sendable(r: { role: string; kind: string }, sentAs: Record<string, string>): boolean {
+  return sentAs[r.role] === "messages";
 }
 
 /**
- * 一个 role 怎么送到模型那边去。**一处定义，两条轨读同一份。**
- *
- * | role | 去哪儿 |
- * | --- | --- |
- * | `user` `assistant` `tool` | 消息流。模型认得的那三种，原样过去 |
- * | `system` `skill` | `instructions`。不是对话里的一句，是这一轮的交代 |
- *
- * **`skill` 有自己的 role**，不借 `user`：借了就等于告诉模型「有人在跟你说这段话」，
- * 而它其实是我们按条件塞进去的一段提示。实测借 `user` 的后果是模型开始接话反问
- * （「请把本题的具体选项发出来」），不再作答 —— 不报错，只表现为分数低。
- *
- * 表里认不得的 role 一律**不发**（见 `roleOf`）。宁可少发一条，也不猜着发 ——
- * 猜错了那条会以错误的身份进上下文，而这件事查不出来。
+ * 认得的 role。**取值就是 `msg_role` 表里的行** —— 那张表说了每种 role 出站时
+ * 去哪儿（`sent_as`），种子在 `msg/deliver.ts`。这个文件里以前有一份同样的对照，
+ * 删掉了：两处各存一份的话，改了一处漏了另一处不报错，只表现为某一路悄悄按
+ * 错误的身份进了上下文。
  */
-const ROLES: Record<string, { where: "messages" | "instructions" }> = {
-  user: { where: "messages" },
-  assistant: { where: "messages" },
-  tool: { where: "messages" },
-  system: { where: "instructions" },
-  skill: { where: "instructions" },
-};
-
-/** 认得的 role。**取值就是上面那张表的键** —— 不另列一份名单。 */
-export const ROLE_NAMES = Object.keys(ROLES);
-
 /**
  * 库里那一行怎么变回一条模型消息。
  *
@@ -228,7 +216,7 @@ export const ROLE_NAMES = Object.keys(ROLES);
  * 那条是工具的返回 —— 消息表只有一列 `body`，这两样没有自己的列，所以塞在里面。
  * 两头都是我们，约定一致就行；哪天觉得该有一列再补。
  */
-function toMsg(r: { role: string; kind: string; body: string }): ModelMessage | null {
+function toMsg(r: { role: string; kind: string; body: string }, sentAs: Record<string, string>): ModelMessage | null {
   if (r.kind === "call") {
     const v = JSON.parse(r.body) as { text?: string; calls?: { id: string; name: string; input: unknown }[] };
     return {
@@ -258,7 +246,7 @@ function toMsg(r: { role: string; kind: string; body: string }): ModelMessage | 
       ],
     };
   }
-  if (!sendable(r)) return null;
+  if (!sendable(r, sentAs)) return null;
   if (r.role === "assistant") return { role: "assistant", content: r.body };
   return { role: "user", content: r.body };
 }
@@ -277,7 +265,7 @@ export function instructionsOf(u: Unit): string {
     ...u.tools.map((t) => String(t.prompt ?? "")),
     // 走 instructions 那一档的都收进来 —— `system` 和 `skill`。
     // 内核那条记账（`kind: "inject"`）除外：那是给我们看的账本，不念给模型听。
-    ...u.context.filter((r) => ROLES[r.role]?.where === "instructions" && r.kind !== "inject").map((r) => r.body),
+    ...u.context.filter((r) => u.sentAs[r.role] === "instructions" && r.kind !== "inject").map((r) => r.body),
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -391,7 +379,7 @@ export function viewOf(u: Unit): string {
 export function messagesOf(u: Unit): ModelMessage[] {
   const view = viewOf(u);
   return [
-    ...u.context.map(toMsg).filter((m): m is ModelMessage => m !== null),
+    ...u.context.map((r) => toMsg(r, u.sentAs)).filter((m): m is ModelMessage => m !== null),
     ...(view ? [{ role: "user" as const, content: view }] : []),
   ];
 }

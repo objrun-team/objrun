@@ -549,6 +549,16 @@
       ]
     },
     {
+      "name": "msg_role",
+      "_": "Registers message roles, and where each one goes on the way out. This is the only place that says it: the same kind can wear two roles (the world injects one as user, the kernel injects one as system), so where a line goes cannot be read off its kind.",
+      "columns": [
+        { "name": "name", "type": "text", "notnull": true },
+        { "name": "sent_as", "type": "text", "notnull": true, "_": "messages = a line in the conversation. instructions = part of what this turn is told, resent every turn and not a thing anyone said" },
+        { "name": "note", "type": "text" }
+      ],
+      "pk": ["name"]
+    },
+    {
       "name": "msg_kind",
       "_": "Registers message kinds. Adding one = adding a row; no other table changes.",
       "columns": [

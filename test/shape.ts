@@ -149,6 +149,40 @@ try {
   show("asked:", asked);
   show("answered:", [...answered]);
   ok("every call in the table has its result in the table", asked.every((id) => answered.has(id)), { asked, answered });
+  // ═══════════════════════════════════════════════════════════════════════
+  part("Part three: where a line goes is written down, not compiled in");
+
+  step("8. the table says where each role goes");
+  const roles = (
+    await m.api<{ rows: { name: string; sent_as: string }[] }>("POST", "/query", {
+      sql: "select name, sent_as from msg_role order by name",
+    })
+  ).rows;
+  show("what the table says:", roles.map((r) => `${r.name} -> ${r.sent_as}`));
+  ok(
+    "the three the model knows go into the conversation",
+    ["user", "assistant", "tool"].every((n) => roles.find((r) => r.name === n)?.sent_as === "messages"),
+    roles,
+  );
+  ok(
+    "and the two that are told rather than said go into instructions",
+    ["system", "skill"].every((n) => roles.find((r) => r.name === n)?.sent_as === "instructions"),
+    roles,
+  );
+
+  step("9. it is keyed by role, because one kind can wear two");
+  // 世界注入的 `inject` 是 user，内核注入的 `inject` 是 system —— 一个进消息流，
+  // 一个进交代。按 kind 查的话这两条只能得到同一个答案，而它们本来就不该一样。
+  const kinds = (
+    await m.api<{ rows: { name: string }[] }>("POST", "/query", { sql: "select name from msg_kind" })
+  ).rows.map((r) => r.name);
+  show("the kinds registered:", kinds);
+  ok("inject is a single kind", kinds.filter((k) => k === "inject").length === 1, kinds);
+  ok(
+    "yet user and system part ways - so the answer cannot hang off the kind",
+    roles.find((r) => r.name === "user")?.sent_as !== roles.find((r) => r.name === "system")?.sent_as,
+    roles,
+  );
 } finally {
   out.stop();
   m.stop();

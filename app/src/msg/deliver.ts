@@ -303,6 +303,55 @@ export function deliverVerdict(
  * 两处，而漏改的表现是那一路悄悄按别人的身份进了上下文。
  */
 export const ROLES = [...new Set(Object.values(FROM).map((f) => f.role))].sort();
+/**
+ * 每种 role 出站时去哪儿，外加一句人话。**这是种子，`msg_role` 表才是家。**
+ *
+ * | role | 去哪儿 |
+ * | --- | --- |
+ * | `user` `assistant` `tool` | 消息流。模型认得的那三种，原样过去 |
+ * | `system` `skill` | `instructions`。不是对话里的一句，是这一轮的交代 |
+ *
+ * **`skill` 有自己的 role**，不借 `user`：借了就等于告诉模型「有人在跟你说这段话」，
+ * 而它其实是我们按条件塞进去的一段提示。实测借 `user` 的后果是模型开始接话反问
+ * （「请把本题的具体选项发出来」），不再作答 —— 不报错，只表现为分数低。
+ *
+ * **为什么挂在 role 上而不是 kind 上**：同一种 kind 能穿两种 role —— 世界注入的
+ * `inject` 是 `user`，内核注入的 `inject` 是 `system`，一个进消息流一个进交代。
+ * 按 kind 查的话这两条只能得到同一个答案，而它们本来就不该一样。
+ */
+const SENT_AS: [string, string, string][] = [
+  ["user", "messages", "A line in the conversation, from whoever is on the other side"],
+  ["assistant", "messages", "What the model itself said, including the tools it asked for"],
+  ["tool", "messages", "What a tool answered. It has to be here, matched by id to the call above it"],
+  ["system", "instructions", "Part of what this turn is told. Resent every turn, and not a thing anyone said"],
+  ["skill", "instructions", "A prompt placed by a skill. Its own role, so it is never taken for a person talking"],
+];
+
+/**
+ * 把这份种子灌进 `msg_role`。幂等 —— 跟 `seedKinds` 是同一件事。
+ *
+ * 灌完之后**以表为准**：库里把某个 role 改成走 instructions，它就走 instructions，
+ * 不用动代码。这一列以前只活在 `llm/index.ts` 的一个常量里 —— 那意味着「一份库
+ * 取出来就能打给模型」这句话不成立：还得同时拿着那一版代码，才知道哪些行该进去。
+ */
+export function seedRoles(db: Conn): string[] {
+  for (const [name, sentAs, note] of SENT_AS) {
+    run(
+      db,
+      `insert into msg_role (name, sent_as, note) values (?, ?, ?)
+       on conflict(name) do update set sent_as = excluded.sent_as, note = excluded.note`,
+      [name, sentAs, note],
+    );
+  }
+  return SENT_AS.map(([n]) => n);
+}
+
+/** 库里现在怎么说：role → 去哪儿。**取出来就能用，不用再问代码。** */
+export function sentAsIn(db: Conn): Record<string, string> {
+  const rows = all(db, `select name, sent_as from msg_role`) as { name: string; sent_as: string }[];
+  return Object.fromEntries(rows.map((r) => [String(r.name), String(r.sent_as)]));
+}
+
 
 /** 认得的消息类型 —— `msg_kind` 表的种子。**取值就是上面那张推断表的值域。** */
 export const KINDS: [string, string][] = [

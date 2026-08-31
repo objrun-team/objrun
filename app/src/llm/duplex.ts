@@ -438,8 +438,8 @@ function errText(d: Record<string, unknown>): string {
  * 跟 chat 那边的 `toMsg` 是同一件事的两种形状，**共用同一个 `sendable` 判据** ——
  * 各写一份的话，哪天改了「什么不该发给模型」就只会改到一边。
  */
-function itemOf(r: { role: string; kind: string; body: string }): Item | null {
-  if (!sendable(r)) return null;
+function itemOf(r: { role: string; kind: string; body: string }, sentAs: Record<string, string>): Item | null {
+  if (!sendable(r, sentAs)) return null;
 
   // 它自己上一轮请求工具的那一条。**会话记得住自己说过什么**，重发等于让它把
   // 自己的话又听一遍。chat 那边必须重发，因为那边压根没有「上一轮」——
@@ -566,7 +566,7 @@ export function registerDuplex(db: Conn, reg: Registry, pool: Sessions, seed: [s
       const opening: Item[] = view && !seenView.has(u.instance) ? [{ role: "user", text: view }] : [];
       if (opening.length) seenView.add(u.instance);
 
-      const out = await s.turn([...opening, ...u.context.map(itemOf).filter((x): x is Item => x !== null)]);
+      const out = await s.turn([...opening, ...u.context.map((r) => itemOf(r, u.sentAs)).filter((x): x is Item => x !== null)]);
 
       // 别人说的话先落库。**走那条唯一的投递管道** —— kind 和 role 都是推出来的，
       // 不在这儿填。`voice` 跟 `user` 分开：转写是说的，不是打的，混成一个的话

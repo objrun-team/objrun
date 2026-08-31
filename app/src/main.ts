@@ -28,7 +28,7 @@ import { attach } from "./mcp/register.ts";
 import { mcpServeRoutes } from "./mcp/serve.ts";
 import { evaluate } from "./objective/run.ts";
 import { openSealed } from "./objective/store.ts";
-import { deliverVerdict, seedKinds } from "./msg/deliver.ts";
+import { deliverVerdict, seedKinds, seedRoles } from "./msg/deliver.ts";
 import { registerTree, SUBMIT } from "./tree/dfs.ts";
 import { registerVerifyTool } from "./objective/tool.ts";
 import { registerTreeView } from "./tree/view.ts";
@@ -230,6 +230,7 @@ app.log.info(`grading tool: ${registerVerifyTool(app.store.rw, registry, sealed)
 // 认得的消息类型。**取值就是那条「谁放的 → kind」推断表的值域** —— 灌进来是
 // 为了让 check 和人都能查得到，不是让谁去填。
 app.log.info(`message kinds: ${seedKinds(app.store.rw).join(", ")}`);
+app.log.info(`message roles: ${seedRoles(app.store.rw).join(", ")}`);
 
 // 基础工具：注册进内核（它才持有得住函数），同时把给模型看的那几样落进 tool 表。
 // 注册进去的函数只负责**转发** —— 按 workplace 决定这一次在哪儿跑。
