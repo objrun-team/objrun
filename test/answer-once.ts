@@ -71,6 +71,11 @@ const fake = Bun.serve({
     const path = new URL(req.url).pathname;
     // 这一站走完去哪儿：ask → act → ask，第三站收工。
     // G 的两个节点：这一版看什么都说「不成」，好让节点真的被判死。
+    // 一个**比时限还慢**的工具 —— 用来造出「钟响了而那一站还在跑」的现场。
+    if (path === "/slowtool") {
+      await Bun.sleep(6000);
+      return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json" } });
+    }
     if (path === "/nope") return new Response("false", { headers: { "content-type": "application/json" } });
     if (path === "/verdict") return new Response("false", { headers: { "content-type": "application/json" } });
     if (path === "/infer") {
@@ -81,9 +86,24 @@ const fake = Bun.serve({
       });
     }
     // 这一次请求带了什么 `tool_choice` —— 「这一站必须调哪个」验的就是它。
-    const body = (await req.json()) as { tool_choice?: unknown };
+    const body = (await req.json()) as { tool_choice?: unknown; messages?: { content?: unknown }[] };
+    // **这道题要那个慢工具。** 视图里带着任务描述，照它认出是哪一道 —— 只有真
+    // 请求了一个比时限还慢的工具，才造得出「钟响了而那一站还在跑」的现场。
+    const racing = JSON.stringify(body.messages ?? []).includes("cut this one off mid-call");
     choices.push(body.tool_choice ?? null);
     asked++;
+    if (racing) {
+      return answer(
+        {
+          role: "assistant",
+          content: "",
+          tool_calls: [
+            { id: `slow-${String(asked)}`, type: "function", function: { name: "slow_thing", arguments: "{}" } },
+          ],
+        },
+        "tool_calls",
+      );
+    }
     if (asked === 1 || alwaysCalls) {
       return answer(
         {
@@ -361,8 +381,88 @@ try {
     forced.every((c) => JSON.stringify(c).includes("submit")),
     forced,
   );
+
+  // ═══════════════════════════════════════════════════════════════════════
+  part("Part three: the wrap-up verdict gives way to a call that is still running");
+
+  step("11. a task whose clock runs out while a station is still working");
+  // **收尾判决要落在那一站上，而那一站这会儿可能还在跑。** 两边都是「取当前最大
+  // seq 再加一」往同一格里追加，谁先落谁排前面 —— 判决抢在前面的话，上一站那次
+  // 调用和它的结果中间就夹了一对判决，而模型那边不许这个形状，整条链路从此发
+  // 不出去。真跑里撞见过三次，每次都在任务被时限判掉的那一刻。
+  //
+  // 超时是这里面优先级最低的一件事：那次调用是真在干活，判决只是收尾。
+  await m.api("POST", "/declare", {
+    handles: [{ name: at("/slowtool"), expectMs: 60_000 }],
+    tools: [
+      {
+        name: "slow_thing",
+        identity: at("/slowtool"),
+        does: "Takes a while.",
+        params: { type: "object", properties: {}, additionalProperties: false },
+        output: { type: "object", properties: { ok: { type: "boolean" } } },
+        prompt: "",
+        when: [[{ dim: "task", key: "domain", op: "eq", value: "slow" }]],
+      },
+    ],
+  });
+  await m.api("POST", "/tasks", {
+    id: "t-race", mode: "tree", agent: "bot", place: "local", source: "user",
+    description: "the clock will cut this one off mid-call", readable: false,
+    domain: "slow", solveSeconds: 4, maxDeadSiblings: 2,
+    objective: {
+      nodes: [
+        { name: "look", moment: "done", domain: { kind: "bool" }, handle: at("/nope") },
+        { name: "verdict", moment: "done", domain: { kind: "bool" }, handle: at("/verdict") },
+      ],
+      edges: [{ src: "look", out: 0, dst: "verdict" }],
+      sink: "verdict",
+    },
+  });
+  await until(
+    "t-race to be closed by the clock",
+    async () => {
+      const d = await m.api<{ state: string }>("GET", "/tasks/t-race");
+      return d.state === "failed" || d.state === "done" ? d : null;
+    },
+    60_000,
+  );
+  // 判决落下来之前那一站还在跑，所以再等一会儿让它落完。
+  const late = await until(
+    "the wrap-up verdict to land",
+    async () => {
+      const got = await m.api<{ rows: { unit: number; seq: number; role: string; kind: string; body: string }[] }>(
+        "POST",
+        "/query",
+        { sql: "select unit, seq, role, kind, body from agent_bot_msg where instance = 't-race#1' order by unit, seq" },
+      );
+      return got.rows.some((r) => r.kind === "graded") ? got.rows : null;
+    },
+    60_000,
+  );
+
+  step("12. the wrap-up verdict did not cut in between a call and its result");
+  // **只看判决有没有插队。** 最后那次调用可能压根没有结果 —— 钟响的时候它还在飞，
+  // 而任务判失败之后没有人再补了。那是另一回事（也不影响任何人：这道题已经判完，
+  // 那份上下文再也不会被发出去），这儿要验的是判决有没有插在一对中间。
+  const flow = late.filter((r) => r.role === "user" || r.role === "assistant" || r.role === "tool");
+  const broken: string[] = [];
+  for (let i = 0; i < flow.length; i++) {
+    const r = flow[i];
+    if (r.kind !== "call" && r.kind !== "graded") continue;
+    for (const c of (JSON.parse(r.body) as { calls?: { id?: string }[] }).calls ?? []) {
+      const next = flow[++i];
+      if (next === undefined) continue; // 队尾那次调用没人答 —— 见上面
+      const got = next.kind === "tool" ? (JSON.parse(next.body) as { id?: string }).id : undefined;
+      if (got !== c.id) broken.push(`u${String(r.unit)}.${String(r.seq)} asked ${String(c.id)}, next answered ${String(got)}`);
+    }
+  }
+  show("the rows, in the order they will be sent:", flow.map((r) => `u${String(r.unit)}.${String(r.seq)} ${r.kind}`));
+  show("calls whose result does not follow straight away:", broken);
+  ok("the wrap-up verdict did not cut in between a call and its result", broken.length === 0, broken);
 } finally {
   await fake.stop(true);
+
 
   m.stop();
 }

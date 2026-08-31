@@ -54,6 +54,36 @@ function lastUnit(
 }
 
 /**
+ * 等那一站落完。**收尾判决要给正在干活的调用让路。**
+ *
+ * 时限到了不代表那一站回来了 —— 它可能正跑着一段 python，或者正等着模型回话。
+ * 判决和那一站的结果都是「取当前最大 seq 再加一」往同一格里追加，所以谁先落谁
+ * 排前面。判决抢在前面的话，上一站那次调用和它的结果中间就夹了一对判决，而模型
+ * 那边不许这个形状（`An assistant message with 'tool_calls' must be followed by
+ * tool messages responding to each of them`），整条链路从此发不出去。
+ *
+ * **超时是这里面优先级最低的一件事** —— 那次调用是真在干活，判决只是收尾。
+ *
+ * 不硬等：那一站自己有 `expect_ms`，到点内核会把它判死关掉，这儿只是跟着那个钟
+ * 走。反正这道题已经判完了，判决晚落一会儿不改变任何结果。
+ */
+async function settled(db: Parameters<typeof all>[0], task: string, unit: number | undefined): Promise<void> {
+  if (unit === undefined) return;
+  const t = all(db, `select mode from task where id = ?`, [task])[0] as { mode?: string } | undefined;
+  if (!t?.mode) return;
+  const sub = tableNameOf("task_{}", String(t.mode));
+  const CAP_MS = 16 * 60 * 1000; // 比句柄那 15 分钟稍长，让它先被判死
+  const t0 = Date.now();
+  while (Date.now() - t0 < CAP_MS) {
+    const row = all(db, `select done from "${sub}" where task = ? and unit = ?`, [task, unit])[0] as
+      | { done?: number }
+      | undefined;
+    if (!row || Number(row.done) === 1) return;
+    await Bun.sleep(500);
+  }
+}
+
+/**
  * 收尾那一刻，**这道题交上来的是什么**。
  *
  * 交卷是流转表上的一站（`tree/dfs.ts` 的 `SUBMIT`，随机制一起装上）。**交的就是
@@ -188,6 +218,18 @@ const kernel = new Kernel(app.store, app.log, registry, {
       // **拿到判决就投回上下文** —— 跟树那一路一个规矩（`tree/dfs.ts`）：
       // 凡是问过 G 的，判决都以「一次带结果的工具调用」落在那一站上。
       // 只写 `task.result` 的话，那是给我们看的，模型永远不知道自己被判了什么。
+      // **超时让路。** 收尾判决要落在那一站上，而那一站这会儿可能还在跑 ——
+      // 时限到了不代表那次调用回来了。两边都是「取当前最大 seq 再加一」，所以
+      // 谁先落谁排前面：判决抢在前面的话，上一站那次调用和它的结果就被隔开了，
+      // 而模型那边不许这个形状（`An assistant message with 'tool_calls' must be
+      // followed by tool messages responding to each of them`）。整条链路从此
+      // 发不出去，库里留一句 stuck。
+      //
+      // **超时是这里面优先级最低的一件事** —— 那次调用是真在干活，判决只是收尾。
+      // 所以等它落完再写。等不到也不硬等：那一站自己有 `expect_ms`，到点会被判死
+      // 关掉，这儿的等待封顶就是那个时长。
+      await settled(app.store.ro, String(task), at?.unit);
+
       if (at) {
         deliverVerdict(app.store.rw, {
           agent: at.agent,
