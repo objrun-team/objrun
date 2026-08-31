@@ -86,12 +86,14 @@ try {
   ok("a submit cycle grew, though nobody declared one", submit !== undefined, graph.cycles);
   // **交卷不是终点。** 判 1 是这道题做成了；判 0 只说明这一次交的不成，
   // 该往前走进下一个节点的动作阶段再试，而不是收工。
+  // **交卷不是终点。** 判 1 是这道题做成了；判 0 只说明这一次交的不成，
+  // 该往前走进下一个节点的动作阶段再试，而不是收工。
   ok(
     "it feeds back into the action stage rather than ending the tree",
     JSON.stringify(submit?.next) === JSON.stringify(["ask"]),
     submit?.next,
   );
-  ok("and it is entered from that same action stage", JSON.stringify(submit?.from) === JSON.stringify(["ask"]), submit?.from);
+  ok("and the table records where it can be entered from", JSON.stringify(submit?.from) === JSON.stringify(["ask"]), submit?.from);
   ok("the working cycle can now route to it", JSON.stringify(graph.cycles.find((c) => c.cycle === "ask")?.next).includes("submit"), graph.cycles);
   ok(
     "its budget is not the binding one - it takes the sum of the working cycles",

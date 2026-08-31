@@ -132,28 +132,33 @@ export function withSubmit(cycles: DeclaredCycle[]): DeclaredCycle[] {
   if (tree.length === 0) return cycles;
   if (cycles.some((c) => c.cycle === SUBMIT)) return cycles;
 
-  // **交卷接在动作阶段后面。** 动作阶段是不叫模型的那一站（`api_mode` 为空）：
-  // 它跑的是上一站请求的工具，跑完那一轮工作就完整了，该轮到「交不交」。
-  // 思考站不直接接交卷 —— 刚开口说完就交，中间那一步工具还没跑。
-  //
-  // 一个动作阶段都没有的机制（每一站都叫模型），退回接在所有站后面。
+  // 交卷之后接**动作阶段** —— 不叫模型的那一站（`api_mode` 为空）：它跑上一站
+  // 请求的工具，跑完那一轮工作才完整。一个动作阶段都没有的机制（每一站都叫模型），
+  // 退回接在所有站后面。
   const acts = tree.filter((c) => (c.apiMode ?? "").trim() === "");
-  const before = acts.length > 0 ? acts : tree;
-  const names = new Set(before.map((c) => c.cycle));
+  const after = acts.length > 0 ? acts : tree;
+  const names = new Set(tree.map((c) => c.cycle));
 
   return [
+    // **每一站都能走到交卷。** 「干活的额度花完了就该交」是节点级的规矩，
+    // 而这条规矩得写在表上：表说得出的边，才是内核准许走的边
+    // （`loop.ts` 那道白名单：`if (!saidFrom && !next.includes(to))`）。
+    //
+    // 让推断函数带上父指针绕过白名单也能拐过去，但那样表上就看不出这条边 ——
+    // 表说的和实际走的不一样，那才是把表整乱套。
     ...cycles.map((c) => (names.has(c.cycle) ? { ...c, next: [...new Set([...(c.next ?? []), SUBMIT])] } : c)),
+    // **交卷只有这一行。** 它自己说全了：从哪来、到哪去、谁来判。
     {
       cycle: SUBMIT,
-      // **跟干活那几站同一种轨。** 硬写 chat 的话，一个不用模型的机制（`agent.unit`
+      // 跟干活那几站同一种轨。硬写 chat 的话，一个不用模型的机制（`agent.unit`
       // 走外部句柄那种）会在这一站上卡死：它的智能体一条 chat 轨都没有。
       apiMode: tree.map((c) => (c.apiMode ?? "").trim()).find((x) => x !== "") ?? "",
       maxUnits: tree.reduce((n, c) => n + Number(c.maxUnits ?? 1), 0),
-      from: before.map((c) => c.cycle),
-      // **交完接下一个节点的动作阶段，不是走到头。** 判 0 之后该往前走进下一次
-      // 尝试，而不是靠回退硬凑 —— 做成终点站的那一版只能退到父节点，而父节点
-      // 又立刻拐回交卷，交的还是同一份东西（实测空转过三轮）。
-      next: before.map((c) => c.cycle),
+      from: tree.map((c) => c.cycle),
+      // 交完接下一个节点的动作阶段 —— 判 0 只说明这一次交的不成，不说明这道题
+      // 到头了。做成终点站（`next: []`）的那一版只能往回退，而退回去又立刻拐回
+      // 交卷，交的还是同一份东西。
+      next: after.map((c) => c.cycle),
       infer: TREE_INFER,
     },
   ];
@@ -373,17 +378,10 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
       const handedIn = calledSubmit(db, inst, a.unit);
       const spoke = r.kind === "prompt" && spokenAt(a.result).trim() !== "";
 
-      // **拐去交卷是节点级的规矩，不看这一站的 `next` 里写没写它。**
-      //
-      // 一度写成了 `… && a.next.includes(SUBMIT)`，那是把两件事套在了一起：
-      // 「这个节点干完了」是节点的事，「这一站下一步能去哪」是流转表的事。
-      // 套上之后，`ask.next` 改成 `[act]` 就让站在 `ask` 上再也拐不过去 ——
-      // 干活的额度花完了却走不到交卷站，那一支静默停住。
-      //
-      // 不必要，也不该：内核的 `next` 白名单**只管平推**（`loop.ts`：
-      // `if (!saidFrom && !next.includes(to))`），带了父指针的不查。所以这儿显式
-      // 挂在当前这一行底下 —— 交卷本来就是这个节点走完之后的那一步。
-      const toSubmit = { to: SUBMIT, from_cycle: here, from_unit: a.unit } satisfies Said;
+      // **拐去交卷是节点级的规矩，而这条规矩写在表上。** 每一站的 `next` 里都有
+      // 交卷（`withSubmit` 补的），所以这儿平推过去就行 —— 表说得出的边，才是
+      // 内核准许走的边。自己带父指针绕过白名单也能走通，但那样表上看不出这条边。
+      const toSubmit = { to: SUBMIT } satisfies Said;
 
       // 它自己说完了 / 它按了交卷 —— 提前拐过去。
       if (handedIn || spoke) return toSubmit;
