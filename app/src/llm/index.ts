@@ -122,7 +122,7 @@ export interface Unit {
   view?: {
     task: Row;
     here: { cycle: string; unit: number; chain: string; next?: string[] };
-    tried: { at: string; from: string | null; status: string | null; done: boolean }[];
+    tried: { node: number; at: string; status: string | null; done: boolean; mine?: boolean }[];
     /**
      * 还剩多少额度。**只有事实** —— 该在哪一站交卷、用哪个工具交，是声明层说的事
      * （流转表上摆着有哪几站，规矩写在 skill / 任务描述里）。
@@ -314,15 +314,17 @@ export function viewOf(u: Unit): string {
     lines.push(
       "",
       "## This tree",
-      `You are at ${v.here.chain}. Paths already tried:`,
+      // 说的是**节点**：一个节点是一次完整的尝试，好几个执行单元拼起来。
+      // `node_load` 认的也是节点号 —— 两处得说同一种话，不然它会拿行号去问。
+      `You are at ${v.here.chain}. Attempts so far:`,
       ...v.tried.map(
         (n) =>
-          `- ${n.at}${n.from ? ` (continues ${n.from})` : " (root)"}` +
+          `- node ${n.node}${n.mine ? " (this one)" : ""}: ${n.at}` +
           (n.status ? ` - **${n.status}**` : n.done ? " - finished" : " - still running"),
       ),
       "",
-      "The ones marked dead were tried by someone else and did not pass. Do not walk them again. " +
-        "What they said is not shown by default - that is another branch; fetch it yourself if you want it.",
+      "The ones marked dead were attempts that did not pass. Do not walk them again. " +
+        "What they said is not shown by default - fetch one with node_load, by its node number.",
     );
   }
   return lines.join("\n");

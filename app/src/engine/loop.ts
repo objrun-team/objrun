@@ -566,11 +566,22 @@ export class Kernel {
    * 那是工具的事。
    */
   #viewOf(p: Pending, task: Row): Row {
-    const nodes = all(
+    const rows = all(
       this.#store.ro,
-      `select cycle, unit, from_cycle, from_unit, status, done from "${p.sub}" where task = ? order by unit`,
+      `select cycle, unit, node, status, done from "${p.sub}" where task = ? order by unit`,
       [p.task],
-    );
+    ) as { cycle: string; unit: number; node: number; status: string | null; done: number }[];
+
+    // **按节点报，不按行。** `task_tree` / `node_load` 说的都是节点，视图却报行号的话，
+    // 模型会把行号当节点号喂给 `node_load` —— 实测就这么白花过一次调用
+    // （`node_load(8)` 拿到 "there is no such node in this task"）。
+    const byNode = new Map<number, typeof rows>();
+    for (const r of rows) {
+      const k = Number(r.node);
+      const got = byNode.get(k) ?? [];
+      got.push(r);
+      byNode.set(k, got);
+    }
     return {
       task: {
         id: task.id,
@@ -593,12 +604,15 @@ export class Kernel {
         next: nextOf(this.#store.ro, p.mode, p.cycle),
       },
       budget: this.#budgetOf(p, task),
-      tried: nodes.map((n) => ({
-        at: `${String(n.cycle)}#${String(n.unit)}`,
-        from: n.from_cycle === null ? null : `${String(n.from_cycle)}#${String(n.from_unit)}`,
-        status: n.status,
-        done: Number(n.done) === 1,
-      })),
+      tried: [...byNode.entries()]
+        .sort((x, y) => x[0] - y[0])
+        .map(([node, g]) => ({
+          node,
+          at: g.map((r) => `${r.cycle}#${r.unit}`).join(" > "),
+          status: g[g.length - 1].status,
+          done: g.every((r) => Number(r.done) === 1),
+          mine: g.some((r) => Number(r.unit) === p.unit),
+        })),
     };
   }
 
