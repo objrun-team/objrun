@@ -286,15 +286,22 @@ export class Kernel {
       const key = `task expired\u0000${t.id}`;
       if (this.#cried.has(key)) continue;
       this.#cried.add(key);
+      // **一道题出岔子不该带走整轮扫描。** 这个循环还要接着看别的任务和别的
+      // 执行单元；这儿抛出去的话，后面那些一个都轮不到 —— 而且下一圈还会从头
+      // 再抛一次，等于一道坏题把判死这件事整个停掉。
       this.#log.warn(`task ${t.id} expired: ran ${Math.round((now - Number(t.created_at)) / 1000)}s, limit ${t.solve_seconds}s`);
-      // 先落一个失败，让它别再被排上；有 G 的话下面那一声会按判决改写。
-      run(this.#store.rw, `update task set state = failed, result = ? where id = ?`, [
-        JSON.stringify({ pass: 0, why: `over solve_seconds=${t.solve_seconds}s` }),
-        t.id,
-      ]);
-      // **超时也要问 G。** 以前这条路直接写 failed 就完了，于是「时限内交对了、
-      // 只是树没来得及收尾」跟「什么都没做出来」在成绩单上长得一模一样。
-      this.#hooks.onDone?.(t.id, `over solve_seconds=${t.solve_seconds}s`);
+      try {
+        // 先落一个失败，让它别再被排上；有 G 的话下面那一声会按判决改写。
+        run(this.#store.rw, `update task set state = 'failed', result = ? where id = ?`, [
+          JSON.stringify({ pass: 0, why: `over solve_seconds=${t.solve_seconds}s` }),
+          t.id,
+        ]);
+        // **超时也要问 G。** 以前这条路直接写 failed 就完了，于是「时限内交对了、
+        // 只是树没来得及收尾」跟「什么都没做出来」在成绩单上长得一模一样。
+        this.#hooks.onDone?.(t.id, `over solve_seconds=${t.solve_seconds}s`);
+      } catch (e) {
+        this.#log.error(`task ${t.id} expired but could not be closed: ${msg(e)}`);
+      }
     }
     for (const r of rows) {
       const cap = this.#expectSafe(r);

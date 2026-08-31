@@ -31,6 +31,11 @@ const graded: Record<string, unknown>[] = [];
 const out = await outside({
   "/unit": () => ({ role: "assistant", kind: "prompt", body: "I say I am done" }),
   "/infer": () => null,
+  // 一个**永远慢**的执行单元 —— 用来验超时那条路真的会把任务判掉。
+  "/slow": async () => {
+    await Bun.sleep(30_000);
+    return { role: "assistant", kind: "prompt", body: "too late" };
+  },
 
   // ── G 的节点。**回的必须落在声明的值域里** ────────────────────────────
   //
@@ -208,6 +213,33 @@ try {
   show("its objective:", noG.objective);
   ok("no grading function, no verdict", noG.objective.has === false && noG.objective.verdict === null, noG.objective);
   ok("finishing is done", noG.state === "done", noG.state);
+  step("10. a task that runs past solveSeconds really gets marked failed");
+  // 这条闸断过两次，两次都吃掉一整跑：第一次是任务级的 deadline 根本没进定时器，
+  // 第二次是那句 SQL 少了一对引号（`state = failed` 被当成列名），run 抛出去，
+  // 后面连 G 都没叫。两次的表现都一样 —— 日志里写着 expired，库里却一直是 claimed。
+  await m.api("POST", "/declare", {
+    handles: [{ name: out.url("/slow"), expectMs: 60_000 }],
+    agents: [{ name: "slowbot", apis: [], unit: out.url("/slow") }],
+  });
+  await m.api("POST", "/tasks", {
+    id: "t-slow", mode: "demo", agent: "slowbot", place: "local", source: "user",
+    description: "never finishes in time", solveSeconds: 1,
+  });
+  const late = await until(
+    "t-slow to be closed by the clock",
+    async () => {
+      const d = await m.api<{ state: string; result: unknown }>("GET", "/tasks/t-slow");
+      return d.state === "failed" ? d : null;
+    },
+    15_000,
+  );
+  show("how it was closed:", { state: late.state, result: late.result });
+  ok("the clock closes it - it does not sit in claimed forever", late.state === "failed", late.state);
+  ok(
+    "and the result says it was the clock, not a verdict",
+    String(JSON.stringify(late.result)).includes("solve_seconds"),
+    late.result,
+  );
 } finally {
   out.stop();
   m.stop();
