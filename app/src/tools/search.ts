@@ -111,6 +111,15 @@ const SEARCH_TOOL = {
       queries: { type: "array", items: { type: "string" }, description: "The searches it ran" },
       opened: { type: "array", items: { type: "string" }, description: "The pages it opened" },
       searches: { type: "integer", description: "How many moves it made, out of the limit" },
+      spent: {
+        type: "object",
+        description: "What this search cost. Searching reads whole pages, so it is dearer than asking is.",
+        properties: {
+          prompt_tokens: { type: "integer" },
+          completion_tokens: { type: "integer" },
+          total_tokens: { type: "integer" },
+        },
+      },
     },
   },
   prompt:
@@ -180,7 +189,13 @@ interface Answer {
  * **最后一条 `message` 才是答案**，前面那些是它边搜边说的过场话（「我先去查一下」）。
  * 全都拼起来的话，答案会被过场话淹掉。
  */
-function unpack(d: Answer): { answer: string; queries: string[]; opened: string[]; searches: number } {
+function unpack(d: Answer): {
+  answer: string;
+  queries: string[];
+  opened: string[];
+  searches: number;
+  spent: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+} {
   const queries: string[] = [];
   const opened: string[] = [];
   const said: string[] = [];
@@ -196,7 +211,26 @@ function unpack(d: Answer): { answer: string; queries: string[]; opened: string[
     if (o.type !== "message") continue;
     for (const c of o.content ?? []) if (c.type === "output_text" && c.text) said.push(c.text);
   }
-  return { answer: said.at(-1) ?? "", queries, opened, searches };
+  // **这一次搜花了多少，也得记。**
+  //
+  // 消息表上那几个计数列记的是**智能体自己**那次调用；而这件工具背地里还打了一次
+  // `/responses`，那一次的账不落在任何一行上。实测一次搜要 7 万到 18 万个 token，
+  // 三十次就盖过了整场可见开销 —— 不记的话，「这一跑花了多少」这个问题，快照
+  // 答出来的数会小一个数量级，而且看不出来它小。
+  //
+  // 记在工具结果里，不另开列：它是**这一次调用的一部分**，跟着结果走才对得上号。
+  const u = d.usage ?? {};
+  return {
+    answer: said.at(-1) ?? "",
+    queries,
+    opened,
+    searches,
+    spent: {
+      prompt_tokens: Number(u.input_tokens ?? 0),
+      completion_tokens: Number(u.output_tokens ?? 0),
+      total_tokens: Number(u.total_tokens ?? 0),
+    },
+  };
 }
 
 /**

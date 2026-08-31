@@ -170,6 +170,7 @@ try {
 
   const got = (await resultOf("t-search")) as {
     answer?: string; queries?: string[]; opened?: string[]; searches?: number;
+    spent?: { total_tokens?: number };
   };
   show("what it handed back:", got);
   // **最后一条 message 才是答案。** 前面那句「Let me look this up.」是过场话 ——
@@ -185,6 +186,9 @@ try {
     got.opened,
   );
   ok("and how many moves it made", got.searches === 2, got.searches);
+  // **这一次搜花了多少也要记。** 消息表那几个计数列记的是智能体自己那次调用；
+  // 这件工具背地里打的那一次不落在任何一行上，不记的话整场开销会小一个数量级。
+  ok("and what the search itself cost", got.spent?.total_tokens === 72267, got.spent);
 
   step("5. searched but said nothing - say what it did, not just that it failed");
   ask = "find nothing please";
