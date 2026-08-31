@@ -275,8 +275,8 @@ export class Kernel {
       // 实测一跑打了 12732 条同样的警告，而那道题始终收不了尾。
       //
       // 关的方式跟正常走完那一路一样（`#infer` 结尾那两行）：盖上终止状态、
-      // 两边的 done 一起落、再让任务状态重新数一遍。**不开兄弟** —— 开兄弟是
-      // 推断函数的事，而这一行根本没走到那一步。
+      // 两边的 done 一起落，然后**另起一个节点**：「这一次调用没回来」跟「这道题
+      // 做不出来」是两回事，前者该重来 —— 就像交卷判 0 之后重来一样。
       this.#log.warn(
         `declared dead: ${r.sub} ${r.task} ${r.cycle}#${r.unit} (${r.agent}/${r.instance}) has been ${now - r.at}ms, over ${cap}ms`,
       );
@@ -301,8 +301,63 @@ export class Kernel {
       } catch {
         // 连这一行都落不进去（多半是子表还没长出来），那就只剩日志了
       }
+      this.#reopen(r);
       this.#restate(r.task, r.sub);
     }
+  }
+
+  /**
+   * 一站到点也没回话 —— **判死这个节点，另起一个。**
+   *
+   * 以前到这儿就没了：这一行标成死的，链路断在这里，任务跟着收工。可「这一次调用
+   * 没回来」跟「这道题做不出来」是两回事 —— 前者该重来，就像交卷判 0 之后重来一样。
+   * 实测一次抖动就能让一道题颗粒无收，而它连第二次机会都没有。
+   *
+   * 新的一格接在死掉那一行后面，落在**入口站**上（`from` 是空的那个）：一次全新的
+   * 尝试从想事情开始，而不是从跑工具开始。节点号自己会往前走一格 —— 规矩是
+   * 「父行有终态就换节点」，而我们刚给它落了 `dead_failed`。
+   *
+   * **重来的次数由 `max_dead_siblings` 管**，跟交卷判死那条路共用同一个闸：不然一台
+   * 抖得厉害的机器会让一道题无限重开，把时限全耗在重来上。
+   */
+  #reopen(r: Pending): void {
+    const entry = all(this.#store.ro, `select cycle from cycle where mode = ? and "from" = '[]'`, [r.mode]) as {
+      cycle: string;
+    }[];
+    const to = entry[0]?.cycle;
+    if (!to) return; // 这个机制没有入口站的说法，那就没得重开
+
+    const task = one(this.#store.ro, `select max_dead_siblings from task where id = ?`, [r.task]) as
+      | { max_dead_siblings?: number }
+      | undefined;
+    const cap = Number(task?.max_dead_siblings ?? 3);
+    const dead = all(
+      this.#store.ro,
+      `select distinct node from "${r.sub}" where task = ? and status is not null and status like 'dead%'`,
+      [r.task],
+    ).length;
+    if (dead >= cap) {
+      this.#log.warn(`${r.task}: ${String(dead)} attempts have died, at the limit of ${String(cap)} - not reopening`);
+      return;
+    }
+
+    const node =
+      Number(one(this.#store.ro, `select coalesce(max(node), 0) as m from "${r.sub}" where task = ?`, [r.task])!.m) + 1;
+    const unit =
+      Number(one(this.#store.ro, `select coalesce(max(unit), 0) as m from "${r.sub}" where task = ?`, [r.task])!.m) + 1;
+    run(
+      this.#store.rw,
+      `insert into "${r.sub}" (task, cycle, unit, node, from_cycle, from_unit, agent, instance, place, at, done)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+      [r.task, to, unit, node, r.cycle, r.unit, r.agent, r.instance, r.place, Date.now()],
+    );
+    run(this.#store.rw, `insert into "${tableNameOf("agent_{}_ctx", r.agent)}" (instance, task, unit, place, done) values (?, ?, ?, ?, 0)`, [
+      r.instance,
+      r.task,
+      unit,
+      r.place,
+    ]);
+    this.#log.warn(`${r.task}: ${r.cycle}#${r.unit} never answered - opening attempt ${String(node)} at ${to}#${String(unit)}`);
   }
 
   /**
@@ -358,6 +413,27 @@ export class Kernel {
    * 崩在中间就有「已经发出去、库里没有」的调用，那种状态恢复不了。
    */
   async #advance(p: Pending): Promise<void> {
+    // **先占位，再干活。**「这一行已经派出去了」这件事必须在**任何 await 之前**
+    // 就写进库 —— 挑活的人（`#ready`）看的就是这一行。
+    //
+    // 不占位的话窗口是这么开的：这一圈挑中它、`void` 掉不等；`#advance` 走到第一个
+    // await 让出控制权，标记还没写；这中间任何一次写库都会 `wake()`，下一圈醒来去库里
+    // 一看「没派过」，于是**又派一次**。同一格里就有了两条模型应答 —— 两条挨着的
+    // 「我要调工具」中间没有结果，模型那边当场拒收整份上下文，这道题从此发不出去，
+    // 只能空转到超时。实测五百多格里中了四格，每中一格废一道题。
+    //
+    // `#ticking` 挡不住这个：它挡的是「两圈同时跑」，而这里是「上一圈的活还在飞」——
+    // 活是 `void` 掉的，一开始就不在那个开关的管辖里。
+    const mark = deliver(this.#store.rw, {
+      agent: p.agent,
+      instance: p.instance,
+      unit: p.unit,
+      by: "kernel",
+      // **带上预计到点。** 这一行是「已经派出去了」的凭据，那它也该说清楚等到什么
+      // 时候算等不到 —— 到点还没回话，内核就判这一站死、另起一个节点（见 `#reap`）。
+      body: JSON.stringify({ sent: true, deadline: Date.now() + (this.#expectSafe(p) ?? 0) }),
+    });
+
     try {
       const facts = this.#factsOf(p);
       await this.#atMoment(p, facts, "unit_start");
@@ -398,20 +474,29 @@ export class Kernel {
       const context = this.#contextOf(p);
       // 出站这一行是**快照里那次调用的凭据**：模型当时被告知有哪些工具、
       // 每个工具的用法约定是什么。不记的话，回头看这一步就说不清它为什么那么做。
-      deliver(this.#store.rw, {
-        agent: p.agent,
-        instance: p.instance,
-        unit: p.unit,
-        by: "kernel",
-        // 键名一律 ASCII：这一行**客户端读得到**（`/tasks/:id/messages` 会把它解开），
-        // 中文键名等于逼着客户端写 `data["出站"]`，而且每过一层编码都可能烂。
-        body: JSON.stringify({
-          sent: true,
-          tools: kit.map((t) => t.name),
-          prompts: kit.map((t) => t.prompt).filter(Boolean),
-          rules,
-        }),
-      });
+      // 占位那一行现在补全 —— 它是**快照里那次调用的凭据**：模型当时被告知有哪些
+      // 工具、每个工具的用法约定是什么。不记的话，回头看这一步就说不清它为什么那么做。
+      //
+      // 补的是同一行，不是再落一行：那一行的身份（`kind` / `role` / `seq`）是投递管道
+      // 定的，这儿只把内容填进去。
+      //
+      // 键名一律 ASCII：这一行**客户端读得到**（`/tasks/:id/messages` 会把它解开），
+      // 中文键名等于逼着客户端写 `data["出站"]`，而且每过一层编码都可能烂。
+      run(
+        this.#store.rw,
+        `update "${this.#msgTable(p.agent)}" set body = ? where instance = ? and unit = ? and seq = ?`,
+        [
+          JSON.stringify({
+            sent: true,
+            tools: kit.map((t) => t.name),
+            prompts: kit.map((t) => t.prompt).filter(Boolean),
+            rules,
+          }),
+          p.instance,
+          p.unit,
+          mark,
+        ],
+      );
 
       // 出站那一行落了 = 这一站真的动起来了，主表那个大状态这时候就该是 `claimed`。
       // 只在一步走完之后才推的话，模型这一次调用有多慢，`state` 就有多久还写着
