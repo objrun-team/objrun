@@ -101,6 +101,37 @@ export const SERVES = new Map<string, Set<string>>();
  */
 export const RETRIES = 6;
 
+/**
+ * `api.retry_on` 的默认值 —— 新注册一行时给的那份。**只是默认值，不是规矩**：
+ * 库里改成什么就是什么，改它不用动代码。
+ *
+ * 里头是「对面暂时不行」那一类：限流、网关抖、连接根本没建起来。
+ * **4xx 一个都不在**（429 除外）—— 那一类说的是「你发的东西有问题」，
+ * 重试改变不了任何事。
+ */
+export const RETRY_ON = JSON.stringify([408, 409, 425, 429, 500, 502, 503, 504, "network"]);
+
+/** 把那一列读成一个集合。读不动就当空的 —— 空 = 一律不重试，比乱重试安全。 */
+function retrySet(raw: string): Set<string> {
+  try {
+    const v = JSON.parse(raw) as unknown;
+    return new Set(Array.isArray(v) ? v.map(String) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * 这个错在不在名单里。
+ *
+ * **没有状态码 = 根本没打通**（DNS、连接被掐、读超时）。那属于「对面暂时不行」，
+ * 跟「对面收到了，说你发错了」是两回事，所以它在名单里有自己的名字：`network`。
+ */
+function listed(e: unknown, on: Set<string>): boolean {
+  const code = (e as { statusCode?: number } | null)?.statusCode;
+  return on.has(code === undefined ? "network" : String(code));
+}
+
 /** 整次调用的硬墙。老代码里这条端点挂死过 27~31 分钟，只能从外面掐。 */
 export const HARD_WALL_MS = 900_000;
 
@@ -114,7 +145,7 @@ export interface Unit {
   instance: string;
   unit: number;
   /** 内核挑好的那条轨。**适配器不再自己挑** —— 挑的地方只许有一个。 */
-  api: { key_env: string; model: string } | null;
+  api: { key_env: string; model: string; retry_on: string } | null;
   context: { seq: number; role: string; kind: string; body: string }[];
   /**
    * 这一轮的任务视图。**内核每轮现算的事实**，不是上下文里的一条消息 ——
@@ -340,11 +371,27 @@ export function viewOf(u: Unit): string {
  *
  * 两条轨共用（duplex 那边 import 的就是它）—— 一份判据不许有两处实现。
  */
+/**
+ * 这一次发过去的消息流：**历史在前，这一轮的问话在最后。**
+ *
+ * 视图（任务是什么、走到哪儿了、还剩多少预算、这棵树长什么样）是**每个执行
+ * 单元现生成一份**的，它就是这一轮的问话。放在历史前面有两个坏处：
+ *
+ * 1. 最新的信息落在最旧的位置，后面几十条历史把它埋掉
+ * 2. **整个请求会以助手消息结尾** —— 上一站要是说了句纯文本（没调工具），
+ *    那条就是最后一条。有的网关把这种形状当成「续写前缀」，于是要求把
+ *    `reasoning_content` 一起带回来，不带就直接拒收：
+ *    `The reasoning_content in the thinking mode must be passed back to the API.`
+ *    一道题就这么整个卡死在交卷站上（cmt-3，submit#14）。
+ *
+ * 上一站调了工具的话，最后一条是 tool 结果，形状是对的 —— 所以这个毛病只在
+ * 「上一站说了句话就走」的时候犯，看着像随机。
+ */
 export function messagesOf(u: Unit): ModelMessage[] {
   const view = viewOf(u);
   return [
-    ...(view ? [{ role: "user" as const, content: view }] : []),
     ...u.context.map(toMsg).filter((m): m is ModelMessage => m !== null),
+    ...(view ? [{ role: "user" as const, content: view }] : []),
   ];
 }
 
@@ -376,6 +423,7 @@ export function registerVendors(
       // 内核按周期表的 `api_mode` 已经挑好了这一站走哪条轨，这儿直接用。
       if (!u.api) throw new Error(`fn:api.${vendor} was called, but the kernel did not say which model this station uses`);
       const { model, key_env: keyEnv } = u.api;
+      const retryOn = retrySet(u.api.retry_on);
       // 地址允许被一条环境变量顶掉 —— `TGENGIN_DEEPSEEK_BASE_URL` 这种。**这是给
       // 测试留的口子**：续写被拒、半截答案怎么办这类事，只有假端点验得了，真端点
       // 永远只发对的那套。不设这条 = 走上面写死的地址，跟没这行一样。
@@ -450,6 +498,10 @@ export function registerVendors(
             } catch (e) {
               // 整次调用的硬墙到了就别再重打了 —— 那不是抖动，是这一站超时了。
               if (wall.signal.aborted) throw e;
+              // **白名单说了才重打。** 不在名单里的原样抛出去。400 说的是「这个请求
+              // 本身不合法」—— 再打一百次还是同一个 400，重试只是把时间烧掉，然后
+              // 以完全一样的方式失败。实测烧掉的是 30 秒（0+5+10+15 的退避）。
+              if (!listed(e, retryOn)) throw e;
               boom = e;
             }
           }
@@ -520,9 +572,9 @@ export function registerVendors(
   for (const [vendor, model, modes] of seed) {
     if (!VENDORS[vendor]) throw new Error(`unknown vendor: ${vendor}`);
     db.run(
-      `insert into api (key_env, model, handle, modes) values (?, ?, ?, ?)
+      `insert into api (key_env, model, handle, modes, retry_on) values (?, ?, ?, ?, ?)
        on conflict(key_env, model) do update set handle = excluded.handle, modes = excluded.modes`,
-      [VENDORS[vendor].keyEnv, model, `fn:api.${vendor}`, modes],
+      [VENDORS[vendor].keyEnv, model, `fn:api.${vendor}`, modes, RETRY_ON],
     );
   }
 

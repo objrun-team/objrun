@@ -52,6 +52,12 @@
           "type": "text",
           "notnull": true,
           "_": "Its values are registered in the mode table"
+        },
+        {
+          "name": "retry_on",
+          "type": "text",
+          "notnull": true,
+          "_": "Which failures are worth trying again, as a JSON list of HTTP status codes plus the word network for a call that never got a reply. Anything not listed is returned as it is - a 400 says the request itself was wrong, and sending it again only spends the clock to fail the same way. Which failures are transient differs per key and per model, so it lives on this row rather than in code"
         }
       ],
       "pk": [

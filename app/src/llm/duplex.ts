@@ -53,7 +53,7 @@
 import type { Conn } from "../H2H/db.ts";
 import type { Registry } from "../engine/registry.ts";
 import { deliver } from "../msg/deliver.ts";
-import { instructionsOf, sendable, SERVES, VENDORS, viewOf, type Unit } from "./index.ts";
+import { RETRY_ON, SERVES, VENDORS, instructionsOf, sendable, type Unit, viewOf } from "./index.ts";
 
 /**
  * 哪几条会话已经摆过任务视图了。
@@ -611,9 +611,9 @@ export function registerDuplex(db: Conn, reg: Registry, pool: Sessions, seed: [s
     if (!v) throw new Error(`unknown vendor: ${vendor}`);
     if (!v.ws) throw new Error(`${vendor} has no realtime endpoint, so ${model} cannot get a duplex lane`);
     db.run(
-      `insert into api (key_env, model, handle, modes) values (?, ?, ?, 'duplex')
+      `insert into api (key_env, model, handle, modes, retry_on) values (?, ?, ?, 'duplex', ?)
        on conflict(key_env, model) do update set handle = excluded.handle, modes = excluded.modes`,
-      [v.keyEnv, model, `fn:api.${vendor}.duplex`],
+      [v.keyEnv, model, `fn:api.${vendor}.duplex`, RETRY_ON],
     );
   }
 

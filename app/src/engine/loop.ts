@@ -211,7 +211,7 @@ export class Kernel {
    * **挑在这儿挑，适配器只管调。** 适配器自己再挑一次的话，「这一站用哪条轨」
    * 就有两个地方说了算，早晚漂。
    */
-  #handleOf(p: Pending): { handle: string; api: { key_env: string; model: string } | null } {
+  #handleOf(p: Pending): { handle: string; api: { key_env: string; model: string; retry_on: string } | null } {
     const agent = one(this.#store.ro, `select unit, apis from agent where name = ?`, [p.agent]);
     if (!agent) throw new Error(`no row in agent for ${p.agent}`);
 
@@ -226,7 +226,7 @@ export class Kernel {
       throw new Error(`agent ${p.agent} has apis that is not a readable list`);
     }
     for (const [keyEnv, model] of apis) {
-      const row = one(this.#store.ro, `select key_env, model, handle, modes from api where key_env = ? and model = ?`, [
+      const row = one(this.#store.ro, `select key_env, model, handle, modes, retry_on from api where key_env = ? and model = ?`, [
         keyEnv,
         model,
       ]);
@@ -235,7 +235,7 @@ export class Kernel {
         .split(",")
         .map((x) => x.trim());
       if (modes.includes(want)) {
-        return { handle: String(row.handle), api: { key_env: keyEnv, model } };
+        return { handle: String(row.handle), api: { key_env: keyEnv, model, retry_on: String(row.retry_on) } };
       }
     }
     throw new Error(`${p.mode}/${p.cycle} needs a ${want} lane, but none of agent ${p.agent} apis supports it`);

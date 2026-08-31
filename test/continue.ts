@@ -1,118 +1,184 @@
 /**
- * 例子：**一句话没说完，接着说**（续写），以及**接不下去了怎么办**。
+ * 例子：**一句话没说完，接着说**（续写），以及**请求长成什么形状会被拒**。
  *
  * ```
  * bun test/continue.ts
  * ```
  *
- * 模型把话说到一半就到 token 上限（`finish_reason = "length"`）是常事。这一层
- * 的做法是**把已经说出的那半截接在末尾，让它续**，而不是重问一遍 —— 重问一遍
+ * 模型把话说到一半就到 token 上限是常事 —— 它自己会说，`finish_reason = "length"`。
+ * 这一层的做法是**把已经说出的那半截接在末尾，让它续**，而不是重问一遍：重问
  * 得到的是另一个开头，前面那半截白花。
  *
  * ## 为什么不直接打真端点
  *
- * 要验的是**续不下去的时候会怎样**，而真端点几乎不会在这一步拒绝你。所以这儿
- * 起一台假的 chat completions：第一趟给半截话加一个 `length`，第二趟直接拒收。
- * 一道题就是这么没的 —— 拒收的那一下抛到句柄外面，那一站挂到 `expect_ms`，
- * 前面说了多少个字都不算数。
+ * 要验的是**被拒之后会怎样**，而真端点几乎不会在这一步拒绝你。所以这儿起一台
+ * 假的 chat completions，照真网关那条规矩办事：
+ *
+ * > **请求以助手消息结尾 = 你在要求我续写。** 那属于「思考模式的前缀续写」，
+ * > 得把 `reasoning_content` 一起带回来，不带就 400。
+ *
+ * 这条规矩把两种情况一网打尽，而它们的后果完全不同：
+ *
+ * | 谁让请求以助手消息结尾 | 后果 |
+ * | --- | --- |
+ * | **我们自己**（续写，把半截话接在末尾） | 该续，被拒了就把半截交出去 |
+ * | **上一站说了句纯文本就走**（不是我们要续） | 纯属形状拼错了，得修 |
+ *
+ * 第二种真丢过一道题：`messagesOf` 原先把这一轮的问话放在**历史前面**，于是
+ * 上一站要是说了句话（没调工具），整个请求就以那句话结尾 —— 网关当成续写，
+ * 拒收，那一站挂到 `expect_ms`，一个字都没交（cmt-3，submit#14）。上一站调了
+ * 工具的话最后一条是 tool 结果，形状是对的，所以这个毛病看着像随机。
  *
  * 地址靠 `TGENGIN_DEEPSEEK_BASE_URL` 顶掉，这条环境变量就是为了这个留的。
  */
 
 import { done, machine, ok, part, show, step, until } from "./_lib.ts";
 
-/** 假端点被打了几次、每次收到的最后一条助手消息长什么样。 */
-const seen: { messages: { role: string; content: unknown }[] }[] = [];
+interface Call {
+  messages: { role: string; content: unknown }[];
+}
 
-/** 第二趟起就拒收，用的是真端点拒收时说的那句话。 */
+/** 假端点每一次收到的东西，跑完拿来对形状。 */
+const seen: Call[] = [];
+
+/** 真端点拒收时说的那句话。 */
 const REFUSED = "The reasoning_content in the thinking mode must be passed back to the API.";
 
 /** 第一趟说到一半就断。**后面那半句它永远不会说出来** —— 那正是要验的。 */
 const HALF = "The answer is 4 because ";
 
+/** 说完一句整话。 */
+const WHOLE = "Two plus two is four.";
+
+const reply = (text: string, why: string) =>
+  new Response(
+    JSON.stringify({
+      id: "fake-1",
+      object: "chat.completion",
+      created: 0,
+      model: "deepseek-v4-flash",
+      choices: [{ index: 0, message: { role: "assistant", content: text }, finish_reason: why }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    }),
+    { headers: { "content-type": "application/json" } },
+  );
+
+/** 这个例子只有两站：第一站走完去第二站，第二站走完收工。 */
+let hops = 0;
+
 const fake = Bun.serve({
   port: 0,
   async fetch(req) {
-    // 同一台小服务器顺便当一下「下一站去哪」：这个例子只有一站，回 null = 收工。
     if (new URL(req.url).pathname === "/infer") {
-      return new Response("null", { headers: { "content-type": "application/json" } });
+      hops++;
+      return new Response(JSON.stringify(hops === 1 ? { to: "again" } : null), {
+        headers: { "content-type": "application/json" },
+      });
     }
-    const body = (await req.json()) as { messages: { role: string; content: unknown }[] };
+
+    const body = (await req.json()) as Call;
     seen.push(body);
-    if (seen.length > 1) {
+
+    // **真网关那条规矩。** 谁让请求以助手消息结尾，谁就得带上思考。
+    if (body.messages[body.messages.length - 1]?.role === "assistant") {
       return new Response(JSON.stringify({ error: { message: REFUSED, type: "invalid_request_error" } }), {
         status: 400,
         headers: { "content-type": "application/json" },
       });
     }
-    return new Response(
-      JSON.stringify({
-        id: "fake-1",
-        object: "chat.completion",
-        created: 0,
-        model: "deepseek-v4-flash",
-        choices: [{ index: 0, message: { role: "assistant", content: HALF }, finish_reason: "length" }],
-        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
-      }),
-      { headers: { "content-type": "application/json" } },
-    );
+    // 第一发说半句就断，好让上面那条规矩被真正踩到一次。
+    return seen.length === 1 ? reply(HALF, "length") : reply(WHOLE, "stop");
   },
 });
 
 process.env.TGENGIN_DEEPSEEK_BASE_URL = `http://127.0.0.1:${String(fake.port)}`;
 
-// `retryTimes: 0` —— 假端点是铁了心拒收，退避三轮只是让这个例子多跑半分钟。
-const m = await machine({ retryTimes: 0, continueTimes: 2, maxTokens: 64 });
+// **`retryTimes` 故意开着。** 这个例子要验的一件事就是「400 不该被重打」——
+// 关掉重试的话，不重打是因为压根没开重试，什么也没验到。
+const m = await machine({ retryTimes: 3, continueTimes: 2, maxTokens: 64 });
 const at = (path: string) => `http://127.0.0.1:${String(fake.port)}${path}`;
 
 try {
-  part("Continuing a half-finished sentence, and what happens when it cannot be continued");
+  part("Continuing a half-finished answer, and the shape a request must not have");
 
-  step("1. one chat cycle, one agent that really talks to a model");
+  step("1. two stations, and an agent that really talks to a model");
   await m.api("POST", "/declare", {
     places: [{ place: "local" }],
     handles: [{ name: at("/infer"), expectMs: 10_000 }],
     modes: [
-      { mode: "talk", cycles: [{ cycle: "ask", apiMode: "chat", maxUnits: 2, from: [], next: [], infer: at("/infer") }] },
+      {
+        mode: "talk",
+        cycles: [
+          { cycle: "ask", apiMode: "chat", maxUnits: 2, from: [], next: ["again"], infer: at("/infer") },
+          { cycle: "again", apiMode: "chat", maxUnits: 2, from: ["ask"], next: [], infer: at("/infer") },
+        ],
+      },
     ],
     agents: [{ name: "bot", apis: [["DEEPSEEK_API_KEY", "deepseek-v4-flash"]], unit: "fn:unit.tools" }],
   });
   ok("the declaration went in", true);
 
-  step("2. publish one task and let it run");
+  step("2. publish one task and let it run to the end");
   await m.api("POST", "/tasks", {
     id: "t-cut", mode: "talk", agent: "bot", place: "local", source: "user",
     description: "what is two plus two", solveSeconds: 60,
   });
-  const t = await until("t-cut to finish", async () => {
-    const d = await m.api<{ state: string }>("GET", "/tasks/t-cut");
-    return d.state === "done" || d.state === "failed" ? d : null;
-  }, 60_000);
+  const t = await until(
+    "t-cut to finish",
+    async () => {
+      const d = await m.api<{ state: string }>("GET", "/tasks/t-cut");
+      return d.state === "done" || d.state === "failed" ? d : null;
+    },
+    60_000,
+  );
   show("how it ended:", t.state);
+  ok("it finished instead of hanging until its handle timed out", t.state === "done", t.state);
 
   step("3. it really tried to continue, rather than settling for half a sentence");
-  ok("the endpoint was called more than once", seen.length > 1, seen.length);
-  const second = seen[1].messages;
-  const last = second[second.length - 1];
-  show("the last message of the second call:", last);
+  const tried = seen.find((c) => c.messages[c.messages.length - 1]?.role === "assistant");
+  show("the tail of the call that asked for a continuation:", tried?.messages.slice(-1));
+  ok("a continuation was attempted", tried !== undefined, seen.length);
   ok(
     "and the half it had already said went back as the tail of the conversation",
-    last.role === "assistant" && JSON.stringify(last.content).includes(HALF.trim()),
-    last,
+    JSON.stringify(tried?.messages.at(-1)?.content ?? "").includes(HALF.trim()),
+    tried?.messages.at(-1),
   );
 
-  step("4. being refused mid-continuation does not cost the whole task");
-  // 这一条焊的是一道真丢过的题：拒收那一下抛出句柄，那一站挂到 expect_ms，
-  // 一个字都没交。半截答案也是答案 —— 交出去，比什么都没有强。
-  const said = await m.api<{ rows: { body: string }[] }>("POST", "/query", {
-    sql: "select body from agent_bot_msg where instance = 't-cut#1' and role = 'assistant' order by seq",
+  step("4. being refused mid-continuation costs the half sentence, not the task");
+  const said = await m.api<{ rows: { unit: number; body: string }[] }>("POST", "/query", {
+    sql: "select unit, body from agent_bot_msg where instance = 't-cut#1' and role = 'assistant' order by seq",
   });
-  show("what it handed back:", said.rows.map((r) => r.body));
-  ok("the task closed instead of hanging until its handle timed out", t.state === "done", t.state);
+  show("what it handed back:", said.rows);
+  ok("what it had managed to say was handed back", said.rows.some((r) => r.body.includes(HALF.trim())), said.rows);
+
+  step("5. and the NEXT station is not poisoned by that half sentence");
+  // 这一条焊的就是丢掉的那道题。上一站的最后一条是助手说的半句话；这一站要是
+  // 把这一轮的问话摆在历史**前面**，整个请求就以那半句结尾 —— 网关当成续写请求，
+  // 400，而这一次是 round 0，抛出去就是一整道题没了。
+  const asks = seen.filter((c) => c.messages[c.messages.length - 1]?.role !== "assistant");
+  const last = asks[asks.length - 1];
+  show("the roles in the last real question we asked:", last.messages.map((mm) => mm.role));
   ok(
-    "and what it had managed to say was handed back",
-    said.rows.some((r) => r.body.includes(HALF.trim())),
-    said.rows,
+    "a fresh question ends with something addressed to the model, never with its own words",
+    last.messages[last.messages.length - 1].role === "user",
+    last.messages.map((mm) => mm.role),
+  );
+  ok(
+    "and it carried the previous station's answer as history",
+    last.messages.some((mm) => mm.role === "assistant"),
+    last.messages.map((mm) => mm.role),
+  );
+  ok("so the second station ran and answered", said.rows.some((r) => r.body.includes(WHOLE)), said.rows);
+  step("6. a request the other side calls invalid is not sent again");
+  // 400 说的是「这个请求本身不合法」，再打一百次还是同一个 400 —— 重打只是把
+  // 时间烧掉，然后以完全一样的方式失败。真跑里烧掉的是 30 秒（0+5+10+15 的退避），
+  // 而那一站随后还要空挂到 expect_ms。哪些错值得再打，是 `api.retry_on` 那一列说了算。
+  const refused = seen.filter((c) => c.messages[c.messages.length - 1]?.role === "assistant");
+  show("how many times the refused shape went out:", refused.length);
+  ok(
+    "it went out once, not once per retry - retryTimes is 3 here",
+    refused.length === 1,
+    refused.length,
   );
 } finally {
   await fake.stop(true);
