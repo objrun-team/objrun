@@ -31,49 +31,10 @@ import { tableNameOf } from "../install/index.ts";
 import { SUBMIT } from "../tree/dfs.ts";
 import { chainOf, type Unit } from "./chain.ts";
 import type { Registry } from "./registry.ts";
-import { deliver } from "../msg/deliver.ts";
+import { answerMissing, checkBody, deliver } from "../msg/deliver.ts";
 import { fire, type Facts } from "./trigger.ts";
 
 type Row = Record<string, unknown>;
-
-/**
- * 没人接的那次工具请求，别往外发。
- *
- * 模型请求了工具，落一行 `call`；工具跑完落一行 `tool`，靠 `id` 配对。但**这一站有没有
- * 人真去跑，取决于机制怎么搭**：下一站走 `fn:unit.tools` 就有人跑，一条纯问答的轨就没有。
- * 而系统工具（读写那一组）是无条件挂上去的 —— 于是一条纯问答的多站机制里，模型迟早
- * 会请求一次工具，没人跑，那一行 `call` 就永远配不上 `tool`。
- *
- * 这时候上下文**再也发不出去了**：模型那边一律要求「有 tool_call 就得有对应的
- * tool result」，缺了直接拒（`Tool result is missing for tool call …`）。整条链路从此
- * 每一站都发不出去，任务卡到超时，而错看着像模型那边的毛病 —— 跟真正的原因隔着十万八千里。
- *
- * 所以配不上的那一行在这儿摘掉：**没人跑，等于没发生过**。库里那一行不动
- * （它是那一刻的真相），摘的只是发出去的这一份。
- */
-function dropDangling(rows: Row[]): Row[] {
-  const answered = new Set<string>();
-  for (const r of rows) {
-    if (r.kind !== "tool") continue;
-    try {
-      const id = (JSON.parse(String(r.body)) as { id?: string }).id;
-      if (id) answered.add(id);
-    } catch {
-      // 读不出 id 的当它没答过 —— 宁可多摘一行，也不要发一份发不出去的
-    }
-  }
-  return rows.filter((r) => {
-    if (r.kind !== "call") return true;
-    let calls: { id?: string }[];
-    try {
-      calls = (JSON.parse(String(r.body)) as { calls?: { id?: string }[] }).calls ?? [];
-    } catch {
-      return true;
-    }
-    // 一行 `call` 里可能有好几次调用；**只要有一次没人答，整行就发不出去**。
-    return calls.every((c) => c.id === undefined || answered.has(c.id));
-  });
-}
 
 export interface Log {
   info(msg: string): void;
@@ -703,11 +664,24 @@ export class Kernel {
         where instance = ? and unit in (${holes}) order by unit, seq`,
       [p.instance, ...line],
     );
-    return dropDangling(rows);
+    // **缺的补上，不摘。** 一条没人答的 `call` 是真发生过的事；摘掉它，模型看到
+    // 的历史里那次调用就凭空消失了，而且库里存的和发出去的不是一份东西。补一条
+    // 「没跑成」写回库里，两样都对得上 —— 详见 `answerMissing`。
+    const typed = rows as unknown as { unit: number; seq: number; kind: string; body: string }[];
+    if (answerMissing(this.#store.rw, p.agent, p.instance, typed) === 0) return rows;
+    return all(
+      this.#store.ro,
+      `select unit, seq, role, kind, body from "${t}"
+        where instance = ? and unit in (${holes}) order by unit, seq`,
+      [p.instance, ...line],
+    );
   }
 
   /** 往上下文里压一条。`seq` 在这个单元里连着排。 */
   #push(p: Pending, role: string, kind: string, body: string): void {
+    // **这一行也得过同一道校验。** 它绕开 `deliver()` 直接 insert，而形状约束要是
+    // 只有一条路上有，另一条路就是坏行漏进来的那个口子。
+    checkBody(kind, body);
     const t = this.#msgTable(p.agent);
     const seq = this.#seqMax(p) + 1;
     run(this.#store.rw, `insert into "${t}" (instance, unit, seq, role, kind, body, at) values (?, ?, ?, ?, ?, ?, ?)`, [
@@ -884,6 +858,32 @@ export class Kernel {
    * 由这儿说而不是让上面自己再数一遍：数两遍就会漂，而漂了的表现是那一刻
    * 要么不喊、要么喊两回。
    */
+  /**
+   * 这道题所有实例里没人答的调用，一次补完。
+   *
+   * 一个任务可能有好几个实例（每个智能体一份上下文），所以先问执行单元表都有谁。
+   */
+  #answerAll(task: string, sub: string): void {
+    const who = all(this.#store.ro, `select distinct agent, instance from "${sub}" where task = ?`, [task]) as {
+      agent: string;
+      instance: string;
+    }[];
+    for (const w of who) {
+      try {
+        const t = this.#msgTable(w.agent);
+        const rows = all(
+          this.#store.ro,
+          `select unit, seq, kind, body from "${t}" where instance = ? order by unit, seq`,
+          [w.instance],
+        ) as unknown as { unit: number; seq: number; kind: string; body: string }[];
+        const put = answerMissing(this.#store.rw, w.agent, w.instance, rows);
+        if (put > 0) this.#log.info(`${w.instance}: answered ${put} call(s) that nobody ever ran`);
+      } catch (e) {
+        // 补不上不该拦着任务收工 —— 那只是这张表少了几行，不是这道题没做完。
+        this.#log.warn(`${w.instance}: could not answer the calls left open: ${msg(e)}`);
+      }
+    }
+  }
   #restate(task: string, sub: string): boolean {
     const got = one(this.#store.ro, `select count(*) as n, coalesce(sum(done), 0) as d from "${sub}" where task = ?`, [
       task,
@@ -896,6 +896,10 @@ export class Kernel {
     const next = n === 0 ? "open" : d === n ? "done" : "claimed";
     run(this.#store.rw, `update task set state = ? where id = ?`, [next, task]);
     const justDone = next === "done" && was !== "done";
+    // **收工前把没人答的调用补齐。** 补齐平时是在拼上下文那一刻做的，可最后一站
+    // 之后再没有人来读上下文了 —— 那一站要是请求了工具而没人跑，那笔账就永远
+    // 挂在表里，这张表也就当不成一份完整的快照。
+    if (justDone) this.#answerAll(task, sub);
     // 跑完了喊一声。**内核不知道那边会干什么** —— 判成没成不是它的事。
     if (justDone) this.#hooks.onDone?.(task);
     return justDone;

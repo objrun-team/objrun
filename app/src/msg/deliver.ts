@@ -95,6 +95,110 @@ export interface Put {
  * `role` 也是推出来的：模型只认那几个 role，而「这条实际是什么」得另外标着 ——
  * 压给模型的时候系统注入的也是一条 `user`，光看消息列表分不出它是不是真人讲的。
  */
+/**
+ * 这一行的 `body` 形状对不对。**入库那一刻就查。**
+ *
+ * 以前不查，代价很具体：库里能躺着一条 `call`，它的 `calls` 里某一次没有 `id`，
+ * 而 `id` 正是工具结果配回来的钥匙 —— 没有它，那次调用永远配不上结果，整份
+ * 上下文从此发不出去。这件事以前要等到发请求时才被发现。
+ *
+ * 能在这一刻查的只有「这一行自己说得通吗」。「这次调用后来有没有人答」是后话，
+ * 归 `answerMissing` 管。
+ */
+export function checkBody(kind: string, body: string): void {
+  if (kind !== "call" && kind !== "tool") return;
+  let v: unknown;
+  try {
+    v = JSON.parse(body);
+  } catch {
+    throw new Error(`a ${kind} message must carry JSON in its body, and this one does not parse`);
+  }
+  if (kind === "call") {
+    const calls = (v as { calls?: unknown }).calls;
+    if (!Array.isArray(calls)) throw new Error("a call message must carry a calls array");
+    for (const c of calls as { id?: unknown; name?: unknown }[]) {
+      if (typeof c.id !== "string" || c.id === "") throw new Error("every call needs a non-empty id");
+      if (typeof c.name !== "string" || c.name === "") throw new Error("every call needs a tool name");
+    }
+    return;
+  }
+  const id = (v as { id?: unknown }).id;
+  if (typeof id !== "string" || id === "") throw new Error("a tool result needs the id of the call it answers");
+}
+
+/**
+ * 把这一串行里**没人答的调用补齐**：给每一次没有结果的调用写一条结果，说明它
+ * 从没跑过。返回补了几条。
+ *
+ * ## 为什么是补，不是摘
+ *
+ * 一条 `call` 没人答，是真发生过的事。**这一站有没有人真去跑工具，取决于机制
+ * 怎么搭**：下一站走 `fn:unit.tools` 就有人跑，一条纯问答的轨就没人跑。而系统
+ * 工具是无条件挂上去的，所以纯问答的多站机制里，模型迟早会请求一次没人跑的工具。
+ *
+ * 缺了结果，上下文就发不出去 —— 模型那边一律要求「有 tool_call 就得有对应的
+ * tool result」。以前的解法是发之前把那一行**摘掉**，代价是两条：
+ *
+ * - 模型看到的历史里，那次调用**凭空消失**。它会以为自己没调过，再调一遍
+ * - 库里存的和发出去的**不是一份东西**。出了事，拿着库复原不出模型看见了什么
+ *
+ * 补一条「没跑成」两样都解决：模型看得见自己调过、也看得见没结果；而库里存的
+ * 就是发出去的那一份。
+ */
+export function answerMissing(
+  db: Conn,
+  agent: string,
+  instance: string,
+  rows: { unit: number; seq: number; kind: string; body: string }[],
+): number {
+  const answered = new Set<string>();
+  for (const r of rows) {
+    if (r.kind !== "tool") continue;
+    try {
+      const id = (JSON.parse(r.body) as { id?: string }).id;
+      if (id) answered.add(id);
+    } catch {
+      // 读不出 id 的当它没答过 —— 这种行现在也进不了库了（见 checkBody）
+    }
+  }
+
+  const t = tableNameOf("agent_{}_msg", agent);
+  const tail = new Map<number, number>();
+  for (const r of rows) tail.set(r.unit, Math.max(tail.get(r.unit) ?? 0, r.seq));
+
+  let put = 0;
+  for (const r of rows) {
+    if (r.kind !== "call") continue;
+    let calls: { id?: string; name?: string }[];
+    try {
+      calls = (JSON.parse(r.body) as { calls?: { id?: string; name?: string }[] }).calls ?? [];
+    } catch {
+      continue;
+    }
+    for (const c of calls) {
+      if (!c.id || answered.has(c.id)) continue;
+      // 补在**发起调用的那个单元**末尾 —— 排序是 (unit, seq)，所以它紧跟在那一行
+      // 后面，读起来就是「调了，没跑成」。
+      const seq = (tail.get(r.unit) ?? r.seq) + 1;
+      tail.set(r.unit, seq);
+      answered.add(c.id);
+      run(db, `insert into "${t}" (instance, unit, seq, role, kind, body, at) values (?, ?, ?, 'tool', 'tool', ?, ?)`, [
+        instance,
+        r.unit,
+        seq,
+        JSON.stringify({
+          id: c.id,
+          name: c.name ?? "",
+          value: { ran: false, why: "this station ended before the call was run" },
+        }),
+        Date.now(),
+      ]);
+      put++;
+    }
+  }
+  return put;
+}
+
 export function deliver(db: Conn, p: Put): number {
   const t = tableNameOf("agent_{}_msg", p.agent);
   const { kind, role } = FROM[p.by];
@@ -104,6 +208,7 @@ export function deliver(db: Conn, p: Put): number {
   // 判据是 `HUMAN`（写的、说的都算），不是某一个具体的 by —— 加一种人类来源时
   // 漏改这一行的话，那一路就悄悄丢了标记，而压出去之后再也分不出来。
   const body = HUMAN.has(p.by) ? `${HUMAN_MARK}${p.body}` : p.body;
+  checkBody(kind, body);
 
   const got = all(db, `select coalesce(max(seq), 0) as m from "${t}" where instance = ? and unit = ?`, [
     p.instance,
