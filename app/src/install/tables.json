@@ -747,7 +747,7 @@
         {
           "name": "prompt_tokens",
           "type": "integer",
-          "_": "Tokens sent. Null on any row that did not come from a model call."
+          "_": "Tokens sent, TOTALLED over every round this row took. A cut-off answer is continued by asking again with what was said so far, and each round bills its own prompt - so on a continued row this is the sum, not the length of any one prompt. Read it as what the input cost, never as how long the context was: one measured row billed 17232 against a conversation of about 1600 tokens, and a later row can come in lower than an earlier one simply because it was not continued. Null on any row that did not come from a model call."
         },
         {
           "name": "completion_tokens",
