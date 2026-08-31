@@ -10,6 +10,22 @@
  * 但「不默认接入」不等于「看不见」。老仓库那句话是：**进度共享是能看、不是直接继承**。
  * 所以给工具，让它按需去取：判死的那几条多半是踩过的坑，接进来是为了绕开，不是为了抄。
  *
+ * ## 一个节点是好几个周期拼起来的
+ *
+ * **不是一行。** 一次尝试从思考站起头，中间来回跑工具，最后落在交卷站上收口 ——
+ * 这一整段才是一个节点：
+ *
+ * ```
+ *   ask#1 → act#2 → ask#3 → … → act#12 → submit#13
+ *   └──────────────── 一个节点 ────────────────┘
+ * ```
+ *
+ * 所以这两个工具都按**节点**说话，不按行：`task_tree` 列的是节点，
+ * `node_load` 读的是一整个节点拼起来的内容。
+ *
+ * 按行读的那一版是错的：读到一个动作站就是一片空白（那一站不说话，只跑工具），
+ * 而那不是「它没说什么」，是问错了粒度。
+ *
  * ## 为什么按 mode 分发
  *
  * 只有会分叉的机制才需要这两个。一条道走到黑的单链机制，上下文本来就是直接继承的，
@@ -27,7 +43,7 @@ type Row = Record<string, unknown>;
 
 /** 内核递给工具的那一份（见 `tools/unit.ts` 的 `runOne`）。 */
 interface At {
-  args?: { unit?: number };
+  args?: { node?: number };
   agent?: string;
   instance?: string;
   unit?: number;
@@ -35,9 +51,31 @@ interface At {
   sub?: string;
 }
 
+interface Unit {
+  cycle: string;
+  unit: number;
+  node: number;
+  from_cycle: string | null;
+  from_unit: number | null;
+  status: string | null;
+  done: number;
+}
+
+/** 按节点分组。**节点号是记在行上的**（`task_{mode}.node`），不用推。 */
+function byNode(units: Unit[]): Unit[][] {
+  const g = new Map<number, Unit[]>();
+  for (const u of units) {
+    const k = Number(u.node);
+    const got = g.get(k) ?? [];
+    got.push(u);
+    g.set(k, got);
+  }
+  return [...g.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v.sort((x, y) => x.unit - y.unit));
+}
+
 const TREE_TOOL = {
   name: "task_tree",
-  does: "See the whole tree for this task: which paths were tried, which were ruled out, how far each got. What other branches actually said is NOT here - use node_load to read one.",
+  does: "See the whole tree for this task: which attempts were made, which were ruled out, how far each got. One node is a whole attempt - it runs from thinking, through the tool work, to the hand-in that closes it. What a node actually said is NOT here: use node_load to read one.",
   params: { type: "object", properties: {} },
   output: {
     type: "object",
@@ -55,16 +93,16 @@ const TREE_TOOL = {
 
 const NODE_TOOL = {
   name: "node_load",
-  does: "Read what one station said (unit number comes from task_tree). This is another branch content: the ruled-out ones are usually traps already stepped in - read them to avoid repeating, not to copy.",
+  does: "Read a whole attempt: everything the model said across that node, together with the verdict its hand-in got. Node numbers come from task_tree. A ruled-out attempt is a trap someone already stepped in - read it to avoid repeating it, not to copy it.",
   params: {
     type: "object",
-    properties: { unit: { type: "integer", description: "Which station, as numbered by task_tree" } },
-    required: ["unit"],
+    properties: { node: { type: "integer", description: "Which attempt to read, as numbered by task_tree" } },
+    required: ["node"],
   },
-  output: { type: "object", properties: { unit: { type: "integer" }, said: { type: "array" } } },
+  output: { type: "object", properties: { node: { type: "integer" }, at: { type: "string" }, status: { type: "string" }, said: { type: "array" } } },
   prompt:
-    "node_load reads what one earlier station said, together with the verdict it got. A ruled-out branch is " +
-    "a trap someone already stepped in - read it to avoid repeating it, not to copy it.",
+    "node_load reads one whole earlier attempt - everything said across it, plus the verdict its hand-in got. " +
+    "A ruled-out attempt is a trap someone already stepped in: read it to avoid repeating it, not to copy it.",
   expectMs: 10_000,
 };
 
@@ -79,45 +117,65 @@ export function registerTreeView(db: Conn, reg: Registry, treeInfer: string): st
     const a = (arg ?? {}) as At;
     const at = whereAmI(db, String(a.instance));
     if (!at) return { error: `cannot tell which task ${String(a.instance)} belongs to` };
-    const nodes = all(
+    const units = all(
       db,
-      `select cycle, unit, from_cycle, from_unit, status, done from "${at.sub}" where task = ? order by unit`,
+      `select cycle, unit, node, from_cycle, from_unit, status, done from "${at.sub}" where task = ? order by unit`,
       [at.task],
-    );
+    ) as unknown as Unit[];
+
+    // **列的是节点，不是行。** 一个节点是一次完整的尝试：从思考站起头，来回跑
+    // 工具，落在拿到终止状态的那一行上收口。
     return {
       task: at.task,
-      here: `#${String(a.unit)}`,
-      nodes: nodes.map((n) => ({
-        unit: n.unit,
-        at: `${String(n.cycle)}#${String(n.unit)}`,
-        from: n.from_cycle === null ? null : `${String(n.from_cycle)}#${String(n.from_unit)}`,
-        status: n.status,
-        done: Number(n.done) === 1,
-        mine: Number(n.unit) === Number(a.unit),
-      })),
+      nodes: byNode(units).map((g) => {
+        const end = g[g.length - 1];
+        return {
+          node: Number(g[0].node),
+          at: g.map((u) => `${u.cycle}#${u.unit}`).join(" > "),
+          // 判决落在收口那一行上：reached = 这次尝试成了，dead_* = 被判不成，
+          // 空 = 还没交到卷。
+          status: end.status,
+          done: g.every((u) => Number(u.done) === 1),
+          mine: g.some((u) => Number(u.unit) === Number(a.unit)),
+        };
+      }),
     };
   });
 
   reg.register(db, `fn:tool.${NODE_TOOL.name}`, NODE_TOOL.expectMs, async (arg) => {
     const a = (arg ?? {}) as At;
-    const want = Number(a.args?.unit);
-    if (!Number.isInteger(want)) return { error: "unit is required - take it from task_tree" };
+    const want = Number(a.args?.node);
+    if (!Number.isInteger(want)) return { error: "node is required - take it from task_tree" };
+    const at = whereAmI(db, String(a.instance));
+    if (!at) return { error: `cannot tell which task ${String(a.instance)} belongs to` };
+
+    // **读的是一整个节点。** 按行读的那一版给一个动作站的号就回一片空白：
+    // 那一站不说话，只跑工具 —— 而那不是「它没说什么」，是问错了粒度。
+    const units = all(
+      db,
+      `select cycle, unit, node, status from "${at.sub}" where task = ? and node = ? order by unit`,
+      [at.task, want],
+    ) as unknown as Unit[];
+    if (units.length === 0) return { node: want, said: [], note: "there is no such node in this task" };
+
     const t = tableNameOf("agent_{}_msg", String(a.agent));
-    // **模型自己说过的话** + **G 判过什么**。别人那条分支的 skill、内核记账、
-    // 普通工具的返回不给 —— 那些是那一站的家当，不是它的结论。
+    const holes = units.map(() => "?").join(",");
+    // **模型自己说过的话** + **G 判过什么**。别的分支的 skill、内核记账、普通工具
+    // 的返回不给 —— 那些是那一段的家当，不是它的结论。
     //
-    // 判决必须给：`task_tree` 报了「这一站 dead_failed」，来读却读不到死因的话，
-    // 那跟不给差不多 —— 它下一条分支多半原样再来一遍。
+    // 判决必须给：`task_tree` 报了「这次尝试 dead_failed」，来读却读不到死因的话，
+    // 那跟不给差不多 —— 下一次尝试多半原样再来一遍。
     const rows = all(
       db,
-      `select seq, kind, body from "${t}" where instance = ? and unit = ? and kind in ('prompt','call','tool') order by seq`,
-      [String(a.instance), want],
+      `select unit, seq, kind, body from "${t}"
+        where instance = ? and unit in (${holes}) and kind in ('prompt','call','tool')
+        order by unit, seq`,
+      [String(a.instance), ...units.map((u) => u.unit)],
     );
-    if (rows.length === 0) return { unit: want, said: [], note: "that station said nothing, or does not exist" };
     const said: Row[] = [];
     for (const r of rows) {
       if (r.kind === "prompt") {
-        said.push({ kind: "prompt", text: r.body });
+        if (String(r.body ?? "").trim()) said.push({ at: r.unit, kind: "prompt", text: r.body });
         continue;
       }
       let v: { text?: string; calls?: { name?: string }[]; name?: string; value?: unknown };
@@ -127,14 +185,21 @@ export function registerTreeView(db: Conn, reg: Registry, treeInfer: string): st
         continue;
       }
       if (r.kind === "call") {
-        // 调用本身不给参数，只给「它当时想干什么」—— 参数是那条分支的细节。
-        said.push({ kind: "call", text: v.text ?? "", called: (v.calls ?? []).map((c) => c.name) });
+        // 调用本身不给参数，只给「它当时想干什么」—— 参数是那一段的细节。
+        said.push({ at: r.unit, kind: "call", text: v.text ?? "", called: (v.calls ?? []).map((c) => c.name) });
       } else if (v.name === "verify") {
-        said.push({ kind: "verdict", verdict: v.value });
+        said.push({ at: r.unit, kind: "verdict", verdict: v.value });
       }
       // 别的工具返回跳过。
     }
-    return { unit: want, said };
+    const end = units[units.length - 1];
+    return {
+      node: want,
+      at: units.map((u) => `${u.cycle}#${u.unit}`).join(" > "),
+      status: end.status,
+      said,
+      ...(said.length === 0 ? { note: "that attempt said nothing" } : {}),
+    };
   });
 
   const names: string[] = [];

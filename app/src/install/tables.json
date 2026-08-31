@@ -580,6 +580,12 @@
           "notnull": true
         },
         {
+          "name": "node",
+          "type": "integer",
+          "notnull": true,
+          "_": "Which tree node this unit belongs to. A node is a whole attempt: several units stitched together, closed by the one that gets a terminal status. Recorded rather than derived - deriving it means walking the parent chain and hard-coding which cycle closes a node, which is wrong the moment the mechanism changes, and wrong without an error."
+        },
+        {
           "name": "from_cycle",
           "type": "text"
         },

@@ -785,11 +785,30 @@ export class Kernel {
         const unit =
           Number(one(this.#store.ro, `select coalesce(max(unit), 0) as m from "${p.sub}" where task = ?`, [p.task])!.m) +
           1;
+        // **这一行属于哪个节点。**
+        //
+        // 一个节点是一次完整的尝试：好几个执行单元拼起来，由拿到终止状态的那一行
+        // 收口（`status` 非空 = reached / dead_*，出生即定不回改）。所以：
+        //
+        //   父亲还没收口 → 跟父亲同一个节点
+        //   父亲收口了   → 从这一行起是下一个节点
+        //
+        // **记下来，不要每次去推。** 推的话得走一遍父链，还得知道「哪一个周期收口
+        // 一个节点」—— 那件事一旦写进代码，换套机制就全读错，而且不报错。
+        const parent =
+          fromCycle === null || fromUnit === null
+            ? undefined
+            : (one(this.#store.ro, `select node, status from "${p.sub}" where task = ? and cycle = ? and unit = ?`, [
+                p.task,
+                fromCycle,
+                fromUnit,
+              ]) as { node?: number; status?: string | null } | undefined);
+        const node = parent === undefined ? 1 : Number(parent.node ?? 1) + (parent.status == null ? 0 : 1);
         run(
           this.#store.rw,
-          `insert into "${p.sub}" (task, cycle, unit, from_cycle, from_unit, agent, instance, place, at, done)
-           values (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-          [p.task, to, unit, fromCycle, fromUnit, p.agent, p.instance, p.place, Date.now()],
+          `insert into "${p.sub}" (task, cycle, unit, node, from_cycle, from_unit, agent, instance, place, at, done)
+           values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+          [p.task, to, unit, node, fromCycle, fromUnit, p.agent, p.instance, p.place, Date.now()],
         );
         // 智能体那边同一件事的另一半，跟着开 —— 两边要能对咬
         run(

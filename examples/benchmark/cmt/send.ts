@@ -68,13 +68,16 @@ const tasks = items.map((it) => ({
   // 这是哪一类问题。**扩展按它分发** —— 跟 `mode`（推理机制）是两回事。
   // 平的一个值，不往里塞层级：要收紧就在 `when` 里跨维多写几条条件。
   domain: "physics",
-  // These come from the old runs of this same benchmark, not from tuning against it:
-  //   solve_timeout 300 | dfs_max_siblings 2 | act_max_turns 8
-  // Copying the numbers keeps the two scorecards comparable. Picking them by watching
-  // this dataset would be fitting the benchmark, which makes the score meaningless.
-  solveSeconds: 300,
+  // The budget has to be big enough for the mechanism to run at all. One attempt takes
+  // five or six turns in practice; with a budget of six, the first hand-in lands exactly
+  // when the budget is gone, so a verdict of 0 can never be followed by a second attempt
+  // - verifier-guided retry never runs. Two attempts need twice that.
+  //
+  // This is room to run, not tuning: picking numbers by watching this dataset would be
+  // fitting the benchmark, and the score would mean nothing.
+  solveSeconds: 900,
   maxBranches: 2,
-  maxDeadSiblings: 2,
+  maxDeadSiblings: 3,
   description:
     `${it.prompt}\n\n` +
     (it.parameters ? `Symbols: ${it.parameters}\n` : "") +

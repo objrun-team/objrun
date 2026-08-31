@@ -215,8 +215,8 @@ ${JSON.stringify(p.objective, null, 2)}` : p.description;
     );
     run(
       db,
-      `insert into "${sub}" (task, cycle, unit, from_cycle, from_unit, agent, instance, place, at, done)
-       values (?, ?, 1, null, null, ?, ?, ?, ?, 0)`,
+      `insert into "${sub}" (task, cycle, unit, node, from_cycle, from_unit, agent, instance, place, at, done)
+       values (?, ?, 1, 1, null, null, ?, ?, ?, ?, 0)`,
       [p.id, cycle, p.agent, instance, p.place, now],
     );
     run(db, `insert into "${ctx}" (instance, task, unit, place, done) values (?, ?, 1, ?, 0)`, [
