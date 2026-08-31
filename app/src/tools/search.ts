@@ -45,11 +45,18 @@
  * 摆一件「调用起来才报错」的工具是最坏的那一档：模型看得见它、会去用它、然后拿一条
  * 错误回来，而那一格已经花掉了。工具列表说的该是「这儿真有的能力」。
  *
- * ## 封顶是必须的
+ * ## 搜几步管不了，只能管钟
  *
- * 实测过一发：搜了 15 次、烧掉 **182,063 个 token**、54 秒，**最后一条输出还是
- * `web_search_call`，一个字答案都没有**。不封顶的话，这一件工具能把一格的预算全
- * 吃光还什么都不带回来。`max_tool_calls` 就是那道闸。
+ * `/responses` 收 `max_tool_calls`，但**不照办**：回执里那一栏原样是 `null`，给 2
+ * 搜 11 次，给 8 搜 13 次，一模一样。所以那个参数不发了 —— 发一个不生效的参数比
+ * 不发更坏，下一个人看见它会以为这儿有道闸。
+ *
+ * 剩下的闸只有一道，是我们自己的：`SEARCH_WALL_MS`。到点断掉，那一格拿一条错误
+ * 继续走，不会挂到句柄的死期。
+ *
+ * 于是这件工具的开销天生就大：实测一次搜中位 13 万 token，最多 25 万，而且**四成
+ * 搜完一个字答案都没有**（最后一条输出还是 `web_search_call`）。这不是配错了，是
+ * 这条端点本来的样子 —— 一次搜要把整页整页读进去。`spent` 那一栏就是拿来看着它的。
  *
  * ## 留痕
  *
@@ -64,9 +71,12 @@ import type { Registry } from "../engine/registry.ts";
 import { declareTool } from "./register.ts";
 import { VENDORS } from "../llm/index.ts";
 
-/** 一次检索最多让它自己动几下（搜、开页、页内查找各算一下）。 */
-export const MAX_TOOL_CALLS = 8;
-/** 整次调用的硬墙。上面那个闸管次数，这个管钟。 */
+/**
+ * 整次调用的硬墙，**这是唯一一道闸**。
+ *
+ * 按次数封顶那条走不通（见文件开头）：那个参数收下了但不照办。所以只剩钟 ——
+ * 到点断掉，那一格拿一条错误继续走，不会挂到句柄的死期上。
+ */
 export const SEARCH_WALL_MS = 240_000;
 
 /**
@@ -254,7 +264,6 @@ export function registerSearchTool(db: Conn, reg: Registry): string {
         model: lane.model,
         input: question,
         tools: [{ type: "web_search" }],
-        max_tool_calls: MAX_TOOL_CALLS,
         stream: false,
       }),
       signal: wall,
