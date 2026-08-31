@@ -55,6 +55,9 @@ const fake = Bun.serve({
   fetch(req) {
     const path = new URL(req.url).pathname;
     // 这一站走完去哪儿：ask → act → ask，第三站收工。
+    // G 的两个节点：这一版看什么都说「不成」，好让节点真的被判死。
+    if (path === "/nope") return new Response("false", { headers: { "content-type": "application/json" } });
+    if (path === "/verdict") return new Response("false", { headers: { "content-type": "application/json" } });
     if (path === "/infer") {
       const to = hops === 0 ? { to: "act" } : hops === 1 ? { to: "ask" } : null;
       hops++;
@@ -143,8 +146,113 @@ try {
     !String(mine[0]?.body ?? "").includes('"ran":false'),
     mine[0]?.body,
   );
+
+  // ═══════════════════════════════════════════════════════════════════════
+  part("Part two: the verdict is a call that already has its answer - nobody re-runs it");
+
+  step("5. a tree whose grading function always says no, so a node really dies");
+  // **这一条焊的是真丢过的两跑。** 判死之后开新节点，新节点的第一站是动作站
+  // （跑工具的那个）。它去看上一站请求了什么 —— 而上一站是交卷站，那儿躺着
+  // **判决那一对**：`deliverVerdict` 写的「调用 + 结果」，结果当场就配好了。
+  //
+  // 原先那一版只看「最后一条 call 行」、也不管答没答过，于是把判决那次调用又跑了
+  // 一遍。同一个 id 两条结果，模型那边直接拒：
+  //   An assistant message with 'tool_calls' must be followed by tool messages
+  //   responding to each of them
+  // 每一道判死的题都会中招，两跑都是这么废的。
+  await m.api("POST", "/declare", {
+    handles: [
+      { name: at("/nope"), expectMs: 10_000 },
+      { name: at("/verdict"), expectMs: 10_000 },
+    ],
+    modes: [
+      {
+        mode: "tree",
+        cycles: [
+          { cycle: "ask", apiMode: "tools", maxUnits: 3, from: [], next: ["act"], infer: "fn:infer.dfs" },
+          { cycle: "act", maxUnits: 3, from: ["ask"], next: ["ask"], infer: "fn:infer.dfs" },
+        ],
+      },
+    ],
+  });
+  await m.api("POST", "/tasks", {
+    id: "t-dead", mode: "tree", agent: "bot", place: "local", source: "user",
+    description: "this one never passes", readable: false, maxDeadSiblings: 2, solveSeconds: 60,
+    objective: {
+      nodes: [
+        { name: "look", moment: "done", domain: { kind: "bool" }, handle: at("/nope") },
+        { name: "verdict", moment: "done", domain: { kind: "bool" }, handle: at("/verdict") },
+      ],
+      edges: [{ src: "look", out: 0, dst: "verdict" }],
+      sink: "verdict",
+    },
+  });
+  await until(
+    "t-dead to finish",
+    async () => {
+      const d = await m.api<{ state: string }>("GET", "/tasks/t-dead");
+      return d.state === "done" || d.state === "failed" ? d : null;
+    },
+    50_000,
+  );
+
+  step("6. a node really died, so the situation actually happened");
+  const walked = (
+    await m.api<{ rows: { cycle: string; unit: number; node: number; status: string | null }[] }>("POST", "/query", {
+      sql: "select cycle, unit, node, status from task_tree where task = 't-dead' order by unit",
+    })
+  ).rows;
+  show(
+    "the stations it walked:",
+    walked.map((r) => `${r.cycle}#${String(r.unit)}@node${String(r.node)}${r.status ? "[" + r.status + "]" : ""}`),
+  );
+  ok("one of them was declared dead", walked.some((r) => r.status === "dead_failed"), walked);
+  ok("and a second node was opened after it", new Set(walked.map((r) => r.node)).size > 1, walked);
+
+  step("7. and still: one call, one result");
+  const all = (
+    await m.api<{ rows: { unit: number; seq: number; kind: string; body: string }[] }>("POST", "/query", {
+      sql: "select unit, seq, kind, body from agent_bot_msg where instance = 't-dead#1' order by unit, seq",
+    })
+  ).rows;
+  const seen = new Map<string, number>();
+  for (const r of all) {
+    if (r.kind !== "tool") continue;
+    const id = (JSON.parse(r.body) as { id?: string }).id ?? "";
+    seen.set(id, (seen.get(id) ?? 0) + 1);
+  }
+  const twice = [...seen.entries()].filter(([, n]) => n > 1);
+  show("results per call:", [...seen.entries()].map(([id, n]) => `${id.slice(0, 24)}: ${String(n)}`));
+  ok("no call was answered twice - the verdict's own call was left alone", twice.length === 0, twice);
+
+  step("8. and that is because the two are different kinds of row");
+  // **这才是那道闸。** 判决那一对是系统事后记下的一次外部裁决，不是模型的请求 ——
+  // 两者都长成「调用 + 结果」，模型读起来也一样，但只有前者该被人去跑。分不开的
+  // 话，跑工具那一站会把判决当成一次待办的请求又执行一遍。
+  //
+  // 分法写在 `kind` 上，不靠 id 前缀那种约定：`call` 是模型要的，`graded` 是记下的。
+  const byKind = new Map<string, number>();
+  for (const r of all) byKind.set(r.kind, (byKind.get(r.kind) ?? 0) + 1);
+  show("the kinds in that instance:", [...byKind.entries()].map(([k, n]) => `${k}: ${String(n)}`));
+  ok("the verdict went in as its own kind", (byKind.get("graded") ?? 0) > 0, [...byKind.keys()]);
+  const graded = all.filter((r) => r.kind === "graded");
+  ok(
+    "and every one of them names the grading tool",
+    graded.every((r) => String(r.body).includes('"name":"verify"')),
+    graded.map((r) => String(r.body).slice(0, 60)),
+  );
+  // 这道题里模型一次工具都没要（假端点第二次起就说白话），所以 `call` 得去第一
+  // 部分那个任务里看 —— 那儿模型真要过一次。两种行分别存在，才叫分得开。
+  const asked = (
+    await m.api<{ rows: { kind: string }[] }>("POST", "/query", {
+      sql: "select distinct kind from agent_bot_msg where instance = 't-once#1'",
+    })
+  ).rows.map((r) => r.kind);
+  show("the kinds on the task where the model did ask for a tool:", asked);
+  ok("what the model asked for stayed a plain call", asked.includes("call"), asked);
 } finally {
   await fake.stop(true);
+
   m.stop();
 }
 

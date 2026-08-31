@@ -106,14 +106,14 @@ export interface Put {
  * 归 `answerMissing` 管。
  */
 export function checkBody(kind: string, body: string): void {
-  if (kind !== "call" && kind !== "tool") return;
+  if (kind !== "call" && kind !== "graded" && kind !== "tool") return;
   let v: unknown;
   try {
     v = JSON.parse(body);
   } catch {
     throw new Error(`a ${kind} message must carry JSON in its body, and this one does not parse`);
   }
-  if (kind === "call") {
+  if (kind === "call" || kind === "graded") {
     const calls = (v as { calls?: unknown }).calls;
     if (!Array.isArray(calls)) throw new Error("a call message must carry a calls array");
     for (const c of calls as { id?: unknown; name?: unknown }[]) {
@@ -168,6 +168,7 @@ export function answerMissing(
 
   let put = 0;
   for (const r of rows) {
+    // `graded` 不在此列：它写进来的时候结果就配好了，没有人在等。
     if (r.kind !== "call") continue;
     let calls: { id?: string; name?: string }[];
     try {
@@ -277,7 +278,7 @@ export function deliverVerdict(
   const id = `g-${p.instance}-${p.unit}-${seq + 1}`;
   const at = Date.now();
 
-  run(db, `insert into "${t}" (instance, unit, seq, role, kind, body, at) values (?, ?, ?, 'assistant', 'call', ?, ?)`, [
+  run(db, `insert into "${t}" (instance, unit, seq, role, kind, body, at) values (?, ?, ?, 'assistant', 'graded', ?, ?)`, [
     p.instance,
     p.unit,
     ++seq,
@@ -361,7 +362,11 @@ export const KINDS: [string, string][] = [
   ["skill", "A prompt placed by a skill"],
   ["tool", "A tool result"],
   ["prompt", "What the model itself said"],
-  ["call", "The model requesting tools; the calls ride in body"],
+  ["call", "The model requesting tools; the calls ride in body. Something still has to run these"],
+  [
+    "graded",
+    "A call the system wrote down after the fact, not one the model asked for - an outside judgement, shaped like a call so the model can read it. Nothing runs these: they arrive with their result already attached",
+  ],
   ["intervene", "A mark left by a user intervening while it runs"],
 ];
 

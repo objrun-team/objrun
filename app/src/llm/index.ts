@@ -217,7 +217,11 @@ export function sendable(r: { role: string; kind: string }, sentAs: Record<strin
  * 两头都是我们，约定一致就行；哪天觉得该有一列再补。
  */
 function toMsg(r: { role: string; kind: string; body: string }, sentAs: Record<string, string>): ModelMessage | null {
-  if (r.kind === "call") {
+  // `graded` 跟 `call` 长得一样、也照样念给模型听 —— 差别只在**谁写的**：
+  // `call` 是模型要的，得有人去跑；`graded` 是系统事后记下的一次外部裁决，
+  // 结果当场就配好了，没有人该去跑它。分不开的话，跑工具那一站会把判决当成
+  // 一次待办的请求又执行一遍 —— 同一个 id 两条结果，整条链路发不出去。
+  if (r.kind === "call" || r.kind === "graded") {
     const v = JSON.parse(r.body) as { text?: string; calls?: { id: string; name: string; input: unknown }[] };
     return {
       role: "assistant",

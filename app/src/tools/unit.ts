@@ -48,20 +48,53 @@ interface Call {
   input: unknown;
 }
 
-/** 上一站那条 `call` 里有哪些调用。没有就回空。 */
+/**
+ * 上一站请求了、而**还没有结果**的那些调用。
+ *
+ * ## 两条都是踩出来的
+ *
+ * **一，不是「最后一条 `call` 行」。** 一个执行单元里可以有不止一条 `call` ——
+ * 判决那一对（`deliverVerdict` 写的「调用 + 结果」）就是另一条。只看最后一条的话，
+ * 模型自己请求的那次工具被跳过，跑的反而是判决那条。
+ *
+ * **二，已经有结果的不许再跑。** 判决那一对写进来的时候结果就配好了；再跑一遍
+ * 就是同一个 `id` 两条结果，而模型那边对这一对的要求是死的：
+ * `An assistant message with 'tool_calls' must be followed by tool messages
+ * responding to each of them`。整条链路从此发不出去，任务卡到超时。
+ *
+ * 说到底是同一条规矩：**一次调用，一条结果。** 谁来答不重要，答过了就别再答。
+ */
 function callsOf(db: Conn, agent: string, instance: string, unit: number): Call[] {
   const t = tableNameOf("agent_{}_msg", agent);
-  const rows = all(
-    db,
-    `select body from "${t}" where instance = ? and unit = ? and kind = 'call' order by seq desc limit 1`,
-    [instance, unit],
-  ) as { body: string }[];
-  if (rows.length === 0) return [];
-  try {
-    return (JSON.parse(rows[0].body) as { calls?: Call[] }).calls ?? [];
-  } catch {
-    return [];
+  const rows = all(db, `select kind, body from "${t}" where instance = ? and unit = ? order by seq`, [
+    instance,
+    unit,
+  ]) as { kind: string; body: string }[];
+
+  // 这一站里已经答过的那些 id。
+  const answered = new Set<string>();
+  for (const r of rows) {
+    if (r.kind !== "tool") continue;
+    try {
+      const id = (JSON.parse(r.body) as { id?: string }).id;
+      if (id) answered.add(id);
+    } catch {
+      // 读不出 id 的当它没答过 —— 这种行进不了库（见 `msg/deliver.ts` 的 checkBody）
+    }
   }
+
+  const want: Call[] = [];
+  for (const r of rows) {
+    if (r.kind !== "call") continue;
+    try {
+      for (const c of (JSON.parse(r.body) as { calls?: Call[] }).calls ?? []) {
+        if (!answered.has(c.id)) want.push(c);
+      }
+    } catch {
+      // 同上
+    }
+  }
+  return want;
 }
 
 /** 一次调用的结果。**跑失败也回一个值** —— 见调用处。 */
@@ -120,7 +153,7 @@ export function registerToolUnit(db: Conn, reg: Registry): string {
     if (!me || me.from_unit === null) return bookkeeping([], "this station has no previous station, nothing to run");
 
     const calls = callsOf(db, agent, u.instance, Number(me.from_unit));
-    if (calls.length === 0) return bookkeeping([], "the previous station requested no tools");
+    if (calls.length === 0) return bookkeeping([], "the previous station left no tool call unanswered");
 
     const at: At = { place: u.place, agent, instance: u.instance, unit: u.unit };
     const ran: string[] = [];

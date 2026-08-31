@@ -444,7 +444,7 @@ function itemOf(r: { role: string; kind: string; body: string }, sentAs: Record<
   // 它自己上一轮请求工具的那一条。**会话记得住自己说过什么**，重发等于让它把
   // 自己的话又听一遍。chat 那边必须重发，因为那边压根没有「上一轮」——
   // 这是两条轨最实在的一处分别。
-  if (r.kind === "call") return null;
+  if (r.kind === "call" || r.kind === "graded") return null;
 
   if (r.kind === "tool") {
     const v = JSON.parse(r.body) as { id?: string; value?: unknown };
