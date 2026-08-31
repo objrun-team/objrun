@@ -32,8 +32,8 @@ step "1 底子：一个地方、两周期的机制、一个智能体，外加判
 curl -s -X POST "$BASE/declare" -H 'content-type: application/json' -d @- <<JSON
 { "places":[{"place":"local"}],
   "modes":[{"mode":"solve","cycles":[
-    {"cycle":"ask","apiMode":"chat","maxUnits":20,"from":[],      "next":["act"],"infer":"fn:infer.dfs"},
-    {"cycle":"act",                 "maxUnits":20,"from":["ask"], "next":["ask"],"infer":"fn:infer.dfs"}]}],
+    {"cycle":"ask","apiMode":"chat","maxUnits":50,"from":[],      "next":["act"],"infer":"fn:infer.dfs"},
+    {"cycle":"act",                 "maxUnits":50,"from":["ask"], "next":["ask"],"infer":"fn:infer.dfs"}]}],
   "agents":[{"name":"bot","apis":[["DEEPSEEK_API_KEY","deepseek-v4-flash"]],"unit":"fn:unit.tools"}],
   "handles":[
     {"name":"$GRADER/parsed","expectMs":60000},
