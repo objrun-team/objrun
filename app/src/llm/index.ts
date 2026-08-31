@@ -376,7 +376,11 @@ export function registerVendors(
       // 内核按周期表的 `api_mode` 已经挑好了这一站走哪条轨，这儿直接用。
       if (!u.api) throw new Error(`fn:api.${vendor} was called, but the kernel did not say which model this station uses`);
       const { model, key_env: keyEnv } = u.api;
-      const provider = createOpenAICompatible({ name: vendor, baseURL: v.baseURL, apiKey: key(keyEnv) });
+      // 地址允许被一条环境变量顶掉 —— `TGENGIN_DEEPSEEK_BASE_URL` 这种。**这是给
+      // 测试留的口子**：续写被拒、半截答案怎么办这类事，只有假端点验得了，真端点
+      // 永远只发对的那套。不设这条 = 走上面写死的地址，跟没这行一样。
+      const baseURL = process.env[`TGENGIN_${vendor.toUpperCase()}_BASE_URL`] || v.baseURL;
+      const provider = createOpenAICompatible({ name: vendor, baseURL, apiKey: key(keyEnv) });
 
       const instructions = instructionsOf(u);
       const messages = messagesOf(u);

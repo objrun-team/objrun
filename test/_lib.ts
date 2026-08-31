@@ -53,7 +53,7 @@ export interface Machine {
 }
 
 /** 起一台临时引擎。 */
-export async function machine(): Promise<Machine> {
+export async function machine(llm: Record<string, string | number> = {}): Promise<Machine> {
   const dir = mkdtempSync(join(tmpdir(), "tgengin-example-"));
   const port = await freePort();
   writeFileSync(
@@ -66,7 +66,19 @@ export async function machine(): Promise<Machine> {
       `api: { prefix: /api, token: , allowQuery: true, allowWrite: true, maxRows: 500, defaultLimit: 100 }`,
       // `config.yaml` 缺一个键就当场炸（那是故意的），所以这儿得跟着 Config 走 ——
       // 漏了的表现是引擎起不来，而 `machine()` 只会一直等，看着像测试挂死。
-      `llm: { maxTokens: 16384, retryTimes: 3, continueTimes: 3, reasoningEffort: high, temperature: 0, seed: 42 }`,
+      // 例子可以顶掉其中几个 —— 比如把 `retryTimes` 调成 0，好让「打不通会怎样」
+      // 这一类的例子几秒钟跑完，而不是干等三轮退避。
+      `llm: { ${Object.entries({
+        maxTokens: 16384,
+        retryTimes: 3,
+        continueTimes: 3,
+        reasoningEffort: "high",
+        temperature: 0,
+        seed: 42,
+        ...llm,
+      })
+        .map(([k, v]) => `${k}: ${String(v)}`)
+        .join(", ")} }`,
       `cors: { enabled: false, origin: "*" }`,
       "",
     ].join("\n"),
