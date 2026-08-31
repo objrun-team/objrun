@@ -666,9 +666,19 @@ export class Kernel {
         where instance = ? and unit in (${holes}) order by unit, seq`,
       [p.instance, ...line],
     );
-    // **缺的补上，不摘。** 一条没人答的 `call` 是真发生过的事；摘掉它，模型看到
-    // 的历史里那次调用就凭空消失了，而且库里存的和发出去的不是一份东西。补一条
-    // 「没跑成」写回库里，两样都对得上 —— 详见 `answerMissing`。
+    // **缺的补上，不摘** —— 但只在这一站不可能是答题的那个人的时候补。
+    //
+    // 谁答，表里写着：`api_mode` 为空的站调 `agent.unit`，那才是跑工具、写结果的
+    // 那个；有 `api_mode` 的站是去问模型的，轮不到它答。给前者拼上下文时工具**还
+    // 没开始跑**，那时候的「没人答」是「还没轮到」，不是「永远没有」—— 在那儿补
+    // 一条，等它真跑完就成了同一个 id 两条结果，模型那边一样拒收（反过来的那句：
+    // `Messages with role 'tool' must be a response to a preceding message with
+    // 'tool_calls'`）。实测五道题全卡在第三站上。
+    //
+    // 剩下的那一笔归收工时那次补齐（见 `#answerAll`）：真到最后还没人答，那才是
+    // 永远没人答。
+    const cyc = one(this.#store.ro, `select api_mode from cycle where mode = ? and cycle = ?`, [p.mode, p.cycle]);
+    if (String(cyc?.api_mode ?? "").trim() === "") return rows;
     const typed = rows as unknown as { unit: number; seq: number; kind: string; body: string }[];
     if (answerMissing(this.#store.rw, p.agent, p.instance, typed) === 0) return rows;
     return all(
