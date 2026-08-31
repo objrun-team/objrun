@@ -583,7 +583,7 @@
           "name": "node",
           "type": "integer",
           "notnull": true,
-          "_": "Which tree node this unit belongs to. A node is a whole attempt: several units stitched together, closed by the one that gets a terminal status. Recorded rather than derived - deriving it means walking the parent chain and hard-coding which cycle closes a node, which is wrong the moment the mechanism changes, and wrong without an error."
+          "_": "Which tree node this unit belongs to. **Only a tree-shaped mechanism has nodes**: there a node is a whole attempt, several units stitched together and closed by the one that gets a terminal status. A single-chain mechanism has no attempts to tell apart, so every unit of it stays node 1 - the column is there, it just has nothing to say. Recorded rather than derived: deriving it means walking the parent chain and hard-coding which cycle closes a node, which is wrong the moment the mechanism changes, and wrong without an error."
         },
         {
           "name": "from_cycle",
