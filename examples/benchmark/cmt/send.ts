@@ -81,7 +81,7 @@ const tasks = items.map((it) => ({
   //
   // 而且 15 分钟本身就不够：实测慢的那几道走到第七站才用掉十二格额度里的四格，
   // 时间先没了 —— 它们从来没走到过交卷站，连一份错答案都交不出来。
-  solveSeconds: 1800,
+  solveSeconds: 3600,
   // **只留时间这一个闸。** 额度、分支、判死重来的次数都给够 —— 卡在哪儿就该是
   // 「时间到了」，不该是「格子用完了」。哪一样先撞上，成绩单说的就是哪一样，
   // 而我们想量的是前者。
@@ -101,14 +101,60 @@ const tasks = items.map((it) => ({
   readable: true,
 }));
 
-const res = await fetch(`${BASE}/bench`, {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({ run: RUN, tasks }),
-});
-const got = (await res.json()) as { run?: string; ids?: string[]; error?: string };
-if (!res.ok) {
-  console.error(`the whole batch was not sent: ${got.error}`);
-  process.exit(1);
+/**
+ * **同时做几道。** 0 = 不管，整批一次全发出去（老行为）。
+ *
+ * 内核那边是**来多少吃多少**：没出站过的行全部当场发出去。所以「同时做几道」
+ * 这件事只能在发题这一侧管 —— 库里同时摆着几道没做完的，机器上就同时在做几道。
+ *
+ * 为什么要管：五十道一起发，就是五十个并发调用一起打给同一个供应商。它不会拒，
+ * 它会排队 —— 实测二十道并发时每次调用的耗时中位数就到了一分半、长尾十分钟。
+ * **吞吐没涨，延迟涨了**，而每道题的时限是按墙上的钟算的，于是题反而做不完。
+ *
+ * **这是「同时二十道」，不是「一批二十道」**：做完一道就补一道进去，而不是等
+ * 二十道全做完再发下一批。后者会被那一批里最慢的一道拖住整队。
+ */
+const AT_ONCE = Number(process.env.TGENGIN_CMT_AT_ONCE ?? 0);
+
+/** 这一跑现在有几道还没做完（没开工的 + 在做的）。 */
+async function busy(): Promise<number> {
+  const r = await fetch(`${BASE}/bench/${RUN}`);
+  if (!r.ok) return 0;
+  const j = (await r.json()) as { running?: number; open?: number };
+  return Number(j.running ?? 0) + Number(j.open ?? 0);
 }
-console.log(`${got.run}: ${got.ids?.length} tasks`);
+
+if (AT_ONCE > 0) {
+  // 一道一道地发，发之前先看有没有空位。`POST /tasks` 那道准入检测是按题的
+  // （G 过不了就拒这一道），所以拆开发不会松掉任何一条规矩。
+  console.log(`${RUN}: ${tasks.length} tasks, keeping ${AT_ONCE} of them in flight`);
+  let sent = 0;
+  for (const t of tasks) {
+    while ((await busy()) >= AT_ONCE) await Bun.sleep(5000);
+    const r = await fetch(`${BASE}/tasks`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...t, run: RUN }),
+    });
+    if (!r.ok) {
+      const e = (await r.json()) as { error?: string };
+      console.error(`${t.id} was refused: ${e.error}`);
+      process.exit(1);
+    }
+    sent++;
+    if (sent % 5 === 0 || sent === tasks.length) console.log(`  sent ${sent}/${tasks.length}`);
+  }
+  console.log(`${RUN}: all ${tasks.length} sent`);
+} else {
+  const res = await fetch(`${BASE}/bench`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ run: RUN, tasks }),
+  });
+  const got = (await res.json()) as { run?: string; ids?: string[]; error?: string };
+  if (!res.ok) {
+    console.error(`the whole batch was not sent: ${got.error}`);
+    process.exit(1);
+  }
+  console.log(`${got.run}: ${got.ids?.length} tasks`);
+}

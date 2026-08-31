@@ -12,6 +12,12 @@ BASE=${TGENGIN_BASE:-http://127.0.0.1:7801/api}
 GRADER=${TGENGIN_CMT_GRADER:-http://127.0.0.1:7901}
 HOW_MANY=${1:-5}
 RUN=${2:-cmt-demo}
+# **同时做几道。** 0 = 整批一次全发（内核那边来多少吃多少，五十道就是五十个并发）。
+# 设了就一道一道地发、做完一道补一道 —— 「同时二十道」，不是「一批二十道」。
+export TGENGIN_CMT_AT_ONCE=${TGENGIN_CMT_AT_ONCE:-0}
+# **要不要挂扩展。** 空 = 挂。`bare` 那一跑就是无扩展基线：同一套机制、同一批题，
+# 只是不给任何领域提示 —— 有扩展的成绩得跟它比，才知道扩展本身值多少。
+BARE=${TGENGIN_CMT_BARE:-}
 
 step () { echo; echo "── $* ──"; }
 
@@ -55,9 +61,13 @@ echo
 # 是模型站、下一站也是模型站，模型在那儿请求的工具没有人会去跑。所以条件跟着
 # 工具一起注册（`tree/dfs.ts`、`objective/tool.ts`、`tree/view.ts`、`tools/python.ts`），
 # 随二进制分发，装了这套机制的人都有，不用每个 benchmark 自己写几条 SQL。
-step "2 挂扩展"
-bun examples/benchmark/cmt/parmeras/load.ts
-
+if [ -z "$BARE" ]; then
+  step "2 挂扩展"
+  bun examples/benchmark/cmt/parmeras/load.ts
+else
+  step "2 不挂扩展（无扩展基线）"
+  echo "  TGENGIN_CMT_BARE 设了，这一跑不挂任何领域提示"
+fi
 step "2b 条件本身有没有毛病"
 curl -sS "$BASE/check"; echo
 
