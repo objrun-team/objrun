@@ -43,10 +43,15 @@ let items = (await res0.json()) as Item[];
 //
 // 复现一次「上一跑哪几道没做完」时要用：那几道在题库里的下标是散的，按「前 N 道」
 // 取不到它们。
+// **先把空的挑掉，再转数字。** 反过来的话空字符串会变成一个合法的下标：
+// `"".split(",")` 是 `[""]`，`Number("")` 是 `0`，而 `0` 是个正经的题号 ——
+// 于是「没点名」被读成「只要第 0 道」。实测就这么发出去过一道题。
 const ONLY = (process.env.TGENGIN_CMT_ONLY ?? "")
   .split(",")
-  .map((x) => Number(x.trim()))
-  .filter((n) => Number.isInteger(n));
+  .map((x) => x.trim())
+  .filter((x) => x !== "")
+  .map((x) => Number(x))
+  .filter((n) => Number.isInteger(n) && n >= 0);
 if (ONLY.length) {
   items = items.filter((it) => ONLY.includes(it.index));
   if (items.length !== ONLY.length) {
