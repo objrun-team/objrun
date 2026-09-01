@@ -72,14 +72,22 @@ llm:
   continueTimes: 3
   # 思考强度。**原样发给那家** —— 认不认得是那家的事，我们不替它猜。
   #
-  # DeepSeek 那边实测（`deepseek-v4-flash`）：`low` / `medium` / `high` / `max` 都真的
-  # 在思考，`none` 是一点都不思考。文档里只列了 low / high / max —— `none` 收得下，
-  # 但没写在册子上。
+  # 合法的七档，是拿一个非法值问出来的（那一端会把合法值列全）：
   #
-  # **注意它跟 `cycle.must_call` 互斥**：只要在思考，`tool_choice` 一律 400
+  #     none · minimal · low · medium · high · xhigh · max
+  #
+  # 实测（`deepseek-v4-flash`，同一道物理题）：`none` 14.5 秒、一点不想；`minimal`
+  # 113 秒、想 10,653 个 token；`low` 124 秒、想 12,057。**`minimal` 跟 `low` 只差
+  # 一成，不是一档能省事的旋钮 —— `none` 才是断崖。**
+  #
+  # **它跟 `cycle.must_call` 互斥**：只要在思考，`tool_choice` 一律 400
   # （`Thinking mode does not support this tool_choice`），指名和 `required` 一视同仁，
-  # 只有 `auto` 放行。要钉死某一站必须调哪个工具，就得把这一档设成 `none`。
-  reasoningEffort: low
+  # 只有 `auto` 放行。这道坎由适配器兜着 —— 钉死了工具的站（比如交卷）它自己把这一档
+  # 换成 `none` 再发，这儿不用为那几站迁就。
+  #
+  # 单个智能体可以钉死自己的那一档（`agent.knobs`），不受这一行影响：一个「去查、
+  # 把查到的说清楚」的智能体不需要思考，而它服务的求解者要想得越多越好。
+  reasoningEffort: medium
   # Sampling temperature. **0 for a benchmark**: without it there is no telling how
   # much of a score change came from an edit and how much from sampling noise.
   temperature: 0

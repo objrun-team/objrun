@@ -37,7 +37,23 @@ if (!res0.ok) {
   console.error(`cannot fetch problems from the grader (${GRADER}/problems): ${res0.status}`);
   process.exit(1);
 }
-const items = (await res0.json()) as Item[];
+let items = (await res0.json()) as Item[];
+
+// **只发点名的那几道。** 空 = 全发。
+//
+// 复现一次「上一跑哪几道没做完」时要用：那几道在题库里的下标是散的，按「前 N 道」
+// 取不到它们。
+const ONLY = (process.env.TGENGIN_CMT_ONLY ?? "")
+  .split(",")
+  .map((x) => Number(x.trim()))
+  .filter((n) => Number.isInteger(n));
+if (ONLY.length) {
+  items = items.filter((it) => ONLY.includes(it.index));
+  if (items.length !== ONLY.length) {
+    console.error(`asked for ${String(ONLY.length)} problems, the grader has ${String(items.length)} of them`);
+    process.exit(1);
+  }
+}
 
 /**
  * 每道题的 G。两个节点，**句柄名就是判卷台的地址**：
@@ -75,20 +91,15 @@ const tasks = items.map((it) => ({
   // 这是哪一类问题。**扩展按它分发** —— 跟 `mode`（推理机制）是两回事。
   // 平的一个值，不往里塞层级：要收紧就在 `when` 里跨维多写几条条件。
   domain: "physics",
-  // The budget has to be big enough for the mechanism to run at all. One attempt takes
-  // five or six turns in practice; with a budget of six, the first hand-in lands exactly
-  // when the budget is gone, so a verdict of 0 can never be followed by a second attempt
-  // - verifier-guided retry never runs. Two attempts need twice that.
+  // **每道题多久。** 环境变量顶掉，默认一小时。
   //
-  // This is room to run, not tuning: picking numbers by watching this dataset would be
-  // fitting the benchmark, and the score would mean nothing.
-  // **时限要长过一次调用的死期，不能等于它。** 模型那条句柄的 `expect_ms` 是 15 分钟；
-  // 时限也给 15 分钟的话，两个钟同时响，而任务那个先赢 —— 于是「一次调用卡住 →
-  // 判死这一站 → 换个节点重来」那条路永远走不到，整道题跟着一次抖动一起没。
+  // 时限要长过一次调用的死期，不能等于它：模型那条句柄的 `expect_ms` 是 15 分钟，
+  // 两个钟同时响的话任务那个先赢 —— 「一次调用卡住 → 判死这一站 → 换个节点重来」
+  // 那条路就永远走不到，整道题跟着一次抖动一起没。
   //
-  // 而且 15 分钟本身就不够：实测慢的那几道走到第七站才用掉十二格额度里的四格，
-  // 时间先没了 —— 它们从来没走到过交卷站，连一份错答案都交不出来。
-  solveSeconds: 3600,
+  // 而实测一小时也未必够：慢的那几道走到第七站才用掉十二格额度里的四格，时间先没了，
+  // 它们从来没走到过交卷站，连一份错答案都交不出来。
+  solveSeconds: Number(process.env.TGENGIN_CMT_SECONDS ?? 3600),
   // **只留时间这一个闸。** 额度、分支、判死重来的次数都给够 —— 卡在哪儿就该是
   // 「时间到了」，不该是「格子用完了」。哪一样先撞上，成绩单说的就是哪一样，
   // 而我们想量的是前者。

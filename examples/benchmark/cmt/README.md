@@ -747,6 +747,22 @@ TGENGIN_CMT_AT_ONCE=20 TGENGIN_CMT_BARE=1   bash examples/benchmark/cmt/run.sh 0
 | `0` | 全部题目（判卷台有多少发多少） |
 | `TGENGIN_CMT_BARE=1` | 不挂扩展 |
 | `TGENGIN_CMT_AT_ONCE=20` | 同时做 20 道，做完一道补一道 |
+| `TGENGIN_CMT_ONLY=3,5,8` | 只发点名的那几道（按题库下标）。空 = 不挑 |
+| `TGENGIN_CMT_SECONDS=900` | 每道题多久。默认 3600 |
+
+`TGENGIN_CMT_ONLY` 是复现用的：要重跑「上一跑哪几道没做完」，那几道的下标是散的，
+按「前 N 道」取不到。
+
+### 思考强度也是这一跑的定义的一部分
+
+在 [`config.yaml`](../../../config.yaml) 的 `llm.reasoningEffort`，七档：
+`none` · `minimal` · `low` · `medium` · `high` · `xhigh` · `max`。
+
+两跑要比的话，这一档得跟题目、模型、时限一样记进成绩单 —— 它比看上去重要得多，
+同一道题在不同档上耗时差着数量级。
+
+单个智能体可以钉死自己那一档（`agent.knobs`），不受这一行影响。检索背后那个
+`searcher` 就是这么配的：它的活是去查、把查到的说清楚，不需要想。
 
 留空 `TGENGIN_CMT_AT_ONCE` 的话是整批一次全发：内核对没出站过的行来多少发多少，
 五十道就是五十个并发调用一起打出去。这个上限在发题这一侧管，内核不动。
