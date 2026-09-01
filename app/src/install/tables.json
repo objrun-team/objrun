@@ -287,6 +287,11 @@
           "_": "The execution-unit handle -> handle.name"
         },
         {
+          "name": "knobs",
+          "type": "text",
+          "_": "Model settings this agent always calls with, as a JSON object; whatever it does not name falls back to the run-wide config. It belongs on the agent because it is a property of the agent, not of the run: a searcher that reads and reports wants no reasoning at all, while the solver it answers to wants as much as it can afford, and one dial cannot be both. Measured, the difference is not small - the same question took 14.5s at none and 113s at low, and the 98 seconds bought ten thousand tokens of reasoning about which paper it was, which is not what a searcher is for. Without this column, turning the solver's reasoning up would silently make every search eight times slower, and nothing would say why."
+        },
+        {
           "name": "state",
           "type": "text",
           "notnull": true

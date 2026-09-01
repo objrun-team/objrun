@@ -29,6 +29,7 @@
  */
 
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import type { FetchFunction } from "@ai-sdk/provider-utils";
 import { dynamicTool, generateText, jsonSchema, type ModelMessage } from "ai";
 
 import type { Conn } from "../H2H/db.ts";
@@ -192,6 +193,50 @@ export interface Unit {
   };
   tools: Row[];
   rules: string[];
+}
+
+/**
+ * 这一次真正生效的那几个旋钮：**整跑的配置打底，智能体自己那份盖在上面。**
+ *
+ * 放在智能体身上是因为它是智能体的性质，不是这一跑的性质 —— 一个「去查、把查到的
+ * 说清楚」的智能体不需要思考，而它服务的求解者要想得越多越好，一个旋钮当不了两件事。
+ * 实测同一个问题 `none` 是 14.5 秒、`low` 是 113 秒。
+ *
+ * 读不出来就当没有：那一列写坏了不该让这一站发不出去，落回整跑的配置照样能跑。
+ */
+function knobsOf<T extends Record<string, unknown>>(u: Unit, run: T): T {
+  const raw = u.agent.knobs;
+  if (typeof raw !== "string" || !raw.trim()) return run;
+  try {
+    const own = JSON.parse(raw) as Record<string, unknown>;
+    return { ...run, ...own };
+  } catch {
+    return run;
+  }
+}
+
+/**
+ * 往请求体里补几个字段 —— **这条 provider 不认得，但那一端认得的那些。**
+ *
+ * `providerOptions` 这条路是不通的：实测 `@ai-sdk/openai-compatible@3` 收下
+ * `providerOptions: { deepseek: { reasoning_effort } }`，而发出去的 body 里只有
+ * `model` 和 `messages` —— 那一栏根本没上线。**这意味着在补上这个之前，
+ * 配置里的思考强度从来没有生效过**，每一跑都跑在那一家的默认档上，而且不报错。
+ *
+ * SDK 给的正路是 `fetch` 这个钩子（它自己的文档：可以当中间件用来拦请求）。
+ * 所以这儿仍然不是手搓 —— HTTP、重试、错误分类全都还在 SDK 手里，我们只在最后
+ * 一刻把几个字段并进去。
+ */
+function withExtra(extra: Record<string, unknown>): FetchFunction {
+  const wrapped = async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+    if (init?.body && typeof init.body === "string") {
+      init = { ...init, body: JSON.stringify({ ...(JSON.parse(init.body) as object), ...extra }) };
+    }
+    return await fetch(input, init);
+  };
+  // 这个运行时的 `fetch` 身上还挂着别的东西（Bun 有 `preconnect`），而这一层要能
+  // 顶替它。**原样转发，不自己造一个** —— 造一个空壳的话，用到它的那条路会静默失效。
+  return Object.assign(wrapped, { preconnect: fetch.preconnect.bind(fetch) });
 }
 
 function key(keyEnv: string): string {
@@ -415,7 +460,7 @@ export function registerVendors(
   reg: Registry,
   log: Log,
   seed: [string, string, string][],
-  knobs: {
+  runKnobs: {
     maxTokens: number;
     retryTimes: number;
     continueTimes: number;
@@ -433,12 +478,22 @@ export function registerVendors(
       if (!u.api) throw new Error(`fn:api.${vendor} was called, but the kernel did not say which model this station uses`);
       const { model, key_env: keyEnv } = u.api;
       const retryOn = retrySet(u.api.retry_on);
+      // 这一次生效的旋钮 —— 整跑的打底，这个智能体自己那份盖上去。**得在建 provider
+      // 之前算**：思考强度是靠 fetch 中间件塞进请求体的，而中间件是建 provider 时挂的。
+      const knobs = knobsOf(u, runKnobs);
       // **地址从表里来。** 以前它写死在 `VENDORS` 里，后来我又加了一条环境变量去顶
       // 它 —— 那条更糟：同一份库，换个环境变量行为就不一样，而库里、代码里都看不
       // 出来。库要能当一份跟内核无关的快照用，这种东西一个都不能有。
       //
       // 进了表就顺带解决了另一件事：假端点不用再靠环境变量接进来，改一行数据就行。
-      const provider = createOpenAICompatible({ name: vendor, baseURL: u.api.base_url, apiKey: key(keyEnv) });
+      // 思考强度**从这儿走，不走 `providerOptions`** —— 后者收下但不发（见 `withExtra`）。
+      // 空字符串当成不给：那一家有自己的默认，我们不替它选。
+      const provider = createOpenAICompatible({
+        name: vendor,
+        baseURL: u.api.base_url,
+        apiKey: key(keyEnv),
+        ...(knobs.reasoningEffort ? { fetch: withExtra({ reasoning_effort: knobs.reasoningEffort }) } : {}),
+      });
 
       const instructions = instructionsOf(u);
       const messages = messagesOf(u);
@@ -506,10 +561,6 @@ export function registerVendors(
                 // how much from sampling noise.
                 temperature: knobs.temperature,
                 seed: knobs.seed,
-                // 思考强度**原样塞进那家的请求体**（openai-compatible 会把不认得的键
-                // 直接带过去）。不认得这个参数的模型会忽略它 —— 我们不替它翻译，
-                // 也不按模型名去猜该发哪个字段名，猜错了不报错，只是那一档没生效。
-                providerOptions: { [vendor]: { reasoning_effort: knobs.reasoningEffort } },
                 maxRetries: RETRIES,
                 abortSignal: wall.signal,
               });

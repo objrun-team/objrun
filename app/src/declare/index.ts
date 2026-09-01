@@ -84,6 +84,14 @@ export interface AgentDecl {
   unit: string;
   config?: string | null;
   state?: string;
+  /**
+   * 这个智能体**固定用哪几个模型参数**。不给的那几个落回整跑的配置。
+   *
+   * 放在智能体身上，是因为它本来就是智能体的性质，不是这一跑的性质：一个「去查、
+   * 把查到的说清楚」的智能体不需要思考，而它服务的那个求解者要想得越多越好 ——
+   * 一个旋钮当不了两件事。实测同一个问题 `none` 是 14.5 秒、`low` 是 113 秒。
+   */
+  knobs?: Record<string, unknown>;
 }
 
 /**
@@ -652,10 +660,19 @@ export async function apply(db: Conn, reg: Registry, pool: Servers, d: Declare):
     for (const a of d.agents ?? []) {
       run(
         db,
-        `insert into agent (name, config, apis, unit, state) values (?, ?, ?, ?, ?)
+        `insert into agent (name, config, apis, unit, knobs, state) values (?, ?, ?, ?, ?, ?)
          on conflict(name) do update set config = excluded.config, apis = excluded.apis,
-           unit = excluded.unit, state = excluded.state`,
-        [a.name, a.config ?? null, JSON.stringify(a.apis), a.unit, a.state ?? "idle"],
+           unit = excluded.unit, knobs = excluded.knobs, state = excluded.state`,
+        [
+          a.name,
+          a.config ?? null,
+          JSON.stringify(a.apis),
+          a.unit,
+          // 不给就是不给 —— 空对象和「没有这一栏」是同一件事，没必要让调用方在两种
+          // 「没有」之间选。
+          a.knobs && Object.keys(a.knobs).length ? JSON.stringify(a.knobs) : null,
+          a.state ?? "idle",
+        ],
       );
     }
 
@@ -777,7 +794,7 @@ export function dump(db: Conn): Declare {
     });
   }
 
-  const agents = (all(db, `select name, config, apis, unit, state from agent order by name`) as {
+  const agents = (all(db, `select name, config, apis, unit, knobs, state from agent order by name`) as {
     name: string; config: string | null; apis: string; unit: string; state: string;
   }[]).map((r) => ({
     name: r.name,
