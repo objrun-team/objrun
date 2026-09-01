@@ -96,7 +96,11 @@ const out = await outside({
     return {
       status: "completed",
       output: [
-        { type: "web_search_call", action: { type: "search", queries: ["two KT transitions triangular lattice"] } },
+        {
+          type: "web_search_call",
+          // 第二条是那一端自己的记号，不是它搜的东西 —— 实测每次都会多出这么一条。
+          action: { type: "search", queries: ["two KT transitions triangular lattice", "ws_call_id=call_00_abc"] },
+        },
         // 过场话。**它也是 message** —— 答案取最后一条，取错就会取到这句。
         { type: "message", content: [{ type: "output_text", text: "Let me look this up." }] },
         {
@@ -217,6 +221,9 @@ try {
   ok("the answer is the last thing it said", String(got.answer).includes("Isakov"), got.answer);
   ok("not the small talk on the way there", !String(got.answer).includes("Let me look"), got.answer);
   ok("the queries it ran are recorded", (got.queries ?? []).length === 1, got.queries);
+  // 那一端的内部编号不是查询串。留着的话，事后拿这份清单去比对它摸过什么，
+  // 每隔几行就有一行是编号。
+  ok("and its call ids are not mistaken for queries", !(got.queries ?? []).some((q) => q.startsWith("ws_call_id")), got.queries);
   // URL 上那截 `#ws_call_id=...` 是它自己的记号，不是地址 —— 留着的话，事后拿这份
   // 清单去比对「有没有摸到答案册」会一条都对不上。
   ok(

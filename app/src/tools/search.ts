@@ -410,8 +410,13 @@ function unpack(d: Answer): {
   for (const o of d.output ?? []) {
     if (o.type === "web_search_call") {
       searches++;
-      for (const q of o.action?.queries ?? []) queries.push(q);
-      // URL 上挂着 `#ws_call_id=...`，那是它自己的记号，不是地址的一部分。
+      // **`ws_call_id=…` 不是它搜的东西，是那一端自己的记号。**
+      //
+      // 它两处都会冒出来：挂在网址后面，也会自己占一个「查询串」的位置。实测一跑
+      // 里，每一次检索的 queries 末尾都多出这么一条 —— 留着的话，一份「它去查了
+      // 什么」的清单里每隔几行就有一行是编号，而事后拿这份清单去比对有没有摸到
+      // 不该摸的东西时，这些行只会碍事。
+      for (const q of o.action?.queries ?? []) if (!/^ws_call_id=/.test(q)) queries.push(q);
       if (o.action?.url) opened.push(o.action.url.replace(/#ws_call_id=.*$/, ""));
       continue;
     }
