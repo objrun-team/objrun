@@ -481,6 +481,8 @@ export function registerVendors(
       // 这一次生效的旋钮 —— 整跑的打底，这个智能体自己那份盖上去。**得在建 provider
       // 之前算**：思考强度是靠 fetch 中间件塞进请求体的，而中间件是建 provider 时挂的。
       const knobs = knobsOf(u, runKnobs);
+      // 见下面建 provider 那儿：钉死工具的站不能思考。
+      const effort = u.mustCall ? "none" : knobs.reasoningEffort;
       // **地址从表里来。** 以前它写死在 `VENDORS` 里，后来我又加了一条环境变量去顶
       // 它 —— 那条更糟：同一份库，换个环境变量行为就不一样，而库里、代码里都看不
       // 出来。库要能当一份跟内核无关的快照用，这种东西一个都不能有。
@@ -492,7 +494,15 @@ export function registerVendors(
         name: vendor,
         baseURL: u.api.base_url,
         apiKey: key(keyEnv),
-        ...(knobs.reasoningEffort ? { fetch: withExtra({ reasoning_effort: knobs.reasoningEffort }) } : {}),
+        // **这一站要是钉死了必须调某个工具，思考就得关掉。**
+        //
+        // 不是我们的选择，是那一端的规矩：思考模式下 `tool_choice` 一律 400
+        // （`Thinking mode does not support this tool_choice`）。两样都要的话，
+        // 请求根本发不出去。
+        //
+        // 而这两件事本来也不冲突：会钉死工具的站（比如交卷）要的是「把已经算好的
+        // 东西交出去」，不是再想一遍。
+        ...(effort ? { fetch: withExtra({ reasoning_effort: effort }) } : {}),
       });
 
       const instructions = instructionsOf(u);

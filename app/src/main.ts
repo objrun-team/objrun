@@ -287,7 +287,7 @@ app.log.info(`tools: ${registerTools(app.store.rw, registry, places).join(", ")}
 // 检索单独一件：它不转发到 workplace（要的是网络和钥匙，不是那台机器上的文件系统），
 // 而且**摆给谁看由 `trigger` 说了算** —— 只有 apis 里是「自己会搜」那几家的智能体
 // 才拿得到。一家都不是，条件一条都不命中，谁也拿不到 —— 这正是 trigger 本来的语义。
-app.log.info(`search tool: ${registerSearchTool(app.store.rw, registry)}`);
+app.log.info(`search tool: ${registerSearchTool(app.store.rw, registry, app.log)}`);
 
 // 把上一站模型请求的工具真跑掉。**少了这一步工具那条链是断的** ——
 // 请求落了库却永远不被执行，而且不报错。周期表上 api_mode 留空的那一站走它。

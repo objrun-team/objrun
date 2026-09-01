@@ -450,7 +450,7 @@ function unpack(d: Answer): {
  *
  * 之后要临时关掉，是改 `tool.usable` 那一列 —— 数据的事，不改这个文件。
  */
-export function registerSearchTool(db: Conn, reg: Registry): string {
+export function registerSearchTool(db: Conn, reg: Registry, log?: { warn(msg: string): void }): string {
   reg.register(db, `fn:tool.${SEARCH_TOOL.name}`, SEARCH_TOOL.expectMs, async (arg) => {
     const a = (arg ?? {}) as { args?: { question?: unknown }; agent?: string; instance?: string; unit?: number };
     const question = String(a.args?.question ?? "").trim();
@@ -525,6 +525,13 @@ export function registerSearchTool(db: Conn, reg: Registry): string {
     // `spent` 还是要报的：这次调用真的花了钱，不因为被拦下就当没花过。
     const hit = tripped(got, at ? forbidden(db, at.task) : []);
     if (hit) {
+      // **踩线要在日志里喊一声。** 库里留下的只有那句拒绝 —— 那是给模型看的，
+      // 它说不出「踩的是哪一条、当时它在往哪儿去」。而这件事是运维要知道的：
+      // 一道题反复撞同一条线，说明那道题的题面本身在把它往那边引。
+      log?.warn(
+        `${at ? at.task : "?"}: a search tripped the publisher's no_search rule on "${hit}" - ` +
+          `the whole result was dropped. queries: ${got.queries.join(" | ").slice(0, 300)}`,
+      );
       return {
         error:
           "Forbidden access: the publisher of this problem does not allow searching for related content. " +
