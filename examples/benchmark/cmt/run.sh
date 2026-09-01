@@ -34,7 +34,10 @@ curl -s -X POST "$BASE/declare" -H 'content-type: application/json' -d @- <<JSON
   "modes":[{"mode":"solve","cycles":[
     {"cycle":"ask","apiMode":"chat","maxUnits":35,"from":[],      "next":["act"],"infer":"fn:infer.dfs"},
     {"cycle":"act",                 "maxUnits":35,"from":["ask"], "next":["ask"],"infer":"fn:infer.dfs"}]}],
-  "agents":[{"name":"bot","apis":[["DEEPSEEK_API_KEY","deepseek-v4-flash"]],"unit":"fn:unit.tools"}],
+  "agents":[
+    {"name":"bot","apis":[["DEEPSEEK_API_KEY","deepseek-v4-flash"]],"unit":"fn:unit.tools"},
+    {"name":"searcher","apis":[["DEEPSEEK_API_KEY","deepseek-v4-flash"]],"unit":"fn:unit.tools",
+     "knobs":{"reasoningEffort":"none"}}],
   "handles":[
     {"name":"$GRADER/parsed","expectMs":60000},
     {"name":"$GRADER/equiv", "expectMs":60000}] }

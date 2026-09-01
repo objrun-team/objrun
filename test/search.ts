@@ -28,6 +28,10 @@ const m = await machine();
 /** 这一格该请求哪个问题 —— 靠它把两条路（有答案 / 没答案）分开。 */
 let ask = "how many KT transitions does the triangular lattice TFIM have?";
 
+/** 假端点每收到一发，就把那一发的 `input` 和思考强度记在这儿。 */
+const sent: { role?: string; content?: string }[][] = [];
+const efforts: string[] = [];
+
 const out = await outside({
   /** 假的 `/chat/completions`：一开口就请求 `web_search`。 */
   "/chat/completions": () => ({
@@ -57,7 +61,16 @@ const out = await outside({
 
   /** 假的 `/responses`。**形状照抄真的那一份** —— 假的形状不对，例子就白钉。 */
   "/responses": (a) => {
-    const asked = String((a as { input?: unknown }).input ?? "");
+    // 每一发都记下来 —— 第 8 步查的就是「上一轮的对话有没有带上」。
+    const raw = (a as { input?: unknown }).input;
+    const input = (Array.isArray(raw) ? raw : [{ role: "user", content: String(raw ?? "") }]) as {
+      role?: string;
+      content?: string;
+    }[];
+    sent.push(input);
+    const asked = input.map((x) => String(x.content ?? "")).join(" ");
+    const effort = String((a as { reasoning_effort?: unknown }).reasoning_effort ?? "");
+    efforts.push(effort);
     // 踩线那一路：答案本身干净，**但它开过的页面出卖了它** —— 闸查的是整份，
     // 不只是那段话。
     if (asked.includes("forbidden")) {
@@ -144,8 +157,18 @@ try {
         ],
       },
     ],
-    // `unit` 是**跑工具那一站**走的句柄：`api_mode` 留空的站调它。
-    agents: [{ name: "bot", apis: [["DEEPSEEK_API_KEY", "deepseek-v4-flash"]], unit: "fn:unit.tools" }],
+    agents: [
+      // `unit` 是**跑工具那一站**走的句柄：`api_mode` 留空的站调它。
+      { name: "bot", apis: [["DEEPSEEK_API_KEY", "deepseek-v4-flash"]], unit: "fn:unit.tools" },
+      // **这件工具背后的那个智能体。** 模型、端点、思考强度都是它这一行说了算 ——
+      // 不是调用方那一行。检索是一份固定的活：去查、把查到的说清楚，不需要想。
+      {
+        name: "searcher",
+        apis: [["DEEPSEEK_API_KEY", "deepseek-v4-flash"]],
+        unit: "fn:unit.tools",
+        knobs: { reasoningEffort: "none" },
+      },
+    ],
   });
 
   step("3. the distribution table decides who sees it");
@@ -282,6 +305,45 @@ try {
     capped.length >= 2 && capped.slice(1).every((v) => String(v.error).includes("for this attempt is spent")),
     capped.slice(1),
   );
+
+  step("8. it is a plain question-and-answer agent, and it keeps its own conversation");
+  // **它不是 ReAct。** 那一端怎么搜、翻了哪几页，在我们的对话模型里根本不是一次工具
+  // 调用 —— 所以它那张表里没有 call、没有工具结果，只有一问一答。
+  //
+  // 而下一次不用把同一片地方再走一遍，靠的也不是保存那一端的检索状态：**上一轮的
+  // 答案本身就是材料**，带着它去问就够了。
+  sent.length = 0;
+  ask = "how many KT transitions does the triangular lattice TFIM have?";
+  await m.api("POST", "/tasks", {
+    id: "t-search-again", mode: "one", agent: "bot", place: "local", source: "user",
+    description: "search twice", solveSeconds: 60,
+  });
+  await until("t-search-again to finish", async () => {
+    const d = await m.api<{ state: string }>("GET", "/tasks/t-search-again");
+    return d.state === "done" || d.state === "failed" ? d : null;
+  }, 40_000);
+
+  const desk = (
+    await m.api<{ rows: { role: string; kind: string; body: string }[] }>("POST", "/query", {
+      sql: "select role, kind, body from agent_searcher_msg where instance = 't-search-again#searcher' order by unit, seq",
+    })
+  ).rows;
+  show("what the searcher's own table holds:", desk.map((r) => `${r.role}/${r.kind}: ${r.body.slice(0, 40)}`));
+  ok("two rows per search, one asked and one answered", desk.length >= 2 && desk.length % 2 === 0, desk.length);
+  ok("the first is the question", desk[0]?.role === "user", desk[0]);
+  ok("the second is what it answered", desk[1]?.role === "assistant", desk[1]);
+  ok("nothing pretends to be a tool call", desk.every((r) => r.kind !== "call" && r.kind !== "tool"), desk.map((r) => r.kind));
+
+  const turns = sent.map((inp) => inp.length);
+  show("how many turns each request carried:", turns);
+  ok("the first request carried only the question", turns[0] === 1, turns[0]);
+  ok("the second carried the earlier exchange too", (turns[1] ?? 0) > 1, turns[1]);
+  ok("and the question is still last", sent[1]?.[sent[1].length - 1]?.role === "user", sent[1]?.slice(-1));
+
+  step("9. the searcher's own settings are what goes out, not the run's");
+  // 求解那边调思考强度，不该顺手把检索也拖慢 —— 这一条就是 `agent.knobs` 存在的理由。
+  show("reasoning effort on each search request:", efforts.filter(Boolean));
+  ok("it searches without reasoning", efforts.every((e) => e === "" || e === "none"), efforts);
 } finally {
   out.stop();
   m.stop();

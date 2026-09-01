@@ -69,12 +69,25 @@
  */
 
 import type { Conn } from "../H2H/db.ts";
-import { all } from "../H2H/db.ts";
+import { all, run } from "../H2H/db.ts";
 import type { Registry } from "../engine/registry.ts";
 import { declareTool } from "./register.ts";
 import { whereAmI } from "../tasks/where.ts";
+import { deliver } from "../msg/deliver.ts";
 import { tableNameOf } from "../install/index.ts";
 import { VENDORS } from "../llm/index.ts";
+
+/**
+ * **这件工具背后那个智能体的名字。**
+ *
+ * 模型、端点、思考强度都是它那一行说了算（`agent.apis` → `api.base_url`，
+ * `agent.knobs`）—— 不是调用方那一行。检索是一份固定的活：去查、把查到的说清楚。
+ * 跟着调用方走的话，求解那边换个模型、调一档思考强度，检索会跟着变，而没有任何
+ * 地方说得出为什么。
+ *
+ * 库里没有这一行 = 这件工具没配好，当场说清楚，别去猜一个。
+ */
+export const SEARCHER = "searcher";
 
 /**
  * 单次调用的硬墙。**管的是一次搜能拖多久**，不是能搜几次 —— 后者是
@@ -154,6 +167,8 @@ interface Lane {
   base: string;
   model: string;
   keyEnv: string;
+  /** 它固定用的那几个模型参数（`agent.knobs`）。没有就是空的。 */
+  knobs: Record<string, unknown>;
 }
 
 /**
@@ -163,8 +178,10 @@ interface Lane {
  * 说得含糊它就只能瞎试。
  */
 function laneOf(db: Conn, agent: string): Lane {
-  const row = all(db, `select apis from agent where name = ?`, [agent])[0] as { apis?: string } | undefined;
-  if (!row) throw new Error(`no row in agent for ${agent}`);
+  const row = all(db, `select apis, knobs from agent where name = ?`, [agent])[0] as
+    | { apis?: string; knobs?: string | null }
+    | undefined;
+  if (!row) throw new Error(`no row in agent for ${agent} - declare it before using this tool`);
   let apis: [string, string][];
   try {
     apis = JSON.parse(String(row.apis ?? "[]")) as [string, string][];
@@ -178,7 +195,13 @@ function laneOf(db: Conn, agent: string): Lane {
     | { base_url?: string }
     | undefined;
   if (!api?.base_url) throw new Error(`no row in api for ${keyEnv}/${model}`);
-  return { base: String(api.base_url).replace(/\/+$/, ""), model, keyEnv };
+  let knobs: Record<string, unknown> = {};
+  try {
+    if (row.knobs) knobs = JSON.parse(row.knobs) as Record<string, unknown>;
+  } catch {
+    // 那一列写坏了不该让这件工具用不了 —— 落回那一家的默认档照样能跑
+  }
+  return { base: String(api.base_url).replace(/\/+$/, ""), model, keyEnv, knobs };
 }
 
 /**
@@ -277,6 +300,76 @@ function searchesIn(db: Conn, at: { sub: string; task: string }, agent: string, 
     }
   }
   return n;
+}
+
+/**
+ * 这道题的检索记在哪儿：**那个智能体自己的表，一道题一条实例。**
+ *
+ * 一道题一条，所以同一道题里的每一次检索都接得上，而不同的题互不相干。
+ */
+function deskOf(task: string): string {
+  return `${task}#${SEARCHER}`;
+}
+
+/**
+ * 把这一次的问和答**抄送一份回它自己的表**，顺带带上这边的任务信息。
+ *
+ * 形状就是一段普通对话，跟别的智能体没有两样：
+ *
+ * | 行 | 是什么 |
+ * | --- | --- |
+ * | `user` | 这次问它什么 |
+ * | `call` | 它答了什么（`text`），外加它去搜过哪几次 |
+ * | `tool` | 每一次搜的**原样记录**，一次一行 |
+ *
+ * 那几条原样记录是关键：**下一次把它们塞回请求，那一端会把搜到的内容恢复出来**
+ * （实测：第一发搜 4 次、输入 14,543；接上之后再问，一次没重搜、输入 5,429）。
+ * 内容留在那一端，这边存的只有查询串和网址，三百来个 token。
+ *
+ * 走 `deliver` 那条唯一的投递管道 —— seq 怎么排、身份怎么定，只许有一处说了算。
+ */
+function ccBack(db: Conn, task: string, question: string, answer: string): void {
+  const desk = deskOf(task);
+  const t = tableNameOf("agent_{}_msg", SEARCHER);
+  const ctx = tableNameOf("agent_{}_ctx", SEARCHER);
+  const unit =
+    Number(
+      (all(db, `select coalesce(max(unit), 0) as m from "${t}" where instance = ?`, [desk])[0] as { m: number }).m,
+    ) + 1;
+
+  // 这一格的账：**哪道题问的**。表里因此看得出这段对话是替谁查的。
+  run(db, `insert into "${ctx}" (instance, task, unit, place, done) values (?, ?, ?, 'local', 1)`, [desk, task, unit]);
+
+  // **一次两条：问它的那句，和它答的那句。** 都是纯文本 —— 它那一端怎么搜、翻了哪几页，
+  // 在我们的对话模型里根本不是一次工具调用，所以这儿没有 call、没有工具结果行。
+  //
+  // 走 `deliver` 那条唯一的投递管道：身份、kind、seq 只许有一处说了算。
+  deliver(db, { agent: SEARCHER, instance: desk, unit, by: "world", body: question });
+  deliver(db, { agent: SEARCHER, instance: desk, unit, by: "agent", body: answer });
+}
+
+/**
+ * 这道题此前问过它什么、它答过什么 —— **一段普通对话，按顺序取回来。**
+ *
+ * 带上它，下一次就不用把同一片地方再走一遍：**上一轮的答案本身就是材料**。
+ * 不需要去保存那一端内部的检索状态 —— 它搜了什么是它自己的事，我们要的是它说了什么。
+ *
+ * 那张表还没长出来（这件工具从没用过）就当没有：那样这一次是全新一发，多花一点，
+ * 但不会错；而在这儿抛的话，第一次检索就用不了。
+ */
+function deskTalk(db: Conn, task: string): { role: string; content: string }[] {
+  const t = tableNameOf("agent_{}_msg", SEARCHER);
+  let rows: { role: string; kind: string; body: string }[];
+  try {
+    rows = all(db, `select role, kind, body from "${t}" where instance = ? order by unit, seq`, [
+      deskOf(task),
+    ]) as { role: string; kind: string; body: string }[];
+  } catch {
+    return [];
+  }
+  return rows
+    .filter((r) => r.role === "user" || r.role === "assistant")
+    .map((r) => ({ role: r.role, content: r.body }));
 }
 
 /** 钥匙只在这一刻取，不留。 */
@@ -390,15 +483,21 @@ export function registerSearchTool(db: Conn, reg: Registry): string {
       }
     }
 
-    const lane = laneOf(db, a.agent);
+    // **轨从那个智能体来，不从调用方来。** 模型、端点、思考强度都是它那一行说了算。
+    const lane = laneOf(db, SEARCHER);
     const wall = AbortSignal.timeout(SEARCH_WALL_MS);
     const res = await fetch(`${lane.base}/responses`, {
       method: "POST",
       headers: { authorization: `Bearer ${keyOf(lane.keyEnv)}`, "content-type": "application/json" },
       body: JSON.stringify({
         model: lane.model,
-        input: question,
+        // **先看表里有没有现成的。** 有就接在问题前面 —— 那一端据此把先前搜到的内容
+        // 恢复出来，同一片地方不用再走一遍。顺序是硬的：接在**问题前面**，反过来那一端
+        // 直接拒（`The reasoning_text in the thinking mode must be passed back to the API`）。
+        input: at ? [...deskTalk(db, at.task), { role: "user", content: question }] : question,
         tools: [{ type: "web_search" }],
+        // 它固定的那几个参数原样带上 —— 键名照那一端的写法（`reasoning_effort`）。
+        ...(lane.knobs.reasoningEffort ? { reasoning_effort: String(lane.knobs.reasoningEffort) } : {}),
         stream: false,
       }),
       signal: wall,
@@ -442,6 +541,10 @@ export function registerSearchTool(db: Conn, reg: Registry): string {
           `nothing to say; the queries it tried are listed, so try asking for something narrower`,
       };
     }
+    // **校验过了才抄送。** 走到这儿说明：那一端没报错、没踩黑名单、而且真给出了答案。
+    // 抄一份回它自己的表，带上这边是哪道题 —— 下一次同一道题里的检索就接得上。
+    // 这边照常把工具调用的结果写回去，一个字不改。
+    if (at) ccBack(db, at.task, question, got.answer);
     return left === undefined ? got : { ...got, left };
   });
 
