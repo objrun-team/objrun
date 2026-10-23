@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, statfsSync, writeFileSync } from "node:
 import { freemem, tmpdir } from "node:os";
 import { join } from "node:path";
 import { machine, type Machine } from "./_lib.ts";
-import { requestedWorkers, workerPreflight, roundRobinBenchmarks } from "../scripts/repair-2026-10-08/campaign-workers.ts";
+import { requestedWorkers, workerPreflight, roundRobinBenchmarks } from "../scripts/benchmark-repair/campaign-workers.ts";
 
 test("four workers are preferred and explicit counts are checked before generation", () => {
   expect(requestedWorkers()).toBe(4);

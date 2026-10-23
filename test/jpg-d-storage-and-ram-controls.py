@@ -18,14 +18,14 @@ from unittest.mock import patch
 import uuid
 
 REPO=Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(REPO/'scripts/repair-2026-10-08'))
+sys.path.insert(0,str(REPO/'scripts/benchmark-repair'))
 import jpg_d_storage_profile as s
 import jpg_private_ram_profile as r
 import jpg_private_ram_executor as e
 
 BASE=REPO/'.scratch/jpg-D-storage-controls'
 FIXTURE_ONLY=True
-BEFORE={n:hashlib.sha256((REPO/'scripts/repair-2026-10-08'/n).read_bytes()).hexdigest() for n in
+BEFORE={n:hashlib.sha256((REPO/'scripts/benchmark-repair'/n).read_bytes()).hexdigest() for n in
         ('skb-jpg-journal-campaign.ts','audit-jpg-journal-campaign.py','jpg-paid-resource-admission-v1.ts','jpg-journal-contract.ts')}
 
 
@@ -179,7 +179,7 @@ class Controls(unittest.TestCase):
         with self.assertRaises(e.GradeFault):e.verify_namespace_proof({'namespaceValidated':True,'validated':False},e.source_pins(),{},self.p)
         with self.assertRaises(s.StorageFault):s.native_actor_absent(os.getpid())
     def test_15_original_four_and_default_inert(self):
-        after={n:hashlib.sha256((REPO/'scripts/repair-2026-10-08'/n).read_bytes()).hexdigest() for n in BEFORE}
+        after={n:hashlib.sha256((REPO/'scripts/benchmark-repair'/n).read_bytes()).hexdigest() for n in BEFORE}
         self.assertEqual(after,BEFORE)
         p=root();rows,out,_=e.bounded_child([sys.executable,'-B',str(Path(e.__file__))],os.environ.copy(),p,1,lambda _:None,5)
         prepared=json.loads(out);self.assertTrue(prepared['preparedOnly']);self.assertEqual(prepared['DockerMutations'],0);self.assertFalse(prepared['actualReady'])

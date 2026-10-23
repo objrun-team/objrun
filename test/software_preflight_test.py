@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import Mock
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location("software_preflight", ROOT / "scripts/repair-2026-10-08/software-preflight.py")
+SPEC = importlib.util.spec_from_file_location("software_preflight", ROOT / "scripts/benchmark-repair/software-preflight.py")
 PREFLIGHT = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(PREFLIGHT)
 

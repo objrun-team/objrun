@@ -7,8 +7,8 @@ import type { Bench, BenchAdapter, TaskManifest, StageSpec, AttemptContext, Stag
 import { assertContext, checkPin, readPinned, filePin, expand, executeCommand, inspectActualSolver, wxJson } from '../runtime.ts';
 import { loadPreparedContext } from '../bindings.ts';
 import { validateTerminalDriverData,inspectLegacyHistory,inspectLegacyActorAbsence } from '../terminal-driver.ts';
-import { verifyBenchmarkCashClosure } from '../../repair-2026-10-10/full-f/shared/digitalocean-usd-cash.ts';
-import { inspectCampaignJournal } from '../../repair-2026-10-10/full-f/shared/digitalocean-journal.ts';
+import { verifyBenchmarkCashClosure } from '../../benchmark-campaign/full-f/shared/digitalocean-usd-cash.ts';
+import { inspectCampaignJournal } from '../../benchmark-campaign/full-f/shared/digitalocean-journal.ts';
 import { terminalBenchAdapter } from './terminal-bench.ts';
 import { skillsbenchAdapter } from './skillsbench.ts';
 

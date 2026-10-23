@@ -1,6 +1,6 @@
 /** Dedicated byte verification thread. No broker, provider, queue, resource or financial mutation. */
 import {readFileSync} from 'node:fs';import {createHash,verify} from 'node:crypto';
-import {verifyPin} from '../repair-2026-10-08/paid-resource-proof-v2.ts';
+import {verifyPin} from '../benchmark-repair/paid-resource-proof-v2.ts';
 const digest=(s:string)=>createHash('sha256').update(s).digest('hex');
 self.onmessage=(event:any)=>{
  const m=event.data;

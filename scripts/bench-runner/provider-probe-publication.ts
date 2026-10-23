@@ -1,6 +1,6 @@
 /** Publish only an already healthy, uniquely adopted same-pool executor. */
 import{readFileSync,writeFileSync,renameSync}from'node:fs';import{join,resolve}from'node:path';
-import{actualPin,jsonPin,demand,verifyPin,same}from'../repair-2026-10-08/paid-resource-proof-v2.ts';
+import{actualPin,jsonPin,demand,verifyPin,same}from'../benchmark-repair/paid-resource-proof-v2.ts';
 import{verifyAdoptedConnection}from'./unlimited-adopted-consumer.ts';
 import{unlimitedFinancialFields}from'./financial-policy-runtime.ts';
 export async function publishProviderSuccessor(signedPlanPin:any){

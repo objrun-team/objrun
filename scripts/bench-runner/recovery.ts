@@ -5,8 +5,8 @@ import {verify,createHash} from 'node:crypto';
 import {Database} from 'bun:sqlite';
 import type {TaskManifest,AttemptContext,StageResult,Pin,Bench} from './types.ts';
 import {pin,verifyPin,loadManifest,demand} from './manifest.ts';
-import {verifyBenchmarkCashClosure} from '../repair-2026-10-10/full-f/shared/digitalocean-usd-cash.ts';
-import {inspectCampaignJournal} from '../repair-2026-10-10/full-f/shared/digitalocean-journal.ts';
+import {verifyBenchmarkCashClosure} from '../benchmark-campaign/full-f/shared/digitalocean-usd-cash.ts';
+import {inspectCampaignJournal} from '../benchmark-campaign/full-f/shared/digitalocean-journal.ts';
 
 export interface RetryClosureEvidence {
  protocol:'bench-retryable-closure-v1';taskId:string;bench:Bench;attemptId:string;runId:string;

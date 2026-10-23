@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { campaignComplete, checkedOutputTokens, classifyGeneration, completionFault, gradeFixedCandidate, reconcileReceiptCost, tokenCostUpperBound, type ApiReceipt } from "../scripts/repair-2026-10-08/campaign-contract.ts";
+import { campaignComplete, checkedOutputTokens, classifyGeneration, completionFault, gradeFixedCandidate, reconcileReceiptCost, tokenCostUpperBound, type ApiReceipt } from "../scripts/benchmark-repair/campaign-contract.ts";
 
 const receipt = (): ApiReceipt => ({ httpStatus: 200, usage: { prompt_tokens: 100, completion_tokens: 10 }, finishedAt: "2026-10-08T00:00:00Z", completionValid: true });
 const sha = (text: string) => createHash("sha256").update(text).digest("hex");

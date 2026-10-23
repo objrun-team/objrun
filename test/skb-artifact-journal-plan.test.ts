@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { hash } from '../scripts/repair-2026-10-08/paid-resource-proof-v2.ts';
-import { assertSkbArtifactSchedule, fixedSkbArtifactSchedule, loadSkbArtifactSelection, rawFrontmatterBody, SKB_ARTIFACT_IDS } from '../scripts/repair-2026-10-08/skb-artifact-journal-contract.ts';
+import { hash } from '../scripts/benchmark-repair/paid-resource-proof-v2.ts';
+import { assertSkbArtifactSchedule, fixedSkbArtifactSchedule, loadSkbArtifactSelection, rawFrontmatterBody, SKB_ARTIFACT_IDS } from '../scripts/benchmark-repair/skb-artifact-journal-contract.ts';
 
 describe('new prospective SkillsBench ten-task contract',()=>{
   test('actual frozen ten-task source trees and raw bodies match prior independent metadata',()=>{

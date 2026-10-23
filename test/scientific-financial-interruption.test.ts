@@ -3,10 +3,10 @@ import{appendFileSync,copyFileSync,mkdirSync,readFileSync,writeFileSync}from'nod
 import{join,resolve}from'node:path';
 import{randomBytes}from'node:crypto';
 import{gunzipSync}from'node:zlib';
-import{createCampaignJournal}from'../scripts/repair-2026-10-08/campaign-journal.ts';
-import{createCnyCashShadow}from'../scripts/repair-2026-10-08/cny-cash-shadow-v2.ts';
-import{actualPin,hash,requestValues}from'../scripts/repair-2026-10-08/paid-resource-proof-v2.ts';
-import{auditFinancialFixture}from'../scripts/repair-2026-10-08/audit-scientific-financial-interruption.ts';
+import{createCampaignJournal}from'../scripts/benchmark-repair/campaign-journal.ts';
+import{createCnyCashShadow}from'../scripts/benchmark-repair/cny-cash-shadow-v2.ts';
+import{actualPin,hash,requestValues}from'../scripts/benchmark-repair/paid-resource-proof-v2.ts';
+import{auditFinancialFixture}from'../scripts/benchmark-repair/audit-scientific-financial-interruption.ts';
 const ROOT=resolve(import.meta.dir,'..'),DIR=join(ROOT,'.scratch/scientific-financial-controls');
 function fixture(mode?:'bad-model'|'bad-body'){
  const root=join(DIR,randomBytes(12).toString('hex')),store=join(root,'store');mkdirSync(store,{recursive:true});const run='repair-2026-10-09T00-00-00-000Z',route=run+'/chembench/F/0/public-fixture',raw=JSON.stringify({model:'deepseek-flash',temperature:0,seed:42,reasoning_effort:'none',max_tokens:8192,messages:[{role:'user',content:'Harmless synthetic fixture'}]});
@@ -14,7 +14,7 @@ function fixture(mode?:'bad-model'|'bad-body'){
  const nonce='f'.repeat(48),envelope=requestValues(Buffer.from(raw)).peakNano*3n,admissionPath=join(root,'admission.json');writeFileSync(admissionPath,JSON.stringify({protocol:'paid-resource-admission-v2',runId:run,owned:{ownerNonce:nonce},selectedNewEnvelopeNanoCny:envelope.toString(),carryNanoCny:'8392180000',fixtureOnly:true})+'\n');
  const admission={protocol:'paid-resource-admission-v2',scope:'f-fixture',clock:{wallUnixMs:()=>Date.now()+1000,monotonicNs:()=>process.hrtime.bigint()},owned:{ownerNonce:nonce},proofPin:actualPin(admissionPath),envelopeNanoCny:envelope,carryNanoCny:8392180000n,registerCash(){},assertOwned(){},validateForwardSource(){}};
  const journal=createCampaignJournal({directory:store,campaign:run,capUsd:1,priorCampaignCostUpperBoundUsd:0});
- const cash=createCnyCashShadow({directory:join(store,'currency'),runId:run,providerKind:'real-provider',admission:admission as never,prices:actualPin(pricePath),journal:{directory:store,configPin:actualPin(join(store,'journal-config.json')),sourcePin:actualPin(join(ROOT,'scripts/repair-2026-10-08/campaign-journal.ts'))}});
+ const cash=createCnyCashShadow({directory:join(store,'currency'),runId:run,providerKind:'real-provider',admission:admission as never,prices:actualPin(pricePath),journal:{directory:store,configPin:actualPin(join(store,'journal-config.json')),sourcePin:actualPin(join(ROOT,'scripts/benchmark-repair/campaign-journal.ts'))}});
  const calls=[],tickets=[];for(let n=0;n<4;n++){const c=journal.admit({route,rawRequest:raw});if(!c.admitted)throw Error('fixture journal denied');calls.push(c);tickets.push(cash.beforeForward({id:'fixture-'+n,route,rawRequest:Buffer.from(raw),capturedRequest:actualPin(c.requestFile),journal:{admitted:c,startPrefix:journal.snapshot().durablePrefix}}));}
  if(tickets[3].admitted||tickets.slice(0,3).some(t=>!t.admitted))throw Error('fixture reserve scenario invalid');
  const ref=(seq:number)=>{let at=0;for(const line of readFileSync(join(store,'api-events.jsonl'),'utf8').trimEnd().split('\n')){const e=JSON.parse(line),bytes=Buffer.byteLength(line+'\n');if(e.kind==='finish'&&e.requestSeq===seq)return{callId:String(seq),finishOffset:at,finishEnd:at+bytes,finishLineSha256:hash(line+'\n')};at+=bytes;}throw Error('fixture finish missing');};
@@ -29,7 +29,7 @@ function fixture(mode?:'bad-model'|'bad-body'){
 }
 test('native files: three out-of-order complete finishes, one genuine cash denial; old carry persists; no production certificate',()=>{
  const f=fixture(),r=auditFinancialFixture(f,f.out);expect(r.validated).toBe(true);expect(r.financialOnly).toBe(false);expect(r.fixtureIntegrityValid).toBe(true);expect(r.scoreCertificate).toBe(false);expect(r.requests).toBe(4);expect(r.actualForwarded).toBe(3);expect(r.deniedBeforeForward).toBe(1);expect(r.newPendingCount).toBe(0);expect(r.newUnknownCount).toBe(0);expect(r.originalUnknownCarryNanoCny).toBe('8392180000');expect(r.releasePermitted).toBe(false);expect(r.compressedRequestEvidence.rows).toBe(4);expect(gunzipSync(readFileSync(r.compressedRequestEvidence.pin.path)).toString().trim().split('\n')).toHaveLength(4);
- writeFileSync(join(f.root,'control-result.json'),JSON.stringify({sourcePin:actualPin(join(ROOT,'scripts/repair-2026-10-08/audit-scientific-financial-interruption.ts')),result:r,actualProviderCalls:0,DockerOperations:0,lockOperations:0,onlyFWrites:true,syntheticProviderAttemptedFields:true})+'\n');
+ writeFileSync(join(f.root,'control-result.json'),JSON.stringify({sourcePin:actualPin(join(ROOT,'scripts/benchmark-repair/audit-scientific-financial-interruption.ts')),result:r,actualProviderCalls:0,DockerOperations:0,lockOperations:0,onlyFWrites:true,syntheticProviderAttemptedFields:true})+'\n');
 });
 test('missing or duplicate one of the three late real-finish references is rejected',()=>{const a=fixture();a.lateProofs.pop();expect(()=>auditFinancialFixture(a,a.out)).toThrow('fixed_denial_and_three_late_proofs');const b=fixture();b.lateProofs[1]=b.lateProofs[0];expect(()=>auditFinancialFixture(b,b.out)).toThrow('duplicate_or_missing_late_seq');});
 test('corrupt gzip/raw SHA cannot settle a provider request',()=>{const f=fixture(),p=join(f.store,'provider-1-response.json.gz'),raw=readFileSync(p);raw[raw.length-7]^=1;writeFileSync(p,raw);expect(()=>auditFinancialFixture(f,f.out)).toThrow('source_journal_not_financially_closed');});

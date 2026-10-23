@@ -13,6 +13,7 @@ ObjRun 学生协作仓库。项目是基于 Bun 和 TypeScript 的任务执行�
 | [paper/current/](paper/README.md) | 当前 v6.25 论文；历史版本由索引定位 |
 | [docs/provenance/](docs/provenance/README.md) | 审计、交接、写作来源和历史报告 |
 | [docs/architecture/](docs/architecture/README.md) | 现有架构文档入口 |
+| [scripts/](scripts/README.md) | 按 Bench 和用途命名的脚本入口及旧路径迁移表 |
 | [artifacts/](artifacts/README.md) | 本地历史备份与大文件，Git 忽略 |
 
 整理完成后，按 2026-10-24 的明确授权分组提交并发布到 Deref-IO/objrun。筛选后的真实 Bench 成功、失败、中断记录进入 `experiments/records/`，记录实体随普通 Git 文件保存。当前代码继续使用已有 `TGENGIN_*` 配置名。

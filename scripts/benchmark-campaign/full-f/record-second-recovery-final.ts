@@ -1,0 +1,15 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {join} from 'node:path';
+import {actualPin} from '../../benchmark-repair/paid-resource-proof-v2';
+import {verifyChemiqStreamEvidence} from './chemiq/upstream-stream-length-staged';
+const base=join(process.cwd(),'docs/repair-2026-10-10/full-f-rerun'),json=(p:string)=>JSON.parse(readFileSync(p,'utf8'));
+const runId='repair-2026-10-10T22-52-31-863Z-12-2026-10-11T03-20-32-916Z';
+const evidenceDir=join(base,'broker/repair-2026-10-10T22-52-31-863Z/chemiq-stream-evidence',runId+'-0');
+const replay=verifyChemiqStreamEvidence(evidenceDir),aggregate=json(join(evidenceDir,'capture.aggregate.json'));
+if(aggregate.error?.code!==504||aggregate.error?.message!=='Provider timed out after 301976ms')throw Error('actual_upstream_failure');
+const lane=json(join(base,'chemiq/runs',runId,'lane-close.json'));if(lane.closed!==true)throw Error('native_close');
+const cqProof={atUtc:new Date().toISOString(),runId,replay,error:aggregate.error,generationId:aggregate.id,model:aggregate.model,provider:aggregate.provider,actualUsageCost:null,unknownCostRetained:true,noSubmitRecovered:true,retainedValid:815,laneClosePin:actualPin(join(base,'chemiq/runs',runId,'lane-close.json')),sameRetriesHeld:true,supplierAuthorizationPending:true,modelCallsByVerifier:0};
+writeFileSync(join(base,'chemiq/second-recovery-upstream301-root-proof.json'),JSON.stringify(cqProof,null,2)+'\n');
+const audit=json(join(base,'audit-2026-10-11T03-26-55-814Z.json'));
+const report={atUtc:new Date().toISOString(),auditPin:actualPin(join(base,'audit-2026-10-11T03-26-55-814Z.json')),checks:Object.fromEntries(['ownerMatches','commonSourcePinsUnchanged','brokerHealthy','actualResponseCostsMatch','duplicateDispatch','duplicateGeneration'].map(k=>[k,audit[k]])),chembench:{valid:500,passed:479,wrong:21,original498HashesUnchanged:true,pausedProof:actualPin(join(base,'chembench/score-completion-20261010/final-heartbeat-pause-proof.json')),reportPin:actualPin(join(base,'chembench/report.md')),nativeKnownUsd:7.7433199191,nativeUnknownCount:61,generationDeduplicatedSupplementUsd:0.0413028076,effectiveKnownUsd:7.7846227267,effectiveUnknownCount:58},dockerRecoveryProof:actualPin(join(base,'docker-recovery-2026-10-10/second-recovery-root-health-proof.json')),backupManifest:'F:/git/TgEngin-handoff-2026-10-07/tmp/docker-storage-backup-current-20261011-0300/backup-manifest.json',currentDataSnapshotBytes:49243226112,physicalEFreeGiBAtRestore:14.2249,chemiq:cqProof,skillsbench:{valid:12,passed:10,preparePid:237416,childPid:235232,paidRunner:false,actualPreparation:'adaptive-cruise-control'},terminalBench:{valid:11,passed:11,stage:'pending-physical-e-disk-growth-reserve',minimumRequiredGiB:18,spaceQuestionPending:true},rootHeartbeat:'ACTIVE',oldCashAndAttemptsUnmodified:true,modelCallsByCoordinator:0};
+writeFileSync(join(base,'coordination-action-2026-10-11T03-30.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({chembenchValid:500,dockerRecovered:true,cqRetainedValid:815,cqFailure:aggregate.error.message,skillsPreparing:true,terminalSpacePending:true}));

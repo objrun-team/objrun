@@ -13,7 +13,7 @@ import uuid
 PROJECT=Path(__file__).resolve().parents[1]
 def load(name,path):
     spec=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
-s=load('bulk2_control',PROJECT/'scripts/repair-2026-10-08/minif2f_public_cache_bulk2_stage.py');k=s.k
+s=load('bulk2_control',PROJECT/'scripts/benchmark-repair/minif2f_public_cache_bulk2_stage.py');k=s.k
 f=load('bulk1_fixture_definitions_only',PROJECT/'test/minif2f_public_cache_bulk_test.py')
 BASE=PROJECT/'.scratch/minif2f-bulk2-tests';BASE.mkdir(exist_ok=True)
 REPORT=json.loads(s.FAILURE_PATH.read_bytes())

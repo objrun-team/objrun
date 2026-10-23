@@ -4,7 +4,7 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT/'scripts/repair-2026-10-08/science-db-snapshot-proxy-read-v1.py'
+SOURCE = ROOT/'scripts/benchmark-repair/science-db-snapshot-proxy-read-v1.py'
 spec = importlib.util.spec_from_file_location('proxy_reader_fixture',SOURCE)
 r = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(r)

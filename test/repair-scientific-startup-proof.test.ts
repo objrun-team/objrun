@@ -2,7 +2,7 @@ import { test, expect } from "bun:test";
 import { mkdirSync, writeFileSync, unlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
-import { exactStartupInventory, sameStartupOwner, scientificLiveId, assertStartupActorRecord } from "../scripts/repair-2026-10-08/scientific-startup-proof.ts";
+import { exactStartupInventory, sameStartupOwner, scientificLiveId, assertStartupActorRecord } from "../scripts/benchmark-repair/scientific-startup-proof.ts";
 
 test("actual F file inventories reject missing or additional artifacts", () => {
   const home = join(resolve(import.meta.dir, ".."), ".scratch", "scientific-startup-proof-fixture-" + randomUUID());

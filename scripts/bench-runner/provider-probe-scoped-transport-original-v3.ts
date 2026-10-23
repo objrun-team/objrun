@@ -2,15 +2,15 @@
 import{readFileSync,mkdirSync,writeFileSync}from'node:fs';import{join}from'node:path';import{createHash}from'node:crypto';
 import{installUnlimitedFinancialLoader}from'./provider-probe-scoped-transport-loader-v3.ts';
 const [loaderPath,scopePath]=process.argv.slice(2),config=installUnlimitedFinancialLoader(loaderPath);
-const {actualPin,jsonPin,demand,verifyPin}=await import('../repair-2026-10-08/paid-resource-proof-v2.ts');
+const {actualPin,jsonPin,demand,verifyPin}=await import('../benchmark-repair/paid-resource-proof-v2.ts');
 const {verifyProviderProbeScope}=await import('./provider-probe-scoped-transport-policy-v3.ts');
 const {verifyAdoptedActivation}=await import('./unlimited-readonly-guard-retry.ts');
-const {acquireOwnedFullFAdmissionV76}=await import('../repair-2026-10-10/full-f/novaeve_formal_v1/broker/shared-admission-owned-price-renewal.ts');
-const {createCampaignJournal,inspectCampaignJournal}=await import('../repair-2026-10-10/full-f/shared/supplier-journal.ts');
-const {createBenchmarkCash}=await import('../repair-2026-10-10/full-f/shared/supplier-usd-cash.ts');
-const {ScientificJournalProxy}=await import('../repair-2026-10-10/full-f/shared/supplier-proxy.ts');
-const {supplierProfile}=await import('../repair-2026-10-10/full-f/shared/chembench-supplier-profiles.ts');
-const {benchmarkProviderRequest}=await import('../repair-2026-10-10/full-f/shared/supplier-inference.ts');
+const {acquireOwnedFullFAdmissionV76}=await import('../benchmark-campaign/full-f/novaeve_formal_v1/broker/shared-admission-owned-price-renewal.ts');
+const {createCampaignJournal,inspectCampaignJournal}=await import('../benchmark-campaign/full-f/shared/supplier-journal.ts');
+const {createBenchmarkCash}=await import('../benchmark-campaign/full-f/shared/supplier-usd-cash.ts');
+const {ScientificJournalProxy}=await import('../benchmark-campaign/full-f/shared/supplier-proxy.ts');
+const {supplierProfile}=await import('../benchmark-campaign/full-f/shared/chembench-supplier-profiles.ts');
+const {benchmarkProviderRequest}=await import('../benchmark-campaign/full-f/shared/supplier-inference.ts');
 const scopePin=actualPin(scopePath),envelope=jsonPin(scopePin),scope=envelope.scope,sourcePins=[...config.sourcePins,scopePin],lane={slug:'terminal-bench',providerSlug:scope.providerSlug,providerProbeScopePin:scopePin,runId:scope.runId,output:scope.output,sourcePins};verifyProviderProbeScope(scopePin,lane);
 verifyPin(scope.activationPin);const current=await verifyAdoptedActivation(scope.activationPin.path);demand(current.health.providerProbeCapability==='signed-fireworks-two-request-only-v1','current_single_shared_broker_does_not_support_probe_route');
 const owner=Number(process.env.NOVAEVE_RESOURCE_LEASE_PID),token=process.env.NOVAEVE_RESOURCE_TOKEN;
@@ -18,7 +18,7 @@ demand(Number.isInteger(owner)&&owner>0&&token,'original_shared_parent_resource_
 const admission=await acquireOwnedFullFAdmissionV76({...lane,root:scope.root,connection:current.connection,ownedResource:{pid:owner,token}});
 const out=scope.output,jdir=join(out,'journal'),cdir=join(out,'cash'),failure=join(out,'failure-receipts');for(const p of [jdir,cdir,failure])mkdirSync(p,{recursive:true});
 const provider=supplierProfile(scope.providerSlug),inference={maxTokens:1024,reasoningEffort:'high',temperature:0,seed:42,retryTimes:0,continueTimes:0};
-const journal=createCampaignJournal({directory:jdir,campaign:scope.runId,capUsd:null,priorCampaignCostUpperBoundUsd:0,outputDirectory:out,provider}),cash=createBenchmarkCash({directory:cdir,runId:scope.runId,providerKind:'real-provider',admission,prices:scope.pricesPin,journal:{directory:jdir,configPin:actualPin(join(jdir,'journal-config.json')),sourcePin:actualPin(join(import.meta.dir,'../repair-2026-10-10/full-f/shared/supplier-journal.ts'))}},provider),tickets=new Map();
+const journal=createCampaignJournal({directory:jdir,campaign:scope.runId,capUsd:null,priorCampaignCostUpperBoundUsd:0,outputDirectory:out,provider}),cash=createBenchmarkCash({directory:cdir,runId:scope.runId,providerKind:'real-provider',admission,prices:scope.pricesPin,journal:{directory:jdir,configPin:actualPin(join(jdir,'journal-config.json')),sourcePin:actualPin(join(import.meta.dir,'../benchmark-campaign/full-f/shared/supplier-journal.ts'))}},provider),tickets=new Map();
 const route='neutral/provider-auth-route-format',proxy=new ScientificJournalProxy(journal,{provider,inference,routes:new Set([route]),failureDirectory:failure,beforeAdmission:()=>admission.validateForwardSource(),beforeForward:(start,prefix,raw,r)=>{const fund=cash.beforeForward({id:scope.runId+'/'+start.requestSeq,route:r,rawRequest:Buffer.from(raw),capturedRequest:actualPin(start.requestFile),journal:{admitted:start,startPrefix:prefix}});tickets.set(start.requestSeq,fund.ticket);demand(fund.admitted,'probe_cash_not_admitted')},afterDurableFinish:r=>{cash.finish(tickets.get(r.requestSeq),{kind:'journal-finish',journalRef:{...r.journalRef,callId:String(r.requestSeq)}})},afterFailedJournalCapture:(start,_finish,e:any)=>{if(!start)return;const ticket=tickets.get(start.requestSeq);if(!ticket)return;if(e.journalRef)cash.finish(ticket,{kind:'journal-finish',journalRef:{...e.journalRef,callId:String(start.requestSeq)}});else cash.finish(ticket,{kind:'failed-capture',requestSeq:start.requestSeq,evidence:{files:e.files,responsePin:e.files.find((p:any)=>p.path.endsWith('response.json.gz')),rawResponseSha256:e.rawResponseSha256,usage:e.usage,httpStatus:e.httpStatus,providerAttempted:e.providerAttempted,originalPrefix:e.journalSnapshot.durablePrefix,reason:e.error}})},transport:raw=>admission.transport(raw)});
 let probeError:unknown,closed:any;const results=[];
 try{

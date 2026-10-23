@@ -16,18 +16,18 @@ p=pathlib.Path(r['source'])
 assert p==p.resolve(strict=True) and p.is_relative_to(root) and p!=root and not p.is_junction()
 allowed=('objrun/runs','objrun/work','objrun/.phase1-data','objrun/.scratch','objrun/tmp','objrun/docs/', 'tmp/',
          'notes/paper-revisions','work/remaining12-parallel-20261018',
-         'objrun/scripts/repair-2026-10-10/full-f/chembench/runtime',
-         'objrun/scripts/repair-2026-10-10/full-f/gpqa/.runtime',
-         'objrun/scripts/newbench-20261014/runtime-snapshot',
-         'objrun/scripts/repair-2026-10-10/full-f/novaeve_formal_v1',
-         'objrun/scripts/repair-2026-10-10/full-f/terminal-bench',
-         'objrun/scripts/repair-2026-10-10/full-f/skillsbench/next-segment',
+         'objrun/scripts/benchmark-campaign/full-f/chembench/runtime',
+         'objrun/scripts/benchmark-campaign/full-f/gpqa/.runtime',
+         'objrun/scripts/code-benchmarks/runtime-snapshot',
+         'objrun/scripts/benchmark-campaign/full-f/novaeve_formal_v1',
+         'objrun/scripts/benchmark-campaign/full-f/terminal-bench',
+         'objrun/scripts/benchmark-campaign/full-f/skillsbench/next-segment',
          'objrun/scripts/bench-runner/release','objrun/scripts/historical-root')
 rel=p.relative_to(root).as_posix()
 if rel=='objrun/paper':
     # Only historical material is eligible; the manuscript and entry points stay.
     assert {'current','full-v6.25-short-abstract-20261021','README.md','versions.json'} <= set(r.get('excluded',[]))
-elif rel=='objrun/scripts/repair-2026-10-10/full-f/novaeve_formal_v1/sb':
+elif rel=='objrun/scripts/benchmark-campaign/full-f/novaeve_formal_v1/sb':
     # Retire only the three archived executables; all executed sources stay.
     keep=set(r.get('kept_files',[]))
     with gzip.open(run/'source-before.jsonl.gz','rt',encoding='utf-8') as rows:

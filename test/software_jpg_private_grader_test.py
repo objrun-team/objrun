@@ -11,7 +11,7 @@ import unittest
 from unittest import mock
 import zipfile
 
-PATH = Path(__file__).resolve().parents[1] / "scripts/repair-2026-10-08/software-jpg-private-grader.py"
+PATH = Path(__file__).resolve().parents[1] / "scripts/benchmark-repair/software-jpg-private-grader.py"
 spec = importlib.util.spec_from_file_location("jpg_private", PATH)
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)

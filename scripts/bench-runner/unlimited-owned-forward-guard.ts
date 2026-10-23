@@ -1,5 +1,5 @@
 import {unlimitedFinancialRecord} from './financial-policy-runtime.ts';
-import {processIncarnation} from '../repair-2026-10-10/full-f/novaeve_formal_v1/broker/process-incarnation-v70.ts';
+import {processIncarnation} from '../benchmark-campaign/full-f/novaeve_formal_v1/broker/process-incarnation-v70.ts';
 import {readFileSync} from 'node:fs';
 export function validateOwnedForwardSnapshot(h:any,c:any,lease:any,now=Date.now()){
  const age=now-Date.parse(h.atUtc),r=h.resourceSlots?.find((r:any)=>r.kind==='heavy-container'&&r.slug==='terminal-bench'&&r.pid===process.pid);

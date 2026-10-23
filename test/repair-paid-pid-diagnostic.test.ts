@@ -2,7 +2,7 @@ import { test, expect } from "bun:test";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
-import { assertPidsAbsent, observeOriginalPaidPids, exercisePidProbeFixture } from "../scripts/repair-2026-10-08/paid-resource-admission-v2.ts";
+import { assertPidsAbsent, observeOriginalPaidPids, exercisePidProbeFixture } from "../scripts/benchmark-repair/paid-resource-admission-v2.ts";
 
 const root = resolve(import.meta.dir, ".."), directory = join(root, "docs/repair-2026-10-08/pid-probe-records");
 const original = [50652, 38176, 87440, 96080, 96848];

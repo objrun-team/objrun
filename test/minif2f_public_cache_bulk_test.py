@@ -12,7 +12,7 @@ import urllib.error
 import uuid
 
 PROJECT=Path(__file__).resolve().parents[1]
-spec=importlib.util.spec_from_file_location('bulk_stage_control',PROJECT/'scripts/repair-2026-10-08/minif2f_public_cache_bulk_stage.py')
+spec=importlib.util.spec_from_file_location('bulk_stage_control',PROJECT/'scripts/benchmark-repair/minif2f_public_cache_bulk_stage.py')
 s=importlib.util.module_from_spec(spec);spec.loader.exec_module(s);k=s.k
 BASE=PROJECT/'.scratch/minif2f-public-bulk-tests';BASE.mkdir(exist_ok=True)
 

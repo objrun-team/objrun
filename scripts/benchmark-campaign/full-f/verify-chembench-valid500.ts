@@ -1,0 +1,22 @@
+import {readFileSync,readdirSync,writeFileSync} from 'node:fs';
+import {join} from 'node:path';
+import {createHash} from 'node:crypto';
+import {actualPin,verifyPin} from '../../benchmark-repair/paid-resource-proof-v2';
+import {makePlan} from './chembench/prepare';
+import {verifyApprovedSupplierStreamEvidence} from './chembench/supplier-stream-continuation';
+const base=join(process.cwd(),'docs/repair-2026-10-10/full-f-rerun'),out=join(base,'chembench');
+const json=(p:string)=>JSON.parse(readFileSync(p,'utf8'));
+const manifest=json(join(out,'manifest.json')),plan=makePlan(manifest.campaign);
+const baseline=json(join(out,'score-completion-20261010/third-recovery-retention-baseline.json'));
+if(baseline.count!==498)throw Error('baseline');for(const r of baseline.valid)verifyPin(r.pin);
+const records=readdirSync(join(out,'results')).filter(n=>/^task-\d+\.json$/.test(n)).map(n=>json(join(out,'results',n)));
+if(records.length!==500||new Set(records.map(r=>r.index)).size!==500)throw Error('unique_500_required');
+for(const r of records){const t=plan.tasks[r.index];if(!t||t.officialId!==r.officialId||t.promptSha256!==r.promptSha256||r.arm!=='F'||r.acceptance?.valid!==true||createHash('sha256').update(r.answer??'').digest('hex')!==r.candidateSha256)throw Error('full_valid_identity_candidate');}
+const runId='repair-2026-10-10T22-52-31-863Z-11-2026-10-11T02-59-23-412Z',run=join(out,'runs',runId);
+const cash=json(join(run,'currency/cash-close.json')),lane=json(join(run,'lane-close.json'));
+if(lane.closed!==true)throw Error('native_lane_not_closed');
+const current=records.filter(r=>[204,243].includes(r.index));if(current.some(r=>r.runId!==runId||r.acceptance.passed!==true))throw Error('last_two_actual_score');
+const evidenceRoot=join(base,'broker/repair-2026-10-10T22-52-31-863Z/stream-evidence');
+const streams=readdirSync(evidenceRoot).filter(n=>n.startsWith(runId+'-')).map(n=>verifyApprovedSupplierStreamEvidence(join(evidenceRoot,n)));
+const report={atUtc:new Date().toISOString(),denominator:500,valid:500,passed:records.filter(r=>r.acceptance.passed).length,wrong:records.filter(r=>!r.acceptance.passed).length,uniqueIds:true,original498HashesUnchanged:true,lastTwo:current.map(r=>({index:r.index,officialId:r.officialId,runId:r.runId,candidateSha256:r.candidateSha256,acceptance:r.acceptance,pin:actualPin(join(out,'results',`task-${r.index}.json`))})),nativeCashClosePin:actualPin(join(run,'currency/cash-close.json')),nativeLaneClose:lane,streamEvidenceReplayed:streams,oldCashUnmodified:true,oldUnknownCostsRetained:true,modelCallsByVerifier:0};
+writeFileSync(join(out,'root-full500-valid-score-audit-20261011.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify({valid:500,passed:report.passed,wrong:report.wrong,original498HashesUnchanged:true,streams:streams.length}));

@@ -4,18 +4,18 @@ import { closeSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileS
 import { join, resolve } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { spawn } from 'node:child_process';
-import { actualPin, hash, jsonPin, same, verifyPin, type Pin } from '../scripts/repair-2026-10-08/paid-resource-proof-v2.ts';
+import { actualPin, hash, jsonPin, same, verifyPin, type Pin } from '../scripts/benchmark-repair/paid-resource-proof-v2.ts';
 import { CHEMIQ_F_FAMILY, CHEMIQ_F_ROOT, CHEMIQ_F_SETTINGS, CHEMIQ_F_SCOPE_PIN, CHEMIQ_F_READINESS_PIN, CHEMIQ_F_BOOK_SHA,
-  CHEMIQ_F_STAND_SHA, CHEMIQ_F_PROVENANCE_SHA, ChemiqRouteSeal, assertChemiqRuntimeGate, assertChemiqRecordSet, chemiqObjective, loadChemiqFPlan, validateChemiqRecipe } from '../scripts/repair-2026-10-08/chemiq-f-journal-contract.ts';
-import { addChemiqPrior, chemiqCashEnvelope, durableChemiqJson } from '../scripts/repair-2026-10-08/chemiq-f-paid-admission-v1.ts';
-import { ChemiqGradingRecorder } from '../scripts/repair-2026-10-08/chemiq-f-grading-recorder.ts';
-import { assertChemiqOwnedFrame, chemiqActorCommand } from '../scripts/repair-2026-10-08/chemiq-f-owned.ts';
-import { assertChemiqJournalExport, chemiqTrace } from '../scripts/repair-2026-10-08/audit-chemiq-f-journal.ts';
-import { chemiqAdditionalExecutionFiles, prepareChemiqF, CHEMIQ_F_EXECUTION_FILES } from '../scripts/repair-2026-10-08/chemiq-f-journal-campaign.ts';
+  CHEMIQ_F_STAND_SHA, CHEMIQ_F_PROVENANCE_SHA, ChemiqRouteSeal, assertChemiqRuntimeGate, assertChemiqRecordSet, chemiqObjective, loadChemiqFPlan, validateChemiqRecipe } from '../scripts/benchmark-repair/chemiq-f-journal-contract.ts';
+import { addChemiqPrior, chemiqCashEnvelope, durableChemiqJson } from '../scripts/benchmark-repair/chemiq-f-paid-admission-v1.ts';
+import { ChemiqGradingRecorder } from '../scripts/benchmark-repair/chemiq-f-grading-recorder.ts';
+import { assertChemiqOwnedFrame, chemiqActorCommand } from '../scripts/benchmark-repair/chemiq-f-owned.ts';
+import { assertChemiqJournalExport, chemiqTrace } from '../scripts/benchmark-repair/audit-chemiq-f-journal.ts';
+import { chemiqAdditionalExecutionFiles, prepareChemiqF, CHEMIQ_F_EXECUTION_FILES } from '../scripts/benchmark-repair/chemiq-f-journal-campaign.ts';
 import { finalCandidate } from '../app/src/objective/candidate.ts';
-import { createCampaignJournal, inspectCampaignJournal } from '../scripts/repair-2026-10-08/campaign-journal.ts';
-import { createCnyCashShadow, verifyCashClosure } from '../scripts/repair-2026-10-08/cny-cash-shadow-v2.ts';
-import { createChemiqModelWitness } from '../scripts/repair-2026-10-08/chemiq-f-model-witness.ts';
+import { createCampaignJournal, inspectCampaignJournal } from '../scripts/benchmark-repair/campaign-journal.ts';
+import { createCnyCashShadow, verifyCashClosure } from '../scripts/benchmark-repair/cny-cash-shadow-v2.ts';
+import { createChemiqModelWitness } from '../scripts/benchmark-repair/chemiq-f-model-witness.ts';
 
 const root = CHEMIQ_F_ROOT, area = join(root, '.scratch/chemiq-f-journal-tests', randomUUID()); mkdirSync(area, { recursive: true });
 const runId = 'repair-2026-10-09T00-00-00-000Z', plan = loadChemiqFPlan(runId, 'pilot16'), full = loadChemiqFPlan(runId, 'full816');
@@ -72,8 +72,8 @@ test('the frozen JPG D scanner execution graph is unioned once and cannot omit i
 test('actual frozen native source archiver makes a source-bound F ZIP without duplicate core or private task data', async () => {
   const dir = fresh('source-archive'), meta = join(dir, 'metadata'), store = join(dir, 'public-source'); mkdirSync(meta); mkdirSync(store);
   const peer = jsonPin(actualPin(join(root, 'docs/repair-2026-10-08/jpg-D-journal-preparations/repair-2026-10-09T06-57-26-283Z/recipe.json')));
-  const extras = chemiqAdditionalExecutionFiles(peer.sourcePins); expect(extras.every(p => p.startsWith('scripts/repair-2026-10-08/'))).toBe(true);
-  const python = 'D:/ProgramData/anaconda3/python.exe', archiver = join(root, 'scripts/repair-2026-10-08/freeze-scientific-journal.py');
+  const extras = chemiqAdditionalExecutionFiles(peer.sourcePins); expect(extras.every(p => p.startsWith('scripts/benchmark-repair/'))).toBe(true);
+  const python = 'D:/ProgramData/anaconda3/python.exe', archiver = join(root, 'scripts/benchmark-repair/freeze-scientific-journal.py');
   durableChemiqJson(join(meta, 'manifest.json'), { campaign: runId, createdAt: new Date().toISOString(), benchmarks: ['chemiq'], taskScheduleSha256: plan.taskScheduleSha256,
     fixtureOnly: true, modelCalls: 0, hostExecutors: { bun: { path: process.execPath }, python: { path: python } }, additionalExecutionFiles: extras });
   const start = Date.now(); const result = await new Promise<{ code: number | null; timedOut: boolean; stdout: string; stderr: string }>((resolve, reject) => {
@@ -152,7 +152,7 @@ function witness(name: string, options: { envelope?: bigint; io?: any; journalHo
   const prices = durableChemiqJson(join(dir, 'prices.json'), { protocol: 'deepseek-cny-pricing-source-snapshot-v1', observedAtUtc: new Date().toISOString(), currency: 'CNY', model: 'deepseek-flash', modelCalls: 0,
     officialSource: 'https://api-docs.deepseek.com/zh-cn/quick_start/pricing/', peak: { uncachedInput: 2, cachedInput: .04, output: 8 }, offPeak: { uncachedInput: 1, cachedInput: .02, output: 4 } });
   const cash = createCnyCashShadow({ directory: join(dir, 'cash'), runId, providerKind: 'real-provider', admission: fixtureLease as never, prices,
-    journal: { directory: journal.directory, configPin: actualPin(join(journal.directory, 'journal-config.json')), sourcePin: actualPin(join(root, 'scripts/repair-2026-10-08/campaign-journal.ts')) }, fixtureIo: options.io });
+    journal: { directory: journal.directory, configPin: actualPin(join(journal.directory, 'journal-config.json')), sourcePin: actualPin(join(root, 'scripts/benchmark-repair/campaign-journal.ts')) }, fixtureIo: options.io });
   const seal = new ChemiqRouteSeal(); for (const route of ['a', 'b', 'c', 'd']) seal.open(route, Date.now()); let forwarded = 0, stopped: string | undefined;
   const proxy = createChemiqModelWitness({ runId, journal, cash, seal, routes: new Set(['a', 'b', 'c', 'd']), failureDirectory: join(dir, 'failures'), beforeAdmission() {}, onFinancialStop(reason) { stopped = reason; },
     transport: options.transport ?? (async () => reply(forwarded++)) });

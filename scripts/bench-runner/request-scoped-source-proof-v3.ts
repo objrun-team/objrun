@@ -3,7 +3,7 @@ import {AsyncLocalStorage} from 'node:async_hooks';
 import {lstatSync} from 'node:fs';
 import {resolve,join} from 'node:path';
 import {processIdentity} from './runtime.ts';
-import {verifyPin as originalVerifyPin,demand} from '../repair-2026-10-08/paid-resource-proof-v2.ts';
+import {verifyPin as originalVerifyPin,demand} from '../benchmark-repair/paid-resource-proof-v2.ts';
 import {verifySourceBatchInWorker,type SourceBatch} from './pinned-source-worker-pool-v1.ts';
 import type {Pin} from './types.ts';
 type Scope={nonce:string;ownerPid:number;ownerIncarnation:string;deadlineMs:number;descriptors:Map<string,{descriptor:string;size:number;mtimeMs:number;ino:number}>;closed:boolean};

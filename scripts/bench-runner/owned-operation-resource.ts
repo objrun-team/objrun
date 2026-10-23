@@ -1,6 +1,6 @@
 /** Explicit Bench/resource scope for a root-signed native operation in the original pool. */
 import{demand,verifyPin}from'./manifest.ts';import{processIdentity}from'./runtime.ts';
-import{verifyAdoptedConnection}from'../repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-price-renewal.ts';
+import{verifyAdoptedConnection}from'../benchmark-campaign/full-f/novaeve_formal_v1/broker/adopted-consumer-price-renewal.ts';
 export async function ownedOperationResource(connection:any,plan:any){
  verifyPin(plan.planPin);await verifyAdoptedConnection(connection);const r=plan.resource;
  demand(['terminal-bench','skillsbench'].includes(r.bench)&&r.slots===1&&Number.isSafeInteger(r.memoryMb)&&r.memoryMb>0&&Number.isSafeInteger(r.growthBytes)&&r.growthBytes>0,'explicit_original_resource_scope');

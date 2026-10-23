@@ -23,7 +23,7 @@ function fullSources(){
 }
 pinned(contract.bunPin);fullSources();
 const loader=await import(pathToFileURL(channel.loaderPin.path).href);loader.installUnlimitedFinancialLoader(channel.sourceConfigPin.path);
-const {actualPin}=await import(pathToFileURL(join(root,'scripts/repair-2026-10-08/paid-resource-proof-v2.ts')).href),{verifyAdoptedActivation}=await import(pathToFileURL(join(root,'scripts/bench-runner/unlimited-readonly-guard-retry.ts')).href),{processIncarnation}=await import(pathToFileURL(join(root,'scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/process-incarnation-v70.ts')).href);
+const {actualPin}=await import(pathToFileURL(join(root,'scripts/benchmark-repair/paid-resource-proof-v2.ts')).href),{verifyAdoptedActivation}=await import(pathToFileURL(join(root,'scripts/bench-runner/unlimited-readonly-guard-retry.ts')).href),{processIncarnation}=await import(pathToFileURL(join(root,'scripts/benchmark-campaign/full-f/novaeve_formal_v1/broker/process-incarnation-v70.ts')).href);
 const parentPid=process.ppid,parentIncarnation=processIncarnation(parentPid),seenNonces=new Set<string>();let sequence=0;
 function requestBinding(r:any){
  const {auth,...body}=r;const mac=createHmac('sha256',secret).update(JSON.stringify(body)).digest();demand(typeof auth==='string'&&/^[a-f0-9]{64}$/.test(auth)&&timingSafeEqual(mac,Buffer.from(auth,'hex')),'persistent_guard_request_auth');

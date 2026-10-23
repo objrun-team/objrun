@@ -2,9 +2,9 @@ import { expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { tbToolGateway } from "../scripts/repair-2026-10-08/tb-tool-gateway.ts";
-import { tbEngine } from "../scripts/repair-2026-10-08/tb-engine.ts";
-import { nginxGeneration } from "../scripts/repair-2026-10-08/tb-nginx-contract.ts";
+import { tbToolGateway } from "../scripts/benchmark-repair/tb-tool-gateway.ts";
+import { tbEngine } from "../scripts/benchmark-repair/tb-engine.ts";
+import { nginxGeneration } from "../scripts/benchmark-repair/tb-nginx-contract.ts";
 
 test("the authenticated gateway seals admission and drains every actual forwarded response", async () => {
   const directory=mkdtempSync(join(tmpdir(),"tgengin-tb-gateway-")), oldToken=process.env.TGENGIN_GRADER_TOKEN, oldOrigins=process.env.TGENGIN_GRADER_ORIGINS;

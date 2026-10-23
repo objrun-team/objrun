@@ -3,7 +3,7 @@ import{readFileSync,writeFileSync,mkdirSync,openSync,closeSync}from'node:fs';
 import{join,resolve}from'node:path';import{verify}from'node:crypto';
 import{pin,verifyPin,demand}from'./manifest.ts';import{processIdentity,executeCommand}from'./runtime.ts';
 import{resource}from'./original-owned-resource-price-renewal.ts';
-import{verifyAdoptedActivation}from'../repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-price-renewal.ts';
+import{verifyAdoptedActivation}from'../benchmark-campaign/full-f/novaeve_formal_v1/broker/adopted-consumer-price-renewal.ts';
 const acceptanceStarted=performance.now(),acceptanceStartedAt=Date.now();
 const[path,hash,output]=process.argv.slice(2),out=resolve(output);
 demand(pin(path).sha256===hash,'exact_signed_acceptance_required');const envelope=JSON.parse(readFileSync(path,'utf8')),p=envelope.plan;

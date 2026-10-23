@@ -1,0 +1,12 @@
+import {test,expect} from 'bun:test';
+import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
+import {resolve,join} from 'node:path';
+import {actualPin} from '../../../benchmark-repair/paid-resource-proof-v2.ts';
+import {verifyControlledBrokerRecovery} from './controlled-broker-recovery.ts';
+const root=resolve(import.meta.dir,'../../../..'),real=join(root,'docs/repair-2026-10-10/full-f-rerun/chembench-stream-switch/controlled-41512/recovery.json');
+const data=JSON.parse(readFileSync(real,'utf8'));
+const bad=(change:any)=>{const p=join(root,'.scratch','controlled-recovery-test-'+Date.now()+'-'+Math.random()+'.json');mkdirSync(resolve(p,'..'),{recursive:true});writeFileSync(p,JSON.stringify({...data,...change}));return actualPin(p);};
+test('controlled release replays all seven native cash lanes and original actual fees',()=>{const r=verifyControlledBrokerRecovery(actualPin(real));expect(r.verified).toBe(true);expect(r.verifiedLanes).toBe(7);expect(r.actualBrokerRpcClosure).toBe(false);expect(r.remainingUnknownCostCount).toBe(4);});
+test('pending requests cannot authorize controlled release',()=>{expect(()=>verifyControlledBrokerRecovery(bad({pendingRequests:1}))).toThrow('controlled_recovery_protocol');});
+test('a different owner cannot be released',()=>{expect(()=>verifyControlledBrokerRecovery(bad({owned:{...data.owned,ownerNonce:'foreign'}}))).toThrow('controlled_original_drain_identity');});
+test('a missing lane cannot be treated as complete closure',()=>{expect(()=>verifyControlledBrokerRecovery(bad({lanes:data.lanes.slice(1)}))).toThrow('controlled_complete_lanes');});

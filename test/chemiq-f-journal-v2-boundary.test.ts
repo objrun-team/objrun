@@ -1,9 +1,9 @@
 import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { CHEMIQ_F_ROOT, loadChemiqFPlan } from '../scripts/repair-2026-10-08/chemiq-f-journal-contract-v2.ts';
-import { assertChemiqPrivateBridgeObservation } from '../scripts/repair-2026-10-08/chemiq-private-boundary-v2.ts';
-import { chemiqCashEnvelope } from '../scripts/repair-2026-10-08/chemiq-f-paid-admission-v2.ts';
+import { CHEMIQ_F_ROOT, loadChemiqFPlan } from '../scripts/benchmark-repair/chemiq-f-journal-contract-v2.ts';
+import { assertChemiqPrivateBridgeObservation } from '../scripts/benchmark-repair/chemiq-private-boundary-v2.ts';
+import { chemiqCashEnvelope } from '../scripts/benchmark-repair/chemiq-f-paid-admission-v2.ts';
 const root=CHEMIQ_F_ROOT;
 const original=JSON.parse(readFileSync(join(root,'docs/repair-2026-10-08/chemiq-f-journal-implementation-v2/observations/private-inspect-2026-10-09T08-28-01-515672+00-00.json'),'utf8'));
 test('only the actual original bridge service with its exact protected configuration is accepted',()=>{

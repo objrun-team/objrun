@@ -1,7 +1,7 @@
 /** One SB task: caller's lease, original shared admission/cash and original stand. */
 import {mkdirSync,writeFileSync,readFileSync} from 'node:fs';import {join,relative,isAbsolute} from 'node:path';
 import {demand,pin} from './manifest.ts';
-import {acquireOwnedFullFAdmissionV76} from '../repair-2026-10-10/full-f/novaeve_formal_v1/broker/shared-admission-owned-price-renewal.ts';
+import {acquireOwnedFullFAdmissionV76} from '../benchmark-campaign/full-f/novaeve_formal_v1/broker/shared-admission-owned-price-renewal.ts';
 import {createSingleTaskFeeQueue} from './skillsbench-single-task-fee.ts';
 import {startSingleTaskSkillsBenchStand} from './skillsbench-single-task-stand.ts';
 import {processIdentity} from './runtime.ts';

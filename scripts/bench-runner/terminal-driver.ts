@@ -8,8 +8,8 @@ import { loadManifest } from './manifest.ts';
 import { checkPin,readPinned,filePin,wxJson,assertContext,processIdentity } from './runtime.ts';
 import { loadPreparedContext } from './bindings.ts';
 import { assertAdmission } from './admission.ts';
-import { verifyBenchmarkCashClosure,createBenchmarkCash } from '../repair-2026-10-10/full-f/shared/digitalocean-usd-cash.ts';
-import { inspectCampaignJournal,createCampaignJournal } from '../repair-2026-10-10/full-f/shared/digitalocean-journal.ts';
+import { verifyBenchmarkCashClosure,createBenchmarkCash } from '../benchmark-campaign/full-f/shared/digitalocean-usd-cash.ts';
+import { inspectCampaignJournal,createCampaignJournal } from '../benchmark-campaign/full-f/shared/digitalocean-journal.ts';
 
 export interface ImportBinding {pin:Pin;export:string}
 export interface TerminalDriverConfig {
@@ -165,7 +165,7 @@ export async function runTerminalDriver(m:TaskManifest,initial:AttemptContext) {
         demand(healthResponse.ok&&health.healthy===true&&actual&&!actual.closed&&actual.dispatched===0&&actual.active===0,'pre_native_lane_not_proven_zero');
         const directory=join(output,'provider'),journal=createCampaignJournal({directory,campaign:runId,capUsd:lane.capUsd,priorCampaignCostUpperBoundUsd:0,provider:api.provider});
         const cash=createBenchmarkCash({directory:join(output,'cash'),runId,providerKind:'real-provider',admission:lane,prices:lane.prices,
-          journal:{directory,configPin:filePin(join(directory,'journal-config.json')),sourcePin:filePin(resolve(import.meta.dir,'../repair-2026-10-10/full-f/shared/digitalocean-journal.ts'))},unknownCostPolicy:'record_and_continue'},api.provider);
+          journal:{directory,configPin:filePin(join(directory,'journal-config.json')),sourcePin:filePin(resolve(import.meta.dir,'../benchmark-campaign/full-f/shared/digitalocean-journal.ts'))},unknownCostPolicy:'record_and_continue'},api.provider);
         journal.exportLegacyLedger();const cashClose=cash.close();journal.close();const inspection=inspectCampaignJournal(directory);
         demand(inspection.valid&&inspection.accountingClosed&&inspection.snapshot?.acceptedRequestCount===0,'actual_zero_journal_not_closed');
         wxJson(existingSummary,{protocol:'bench-pre-native-denial-original-zero-cash-v1',runId,executingTaskIds:[m.taskId],taskPins:[],formalScoreCertified:false,modelCalls:0,fatal:'pre_native_denial',fault,financialClose:{cashClose},actorEverCreated:false});

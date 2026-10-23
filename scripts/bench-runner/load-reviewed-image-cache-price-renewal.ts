@@ -5,7 +5,7 @@ import {pathToFileURL} from 'node:url';
 import {verify} from 'node:crypto';
 import {pin,verifyPin,demand} from './manifest.ts';
 import {resource} from './original-owned-resource-price-renewal.ts';
-import {verifyAdoptedActivation} from '../repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-price-renewal.ts';
+import {verifyAdoptedActivation} from '../benchmark-campaign/full-f/novaeve_formal_v1/broker/adopted-consumer-price-renewal.ts';
 import {processIdentity} from './runtime.ts';
 const [planPath,expectedHash,outPath]=process.argv.slice(2),out=resolve(outPath);
 const save=(name:string,value:any)=>writeFileSync(join(out,name),JSON.stringify(value,null,2)+'\n',{flag:'wx'});

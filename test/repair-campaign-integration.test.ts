@@ -3,11 +3,11 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { gzipSync, gunzipSync } from "node:zlib";
-import { campaignComplete, checkedOutputTokens, completionFault, reconcileReceiptCost, validTokenUsage, type ApiReceipt } from "../scripts/repair-2026-10-08/campaign-contract.ts";
+import { campaignComplete, checkedOutputTokens, completionFault, reconcileReceiptCost, validTokenUsage, type ApiReceipt } from "../scripts/benchmark-repair/campaign-contract.ts";
 
 // Exercise the real next-entry proxy body, injecting all I/O. Do not import it:
 // its top level launches a campaign with the project API credential.
-const source = readFileSync(join(import.meta.dir, "../scripts/repair-2026-10-08/campaign-next.ts"), "utf8");
+const source = readFileSync(join(import.meta.dir, "../scripts/benchmark-repair/campaign-next.ts"), "utf8");
 const body = source.slice(source.indexOf("const proxy = Bun.serve("), source.indexOf("\nconst sourcePath ="));
 const transpiler = new Bun.Transpiler({ loader: "ts" });
 const sha = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
@@ -158,7 +158,7 @@ test("next-entry provenance captures the executing basename and validates select
   const repairAssignment = source.slice(source.indexOf("source.repairFiles ="), source.indexOf("\nsource.executionDigest =")).replaceAll("import.meta.path", "executingPath").replaceAll("import.meta.dir", "executingDirectory");
   const snapshot: { repairFiles?: { path: string; sha256: string }[]; files: { path: string; sha256: string }[] } = { files: [] };
   new Function("source", "basename", "executingPath", "executingDirectory", "sha", "readFileSync", "join", transpiler.transformSync(repairAssignment))(snapshot, basename, "/fixture/campaign-next.ts", "/fixture", sha, () => "frozen source", join);
-  expect(snapshot.repairFiles?.map(file => file.path)).toEqual(["scripts/repair-2026-10-08/campaign-next.ts", "scripts/repair-2026-10-08/campaign-contract.ts", "scripts/repair-2026-10-08/paid-campaign-lock.ts", "scripts/repair-2026-10-08/chemiq-nextwave-contract.ts", "scripts/repair-2026-10-08/campaign-workers.ts", "scripts/repair-2026-10-08/freeze_source.py"]);
+  expect(snapshot.repairFiles?.map(file => file.path)).toEqual(["scripts/benchmark-repair/campaign-next.ts", "scripts/benchmark-repair/campaign-contract.ts", "scripts/benchmark-repair/paid-campaign-lock.ts", "scripts/benchmark-repair/chemiq-nextwave-contract.ts", "scripts/benchmark-repair/campaign-workers.ts", "scripts/benchmark-repair/freeze_source.py"]);
   const values = new Map<string, string>();
   for (const path of ["app/src/main.ts", "test/_lib.ts", "examples/benchmark/gpqa/stand.py", "examples/benchmark/_lib/gradelib.py"]) { snapshot.files.push({ path, sha256: sha("frozen source") }); values.set(join("/fixture-root", path), "frozen source"); }
   for (const file of snapshot.repairFiles!) values.set(join("/fixture-root", file.path), "frozen source");

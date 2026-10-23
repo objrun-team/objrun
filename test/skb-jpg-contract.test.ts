@@ -1,8 +1,8 @@
 import {expect,test} from 'bun:test';
 import {mkdtempSync,mkdirSync,readFileSync} from 'node:fs';
 import {join} from 'node:path';
-import {launchNativeJpgService} from '../scripts/repair-2026-10-08/skb-jpg-native-python.ts';
-import {TASK_ID,PROTOCOL,BASE_IMAGE_ID,REVOKED_IMAGE_IDS,PUBLIC_WORKSPACE,ENV_SHA,OFFICIAL_HASHES,CHECKS,jpgObjective,requirePaidJpgGate,jpgGeneration,artifactVerdict} from '../scripts/repair-2026-10-08/skb-jpg-contract.ts';
+import {launchNativeJpgService} from '../scripts/benchmark-repair/skb-jpg-native-python.ts';
+import {TASK_ID,PROTOCOL,BASE_IMAGE_ID,REVOKED_IMAGE_IDS,PUBLIC_WORKSPACE,ENV_SHA,OFFICIAL_HASHES,CHECKS,jpgObjective,requirePaidJpgGate,jpgGeneration,artifactVerdict} from '../scripts/benchmark-repair/skb-jpg-contract.ts';
 
 const fixture=()=>{const id='sha256:'+'f'.repeat(64);return {graderSha:'fixture-grader',image:{imageId:id,taskId:TASK_ID,baseImageId:BASE_IMAGE_ID,environmentSha256:ENV_SHA,sourceHashes:OFFICIAL_HASHES,completeOriginalTaskImage:true},build:{imageId:id,validated:true,actualBuildCompleted:true,minimumCFreeBytes:2*1024**3,minimumFFreeBytes:2*1024**3,uniquePublicCacheBytes:1,hostDependencyCacheBytes:1,maxBuildWritableBytes:1,dockerHostGrowthBytes:1},profile:{imageId:id,protocol:PROTOCOL,uv:'0.9.7',python:'3.12.3',packages:{pytest:'8.4.1','pytest-json-ctrf':'0.3.5',openpyxl:'3.1.5'},assets:[{path:'fixture'}]},controls:{taskId:TASK_ID,protocol:PROTOCOL,denominator:87,unsupportedTaskCount:86,validated:true,imageId:id,controlValidatedTaskIds:[TASK_ID],graderSourceSha256:'fixture-grader',originalSourceHashes:OFFICIAL_HASHES,phases:Object.fromEntries([['empty',0],['oracle',1],['wrongWorkbook',0]].map(([name,reward])=>[name,{valid:true,ran:true,reward,passedTests:reward,completedTests:1,protocol:PROTOCOL,imageId:id}]))}};};
 test('JPG paid gate rejects missing actual build, base substitution, partial controls and changed sources',()=>{
@@ -32,12 +32,12 @@ test('late tool mutation or final workbook freeze cannot earn a pass; infrastruc
 });
 test('the actual run entry fails before any paid setup when no real JPG controls exist',async()=>{
  const env={...process.env};for(const name of ['OBJRUN_SKB_JPG_CONTROLS_JSON','OBJRUN_SKB_JPG_IMAGE_JSON','OBJRUN_SKB_JPG_BUILD_JSON','OBJRUN_SKB_JPG_DEPENDENCY_JSON'])delete env[name];
- const p=Bun.spawn([process.execPath,join(import.meta.dir,'../scripts/repair-2026-10-08/skb-jpg-campaign.ts'),'run'],{env,stdout:'pipe',stderr:'pipe'});
+ const p=Bun.spawn([process.execPath,join(import.meta.dir,'../scripts/benchmark-repair/skb-jpg-campaign.ts'),'run'],{env,stdout:'pipe',stderr:'pipe'});
  const error=await new Response(p.stderr).text();expect(await p.exited).toBe(1);expect(error).toContain('Paid JPG is fail-closed');
 },10000);
 test('the actual local mock bridge protects all capture/tool routes and keeps two cold-arm captures distinct',async()=>{
  const scratch=join(import.meta.dir,'../.scratch/jpg-native-lifecycle-v2');mkdirSync(scratch,{recursive:true});const home=mkdtempSync(join(scratch,'contract-fixture-')),probe=Bun.serve({hostname:'127.0.0.1',port:0,fetch:()=>new Response('')}),port=probe.port;await probe.stop(true);
- const service=launchNativeJpgService({script:join(import.meta.dir,'../scripts/repair-2026-10-08/skb-jpg-stand.py'),argv:['--mode','mock','--port',String(port),'--home',home],home,port,env:{...process.env,TGENGIN_GRADER_TOKEN:'fixture-token'}}),child=service.child;child.stdout?.resume();child.stderr?.resume();
+ const service=launchNativeJpgService({script:join(import.meta.dir,'../scripts/benchmark-repair/skb-jpg-stand.py'),argv:['--mode','mock','--port',String(port),'--home',home],home,port,env:{...process.env,TGENGIN_GRADER_TOKEN:'fixture-token'}}),child=service.child;child.stdout?.resume();child.stderr?.resume();
  const origin='http://127.0.0.1:'+port;
  const request=async(path:string,body:any,token='fixture-token')=>fetch(origin+path,{method:'POST',headers:{'X-ObjRun-Grader-Token':token,'content-type':'application/json'},body:JSON.stringify(body)});
  try{

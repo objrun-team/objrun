@@ -1,18 +1,18 @@
 /** One SkillsBench task on its caller-owned original shared resource/admission; no independent queue or owner. */
-import {gatewayBudgetDecision} from '../repair-2026-10-10/full-f/novaeve_formal_v1/headless_budget_v7/gateway_budget_gate_v7.ts';
+import {gatewayBudgetDecision} from '../benchmark-campaign/full-f/novaeve_formal_v1/headless_budget_v7/gateway_budget_gate_v7.ts';
 /** Full F journal/USD cash lifecycle. Provider communication uses shared broker. */
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { mkdirSync,readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { actualPin, demand, verifyPin, type Pin } from '../repair-2026-10-08/paid-resource-proof-v2.ts';
-import { createCampaignJournal, inspectCampaignJournal } from '../repair-2026-10-10/full-f/shared/digitalocean-journal.ts';
-import { ScientificJournalProxy, type TaskReceipt } from '../repair-2026-10-10/full-f/shared/digitalocean-proxy.ts';
-import { createRecordingCash,permitsRecordedUnknown,type BenchmarkCashTicket } from '../repair-2026-10-10/full-f/skillsbench/recording_digitalocean_cash.ts';
-import { BENCHMARK_PROVIDER } from '../repair-2026-10-10/full-f/shared/digitalocean-provider.ts';
-import { benchmarkProviderRequest, BENCHMARK_INFERENCE } from '../repair-2026-10-10/full-f/shared/digitalocean-inference.ts';
-import type { SharedFullFAdmission } from '../repair-2026-10-10/full-f/shared/shared-admission.ts';
-import { mandatorySubmission } from '../repair-2026-10-10/full-f/skillsbench/submission_retry.ts';
-import { atomicStateJson } from '../repair-2026-10-10/full-f/shared/atomic-state.ts';
+import { actualPin, demand, verifyPin, type Pin } from '../benchmark-repair/paid-resource-proof-v2.ts';
+import { createCampaignJournal, inspectCampaignJournal } from '../benchmark-campaign/full-f/shared/digitalocean-journal.ts';
+import { ScientificJournalProxy, type TaskReceipt } from '../benchmark-campaign/full-f/shared/digitalocean-proxy.ts';
+import { createRecordingCash,permitsRecordedUnknown,type BenchmarkCashTicket } from '../benchmark-campaign/full-f/skillsbench/recording_digitalocean_cash.ts';
+import { BENCHMARK_PROVIDER } from '../benchmark-campaign/full-f/shared/digitalocean-provider.ts';
+import { benchmarkProviderRequest, BENCHMARK_INFERENCE } from '../benchmark-campaign/full-f/shared/digitalocean-inference.ts';
+import type { SharedFullFAdmission } from '../benchmark-campaign/full-f/shared/shared-admission.ts';
+import { mandatorySubmission } from '../benchmark-campaign/full-f/skillsbench/submission_retry.ts';
+import { atomicStateJson } from '../benchmark-campaign/full-f/shared/atomic-state.ts';
 
 export function createSingleTaskFeeQueue(input:{runId:string;output:string;sourcePins:Pin[];taskId:string;schedule:{taskId:string;arm:string;route:string}[];admission:SharedFullFAdmission;freshMaximumNewSpendUsd:()=>Promise<number>;requireOwnedResource:()=>void}) {
   const policy=JSON.parse(readFileSync(join(input.admission.root,'docs/repair-2026-10-10/full-f-rerun/control.json'),'utf8')).costPolicy;
@@ -28,7 +28,7 @@ export function createSingleTaskFeeQueue(input:{runId:string;output:string;sourc
   const journal=createCampaignJournal({directory,campaign:input.runId,capUsd:input.admission.capUsd,priorCampaignCostUpperBoundUsd:0,outputDirectory:input.output,provider:BENCHMARK_PROVIDER});
   let cash:ReturnType<typeof createRecordingCash>;
   try {cash=createRecordingCash({directory:cashDirectory,runId:input.runId,providerKind:'real-provider',admission:input.admission,prices:input.admission.prices,
-      journal:{directory,configPin:actualPin(join(directory,'journal-config.json')),sourcePin:actualPin(join(import.meta.dir,'../repair-2026-10-10/full-f/shared/digitalocean-journal.ts'))}},BENCHMARK_PROVIDER);}
+      journal:{directory,configPin:actualPin(join(directory,'journal-config.json')),sourcePin:actualPin(join(import.meta.dir,'../benchmark-campaign/full-f/shared/digitalocean-journal.ts'))}},BENCHMARK_PROVIDER);}
   catch(error){journal.close();throw error;}
   const proxy=new ScientificJournalProxy(journal,{inference:BENCHMARK_INFERENCE,provider:BENCHMARK_PROVIDER,routes,failureDirectory:join(input.output,'failure-receipts'),
     beforeAdmission:()=>{sourceCheck();demand(permitsRecordedUnknown(cash.snapshot()),'skillsbench_usd_cash_nonfinancial_failure');},

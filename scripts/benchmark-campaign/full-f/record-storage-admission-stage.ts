@@ -1,0 +1,14 @@
+import {createHash} from 'node:crypto';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {evaluateDockerDisk,observeDockerDisk} from './shared/docker-physical-disk-admission-staged';
+const root='docs/repair-2026-10-10/full-f-rerun';
+const observation=observeDockerDisk('E:/Docker/wsl/disk/docker_data.vhdx');
+const decision=evaluateDockerDisk(observation,{nowMs:Date.now(),expectedDrive:'E:'});
+const pins=['scripts/benchmark-campaign/full-f/shared/docker-physical-disk-admission-staged.ts','scripts/benchmark-campaign/full-f/shared/docker-physical-disk-admission-staged.test.ts'].map(path=>{const b=readFileSync(path);return{path,bytes:b.length,sha256:createHash('sha256').update(b).digest('hex')};});
+const evidence={atUtc:new Date().toISOString(),phase:'staged_not_integrated',observation,decision,pins,validation:{testsPassed:6,assertionsPassed:13,externalModelCalls:0},liveSourceChanged:false,currentVhdBackupClaimed:false};
+writeFileSync(root+'/docker-recovery-2026-10-10/physical-disk-admission-stage-proof.json',JSON.stringify(evidence,null,2)+'\n');
+const prior=JSON.parse(readFileSync(root+'/coordination-action-2026-10-10T23-00.json','utf8'));
+const audit=JSON.parse(readFileSync(root+'/audit-2026-10-10T23-09-29-320Z.json','utf8'));
+const action={...prior,atUtc:evidence.atUtc,auditPath:'audit-2026-10-10T23-09-29-320Z.json',checks:Object.fromEntries(['ownerMatches','commonSourcePinsUnchanged','brokerHealthy','brokerStatusFresh','inactiveLanesClosed'].map(k=>[k,audit[k]])),EFreeGiB:observation?observation.freeBytes/1024**3:null,actions:['Fresh physical E measurement still blocks recovery; pending human space response is not approval or restored capacity','Independent broker/source/history/native cash audit passed; no new model requests or completed-task reruns','Staged physical Docker disk admission guard passed 6 tests/13 assertions; actual E measurement correctly denied; not imported into frozen live source','Original scores, attempts, known USD and 121 unknown costs retained; canceled five benchmarks remain canceled'],storageGuardEvidence:'docker-recovery-2026-10-10/physical-disk-admission-stage-proof.json'};
+writeFileSync(root+'/coordination-action-2026-10-10T23-10.json',JSON.stringify(action,null,2)+'\n');
+console.log(JSON.stringify({observation,decision,auditChecks:action.checks,actionPath:root+'/coordination-action-2026-10-10T23-10.json'}));

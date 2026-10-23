@@ -12,7 +12,7 @@ import unittest
 import uuid
 
 ROOT=Path(__file__).resolve().parents[1]
-SCRIPTS=ROOT/'scripts/repair-2026-10-08'
+SCRIPTS=ROOT/'scripts/benchmark-repair'
 def load(name,path):
     spec=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
 parent=load('jpg_D_control_parent',SCRIPTS/'jpg-D-grade-parent-v1.py')

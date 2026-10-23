@@ -3,7 +3,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { createCampaignJournal } from "../scripts/repair-2026-10-08/campaign-journal.ts";
+import { createCampaignJournal } from "../scripts/benchmark-repair/campaign-journal.ts";
 
 const root = resolve(import.meta.dir, ".."), directory = join(root, ".scratch/scientific-journal-audit-" + randomUUID());
 mkdirSync(directory, { recursive: true });
@@ -16,7 +16,7 @@ journal.close();
 const original = readFileSync(join(directory, "api-events.jsonl"), "utf8");
 function audit(path: string) {
   const code = `import importlib.util,json,pathlib,sys\nspec=importlib.util.spec_from_file_location('fixture_auditor',sys.argv[3]);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)\nerrors=[]\ntry:\n offsets,prefix=m.journal_offsets(pathlib.Path(sys.argv[1]),pathlib.Path(sys.argv[2]).read_bytes(),lambda ok,name:errors.append(name) if not ok else None,[sys.argv[4],sys.argv[5]])\nexcept Exception as error:\n errors.append(type(error).__name__+':'+str(error));offsets={};prefix=None\nvalue=json.loads(pathlib.Path(sys.argv[1]).read_bytes().splitlines()[1])\nold=json.dumps(value,separators=(',',':'),ensure_ascii=False).encode()+b'\\n'==pathlib.Path(sys.argv[1]).read_bytes().splitlines(keepends=True)[1]\nprint(json.dumps({'errors':errors,'offsets':offsets,'prefix':prefix,'oldPythonCanonicalAccepted':old}))`;
-  return JSON.parse(execFileSync(join(root, ".phase1-data/venv/Scripts/python.exe"), ["-B", "-X", "utf8", "-c", code, path, join(directory, "journal-config.json"), join(root, "scripts/repair-2026-10-08/audit-scientific-journal.py"), process.execPath, join(root, "scripts/repair-2026-10-08/audit-journal-canonical.ts")], { windowsHide: true }).toString());
+  return JSON.parse(execFileSync(join(root, ".phase1-data/venv/Scripts/python.exe"), ["-B", "-X", "utf8", "-c", code, path, join(directory, "journal-config.json"), join(root, "scripts/benchmark-repair/audit-scientific-journal.py"), process.execPath, join(root, "scripts/benchmark-repair/audit-journal-canonical.ts")], { windowsHide: true }).toString());
 }
 test("real Bun small-fee JSON is rejected by Python float reserialization but accepted with exact JS bytes", () => {
   const result = audit(join(directory, "api-events.jsonl"));

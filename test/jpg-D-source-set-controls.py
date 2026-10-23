@@ -9,7 +9,7 @@ import unittest
 import uuid
 
 ROOT=Path(__file__).resolve().parents[1]
-SOURCE=ROOT/'scripts/repair-2026-10-08/audit-jpg-D-journal-campaign.py'
+SOURCE=ROOT/'scripts/benchmark-repair/audit-jpg-D-journal-campaign.py'
 spec=importlib.util.spec_from_file_location('jpg_D_source_control_audit',SOURCE);audit=importlib.util.module_from_spec(spec);spec.loader.exec_module(audit)
 RECIPE=Path(sys.argv[1]).absolute();sys.argv=sys.argv[:1]
 audit.require(RECIPE.is_relative_to(ROOT/'docs/repair-2026-10-08/jpg-D-journal-preparations'),'F_actual_preparation_recipe_scope')

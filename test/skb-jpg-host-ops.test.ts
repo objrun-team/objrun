@@ -2,13 +2,13 @@ import {expect,test} from 'bun:test';
 import {join} from 'node:path';
 import {mkdtempSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
-import {auditJpgEvidence} from '../scripts/repair-2026-10-08/skb-jpg-audit.ts';
+import {auditJpgEvidence} from '../scripts/benchmark-repair/skb-jpg-audit.ts';
 
 test('actual host capture bounds a stalled Docker daemon before its first TAR byte',async()=>{
  const code=String.raw`
 import importlib.util,json,os,subprocess,tempfile,time
 from pathlib import Path
-path=Path('scripts/repair-2026-10-08/skb-jpg-stand.py')
+path=Path('scripts/benchmark-repair/skb-jpg-stand.py')
 spec=importlib.util.spec_from_file_location('jpg_bridge_probe',path)
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 module.CAPTURE_SECONDS=0.2
@@ -42,7 +42,7 @@ with tempfile.TemporaryDirectory(prefix='tgengin-jpg-host-capture-')as home:
 
 test('actual evidence audit consumes one framed credential message while the host stdin remains open',async()=>{
  const home=mkdtempSync(join(tmpdir(),'tgengin-jpg-audit-frame-'));
- const child=Bun.spawn(['python','-X','utf8',join(import.meta.dir,'../scripts/repair-2026-10-08/skb-jpg-host-ops.py'),'--audit','--output',home,'--store',home],{stdin:'pipe',stdout:'pipe',stderr:'pipe'});
+ const child=Bun.spawn(['python','-X','utf8',join(import.meta.dir,'../scripts/benchmark-repair/skb-jpg-host-ops.py'),'--audit','--output',home,'--store',home],{stdin:'pipe',stdout:'pipe',stderr:'pipe'});
  try{
   child.stdin.write(JSON.stringify(Array.from({length:6},(_,index)=>'test-framed-credential-'+index))+'\n');
   const code=await Promise.race([child.exited,Bun.sleep(1500).then(()=>null)]);
@@ -53,7 +53,7 @@ test('actual evidence audit consumes one framed credential message while the hos
 
 test('the actual campaign audit caller explicitly closes its asynchronous input pipe',async()=>{
  const home=mkdtempSync(join(tmpdir(),'tgengin-jpg-audit-caller-'));
- try{const result=await auditJpgEvidence({script:join(import.meta.dir,'../scripts/repair-2026-10-08/skb-jpg-host-ops.py'),output:home,store:home,privateConfigs:[],secrets:Array.from({length:6},(_,index)=>'fixture-only-'+index),timeoutMs:3000});
+ try{const result=await auditJpgEvidence({script:join(import.meta.dir,'../scripts/benchmark-repair/skb-jpg-host-ops.py'),output:home,store:home,privateConfigs:[],secrets:Array.from({length:6},(_,index)=>'fixture-only-'+index),timeoutMs:3000});
  expect(result.closed).toBe(true);expect(JSON.parse(readFileSync(join(home,'evidence-secret-audit.json'),'utf8')).passed).toBe(true);
  }finally{rmSync(home,{recursive:true,force:true});}
 },5000);
@@ -62,7 +62,7 @@ test('actual capture accepts a bounded PAX header for the sole regular workbook'
  const code=String.raw`
 import importlib.util,io,json,subprocess,tarfile,tempfile
 from pathlib import Path
-spec=importlib.util.spec_from_file_location('jpg_bridge_pax',Path('scripts/repair-2026-10-08/skb-jpg-stand.py'))
+spec=importlib.util.spec_from_file_location('jpg_bridge_pax',Path('scripts/benchmark-repair/skb-jpg-stand.py'))
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 original=subprocess.Popen
 with tempfile.TemporaryDirectory(prefix='tgengin-jpg-pax-probe-')as home:
@@ -95,7 +95,7 @@ test('actual private CLI timeout reconciles only exact owned IDs, and rejects pe
  const code=String.raw`
 import importlib.util,json,os,subprocess,tempfile,time
 from pathlib import Path
-spec=importlib.util.spec_from_file_location('jpg_host_probe',Path('scripts/repair-2026-10-08/skb-jpg-host-ops.py'))
+spec=importlib.util.spec_from_file_location('jpg_host_probe',Path('scripts/benchmark-repair/skb-jpg-host-ops.py'))
 host=importlib.util.module_from_spec(spec);spec.loader.exec_module(host)
 with tempfile.TemporaryDirectory(prefix='tgengin-jpg-lease-probe-')as home:
     home=Path(home);host.LEASE_PATH=home/'owned-instance.lock'

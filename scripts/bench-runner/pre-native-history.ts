@@ -1,8 +1,8 @@
 /** Root-signed closed pre-native attempts are honest zero-native history, not transport retries. */
 import {verify} from 'node:crypto';import {readFileSync} from 'node:fs';
 import type {TaskManifest,Pin} from './types.ts';import {readPinned,checkPin} from './runtime.ts';
-import {verifyBenchmarkCashClosure} from '../repair-2026-10-10/full-f/shared/digitalocean-usd-cash.ts';
-import {inspectCampaignJournal} from '../repair-2026-10-10/full-f/shared/digitalocean-journal.ts';
+import {verifyBenchmarkCashClosure} from '../benchmark-campaign/full-f/shared/digitalocean-usd-cash.ts';
+import {inspectCampaignJournal} from '../benchmark-campaign/full-f/shared/digitalocean-journal.ts';
 export function inspectPreNativeHistory(m:TaskManifest,budget:any,seen:Set<string>) {
  let knownUsd=0,unknownUsd=0,calls=0;
  const need=(x:unknown,s:string)=>{if(!x)throw Error(s);};

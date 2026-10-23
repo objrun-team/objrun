@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
-import { assertJpgDServiceHome } from '../scripts/repair-2026-10-08/jpg-D-native-service-v1.ts';
-import { assertJpgDResourceObservation, assertJpgFoundationColdOnly, jpgDResourceRequirements } from '../scripts/repair-2026-10-08/jpg-D-journal-contract.ts';
-import { JPG_D_PARENT, type JpgDDescriptor } from '../scripts/repair-2026-10-08/jpg-d-storage-profile.ts';
+import { assertJpgDServiceHome } from '../scripts/benchmark-repair/jpg-D-native-service-v1.ts';
+import { assertJpgDResourceObservation, assertJpgFoundationColdOnly, jpgDResourceRequirements } from '../scripts/benchmark-repair/jpg-D-journal-contract.ts';
+import { JPG_D_PARENT, type JpgDDescriptor } from '../scripts/benchmark-repair/jpg-d-storage-profile.ts';
 
 const MiB=1024**2,GiB=1024**3,nonce='a'.repeat(32),root=JPG_D_PARENT+'/'+nonce;
 // Explicit synthetic geometry. No D path is opened or created by these tests.

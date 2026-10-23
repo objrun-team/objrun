@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseChemiqOfficialFlashPricing } from '../scripts/repair-2026-10-08/chemiq-official-price-v2.ts';
+import { parseChemiqOfficialFlashPricing } from '../scripts/benchmark-repair/chemiq-official-price-v2.ts';
 const html=readFileSync(join(import.meta.dir,'../docs/repair-2026-10-08/chemiq-f-journal-implementation-v2/observations/provider-2026-10-09T09-35-12-993Z-official-pricing.html'),'utf8');
 test('the captured official merged-cell table binds all six Flash prices and the actual Beijing time rule',()=>{
   const parsed=parseChemiqOfficialFlashPricing(html);

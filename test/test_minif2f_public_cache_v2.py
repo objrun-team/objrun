@@ -15,7 +15,7 @@ from unittest.mock import patch
 import uuid
 
 PROJECT = Path(__file__).resolve().parents[1]
-SCRIPTS = PROJECT / "scripts/repair-2026-10-08"
+SCRIPTS = PROJECT / "scripts/benchmark-repair"
 FIXTURES = PROJECT / ".scratch" / ("minif-body-v2-" + uuid.uuid4().hex[:12])
 FIXTURES.mkdir(parents=True)
 EVIDENCE = dict(fixture_root=str(FIXTURES), e_write=False, c_write=False,
@@ -436,7 +436,7 @@ class ProtocolTests(unittest.TestCase):
             # so changing its __file__ changes a real executing source copy,
             # never the frozen production worker.
             project=FIXTURES/("source-copy-"+uuid.uuid4().hex)
-            folder=project/"scripts/repair-2026-10-08";folder.mkdir(parents=True)
+            folder=project/"scripts/benchmark-repair";folder.mkdir(parents=True)
             for name in ("minif2f_public_cache_v2.py","minif2f_public_cache_v2.ps1","minif2f_public_cache.py"):
                 (folder/name).write_bytes((SCRIPTS/name).read_bytes())
             profile=project/"docs/repair-2026-10-08";profile.mkdir(parents=True)

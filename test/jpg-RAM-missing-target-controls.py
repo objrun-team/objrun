@@ -2,7 +2,7 @@
 import json,sys,unittest
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(ROOT/'scripts/repair-2026-10-08'))
+sys.path.insert(0,str(ROOT/'scripts/benchmark-repair'))
 import jpg_private_ram_executor as e
 
 class Controls(unittest.TestCase):

@@ -1,0 +1,14 @@
+{
+  "scope": "Current script directories and executable references. Historical records, pinned release receipts, archived snapshots, output paths and date-bearing filenames retain their original values.",
+  "path_rewrites": {
+    "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014": "scripts/benchmark-campaign/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe",
+    "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/parallel-prep-20261013": "scripts/benchmark-campaign/full-f/skillsbench/next-segment/parallel-prep",
+    "scripts/repair-2026-10-10/full-f/parallel-prep-20261013": "scripts/benchmark-campaign/full-f/parallel-prep",
+    "scripts/gpqa-binary-20261018": "scripts/gpqa-binary",
+    "scripts/evalplus-20261012": "scripts/evalplus",
+    "scripts/newbench-20261014": "scripts/code-benchmarks",
+    "scripts/repair-2026-10-08": "scripts/benchmark-repair",
+    "scripts/repair-2026-10-09": "scripts/terminal-bench-repair",
+    "scripts/repair-2026-10-10": "scripts/benchmark-campaign"
+  }
+}

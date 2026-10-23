@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { discoverChemiqOtherPaidEvidence } from '../scripts/repair-2026-10-08/chemiq-other-paid-discovery-v3.ts';
+import { discoverChemiqOtherPaidEvidence } from '../scripts/benchmark-repair/chemiq-other-paid-discovery-v3.ts';
 const area=join(process.cwd(),'.scratch','chemiq-v3','peer-status-'+crypto.randomUUID());mkdirSync(area,{recursive:true});
 function fixture(name:string,options:{live?:'missing'|'outside'|'registered';family?:string;skbCalls?:number;tbCalls?:number;outsideRegistry?:boolean}={}){
   const root=join(area,name),status=join(root,'docs/repair-2026-10-08/parallel-bench-handoff-2026-10-09'),home=join(root,'docs/repair-2026-10-09/tb12-runs-v1');mkdirSync(status,{recursive:true});mkdirSync(home,{recursive:true});

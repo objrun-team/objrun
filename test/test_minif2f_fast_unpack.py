@@ -18,7 +18,7 @@ from unittest.mock import patch
 import uuid
 
 PROJECT = Path(__file__).resolve().parents[1]
-SOURCE = PROJECT / 'scripts/repair-2026-10-08/minif2f_fast_unpack.py'
+SOURCE = PROJECT / 'scripts/benchmark-repair/minif2f_fast_unpack.py'
 spec = importlib.util.spec_from_file_location('fast', SOURCE)
 fast = importlib.util.module_from_spec(spec); spec.loader.exec_module(fast)
 FIXTURES = PROJECT / '.scratch' / ('minif-fast-fixture-' + uuid.uuid4().hex[:12])

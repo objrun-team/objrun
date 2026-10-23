@@ -3,10 +3,10 @@ import {expect,test} from 'bun:test';
 import {mkdtempSync,writeFileSync,readFileSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {actualPin} from '../scripts/repair-2026-10-08/paid-resource-proof-v2.ts';
-import {loadJpgDDescriptor,jpgDStagePath,jpgDNativeEnvironment,jpgDPointerPayload} from '../scripts/repair-2026-10-08/jpg-d-storage-profile.ts';
+import {actualPin} from '../scripts/benchmark-repair/paid-resource-proof-v2.ts';
+import {loadJpgDDescriptor,jpgDStagePath,jpgDNativeEnvironment,jpgDPointerPayload} from '../scripts/benchmark-repair/jpg-d-storage-profile.ts';
 
-const root=resolve(import.meta.dir,'..'),native=join(root,'scripts/repair-2026-10-08/jpg_d_storage_profile.py');
+const root=resolve(import.meta.dir,'..'),native=join(root,'scripts/benchmark-repair/jpg_d_storage_profile.py');
 const profilePath=process.env.JPG_D_PROFILE_F_CONTROL_JSON!;
 if(!profilePath||!resolve(profilePath).startsWith(join(root,'docs/repair-2026-10-08/jpg-D-storage-and-private-ram-controls-v1')))throw new Error('Only owned F-generated control descriptor allowed');
 const p=actualPin(profilePath),src=actualPin(native);

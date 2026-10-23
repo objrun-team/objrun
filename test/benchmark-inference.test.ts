@@ -2,12 +2,12 @@ import { expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { checkedOutputTokens } from "../scripts/repair-2026-10-08/campaign-contract.ts";
-import { createCampaignJournal } from "../scripts/repair-2026-10-08/campaign-journal.ts";
-import { ScientificJournalProxy } from "../scripts/repair-2026-10-08/scientific-journal-proxy.ts";
-import { ScientificJournalProxy as ChemiqProxy } from "../scripts/repair-2026-10-08/chemiq-f-provider-proxy-v3.ts";
-import { providerGateway } from "../scripts/repair-2026-10-09/tb12-v2/provider_gateway.ts";
-import { actualPin, requestValues } from "../scripts/repair-2026-10-08/paid-resource-proof-v2.ts";
+import { checkedOutputTokens } from "../scripts/benchmark-repair/campaign-contract.ts";
+import { createCampaignJournal } from "../scripts/benchmark-repair/campaign-journal.ts";
+import { ScientificJournalProxy } from "../scripts/benchmark-repair/scientific-journal-proxy.ts";
+import { ScientificJournalProxy as ChemiqProxy } from "../scripts/benchmark-repair/chemiq-f-provider-proxy-v3.ts";
+import { providerGateway } from "../scripts/terminal-bench-repair/tb12-v2/provider_gateway.ts";
+import { actualPin, requestValues } from "../scripts/benchmark-repair/paid-resource-proof-v2.ts";
 
 const inference = { maxTokens: 16384, reasoningEffort: "medium", temperature: 0, seed: 42, retryTimes: 3, continueTimes: 3 };
 const root = resolve(import.meta.dir, "..");

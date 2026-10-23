@@ -2,12 +2,12 @@ import { expect, test } from 'bun:test';
 import { randomBytes } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { actualPin, jsonPin } from '../scripts/repair-2026-10-08/paid-resource-proof-v2.ts';
-import { verifyCashClosure } from '../scripts/repair-2026-10-08/cny-cash-shadow-v2.ts';
-import { fixedSkbArtifactSchedule, loadSkbArtifactSelection } from '../scripts/repair-2026-10-08/skb-artifact-journal-contract-v2.ts';
-import { createSkbArtifactFeeQueue } from '../scripts/repair-2026-10-08/skb-artifact-journal-core-v2.ts';
-import { SKB_ARTIFACT_RUNTIME_SOURCE_NAMES } from '../scripts/repair-2026-10-08/skb-artifact-journal-campaign-v2.ts';
-import type { SkbStorageDescriptor } from '../scripts/repair-2026-10-08/skb-artifact-storage-v2.ts';
+import { actualPin, jsonPin } from '../scripts/benchmark-repair/paid-resource-proof-v2.ts';
+import { verifyCashClosure } from '../scripts/benchmark-repair/cny-cash-shadow-v2.ts';
+import { fixedSkbArtifactSchedule, loadSkbArtifactSelection } from '../scripts/benchmark-repair/skb-artifact-journal-contract-v2.ts';
+import { createSkbArtifactFeeQueue } from '../scripts/benchmark-repair/skb-artifact-journal-core-v2.ts';
+import { SKB_ARTIFACT_RUNTIME_SOURCE_NAMES } from '../scripts/benchmark-repair/skb-artifact-journal-campaign-v2.ts';
+import type { SkbStorageDescriptor } from '../scripts/benchmark-repair/skb-artifact-storage-v2.ts';
 
 const root = resolve(import.meta.dir, '..');
 const area = join(root, 'docs/repair-2026-10-08/skillsbench-ten-takeover-v1/core-controls', randomBytes(12).toString('hex'));
@@ -31,7 +31,7 @@ function makeQueue(name: string, transport: (raw: string, route: string) => Prom
   let reservations = 0;
   const queue = createSkbArtifactFeeQueue({ runId, providerKind: 'local-mock', capUsd: 100, priorCostUpperBoundUsd: 0,
     prices: actualPin(pricePath), storage: { directories } as SkbStorageDescriptor,
-    sourcePins: [actualPin(join(root, 'scripts/repair-2026-10-08/skb-artifact-journal-core-v2.ts'))], schedule,
+    sourcePins: [actualPin(join(root, 'scripts/benchmark-repair/skb-artifact-journal-core-v2.ts'))], schedule,
     beforeProducerAdmission(bytes) { expect(bytes).toBe(288 * 1024**2); reservations++; }, transport });
   return { queue, directory, reservations: () => reservations };
 }

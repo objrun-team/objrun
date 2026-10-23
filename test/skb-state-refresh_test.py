@@ -19,7 +19,7 @@ from unittest.mock import patch
 from openpyxl import load_workbook
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPTS = ROOT / 'scripts/repair-2026-10-08'
+SCRIPTS = ROOT / 'scripts/benchmark-repair'
 sys.path.insert(0, str(SCRIPTS))
 spec = importlib.util.spec_from_file_location('refresh_stand', SCRIPTS / 'skb-artifact-stand-v2.py')
 stand = importlib.util.module_from_spec(spec)

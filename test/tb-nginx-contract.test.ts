@@ -2,9 +2,9 @@ import { expect, test } from "bun:test";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { acquirePaidCampaignLock } from "../scripts/repair-2026-10-08/paid-campaign-lock.ts";
-import { nginxGeneration, nginxObjective, requireSafeHealth, requireNginxPreflight, IMAGE_ID, mockCall, TASK_ID, SIX_TOOLS } from "../scripts/repair-2026-10-08/tb-nginx-contract.ts";
-import { tbEngine } from "../scripts/repair-2026-10-08/tb-engine.ts";
+import { acquirePaidCampaignLock } from "../scripts/benchmark-repair/paid-campaign-lock.ts";
+import { nginxGeneration, nginxObjective, requireSafeHealth, requireNginxPreflight, IMAGE_ID, mockCall, TASK_ID, SIX_TOOLS } from "../scripts/benchmark-repair/tb-nginx-contract.ts";
+import { tbEngine } from "../scripts/benchmark-repair/tb-engine.ts";
 
 const health = () => ({ isolationReady:true,authenticated:true,unsafeDiagnostic:false,runtimeReady:true,backend:"docker",protocol:"tb-live-nginx-io-v1",maxLiveCandidates:1,graders:1,tasks:89,unsupportedTaskCount:88,level:2,supportedTaskIds:[TASK_ID],supportedTools:[...SIX_TOOLS] });
 test("nginx gate rejects unsupported tasks, shared graders and missing tool executors", () => {
@@ -50,7 +50,7 @@ test("unknown existing locks and unfinished legacy campaigns are preserved", () 
 });
 test("two actual local processes cannot own the paid lock concurrently", async () => {
   const root=mkdtempSync(join(tmpdir(),"tgengin-fee-race-"));
-  const module=join(import.meta.dir,"../scripts/repair-2026-10-08/paid-campaign-lock.ts");
+  const module=join(import.meta.dir,"../scripts/benchmark-repair/paid-campaign-lock.ts");
   const script="import {acquirePaidCampaignLock} from "+JSON.stringify(module)+"; const lock=acquirePaidCampaignLock({root:process.env.TGENGIN_LOCK_TEST_ROOT,runId:'owner',entry:'process-a'});console.log('ready');await new Promise(r=>process.stdin.once('data',r));lock.release();";
   const a=Bun.spawn([process.execPath,"-e",script],{env:{...process.env,TGENGIN_LOCK_TEST_ROOT:root},stdin:"pipe",stdout:"pipe",stderr:"pipe"});
   try {

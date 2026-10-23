@@ -3,9 +3,9 @@ import {execFileSync} from 'node:child_process';
 import {randomBytes} from 'node:crypto';
 import {mkdirSync,readFileSync,writeFileSync} from 'node:fs';
 import {join,resolve} from 'node:path';
-import {loadNativePython} from '../scripts/repair-2026-10-08/skb-jpg-native-python.ts';
-import {jpgGeneration,artifactVerdict} from '../scripts/repair-2026-10-08/skb-jpg-contract.ts';
-const ROOT=resolve(import.meta.dir,'..'),BASE=join(ROOT,'.scratch/jpg-owned-exact-controls'),AUDIT=join(ROOT,'scripts/repair-2026-10-08/audit-jpg-journal-campaign.py');
+import {loadNativePython} from '../scripts/benchmark-repair/skb-jpg-native-python.ts';
+import {jpgGeneration,artifactVerdict} from '../scripts/benchmark-repair/skb-jpg-contract.ts';
+const ROOT=resolve(import.meta.dir,'..'),BASE=join(ROOT,'.scratch/jpg-owned-exact-controls'),AUDIT=join(ROOT,'scripts/benchmark-repair/audit-jpg-journal-campaign.py');
 const program=String.raw`import importlib.util,importlib.machinery,json,sys,hashlib
 from pathlib import Path
 def module(path,name):

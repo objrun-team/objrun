@@ -5,7 +5,7 @@ import {pathToFileURL} from 'node:url';
 import {verify} from 'node:crypto';
 import {pin,verifyPin,demand,validateManifest} from './manifest.ts';
 import type {Pin,TaskManifest} from './types.ts';
-import {BENCH_CODES} from '../repair-2026-10-10/full-f/shared/shared-admission.ts';
+import {BENCH_CODES} from '../benchmark-campaign/full-f/shared/shared-admission.ts';
 
 const json=(p:Pin)=>{verifyPin(p);return JSON.parse(readFileSync(p.path,'utf8').replace(/^\uFEFF/,''))};
 const identity=(p:Pin)=>{const path=resolve(p.path).replaceAll('\\','/');return process.platform==='win32'?path.toLowerCase():path;};

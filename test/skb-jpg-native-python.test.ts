@@ -1,13 +1,13 @@
 import {expect,test} from 'bun:test';
 import {mkdtempSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
 import {join,resolve} from 'node:path';
-import {launchNativeJpgService,loadNativePython,assertHealthIdentity} from '../scripts/repair-2026-10-08/skb-jpg-native-python.ts';
+import {launchNativeJpgService,loadNativePython,assertHealthIdentity} from '../scripts/benchmark-repair/skb-jpg-native-python.ts';
 
 const scratch=resolve(import.meta.dir,'../.scratch/jpg-native-lifecycle-v2');mkdirSync(scratch,{recursive:true});
 const makeHome=()=>mkdtempSync(join(scratch,'fixture-'));
 const port=async()=>{const s=Bun.serve({hostname:'127.0.0.1',port:0,fetch:()=>new Response('')});const value=s.port;await s.stop(true);return value;};
 const environment=()=>({...process.env,TGENGIN_GRADER_TOKEN:'local-lifecycle-fixture'});
-const stand=resolve(import.meta.dir,'../scripts/repair-2026-10-08/skb-jpg-stand.py');
+const stand=resolve(import.meta.dir,'../scripts/benchmark-repair/skb-jpg-stand.py');
 
 test('native mock PID, owner receipt and health interpreter align and actually close',async()=>{
  const home=makeHome(),p=await port(),service=launchNativeJpgService({script:stand,argv:['--mode','mock','--port',String(p),'--home',home],home,port:p,env:environment()});service.child.stdout?.resume();service.child.stderr?.resume();
@@ -50,7 +50,7 @@ test('a still-open foreign listener cannot be certified closed merely because Py
 },6000);
 
 test('bare command and changed native executable profiles are rejected before spawn',()=>{
- const native=JSON.parse(readFileSync(resolve(import.meta.dir,'../scripts/repair-2026-10-08/skb-jpg-native-python.json'),'utf8')),home=makeHome();
+ const native=JSON.parse(readFileSync(resolve(import.meta.dir,'../scripts/benchmark-repair/skb-jpg-native-python.json'),'utf8')),home=makeHome();
  for(const [name,patch]of [['cmd',{executable:'python.cmd'}],['digest',{sha256:'0'.repeat(64)}]] as const){const path=join(home,name+'.json');writeFileSync(path,JSON.stringify({...native,...patch}));expect(()=>loadNativePython(path)).toThrow();}
 });
 

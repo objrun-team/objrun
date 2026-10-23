@@ -1,0 +1,15 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {join} from 'node:path';
+import {gunzipSync} from 'node:zlib';
+import {actualPin,verifyPin} from '../../benchmark-repair/paid-resource-proof-v2';
+const base=join(process.cwd(),'docs/repair-2026-10-10/full-f-rerun'),c=JSON.parse(readFileSync(join(base,'control.json'),'utf8'));
+const active=JSON.parse(readFileSync(join(base,'chemiq/active-run.json'),'utf8'));
+const scopePath=join(active.output,'stream-task-scope.json'),scope=JSON.parse(readFileSync(scopePath,'utf8'));
+if(JSON.stringify(scope.eligibleIndices)!=='[39]'||scope.retainedValid!==815||scope.solveSeconds!==900)throw Error('sole39_scope');
+const wires=join(join(c.broker.healthPath,'..'),'chemiq-stream-evidence',active.runId+'-0');
+const wirePath=join(wires,'dispatch.wire-request.json.gz'),wire=JSON.parse(gunzipSync(readFileSync(wirePath)).toString());
+if(wire.model!=='deepseek/deepseek-v4.1-flash'||JSON.stringify(wire.provider.only)!=='["digitalocean"]'||wire.provider.allow_fallbacks!==false||wire.reasoning.enabled!==true||wire.reasoning.effort!=='high'||wire.max_tokens!==16384||wire.stream!==true||wire.stream_options.include_usage!==true)throw Error('actual_stream_wire');
+const health=JSON.parse(readFileSync(c.broker.healthPath,'utf8')),lane=health.lanes.find((l:any)=>l.runId===active.runId);
+if(!lane||lane.slug!=='chemiq'||!lane.cashRegistered)throw Error('registered_actual_lane_required');
+const proof={atUtc:new Date().toISOString(),runId:active.runId,pid:active.pid,indices:[39],retainedValid:815,scopePin:actualPin(scopePath),wirePin:actualPin(wirePath),model:wire.model,provider:wire.provider,reasoning:wire.reasoning,maxTokens:wire.max_tokens,stream:true,includeUsage:true,responseCheckedByThisVerifier:false,actualCostUsd:null,officialScoreCertified:false,commonSourceAudit:'audit-2026-10-11T03-22-11-394Z.json',modelCallsByVerifier:0};
+writeFileSync(join(base,'chemiq/second-recovery-first-paid-root-wire-proof.json'),JSON.stringify(proof,null,2)+'\n');console.log(JSON.stringify({runId:active.runId,pid:active.pid,stream:true,indices:[39],responsePending:true}));

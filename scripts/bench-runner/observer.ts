@@ -4,7 +4,7 @@ import {join,resolve,dirname,isAbsolute} from 'node:path';
 import {execFileSync} from 'node:child_process';import {createHash,verify,randomUUID} from 'node:crypto';
 import {pin,verifyPin,demand,loadManifest} from './manifest.ts';import {expand} from './runtime.ts';
 import type {TaskManifest,AttemptContext,Bench,StageName,Pin} from './types.ts';
-import {verifyAdoptedActivation,verifyAdoptedConnection} from '../repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-guard-v76.ts';
+import {verifyAdoptedActivation,verifyAdoptedConnection} from '../benchmark-campaign/full-f/novaeve_formal_v1/broker/adopted-consumer-guard-v76.ts';
 type ProcessRow={pid:number;parentPid?:number;live:boolean;argv?:string[];incarnation?:string;createdEpoch?:number};
 type Scope={attempt:any;manifest:TaskManifest;context:AttemptContext;receipt:any;receiptPin:Pin;bindings?:Record<string,string>;signedPin?:Pin};
 function read(path:string):any{return JSON.parse(readFileSync(path,'utf8').replace(/^\uFEFF/,''))}

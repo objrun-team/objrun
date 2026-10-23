@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { scientificWorkerResources } from "../scripts/repair-2026-10-08/scientific-journal-resources.ts";
+import { scientificWorkerResources } from "../scripts/benchmark-repair/scientific-journal-resources.ts";
 const MiB = 1024 ** 2;
 test("new entry chooses workers before generation with512MiB each and512MiB host headroom", () => {
   expect(scientificWorkerResources({ requested: 4, freeMemoryBytes: 2560 * MiB }).selected).toBe(4);

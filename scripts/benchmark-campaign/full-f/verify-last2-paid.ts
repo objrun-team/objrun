@@ -1,0 +1,11 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {gunzipSync} from 'node:zlib';
+import {join} from 'node:path';
+import {actualPin,verifyPin} from '../../benchmark-repair/paid-resource-proof-v2';
+const base=join(process.cwd(),'docs/repair-2026-10-10/full-f-rerun');
+const run=join(base,'chembench/runs/repair-2026-10-10T22-52-31-863Z-11-2026-10-11T02-59-23-412Z');
+const baseline=JSON.parse(readFileSync(join(base,'chembench/score-completion-20261010/third-recovery-retention-baseline.json'),'utf8'));
+if(baseline.count!==498)throw Error('retention_count');for(const r of baseline.valid)verifyPin(r.pin);
+const requests=[0,1].map(i=>{const path=join(run,`journal/provider-${i}-request.json.gz`),r=JSON.parse(gunzipSync(readFileSync(path)).toString());if(r.model!=='deepseek/deepseek-v4.1-flash'||JSON.stringify(r.provider.only)!=='["relace"]'||r.provider.allow_fallbacks!==false||r.reasoning.enabled!==true||r.reasoning.effort!=='high'||r.max_tokens!==16384)throw Error('paid_request_mismatch');return{pin:actualPin(path),model:r.model,provider:r.provider,reasoning:r.reasoning,maxTokens:r.max_tokens};});
+const proof={atUtc:new Date().toISOString(),run,indices:[204,243],retainedValidCount:498,retainedPinsVerified:true,requests,officialScorePending:true,completionClaimed:false,modelCallsByVerifier:0};
+writeFileSync(join(base,'chembench/last2-first-paid-root-verification.json'),JSON.stringify(proof,null,2)+'\n');console.log(JSON.stringify({requests:requests.length,retainedValidCount:498,officialScorePending:true}));

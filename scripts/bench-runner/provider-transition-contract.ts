@@ -1,7 +1,7 @@
 /** Exact root-authorized same-model routing; does not start, stop, adopt or forward. */
 import {readFileSync} from 'node:fs';import {verify} from 'node:crypto';
 import {verifyPin,demand} from './manifest.ts';
-import {officialOpenRouterFault,openRouterRateLimitRejection} from '../repair-2026-10-10/full-f/shared/digitalocean-provider.ts';
+import {officialOpenRouterFault,openRouterRateLimitRejection} from '../benchmark-campaign/full-f/shared/digitalocean-provider.ts';
 const ROOT='ed4e7676d5c78e04d328dbca6ff1666a496ef6d2f2e213925dc870384983ca98';
 const MODEL='deepseek/deepseek-v4.1-flash',CANONICAL=MODEL+'-20260910';
 export const ORIGINAL_PROVIDER_CEILINGS=Object.freeze({input:.3,cachedInput:.006,output:1.2});

@@ -14,7 +14,7 @@ PROJECT=Path(__file__).resolve().parents[1]
 AREA=PROJECT/(".scratch/minif-fast-v2-controls-"+uuid.uuid4().hex)
 AREA.mkdir()
 def load(name,leaf):
-    path=PROJECT/"scripts/repair-2026-10-08"/leaf
+    path=PROJECT/"scripts/benchmark-repair"/leaf
     s=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(s);s.loader.exec_module(m);return m
 fast=load("fast_v2_controls","minif2f_fast_unpack_v2.py")
 old=load("old_fast_controls","minif2f_fast_unpack.py")
@@ -41,8 +41,8 @@ def closed_fixture():
     after=recover.stage_inventory(history/"stage",NAMES);root_after=recover.stage_root_identity(history/"stage")
     for n in ["cache-unpacked.jsonl","cache-fast-commits.jsonl"]:(audit/n).write_bytes(b"")
     (audit/"public-cache-acquisition.lock").write_bytes((PRIOR_REVISION/"original-public-acquisition/public-cache-acquisition.lock").read_bytes())
-    value={"executionPins":[recover.pin(PROJECT/"scripts/repair-2026-10-08"/n) for n in ["minif2f_fast_unpack_v2.py","minif2f_fast_prefix0_recovery.py"]],
-        "protectedPins":[recover.pin(PROJECT/"scripts/repair-2026-10-08/minif2f_fast_unpack.py")],"fixtureOnly":True}
+    value={"executionPins":[recover.pin(PROJECT/"scripts/benchmark-repair"/n) for n in ["minif2f_fast_unpack_v2.py","minif2f_fast_prefix0_recovery.py"]],
+        "protectedPins":[recover.pin(PROJECT/"scripts/benchmark-repair/minif2f_fast_unpack.py")],"fixtureOnly":True}
     review_path=root/"fixture-review.json";recover.save(review_path,value);review_pin=recover.pin(review_path)
     nonce=uuid.uuid4().hex
     fresh=audit/"cache-fast-unpack.lock";own=audit/"cache-fast-prefix0-recovery.lock"
@@ -68,8 +68,8 @@ def closed_fixture():
 
 class Controls(unittest.TestCase):
     def test_exact_byte_delta_only_protocol_helper_two_calls(self):
-        a=(PROJECT/"scripts/repair-2026-10-08/minif2f_fast_unpack.py").read_bytes()
-        b=(PROJECT/"scripts/repair-2026-10-08/minif2f_fast_unpack_v2.py").read_bytes()
+        a=(PROJECT/"scripts/benchmark-repair/minif2f_fast_unpack.py").read_bytes()
+        b=(PROJECT/"scripts/benchmark-repair/minif2f_fast_unpack_v2.py").read_bytes()
         nl=b"\r\n" if b"\r\n" in a else b"\n"
         block=nl.join([b"def archive_output_path(value):",b"    canonical_value = value[2:] if value.startswith('./') else value",b"    return output_path(canonical_value)",b"",b"",b"def ltar_paths(data):"])
         reverse=b.replace(b"PROTOCOL = 'bounded-official-cache-unpack-v2-archive-dot-prefix'",b"PROTOCOL = 'bounded-official-cache-unpack-v1'",1).replace(block,b"def ltar_paths(data):",1).replace(b"paths = [archive_output_path(cstring())]",b"paths = [output_path(cstring())]",1).replace(b"paths.append(archive_output_path(value))",b"paths.append(output_path(value))",1)
@@ -144,7 +144,7 @@ class Controls(unittest.TestCase):
         self.assertTrue(path.exists());self.assertFalse(json.loads(path.read_bytes())["closed"])
         checks.append("real-fsync-error-preserves-failed-partial-no-success-certificate")
     def test_real_source_intent_and_unknown_partials_rejected_before_external_guard(self):
-        source=(PROJECT/"scripts/repair-2026-10-08/minif2f_fast_unpack_v2.py").read_text()
+        source=(PROJECT/"scripts/benchmark-repair/minif2f_fast_unpack_v2.py").read_text()
         self.assertIn("durable_json(self.root / 'audit/cache-fast-item.json', intent)",source)
         for name in ["cache-fast-item.json","cache-fast-intent.json","pending.new","pending.part"]:
             root=AREA/("intent-"+uuid.uuid4().hex);audit=root/"audit";audit.mkdir(parents=True)
@@ -207,7 +207,7 @@ if __name__=="__main__":
     suite=unittest.defaultTestLoader.loadTestsFromTestCase(Controls)
     result=unittest.TextTestRunner(verbosity=2).run(suite)
     def pin(p):return {"path":str(p),"bytes":p.stat().st_size,"sha256":hashlib.sha256(p.read_bytes()).hexdigest()}
-    report={"protocol":"minif2f-fast-v2-F-controls-v1","testsRun":result.testsRun,"failures":len(result.failures),"errors":len(result.errors),"checks":checks,"fixtureRoot":str(AREA),"E_C_D_modified":False,"dockerOperations":0,"decoderInvocations":0,"modelRequests":0,"productionRestoreExecuted":False,"actualOfficialDecodedPositiveStillRequired":True,"sourcePins":[pin(PROJECT/"scripts/repair-2026-10-08"/n) for n in ["minif2f_fast_unpack_v2.py","minif2f_fast_prefix0_recovery.py"]],"testSourcePin":pin(Path(__file__))}
+    report={"protocol":"minif2f-fast-v2-F-controls-v1","testsRun":result.testsRun,"failures":len(result.failures),"errors":len(result.errors),"checks":checks,"fixtureRoot":str(AREA),"E_C_D_modified":False,"dockerOperations":0,"decoderInvocations":0,"modelRequests":0,"productionRestoreExecuted":False,"actualOfficialDecodedPositiveStillRequired":True,"sourcePins":[pin(PROJECT/"scripts/benchmark-repair"/n) for n in ["minif2f_fast_unpack_v2.py","minif2f_fast_prefix0_recovery.py"]],"testSourcePin":pin(Path(__file__))}
     target=PROJECT/"docs/repair-2026-10-08"/("minif2f-fast-v2-controls-"+AREA.name.split('-')[-1]+".json")
     recover.save(target,report);print(json.dumps(pin(target)))
     raise SystemExit(0 if result.wasSuccessful() else 1)

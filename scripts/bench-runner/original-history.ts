@@ -1,8 +1,8 @@
 /** Shared paid-history admission: preserve real canonical identities and recover original results first. */
 import {readFileSync,existsSync} from 'node:fs';import {resolve} from 'node:path';import {Database} from 'bun:sqlite';
 import type {Pin,TaskManifest} from './types.ts';import {checkPin,readPinned} from './runtime.ts';
-import {verifyBenchmarkCashClosure} from '../repair-2026-10-10/full-f/shared/digitalocean-usd-cash.ts';
-import {inspectCampaignJournal} from '../repair-2026-10-10/full-f/shared/digitalocean-journal.ts';
+import {verifyBenchmarkCashClosure} from '../benchmark-campaign/full-f/shared/digitalocean-usd-cash.ts';
+import {inspectCampaignJournal} from '../benchmark-campaign/full-f/shared/digitalocean-journal.ts';
 import {inspectPreNativeHistory} from './pre-native-history.ts';
 import {createHash} from 'node:crypto';
 export interface OriginalHistoryAttempt {

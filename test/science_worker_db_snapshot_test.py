@@ -8,7 +8,7 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / 'scripts/repair-2026-10-08/science-worker-db-snapshot-v1.py'
+SOURCE = ROOT / 'scripts/benchmark-repair/science-worker-db-snapshot-v1.py'
 spec = importlib.util.spec_from_file_location('snapshot_native_fixture', SOURCE)
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)

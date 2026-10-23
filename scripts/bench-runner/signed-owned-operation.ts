@@ -1,7 +1,7 @@
 /** A single resource-parameterized root-signed native operation, through the real formal parent boundary. */
 import{readFileSync,writeFileSync,mkdirSync}from'node:fs';import{resolve,join}from'node:path';import{verify}from'node:crypto';
 import{pin,verifyPin,demand}from'./manifest.ts';import{processIdentity}from'./runtime.ts';import{ownedPolicyRuntime}from'./owned-policy-runtime.ts';
-import{verifyAdoptedActivation}from'../repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-price-renewal.ts';
+import{verifyAdoptedActivation}from'../benchmark-campaign/full-f/novaeve_formal_v1/broker/adopted-consumer-price-renewal.ts';
 import{ownedOperationResource}from'./owned-operation-resource.ts';import{formalNeutralStand}from'./formal_parent_absolute_stand.ts';
 const startedAt=Date.now(),[path,sha,output]=process.argv.slice(2),out=resolve(output);
 demand(pin(path).sha256===sha,'exact_root_signed_operation');const e=JSON.parse(readFileSync(path,'utf8')),p=e.plan;

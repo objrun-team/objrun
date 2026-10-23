@@ -1,0 +1,16 @@
+import {readFileSync} from 'node:fs';import {resolve,join} from 'node:path';
+import {actualPin,verifyPin,jsonPin,same} from '../../../../benchmark-repair/paid-resource-proof-v2.ts';import {verifyAdoptionEnvelope} from './sign-adoption-v46.ts';
+const demand=(v:unknown,c:string)=>{if(!v)throw Error(c)};
+export async function verifyAdoptedConnection(connection:any,initialPublication=false){
+ const root=resolve(import.meta.dir,'../../../../..'),home=join(root,'docs/repair-2026-10-10/full-f-rerun/novaeve-formal-20261013');
+ demand(connection.endpoint==='http://127.0.0.1:17895'&&connection.pid>0&&connection.adoption?.liveExecutorPid===connection.pid,'actual_adopted_connection_required');
+ const signedPin=connection.adoption.signedAdoptionPlanPin;verifyPin(signedPin);const plan=verifyAdoptionEnvelope(jsonPin(signedPin));for(const p of plan.sourcePins)verifyPin(p);
+ const proof=jsonPin(plan.rehydrateProofPin);demand(proof.historyUnknownCount===42&&proof.originalCapUsd===418.777826378,'original_union42_cap_required');for(const p of [proof.parentPin,proof.canonicalLockPin,proof.allocationPin,proof.originalGlobalDelegationGuardPin,proof.historyPin])verifyPin(p);
+ const owner=jsonPin(proof.canonicalLockPin),parent=jsonPin(proof.parentPin);demand(same(owner,parent.owned),'original_owner_parent_identity');
+ const healths:any[]=await Promise.all([17895,17889].map(async port=>{const r=await fetch('http://127.0.0.1:'+port+'/health',{signal:AbortSignal.timeout(5000)});demand(r.ok,'adopted_health_http');return r.json();}));
+ for(const h of healths){demand(h.healthy&&h.pid===connection.pid&&h.runId===connection.runId&&h.targetMax===16&&h.maxInFlight===16&&h.adoption?.singleResourcePool===true&&h.adoption.liveExecutorPid===h.pid&&same(h.adoption.signedAdoptionPlanPin,signedPin)&&same(h.canonicalOwner,owner),'actual_live_executor_and_historical_owner_required');demand(h.allocation.capUsd===parent.capUsd&&h.allocation.allocatedUsd>=proof.minimumRetainedAllocationUsd&&h.allocation.allocatedUsd<=parent.capUsd,'original_budget_carry_required');const used=h.resourceSlots.filter((r:any)=>r.kind==='heavy-container').reduce((n:number,r:any)=>n+r.slots,0);demand(used+h.availableResourceSlots['heavy-container']===16,'single_sixteen_pool_required');}
+ demand(same(healths[0].resourceSlots,healths[1].resourceSlots)&&same(healths[0].allocation,healths[1].allocation),'both_ports_same_pool_and_budget');
+ if(initialPublication){const held=healths[0].resourceSlots.filter((r:any)=>r.adoptedOrphanHold);demand(held.length===3&&held.every((r:any)=>proof.resourceHoldRows.some((p:any)=>p.pid===r.pid&&p.slots===r.slots)),'three_original_holds_publication_required');}
+ return {connection,health:healths[0],plan,proof,owner,sourcePin:actualPin(import.meta.path)};
+}
+export async function verifyAdoptedActivation(path:string){const activation=JSON.parse(readFileSync(path,'utf8'));demand(activation.active&&activation.activated&&activation.adoption?.protocol==='novaeve-truthful-broker-adoption-v46'&&!activation.delegation,'new_activation_no_live_old_delegation');const control=jsonPin(activation.controlPin);demand(control.paidReady&&control.broker.pid===activation.adoption.liveExecutorPid,'actual_control_binding');verifyPin(activation.consumerGuardPin);return verifyAdoptedConnection(control.broker);}

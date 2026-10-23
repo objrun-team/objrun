@@ -3,7 +3,7 @@ import { closeSync, existsSync, readFileSync, writeFileSync, appendFileSync, mkd
 import { join, resolve } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import { gunzipSync } from "node:zlib";
-import { createCampaignJournal, inspectCampaignJournal, type JournalIoOperation } from "../scripts/repair-2026-10-08/campaign-journal.ts";
+import { createCampaignJournal, inspectCampaignJournal, type JournalIoOperation } from "../scripts/benchmark-repair/campaign-journal.ts";
 
 const base = resolve(import.meta.dir, "../.scratch", `campaign-journal-${randomBytes(6).toString("hex")}`);
 mkdirSync(base, { recursive: true });

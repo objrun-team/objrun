@@ -7,7 +7,7 @@ from unittest.mock import patch
 import uuid
 
 ROOT=Path(__file__).resolve().parents[1]
-SOURCE=ROOT/'scripts/repair-2026-10-08/package-tb-real-pilot-v1.py'
+SOURCE=ROOT/'scripts/benchmark-repair/package-tb-real-pilot-v1.py'
 spec=importlib.util.spec_from_file_location('tb_public_package_fixture',SOURCE)
 p=importlib.util.module_from_spec(spec);spec.loader.exec_module(p)
 
@@ -24,7 +24,7 @@ class PackageControls(unittest.TestCase):
         self.assertTrue(p.selected('examples/benchmark/terminal-bench/stand.py'))
         self.assertTrue(p.selected('app/src/engine/loop.ts'))
         self.assertFalse(p.selected('examples/benchmark/skillsbench/stand.py'))
-        self.assertFalse(p.selected('scripts/repair-2026-10-08/skb-jpg-journal-campaign.ts'))
+        self.assertFalse(p.selected('scripts/benchmark-repair/skb-jpg-journal-campaign.ts'))
         for value in ('../escape','/absolute','worker-U/config.yaml','worker-U/data/h2h.sqlite','artifacts/.env'):
             with self.subTest(value=value):
                 with self.assertRaises(RuntimeError):p.rel(value)

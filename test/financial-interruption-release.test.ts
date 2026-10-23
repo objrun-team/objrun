@@ -3,8 +3,8 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, writeSync } from 'node:fs';
 import { createServer, type Server } from 'node:net';
 import { join, resolve } from 'node:path';
-import { actualPin, jsonPin, type Pin } from '../scripts/repair-2026-10-08/paid-resource-proof-v2.ts';
-import { assertFixedFinancialReport, exerciseFinancialReleaseFixture } from '../scripts/repair-2026-10-08/financial-interruption-release.ts';
+import { actualPin, jsonPin, type Pin } from '../scripts/benchmark-repair/paid-resource-proof-v2.ts';
+import { assertFixedFinancialReport, exerciseFinancialReleaseFixture } from '../scripts/benchmark-repair/financial-interruption-release.ts';
 
 const ROOT = resolve(import.meta.dir, '..'), PARENT = join(ROOT, '.scratch/financial-release-controls'), ID = crypto.randomUUID();
 const children: { child: ChildProcess; pid: number; exit: boolean; close: boolean; stopped: Promise<void> }[] = [];
@@ -27,7 +27,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await stopOwned(); await stopPorts();
   const report = join(PARENT, ID + '-summary'); mkdirSync(report);
-  const pin = save(join(report, 'controls.json'), { protocol: 'financial-release-native-controls-v1', sourcePin: actualPin(join(ROOT, 'scripts/repair-2026-10-08/financial-interruption-release.ts')), testPin: actualPin(import.meta.path), originalProductionLockOperations: 0, actualProviderRequests: 0, scoreCertificate: false, fixtureResults: results, ownedChildren: children.map(r => ({ pid: r.pid, exitObserved: r.exit, closeObserved: r.close })), ownedPorts: ports.map((port, i) => ({ port, closed: !servers[i]!.listening })), observedAtUtc: new Date().toISOString() });
+  const pin = save(join(report, 'controls.json'), { protocol: 'financial-release-native-controls-v1', sourcePin: actualPin(join(ROOT, 'scripts/benchmark-repair/financial-interruption-release.ts')), testPin: actualPin(import.meta.path), originalProductionLockOperations: 0, actualProviderRequests: 0, scoreCertificate: false, fixtureResults: results, ownedChildren: children.map(r => ({ pid: r.pid, exitObserved: r.exit, closeObserved: r.close })), ownedPorts: ports.map((port, i) => ({ port, closed: !servers[i]!.listening })), observedAtUtc: new Date().toISOString() });
   console.log(JSON.stringify({ controlsPin: pin }));
 });
 

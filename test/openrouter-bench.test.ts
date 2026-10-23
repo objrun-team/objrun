@@ -2,14 +2,14 @@ import { expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { createCampaignJournal, inspectCampaignJournal } from "../scripts/repair-2026-10-08/campaign-journal.ts";
-import { ScientificJournalProxy } from "../scripts/repair-2026-10-08/scientific-journal-proxy.ts";
-import { BENCHMARK_PROVIDER } from "../scripts/repair-2026-10-08/benchmark-provider.ts";
-import { BENCHMARK_INFERENCE } from "../scripts/repair-2026-10-08/benchmark-inference.ts";
+import { createCampaignJournal, inspectCampaignJournal } from "../scripts/benchmark-repair/campaign-journal.ts";
+import { ScientificJournalProxy } from "../scripts/benchmark-repair/scientific-journal-proxy.ts";
+import { BENCHMARK_PROVIDER } from "../scripts/benchmark-repair/benchmark-provider.ts";
+import { BENCHMARK_INFERENCE } from "../scripts/benchmark-repair/benchmark-inference.ts";
 import { registerVendors, type Unit } from "../app/src/llm/index.ts";
-import { actualPin } from "../scripts/repair-2026-10-08/paid-resource-proof-v2.ts";
-import { createBenchmarkCash, verifyBenchmarkCashClosure } from "../scripts/repair-2026-10-08/benchmark-usd-cash.ts";
-import { classifyGeneration } from '../scripts/repair-2026-10-08/campaign-contract.ts';
+import { actualPin } from "../scripts/benchmark-repair/paid-resource-proof-v2.ts";
+import { createBenchmarkCash, verifyBenchmarkCashClosure } from "../scripts/benchmark-repair/benchmark-usd-cash.ts";
+import { classifyGeneration } from '../scripts/benchmark-repair/campaign-contract.ts';
 
 function fixture() {
   const directory = resolve(import.meta.dir, "../.scratch/openrouter-bench-" + randomUUID()); mkdirSync(directory, { recursive: true });
@@ -104,7 +104,7 @@ function cashFixture(f: ReturnType<typeof fixture>, providerKind: 'real-provider
     prices: actualPin(priceFile), admission: { currency: "USD", capUsd: 1, runId, owned: { ownerNonce: "fixture", pid: process.pid }, scope: "production",
       proofPin: actualPin(admissionFile), assertOwned() {}, validateForwardSource() {}, registerCash() {} },
     journal: { directory: f.directory, configPin: actualPin(join(f.directory, "journal-config.json")),
-      sourcePin: actualPin(resolve(import.meta.dir, "../scripts/repair-2026-10-08/campaign-journal.ts")) } }, BENCHMARK_PROVIDER);
+      sourcePin: actualPin(resolve(import.meta.dir, "../scripts/benchmark-repair/campaign-journal.ts")) } }, BENCHMARK_PROVIDER);
 }
 test("USD cash records and independently replays the actual journal cost without CNY fields", () => {
   const f = fixture(), cash = cashFixture(f), runId = "repair-2026-10-10T00-00-00-000Z";

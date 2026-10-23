@@ -2,7 +2,7 @@
 import{readFileSync,writeFileSync,mkdirSync}from'node:fs';import{join,resolve}from'node:path';
 import{installUnlimitedFinancialLoader}from'./provider-probe-scoped-transport-loader-v3.ts';
 const [configPath,scopePath]=process.argv.slice(2),config=installUnlimitedFinancialLoader(configPath);
-const{actualPin,jsonPin,demand,verifyPin}=await import('../repair-2026-10-08/paid-resource-proof-v2.ts');
+const{actualPin,jsonPin,demand,verifyPin}=await import('../benchmark-repair/paid-resource-proof-v2.ts');
 const{verifyProviderProbeScope}=await import('./provider-probe-scoped-transport-policy-v3.ts');
 const{verifyAdoptedActivation}=await import('./unlimited-readonly-guard-retry.ts');
 const{ownedOperationResource}=await import('./owned-operation-resource.ts');

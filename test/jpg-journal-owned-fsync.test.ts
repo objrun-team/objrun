@@ -3,13 +3,13 @@ import {mkdirSync,readFileSync,symlinkSync,writeFileSync} from 'node:fs';
 import {randomBytes} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {join,resolve} from 'node:path';
-import {actualPin} from '../scripts/repair-2026-10-08/paid-resource-proof-v2.ts';
-import {loadNativePython} from '../scripts/repair-2026-10-08/skb-jpg-native-python.ts';
-import {createJpgOwnedFlushFixture} from '../scripts/repair-2026-10-08/skb-jpg-journal-campaign.ts';
-const ROOT=resolve(import.meta.dir,'..'),AUDIT=join(ROOT,'scripts/repair-2026-10-08/audit-jpg-journal-campaign.py');
+import {actualPin} from '../scripts/benchmark-repair/paid-resource-proof-v2.ts';
+import {loadNativePython} from '../scripts/benchmark-repair/skb-jpg-native-python.ts';
+import {createJpgOwnedFlushFixture} from '../scripts/benchmark-repair/skb-jpg-journal-campaign.ts';
+const ROOT=resolve(import.meta.dir,'..'),AUDIT=join(ROOT,'scripts/benchmark-repair/audit-jpg-journal-campaign.py');
 test('new Bun source flushes only its own new regular output with r+ and preserves actual bytes/SHA',()=>{
   const scope=createJpgOwnedFlushFixture(),path=join(scope.root,'owned.txt'),raw=Buffer.from('harmless owned fixture\n');writeFileSync(path,raw);const before=actualPin(path),after=scope.flush(path);
-  expect(before.sha256).toBe(after.sha256);expect(before.bytes).toBe(after.bytes);expect(readFileSync(path).equals(raw)).toBe(true);writeFileSync(join(scope.root,'result.json'),JSON.stringify({before,after,sourcePin:actualPin(join(ROOT,'scripts/repair-2026-10-08/skb-jpg-journal-campaign.ts')),fsyncReturned:true,modelCalls:0,DockerOperations:0})+'\n');scope.close();
+  expect(before.sha256).toBe(after.sha256);expect(before.bytes).toBe(after.bytes);expect(readFileSync(path).equals(raw)).toBe(true);writeFileSync(join(scope.root,'result.json'),JSON.stringify({before,after,sourcePin:actualPin(join(ROOT,'scripts/benchmark-repair/skb-jpg-journal-campaign.ts')),fsyncReturned:true,modelCalls:0,DockerOperations:0})+'\n');scope.close();
 });
 test('Bun rejects original source, directory and actual junction before acquiring write access',()=>{
   const scope=createJpgOwnedFlushFixture(),source=actualPin(AUDIT),target=join(scope.root,'target');mkdirSync(target);const file=join(target,'owned.txt');writeFileSync(file,'public own fixture');const link=join(scope.root,'junction');symlinkSync(target,link,'junction');

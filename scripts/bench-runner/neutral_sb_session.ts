@@ -2,7 +2,7 @@
 import {requireSingleTaskSkillsBenchReadiness} from './skillsbench-single-task-readiness.ts';
 import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';import {join,resolve} from 'node:path';
 import {pin,verifyPin,demand} from './manifest.ts';import {openSkillsBenchSingleTaskSession} from './skillsbench-single-task-session.ts';
-import {runSkillsBenchPythonChild} from './skillsbench-python-child.ts';import {verifyAdoptedActivation} from '../repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-price-renewal.ts';
+import {runSkillsBenchPythonChild} from './skillsbench-python-child.ts';import {verifyAdoptedActivation} from '../benchmark-campaign/full-f/novaeve_formal_v1/broker/adopted-consumer-price-renewal.ts';
 const [planPath,expectedSha,output]=process.argv.slice(2);demand(pin(planPath).sha256===expectedSha,'neutral_session_exact_plan');
 const p=JSON.parse(readFileSync(planPath,'utf8')).plan;demand(p.noBenchContent===true&&p.modelCalls===0&&p.gradeCalls===0&&p.referenceCalls===0,'neutral_session_scope');
 const out=resolve(output),deadline=Number(process.env.NOVAEVE_INFRASTRUCTURE_DEADLINE_MS);

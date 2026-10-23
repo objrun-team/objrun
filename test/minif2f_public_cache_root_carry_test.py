@@ -18,7 +18,7 @@ import urllib.error
 import uuid
 
 PROJECT = Path(__file__).resolve().parents[1]
-PATH = PROJECT/"scripts/repair-2026-10-08/minif2f_public_cache_root_carry.py"
+PATH = PROJECT/"scripts/benchmark-repair/minif2f_public_cache_root_carry.py"
 spec = importlib.util.spec_from_file_location("carry_under_control", PATH)
 w = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(w)
