@@ -21,3 +21,5 @@
 此前使用 Release 附件存放日志的计划已取消。索引和摘要保持易读，压缩记录实体、哈希及重组映射一并进入普通 Git；完整覆盖与核验状态见 records/reports/。
 
 SciCode 的独立输出目录采用只读归档，C 盘原件保留；具体状态见 `scicode-external` 收集。三项外部 U 参照不代表存在本地配对轨迹。
+
+当前选择集已补入 OlympiadBench、SciBench、TheoPhysEval、ClassEval、BIRD 的模型输入输出、日志和结果记录，共 490,876 个文件记录。分 Bench 体积及范围见 [覆盖说明](records/summaries/coverage.md)。其余 15 批尚有延期材料，其中 workspace-tmp 已部分选取；不宣称全部原档已纳入 Git。

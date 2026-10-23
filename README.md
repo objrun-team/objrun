@@ -1,6 +1,6 @@
 # ObjRun
 
-本轮按确认后的范围交付：已确认必要的实验记录进入普通 Git，其余来源留在仓库外归档，供后续检查。此选择集不代表全部历史实验。见 [记录整理简报](docs/reproducibility/records-report.md)。
+本轮按确认后的范围交付：已确认必要的实验记录进入普通 Git，其余来源留在仓库外归档，供后续检查。此选择集不代表全部历史实验。已补入 OlympiadBench、SciBench、TheoPhysEval、ClassEval、BIRD 的日志、模型输入输出与结果。见 [记录整理简报](docs/reproducibility/records-report.md)。
 
 ObjRun 学生协作仓库。项目是基于 Bun 和 TypeScript 的任务执行与评测引擎。
 

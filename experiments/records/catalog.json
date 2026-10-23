@@ -1,11 +1,11 @@
 {
   "format_version": 1,
-  "delivery_scope": "confirmed-selected-records",
+  "delivery_scope": "confirmed-selected-records-with-five-bench-supplement",
   "completed": true,
   "full_original_coverage": false,
   "collections_expected": 66,
-  "collections_processed": 48,
-  "collections_with_selected_records": 35,
+  "collections_processed": 52,
+  "collections_with_selected_records": 39,
   "collections": [
     {
       "collection": "chembench-runtime",
@@ -2133,6 +2133,411 @@
         }
       },
       "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "docs-olympiadbench",
+      "snapshot": "eba3fb2f8a657f8a2160a70df93e585cacc175ac5a94f324218263d3fb1abf86",
+      "source_root": "objrun/docs/olympiadbench",
+      "source_files": 36215,
+      "selected_source_files": 26936,
+      "by_bench": {
+        "olympiadbench": {
+          "discovered_files": 36215,
+          "discovered_bytes": 1661964637,
+          "excluded_files": 9284,
+          "retained_files": 26019,
+          "retained_source_bytes": 1439866899,
+          "database_sidecars": 912
+        }
+      },
+      "manifest_shards": [
+        {
+          "path": "manifests/docs-olympiadbench-000.jsonl.zst",
+          "bytes": 766087,
+          "sha256": "8814364142f112151f34f89281146b9532bbdc2ee2b6f4701177e2f33ce92ac9"
+        },
+        {
+          "path": "manifests/docs-olympiadbench-001.jsonl.zst",
+          "bytes": 752362,
+          "sha256": "a337293da6b08216a970a552be67f943ae6e7811d23fbe80a769304efb233174"
+        },
+        {
+          "path": "manifests/docs-olympiadbench-002.jsonl.zst",
+          "bytes": 299821,
+          "sha256": "17a51653ecc26c0d9180a3dd2cea2a5300cfc9f0f8853a6527353922dac4aa5f"
+        },
+        {
+          "path": "manifests/docs-olympiadbench-003.jsonl.zst",
+          "bytes": 1820807,
+          "sha256": "3a60db973cf5ef1b342e62dc1ffb3294c71212b340817d0d7c1aee7d6d301107"
+        },
+        {
+          "path": "manifests/docs-olympiadbench-004.jsonl.zst",
+          "bytes": 333,
+          "sha256": "730a2b52e49d4c45920e5be85630e8c089d7f2894555aee06f108ad27fb6e77d"
+        }
+      ],
+      "excluded_counts": {
+        "environment-or-cache-tree": 9279,
+        "binary-resource-executable": 1,
+        "binary-resource-parquet": 1,
+        "identified-resource-archive": 3
+      },
+      "excluded_bytes": {
+        "environment-or-cache-tree": 111416123,
+        "binary-resource-executable": 88979072,
+        "binary-resource-parquet": 337513,
+        "identified-resource-archive": 6422822
+      },
+      "excluded_examples": {
+        "binary-resource-executable": "olympiadbench-formal-20261017-v1-deepseek-c16/full-results/bin/bun",
+        "binary-resource-parquet": "olympiadbench-formal-20261017-v1-deepseek-c16/full-results/data/original.parquet",
+        "identified-resource-archive": "olympiadbench-formal-20261017-v1-deepseek-c16/full-results/wheels/antlr4_python3_runtime-4.11.0-py3-none-any.whl"
+      },
+      "pending": [],
+      "elapsed_seconds": 308.3,
+      "selection_counts": {
+        "selected_entries": 26019
+      },
+      "selection_scope": "requested-collection"
+    },
+    {
+      "collection": "workspace-tmp",
+      "snapshot": "e1fe90db41cc6b8525fba1b0d9e05bcf35f9ee8cc4574c734cee66d7eb0d7401",
+      "source_root": "tmp",
+      "source_files": 66364,
+      "selected_source_files": 52266,
+      "by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 1382,
+          "discovered_bytes": 326988090,
+          "excluded_files": 1382
+        },
+        "humaneval-plus": {
+          "discovered_files": 1,
+          "discovered_bytes": 6257,
+          "excluded_files": 1
+        },
+        "frontierscience": {
+          "discovered_files": 71,
+          "discovered_bytes": 1441655,
+          "excluded_files": 71
+        },
+        "labbench": {
+          "discovered_files": 246,
+          "discovered_bytes": 14852355,
+          "excluded_files": 246
+        },
+        "skillsbench": {
+          "discovered_files": 13,
+          "discovered_bytes": 158337,
+          "excluded_files": 13
+        },
+        "terminal-bench": {
+          "discovered_files": 10,
+          "discovered_bytes": 67173,
+          "excluded_files": 10
+        },
+        "minif2f": {
+          "discovered_files": 364,
+          "discovered_bytes": 1634397699,
+          "excluded_files": 364
+        },
+        "olympiadbench": {
+          "discovered_files": 883,
+          "discovered_bytes": 92037219,
+          "excluded_files": 777,
+          "retained_files": 106,
+          "retained_source_bytes": 11840390
+        },
+        "scibench": {
+          "discovered_files": 3902,
+          "discovered_bytes": 16662839,
+          "excluded_files": 2,
+          "retained_files": 3892,
+          "retained_source_bytes": 12762884,
+          "database_sidecars": 8
+        },
+        "theophyseval": {
+          "discovered_files": 59492,
+          "discovered_bytes": 3398391817,
+          "excluded_files": 11563,
+          "retained_files": 47853,
+          "retained_source_bytes": 2893668465,
+          "database_sidecars": 76
+        }
+      },
+      "manifest_shards": [
+        {
+          "path": "manifests/workspace-tmp-000.jsonl.zst",
+          "bytes": 496102,
+          "sha256": "1fd3efb6ad7520bb8c465cf47e1cffe3215d537b5e5699323f68d85c2226a496"
+        },
+        {
+          "path": "manifests/workspace-tmp-001.jsonl.zst",
+          "bytes": 476408,
+          "sha256": "7a07bc097962907172392dc249309bfc8fba92f0eb7ab2a9dc264050db4f5657"
+        },
+        {
+          "path": "manifests/workspace-tmp-002.jsonl.zst",
+          "bytes": 733561,
+          "sha256": "ffa8b05017c735ced578c05716a833b19c688d67417c2ebb746c01c23efd4380"
+        },
+        {
+          "path": "manifests/workspace-tmp-003.jsonl.zst",
+          "bytes": 484689,
+          "sha256": "f75fd8fc70b11121c366605b391d7e439bc74fd6d92a60eff919246686fe7d2f"
+        },
+        {
+          "path": "manifests/workspace-tmp-004.jsonl.zst",
+          "bytes": 219986,
+          "sha256": "847e3fa44a470e1f05212244f495d90d28522dabfade6b373cbd3576f730009f"
+        },
+        {
+          "path": "manifests/workspace-tmp-005.jsonl.zst",
+          "bytes": 193734,
+          "sha256": "07a7941503ed1b5970af244ff3ff675d494f349743520262d97e3d2c7cc95c14"
+        },
+        {
+          "path": "manifests/workspace-tmp-006.jsonl.zst",
+          "bytes": 265792,
+          "sha256": "f6c3e7d65e705ac1ad2d344d4edcd4614b4c37b92cf8d2f34e160626867942cc"
+        }
+      ],
+      "excluded_counts": {
+        "outside-requested-bench-selection": 2086,
+        "installed-runtime": 11893,
+        "environment-or-cache-tree": 119,
+        "binary-resource-parquet": 2,
+        "identified-resource-archive": 2,
+        "binary-resource-pdf": 320,
+        "binary-resource-image": 5,
+        "binary-resource-numpy": 2
+      },
+      "excluded_bytes": {
+        "outside-requested-bench-selection": 1977892521,
+        "installed-runtime": 320085823,
+        "environment-or-cache-tree": 1477605,
+        "binary-resource-parquet": 675026,
+        "identified-resource-archive": 680387,
+        "binary-resource-pdf": 217491920,
+        "binary-resource-image": 347463,
+        "binary-resource-numpy": 1453589
+      },
+      "excluded_examples": {
+        "binary-resource-parquet": "olympiadbench-design-20261017/hf/OlympiadBench/OE_TO_physics_en_COMP/OE_TO_physics_en_COMP.parquet",
+        "identified-resource-archive": "olympiadbench-formal-20261017-v1-deepseek-c16/wheels/antlr4_python3_runtime-4.11.0-py3-none-any.whl",
+        "binary-resource-pdf": "theophyseval-20261016-v1/data/public/all-electron-to-crystal/environment/papers/Ghost_states_from_pp.pdf",
+        "binary-resource-image": "theophyseval-20261016-v3/outputs/snapshots/tpe-2b69e14b5598433c/1139ee547f5149b6a5f398adb157d6e4/output/problem2/figures/ae_vs_pseudo.png",
+        "binary-resource-numpy": "theophyseval-20261016-v3/outputs/snapshots/tpe-d8d9460d48944cb7/3fa273b1a42940a4adbb17058bd70f9e/output/problem3/code/_out.npy"
+      },
+      "pending": [],
+      "elapsed_seconds": 369.7,
+      "selection_counts": {
+        "selected_entries": 51840
+      },
+      "selection_scope": "requested-bench-subset"
+    },
+    {
+      "collection": "scibench",
+      "snapshot": "4e3fa261783983e828b1745d4c397a6ffc0dfe695a1b8d9bc7bf2f7646c7713e",
+      "source_root": "objrun/docs/scibench",
+      "source_files": 64615,
+      "selected_source_files": 64603,
+      "by_bench": {
+        "scibench": {
+          "discovered_files": 64615,
+          "discovered_bytes": 1456893731,
+          "excluded_files": 12,
+          "retained_files": 62523,
+          "retained_source_bytes": 1422746802,
+          "database_sidecars": 2080
+        }
+      },
+      "manifest_shards": [
+        {
+          "path": "manifests/scibench-000.jsonl.zst",
+          "bytes": 3473,
+          "sha256": "4dae007507820d3400ce87fb731b3f2596c7e8d189663949f266d81a2211efa1"
+        },
+        {
+          "path": "manifests/scibench-001.jsonl.zst",
+          "bytes": 2521618,
+          "sha256": "8dd93ae7395eeb37529d3e426eb403227545739bc822420ab9d9320d1e3d0f21"
+        },
+        {
+          "path": "manifests/scibench-002.jsonl.zst",
+          "bytes": 381708,
+          "sha256": "332b9d2d81c156269b776b0c7e16cd6432bbfdd5f134d89544a9c06f22619f85"
+        },
+        {
+          "path": "manifests/scibench-003.jsonl.zst",
+          "bytes": 507209,
+          "sha256": "6ef7c67cf08f49e37f5936c38cb6b03c6080f39652367c655105d70948587918"
+        },
+        {
+          "path": "manifests/scibench-004.jsonl.zst",
+          "bytes": 527314,
+          "sha256": "06ef4853b19e4b86360d3b696a31b5fc73f67ffae4f7047ed641f68429980c63"
+        },
+        {
+          "path": "manifests/scibench-005.jsonl.zst",
+          "bytes": 833194,
+          "sha256": "64f112a4287d3113136692f9a5b871d829889039d901aa777714607b5440af73"
+        },
+        {
+          "path": "manifests/scibench-006.jsonl.zst",
+          "bytes": 778390,
+          "sha256": "8ca11eb063832a608d9823aa91666489a6e6a565abfb27ba24b8fa40a79562c6"
+        },
+        {
+          "path": "manifests/scibench-007.jsonl.zst",
+          "bytes": 846008,
+          "sha256": "75c20b1e8cb034e7cad39962307332a475834b5314d7f0dcc73617f45b2f5a6b"
+        },
+        {
+          "path": "manifests/scibench-008.jsonl.zst",
+          "bytes": 433871,
+          "sha256": "88d9eb6d3e772ad794f2efed8e6c200d76a765a05f9f817aa16993d68d0c4a39"
+        },
+        {
+          "path": "manifests/scibench-009.jsonl.zst",
+          "bytes": 279946,
+          "sha256": "7bf7170e6d63d78c5362ecd942d6e14a9808b7a9819ecdc586dfcc4b1f94fa21"
+        },
+        {
+          "path": "manifests/scibench-010.jsonl.zst",
+          "bytes": 2268009,
+          "sha256": "dfce40d90daf962a79a14dc4a9692946c43191177d72389d1a47be4a694475ad"
+        },
+        {
+          "path": "manifests/scibench-011.jsonl.zst",
+          "bytes": 424058,
+          "sha256": "2d457ebd5fc0f649a7f56dcbd0f1b56089a580954c3f7755a125ef4a9e73ec57"
+        },
+        {
+          "path": "manifests/scibench-012.jsonl.zst",
+          "bytes": 86324,
+          "sha256": "e986fbab77fde29f3ab90eb443ae4fff3347bfc26cb42f9ea924cc046d1fc307"
+        }
+      ],
+      "excluded_counts": {
+        "environment-or-cache-tree": 12
+      },
+      "excluded_bytes": {
+        "environment-or-cache-tree": 68209
+      },
+      "excluded_examples": {},
+      "pending": [],
+      "elapsed_seconds": 181.1,
+      "selection_counts": {
+        "selected_entries": 62523
+      },
+      "selection_scope": "requested-collection"
+    },
+    {
+      "collection": "docs-newbench-20261014",
+      "snapshot": "673d7cca39aa993254328ef826cb8a81839aebd293b1ee1b36bd26529e36b279",
+      "source_root": "objrun/docs/newbench-20261014",
+      "source_files": 170680,
+      "selected_source_files": 170680,
+      "by_bench": {
+        "bird": {
+          "discovered_files": 163404,
+          "discovered_bytes": 7144323879,
+          "retained_files": 157184,
+          "retained_source_bytes": 3498094119,
+          "database_sidecars": 6220
+        },
+        "classeval": {
+          "discovered_files": 7276,
+          "discovered_bytes": 875175025,
+          "retained_files": 6764,
+          "retained_source_bytes": 529601545,
+          "database_sidecars": 512
+        }
+      },
+      "manifest_shards": [
+        {
+          "path": "manifests/docs-newbench-20261014-000.jsonl.zst",
+          "bytes": 921030,
+          "sha256": "38157ee0acbf6f3a241dbe577905b7b7b702bd54eeb0e8e5851be9a7e255e089"
+        },
+        {
+          "path": "manifests/docs-newbench-20261014-001.jsonl.zst",
+          "bytes": 891425,
+          "sha256": "e05a8707421a8784b35fd42f90c434dad2907bfdc2d9f5c44f48eb7781536530"
+        },
+        {
+          "path": "manifests/docs-newbench-20261014-002.jsonl.zst",
+          "bytes": 855496,
+          "sha256": "2923469252e8af34c0d94fe8ba0fa27e8acc0eb0bdabc83103f7ce9dea5b4db1"
+        },
+        {
+          "path": "manifests/docs-newbench-20261014-003.jsonl.zst",
+          "bytes": 984130,
+          "sha256": "7ed78ab70a763a7d417d2f0de68e5b100c74f62f05fe1079942041907e74c4c2"
+        },
+        {
+          "path": "manifests/docs-newbench-20261014-004.jsonl.zst",
+          "bytes": 993554,
+          "sha256": "58a9f87b7e08f72743e59a3b5bda2e4df3c372b072bf4d811aace0f6efe20500"
+        },
+        {
+          "path": "manifests/docs-newbench-20261014-005.jsonl.zst",
+          "bytes": 984929,
+          "sha256": "98f644d234543d66ad6f9724e6583344ed6ed166b5cda826e61ddd2a1d76d1cc"
+        },
+        {
+          "path": "manifests/docs-newbench-20261014-006.jsonl.zst",
+          "bytes": 973398,
+          "sha256": "b93985815dfd27facc615954caa2bc5b9da7488a12bf0ea9a77ca985c045156f"
+        },
+        {
+          "path": "manifests/docs-newbench-20261014-007.jsonl.zst",
+          "bytes": 787774,
+          "sha256": "4695edf2d6b5c7de2bd7facd4031a375a6dd9c7d783938d3ee83ec685d2c9a13"
+        },
+        {
+          "path": "manifests/docs-newbench-20261014-008.jsonl.zst",
+          "bytes": 690613,
+          "sha256": "02c45305e5cd0f2cc79810757df6a49d9c20d72f5f7df5f8048b90303d2ac242"
+        },
+        {
+          "path": "manifests/docs-newbench-20261014-009.jsonl.zst",
+          "bytes": 522641,
+          "sha256": "4bafa365e88fb5a039101ad347278310a2e2c3102daad555ab94a717a477347c"
+        },
+        {
+          "path": "manifests/docs-newbench-20261014-010.jsonl.zst",
+          "bytes": 546702,
+          "sha256": "614b0f5ae8ab78e8417c35afffce576db6a5092d88b53bf4611f348a3efcefe6"
+        },
+        {
+          "path": "manifests/docs-newbench-20261014-011.jsonl.zst",
+          "bytes": 518392,
+          "sha256": "eed0bf6bc27e8835fc6a7a4b97488ad4652303aa4d21c4f09ce73966329d05a0"
+        },
+        {
+          "path": "manifests/docs-newbench-20261014-012.jsonl.zst",
+          "bytes": 499200,
+          "sha256": "79f29514dd7a66fadc5f76e9ff78654553b8f026586eba9dbd3dc85e0234e6ad"
+        },
+        {
+          "path": "manifests/docs-newbench-20261014-013.jsonl.zst",
+          "bytes": 672350,
+          "sha256": "7630dcd57e9bfc9aa85af22a8bff304da0aa80ccd045159cb7cf821ade376ac8"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "pending": [],
+      "elapsed_seconds": 568.5,
+      "selection_counts": {
+        "selected_entries": 163948
+      },
+      "selection_scope": "requested-collection"
     }
   ],
   "benches": {
@@ -2149,9 +2554,9 @@
       "attributed_pack_bytes": 30158618
     },
     "shared-or-unassigned": {
-      "discovered_files": 142726,
-      "discovered_bytes": 4538285516,
-      "excluded_files": 23417,
+      "discovered_files": 144108,
+      "discovered_bytes": 4865273606,
+      "excluded_files": 24799,
       "database_sidecars": 188,
       "candidate_entries_before_selection": 119121,
       "retained_files": 88450,
@@ -2161,9 +2566,9 @@
       "attributed_pack_bytes": 112827852
     },
     "humaneval-plus": {
-      "discovered_files": 18830,
-      "discovered_bytes": 1120775462,
-      "excluded_files": 383,
+      "discovered_files": 18831,
+      "discovered_bytes": 1120781719,
+      "excluded_files": 384,
       "database_sidecars": 1648,
       "candidate_entries_before_selection": 16799,
       "retained_files": 16799,
@@ -2183,9 +2588,9 @@
       "attributed_pack_bytes": 3914627
     },
     "frontierscience": {
-      "discovered_files": 21380,
-      "discovered_bytes": 480374188,
-      "excluded_files": 9683,
+      "discovered_files": 21451,
+      "discovered_bytes": 481815843,
+      "excluded_files": 9754,
       "database_sidecars": 298,
       "candidate_entries_before_selection": 11399,
       "retained_files": 11399,
@@ -2216,9 +2621,9 @@
       "attributed_pack_bytes": 166665
     },
     "minif2f": {
-      "discovered_files": 33703,
-      "discovered_bytes": 362114259,
-      "excluded_files": 194,
+      "discovered_files": 34067,
+      "discovered_bytes": 1996511958,
+      "excluded_files": 558,
       "database_sidecars": 0,
       "candidate_entries_before_selection": 33509,
       "retained_files": 33292,
@@ -2306,9 +2711,9 @@
       "attributed_pack_bytes": 152841
     },
     "terminal-bench": {
-      "discovered_files": 3832,
-      "discovered_bytes": 9295747513,
-      "excluded_files": 2042,
+      "discovered_files": 3842,
+      "discovered_bytes": 9295814686,
+      "excluded_files": 2052,
       "database_sidecars": 24,
       "candidate_entries_before_selection": 1766,
       "retained_files": 1523,
@@ -2329,9 +2734,9 @@
       "attributed_pack_bytes": 64475
     },
     "skillsbench": {
-      "discovered_files": 6332,
-      "discovered_bytes": 772091640,
-      "excluded_files": 1764,
+      "discovered_files": 6345,
+      "discovered_bytes": 772249977,
+      "excluded_files": 1777,
       "database_sidecars": 26,
       "candidate_entries_before_selection": 4542,
       "retained_files": 4380,
@@ -2341,28 +2746,71 @@
       "attributed_pack_bytes": 2998721
     },
     "bird": {
-      "discovered_files": 27,
-      "discovered_bytes": 7654179,
+      "discovered_files": 163431,
+      "discovered_bytes": 7151978058,
       "excluded_files": 27,
-      "database_sidecars": 0
+      "database_sidecars": 6220,
+      "retained_files": 157184,
+      "retained_source_bytes": 3498094119,
+      "run_scopes_retained": 18,
+      "attributed_pack_bytes": 146798588
     },
     "classeval": {
-      "discovered_files": 30,
-      "discovered_bytes": 444194,
+      "discovered_files": 7306,
+      "discovered_bytes": 875619219,
       "excluded_files": 30,
+      "database_sidecars": 512,
+      "retained_files": 6764,
+      "retained_source_bytes": 529601545,
+      "run_scopes_retained": 8,
+      "attributed_pack_bytes": 10432821
+    },
+    "olympiadbench": {
+      "retained_files": 26125,
+      "retained_source_bytes": 1451707289,
+      "discovered_files": 37098,
+      "discovered_bytes": 1754001856,
+      "excluded_files": 10061,
+      "database_sidecars": 912,
+      "run_scopes_retained": 2228,
+      "attributed_pack_bytes": 44483321
+    },
+    "scibench": {
+      "retained_files": 66415,
+      "retained_source_bytes": 1435509686,
+      "discovered_files": 68517,
+      "discovered_bytes": 1473556570,
+      "excluded_files": 14,
+      "database_sidecars": 2088,
+      "run_scopes_retained": 48,
+      "attributed_pack_bytes": 48140379
+    },
+    "theophyseval": {
+      "retained_files": 47842,
+      "retained_source_bytes": 1924055440,
+      "discovered_files": 59492,
+      "discovered_bytes": 3398391817,
+      "excluded_files": 11574,
+      "database_sidecars": 76,
+      "run_scopes_retained": 614,
+      "attributed_pack_bytes": 54621228,
+      "archived_candidate_entries": 11
+    },
+    "labbench": {
+      "discovered_files": 246,
+      "discovered_bytes": 14852355,
+      "excluded_files": 246,
       "database_sidecars": 0
     }
   },
   "formats": {
-    "text": 183076,
-    "sqlite-tables": 3383,
-    "archive-members": 87
+    "text": 481547,
+    "sqlite-tables": 9135,
+    "archive-members": 194
   },
-  "pending": 0,
+  "pending": 342,
   "missing_collections": [
     "docs-labbench",
-    "docs-newbench-20261014",
-    "docs-olympiadbench",
     "docs-repair-2026-10-09",
     "external-phase1-repair-2026-10-08t18-32-57-118z",
     "external-phase1-scicode-verified",
@@ -2372,17 +2820,13 @@
     "fullf-terminal-bench",
     "legacy-runs",
     "phase1",
-    "scibench",
     "scicode-external",
     "work-remaining12-parallel-20261018",
     "work-skb-local-remaining-20261018",
-    "work-tb-c4-local-20261018",
-    "workspace-tmp"
+    "work-tb-c4-local-20261018"
   ],
   "deferred_original_collections": [
     "docs-labbench",
-    "docs-newbench-20261014",
-    "docs-olympiadbench",
     "docs-repair-2026-10-09",
     "external-phase1-repair-2026-10-08t18-32-57-118z",
     "external-phase1-scicode-verified",
@@ -2392,14 +2836,32 @@
     "fullf-terminal-bench",
     "legacy-runs",
     "phase1",
-    "scibench",
     "scicode-external",
     "work-remaining12-parallel-20261018",
     "work-skb-local-remaining-20261018",
     "work-tb-c4-local-20261018",
     "workspace-tmp"
   ],
-  "pack_count": 142,
-  "pack_bytes": 202398206,
-  "unique_fragments": 167905
+  "pack_count": 452,
+  "pack_bytes": 506874549,
+  "unique_fragments": 434332,
+  "partial_collections": [
+    "workspace-tmp"
+  ],
+  "supplements": [
+    {
+      "label": "bench5-20261024",
+      "report": "reports/supplement-bench5-20261024.json",
+      "requested_benches": [
+        "olympiadbench",
+        "scibench",
+        "theophyseval",
+        "classeval",
+        "bird"
+      ]
+    }
+  ],
+  "pending_scope": "preexisting nested database member references, possibly duplicated; not new five-Bench export",
+  "supplement_pending": 0,
+  "pending_report": "reports/legacy-nested-databases-pending.json"
 }
