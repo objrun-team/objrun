@@ -1,0 +1,2405 @@
+{
+  "format_version": 1,
+  "delivery_scope": "confirmed-selected-records",
+  "completed": true,
+  "full_original_coverage": false,
+  "collections_expected": 66,
+  "collections_processed": 48,
+  "collections_with_selected_records": 35,
+  "collections": [
+    {
+      "collection": "chembench-runtime",
+      "snapshot": "f9ed803f7453267ef0fee1f5c347b0fa5272c6509a2cbe546df83287cf55ce2a",
+      "source_root": "objrun/scripts/repair-2026-10-10/full-f/chembench/runtime",
+      "source_files": 4283,
+      "selected_source_files": 0,
+      "manifest_shards": [],
+      "excluded_counts": {
+        "installed-runtime": 4283
+      },
+      "excluded_bytes": {
+        "installed-runtime": 212589340
+      },
+      "excluded_examples": {},
+      "elapsed_seconds": 0.4,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {},
+      "prior_export_by_bench": {
+        "chembench": {
+          "discovered_files": 4283,
+          "discovered_bytes": 212589340,
+          "excluded_files": 4283
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "docs-evalplus-20261012",
+      "snapshot": "cbcfc2ab2b62ddcc3cdd199ef4e57ca7d07f50b34620432dfe2ed174d8d11c7c",
+      "source_root": "objrun/docs/evalplus-20261012",
+      "source_files": 33114,
+      "selected_source_files": 33114,
+      "manifest_shards": [
+        {
+          "path": "manifests/docs-evalplus-20261012-000.jsonl.zst",
+          "bytes": 677251,
+          "sha256": "59044ac8bec208d03c6a843e8bd5e268cc4d4fd265f106131829212da7677ca3"
+        },
+        {
+          "path": "manifests/docs-evalplus-20261012-001.jsonl.zst",
+          "bytes": 595596,
+          "sha256": "b5247c09b7bfd766706e611827e62ff77bc243514527a68c8fc671331f9c775b"
+        },
+        {
+          "path": "manifests/docs-evalplus-20261012-002.jsonl.zst",
+          "bytes": 641979,
+          "sha256": "de97f5d02669374cee762b03127ffa79eba77c778bed922f6d3eba12754f1339"
+        },
+        {
+          "path": "manifests/docs-evalplus-20261012-003.jsonl.zst",
+          "bytes": 171883,
+          "sha256": "6cc2b8f13158dea96d31da4904160694fb245a5a800a138dffce9dc00ff72393"
+        }
+      ],
+      "excluded_counts": {
+        "binary-resource-binary": 1084
+      },
+      "excluded_bytes": {
+        "binary-resource-binary": 1046784523
+      },
+      "excluded_examples": {
+        "binary-resource-binary": "humaneval/oracle-cache/humaneval-0-base.pkl"
+      },
+      "elapsed_seconds": 424.5,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 28714
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 34,
+          "discovered_bytes": 4163539,
+          "retained_files": 26,
+          "retained_source_bytes": 155419,
+          "database_sidecars": 8
+        },
+        "humaneval-plus": {
+          "discovered_files": 18760,
+          "discovered_bytes": 1120295895,
+          "retained_files": 16784,
+          "retained_source_bytes": 110869629,
+          "database_sidecars": 1648,
+          "excluded_files": 328
+        },
+        "mbpp-plus": {
+          "discovered_files": 14320,
+          "discovered_bytes": 1583026991,
+          "retained_files": 11904,
+          "retained_source_bytes": 36303574,
+          "database_sidecars": 1660,
+          "excluded_files": 756
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "docs-frontierscience",
+      "snapshot": "f5804b38022d3a37a06addcd81e13e0b9287b9d31c22e91b7d039a6753f5398a",
+      "source_root": "objrun/docs/frontierscience",
+      "source_files": 21380,
+      "selected_source_files": 12346,
+      "manifest_shards": [
+        {
+          "path": "manifests/docs-frontierscience-000.jsonl.zst",
+          "bytes": 833124,
+          "sha256": "0ba839a24c2fbcad26105f8773fd3e11b4a7bf5dc0ec62cb6b9429b00988cfd1"
+        },
+        {
+          "path": "manifests/docs-frontierscience-001.jsonl.zst",
+          "bytes": 459368,
+          "sha256": "265addfaa0cb6b0f201fefddf62ace056be2f65349629a6a205f2868b8a9d6d3"
+        }
+      ],
+      "excluded_counts": {
+        "environment-or-cache-tree": 9034,
+        "binary-resource-binary": 648,
+        "binary-resource-executable": 1
+      },
+      "excluded_bytes": {
+        "environment-or-cache-tree": 77660442,
+        "binary-resource-binary": 11066631,
+        "binary-resource-executable": 88979072
+      },
+      "excluded_examples": {
+        "binary-resource-binary": "frontierscience-formal-20261016-v1-deepseek-c32/full-results/preflight-native-fixture/.bun/install/cache/@t@/0f9c8c8370242c26.pile",
+        "binary-resource-executable": "frontierscience-recovery-20261016-v1-deepseek-c32/full-results/bin/bun"
+      },
+      "elapsed_seconds": 84.8,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 11399
+      },
+      "prior_export_by_bench": {
+        "frontierscience": {
+          "discovered_files": 21380,
+          "discovered_bytes": 480374188,
+          "excluded_files": 9683,
+          "retained_files": 11399,
+          "retained_source_bytes": 297785611,
+          "database_sidecars": 298
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "docs-gpqa",
+      "snapshot": "3db83c6d46d3f67d60b7cd14fd96c50df3d2806e504a8e03c3f41a5234e174dd",
+      "source_root": "objrun/docs/gpqa",
+      "source_files": 23,
+      "selected_source_files": 23,
+      "manifest_shards": [
+        {
+          "path": "manifests/docs-gpqa-000.jsonl.zst",
+          "bytes": 3223,
+          "sha256": "d8ba8039cf95a6c8c8e25ae934b3d22bf18e0c30a5acc812b5d3dc0f1540e2b8"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 2.2,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 23
+      },
+      "prior_export_by_bench": {
+        "gpqa": {
+          "discovered_files": 23,
+          "discovered_bytes": 7625186,
+          "retained_files": 23,
+          "retained_source_bytes": 7625186
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "docs-llm-srbench",
+      "snapshot": "515a7cd3a31786d09eb04b1d22cae774ca9681cb2df68b2e5f56066317a09c3f",
+      "source_root": "objrun/docs/llm-srbench",
+      "source_files": 4,
+      "selected_source_files": 4,
+      "manifest_shards": [
+        {
+          "path": "manifests/docs-llm-srbench-000.jsonl.zst",
+          "bytes": 467,
+          "sha256": "2f658ab868fb23101fbb858e9fbb1785a46b8d26daff5e049793a0e03782e987"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 1.5,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 4
+      },
+      "prior_export_by_bench": {
+        "llm-srbench": {
+          "discovered_files": 4,
+          "discovered_bytes": 43402,
+          "retained_files": 4,
+          "retained_source_bytes": 43402
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "docs-minif2f",
+      "snapshot": "6aebcbf4fd077b4dcce94e7fbc1d7ee8baa404544c6597c07e1ce0b40a15d146",
+      "source_root": "objrun/docs/minif2f",
+      "source_files": 33956,
+      "selected_source_files": 33955,
+      "manifest_shards": [
+        {
+          "path": "manifests/docs-minif2f-000.jsonl.zst",
+          "bytes": 711784,
+          "sha256": "580ee4694412a679a062c5fec73d3e81cb4187cfccae7097e5e694668cb94890"
+        },
+        {
+          "path": "manifests/docs-minif2f-001.jsonl.zst",
+          "bytes": 699491,
+          "sha256": "3da4a5d425ead037ff6f9d777432cde503c9a4c815027fcf4de1590a50146a6a"
+        },
+        {
+          "path": "manifests/docs-minif2f-002.jsonl.zst",
+          "bytes": 115154,
+          "sha256": "c026c9b3ce98635fe660439719f15f0efd64cef5305d806061177bc9f8839469"
+        },
+        {
+          "path": "manifests/docs-minif2f-003.jsonl.zst",
+          "bytes": 1538384,
+          "sha256": "4126bb5ed9dd76e77348f37da2131f3efb85c5b6ba863b4f3dff8b174c421288"
+        },
+        {
+          "path": "manifests/docs-minif2f-004.jsonl.zst",
+          "bytes": 182433,
+          "sha256": "99fed46a20f19976d0a98ca2765c55e76289fc66741f9246912fb73bce9288a7"
+        }
+      ],
+      "excluded_counts": {
+        "environment-or-cache-tree": 1
+      },
+      "excluded_bytes": {
+        "environment-or-cache-tree": 1750
+      },
+      "excluded_examples": {},
+      "elapsed_seconds": 102.0,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 33955
+      },
+      "prior_export_by_bench": {
+        "minif2f": {
+          "discovered_files": 32449,
+          "discovered_bytes": 320278567,
+          "excluded_files": 1,
+          "retained_files": 32448,
+          "retained_source_bytes": 320276817
+        },
+        "aime": {
+          "discovered_files": 1507,
+          "discovered_bytes": 23151849,
+          "retained_files": 1507,
+          "retained_source_bytes": 23151849
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "docs-phase1",
+      "snapshot": "b4960caecf8366520d0ac7f44e9b2058ef33368b1298342a1a8e5dbb51084112",
+      "source_root": "objrun/docs/phase1",
+      "source_files": 362,
+      "selected_source_files": 362,
+      "manifest_shards": [
+        {
+          "path": "manifests/docs-phase1-000.jsonl.zst",
+          "bytes": 23496,
+          "sha256": "4db9c21c5fd04939e339b4bc688de252a05bbcff9d4fe00976121cbf1d6877a8"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 5.1,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 362
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 56,
+          "discovered_bytes": 1747079,
+          "retained_files": 56,
+          "retained_source_bytes": 1747079
+        },
+        "aime": {
+          "discovered_files": 15,
+          "discovered_bytes": 169594,
+          "retained_files": 15,
+          "retained_source_bytes": 169594
+        },
+        "atmossci": {
+          "discovered_files": 28,
+          "discovered_bytes": 413902,
+          "retained_files": 28,
+          "retained_source_bytes": 413902
+        },
+        "biocoder": {
+          "discovered_files": 15,
+          "discovered_bytes": 222006,
+          "retained_files": 15,
+          "retained_source_bytes": 222006
+        },
+        "chembench": {
+          "discovered_files": 15,
+          "discovered_bytes": 141665,
+          "retained_files": 15,
+          "retained_source_bytes": 141665
+        },
+        "chemiq": {
+          "discovered_files": 15,
+          "discovered_bytes": 273290,
+          "retained_files": 15,
+          "retained_source_bytes": 273290
+        },
+        "cmt": {
+          "discovered_files": 27,
+          "discovered_bytes": 565264,
+          "retained_files": 27,
+          "retained_source_bytes": 565264
+        },
+        "gpqa": {
+          "discovered_files": 33,
+          "discovered_bytes": 255022,
+          "retained_files": 33,
+          "retained_source_bytes": 255022
+        },
+        "humaneval-plus": {
+          "discovered_files": 15,
+          "discovered_bytes": 153080,
+          "retained_files": 15,
+          "retained_source_bytes": 153080
+        },
+        "llm-srbench": {
+          "discovered_files": 17,
+          "discovered_bytes": 334197,
+          "retained_files": 17,
+          "retained_source_bytes": 334197
+        },
+        "scicode": {
+          "discovered_files": 100,
+          "discovered_bytes": 3578697,
+          "retained_files": 100,
+          "retained_source_bytes": 3578697
+        },
+        "scienceworld": {
+          "discovered_files": 26,
+          "discovered_bytes": 2345167,
+          "retained_files": 26,
+          "retained_source_bytes": 2345167
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "docs-repair-2026-10-08",
+      "snapshot": "ee0ad05145086f4df0c367be4908d049ef1ebd80f5bcc2f04e89780b63b65a6c",
+      "source_root": "objrun/docs/repair-2026-10-08",
+      "source_files": 13594,
+      "selected_source_files": 13594,
+      "manifest_shards": [
+        {
+          "path": "manifests/docs-repair-2026-10-08-000.jsonl.zst",
+          "bytes": 581453,
+          "sha256": "d62e932de08bd9d95aee3ab23f46da95805754ff970f58d71376ffe785e149f5"
+        },
+        {
+          "path": "manifests/docs-repair-2026-10-08-001.jsonl.zst",
+          "bytes": 332496,
+          "sha256": "c0c1163cbf2b2427229923e19da187540f84ae5533b751e12e3e4a1895b4dcae"
+        }
+      ],
+      "excluded_counts": {
+        "binary-resource-executable": 6,
+        "binary-resource-binary": 16,
+        "binary-resource-image": 2,
+        "identified-resource-archive": 176
+      },
+      "excluded_bytes": {
+        "binary-resource-executable": 106937216,
+        "binary-resource-binary": 739642,
+        "binary-resource-image": 658224,
+        "identified-resource-archive": 380081234
+      },
+      "excluded_examples": {
+        "binary-resource-executable": "jpg-lifecycle-revisions/native-lifecycle-v2-2026-10-08/native/python.exe.bytes",
+        "binary-resource-binary": "minif2f-dependency-failures/public-cache-body-timeout-fourth-attempt/755db5b36993a9df.ltar.part",
+        "binary-resource-image": "paper-preview/page-1.png",
+        "identified-resource-archive": "skillsbench-ten-takeover-v1/runtime-preparations/0e8f0827c3484814b3eaea1a79973fa8/private-image-context/wheels/colorama-0.4.6-py2.py3-none-any.whl"
+      },
+      "elapsed_seconds": 98.1,
+      "prior_export_pending_count": 3,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 13333,
+        "unconfirmed-input-deferred-to-archive": 3
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 5800,
+          "discovered_bytes": 390659089,
+          "retained_files": 5796,
+          "retained_source_bytes": 389792449,
+          "excluded_files": 4,
+          "unverified_files": 3
+        },
+        "gpqa": {
+          "discovered_files": 8,
+          "discovered_bytes": 12628523,
+          "retained_files": 8,
+          "retained_source_bytes": 12628523
+        },
+        "chembench": {
+          "discovered_files": 27,
+          "discovered_bytes": 9581848,
+          "retained_files": 27,
+          "retained_source_bytes": 9581848
+        },
+        "cmt": {
+          "discovered_files": 16,
+          "discovered_bytes": 844263,
+          "retained_files": 16,
+          "retained_source_bytes": 844263
+        },
+        "aime": {
+          "discovered_files": 13,
+          "discovered_bytes": 436718,
+          "retained_files": 13,
+          "retained_source_bytes": 436718
+        },
+        "chemiq": {
+          "discovered_files": 2590,
+          "discovered_bytes": 354918677,
+          "retained_files": 2532,
+          "retained_source_bytes": 311148317,
+          "database_sidecars": 58
+        },
+        "terminal-bench": {
+          "discovered_files": 556,
+          "discovered_bytes": 248490631,
+          "retained_files": 523,
+          "retained_source_bytes": 59663968,
+          "excluded_files": 33
+        },
+        "deepswe": {
+          "discovered_files": 16,
+          "discovered_bytes": 721000,
+          "retained_files": 16,
+          "retained_source_bytes": 721000
+        },
+        "skillsbench": {
+          "discovered_files": 3725,
+          "discovered_bytes": 337894171,
+          "retained_files": 3578,
+          "retained_source_bytes": 39910800,
+          "excluded_files": 147
+        },
+        "minif2f": {
+          "discovered_files": 840,
+          "discovered_bytes": 27507578,
+          "retained_files": 824,
+          "retained_source_bytes": 26767936,
+          "excluded_files": 16
+        },
+        "scicode": {
+          "discovered_files": 3,
+          "discovered_bytes": 108161,
+          "retained_files": 3,
+          "retained_source_bytes": 108161
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "docs-repair-2026-10-10-remainder",
+      "snapshot": "7380c452a8f3cd663ad59aa1a824f51c77df41559df9a7c044a5e376156e2474",
+      "source_root": "objrun/docs/repair-2026-10-10",
+      "source_files": 6851,
+      "selected_source_files": 3853,
+      "manifest_shards": [
+        {
+          "path": "manifests/docs-repair-2026-10-10-remainder-000.jsonl.zst",
+          "bytes": 310939,
+          "sha256": "06498a3392178b196135bf17bf2a043bbec815bc5e68c8733186d5851baff75d"
+        }
+      ],
+      "excluded_counts": {
+        "environment-or-cache-tree": 2998,
+        "binary-resource-xz": 3,
+        "binary-resource-executable": 8,
+        "identified-resource-archive": 2
+      },
+      "excluded_bytes": {
+        "environment-or-cache-tree": 77747846,
+        "binary-resource-xz": 104592496,
+        "binary-resource-executable": 1179210,
+        "identified-resource-archive": 85460574
+      },
+      "excluded_examples": {
+        "binary-resource-xz": "compact-benchmark-packages/ChemIQ-compact.tar.xz",
+        "binary-resource-executable": "full-f-rerun/cmt/grader-env/Scripts/f2py.exe",
+        "identified-resource-archive": "full-f-rerun/efficient-resume-20261012/glm-original-base-proxy-20261013/original-ubuntu20-docker.tar"
+      },
+      "elapsed_seconds": 15.3,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 3840
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 3453,
+          "discovered_bytes": 169675520,
+          "retained_files": 3451,
+          "retained_source_bytes": 84214946,
+          "excluded_files": 2
+        },
+        "chemiq": {
+          "discovered_files": 84,
+          "discovered_bytes": 36562818,
+          "excluded_files": 1,
+          "retained_files": 83,
+          "retained_source_bytes": 923030
+        },
+        "skillsbench": {
+          "discovered_files": 51,
+          "discovered_bytes": 43048508,
+          "excluded_files": 1,
+          "retained_files": 50,
+          "retained_source_bytes": 618004
+        },
+        "terminal-bench": {
+          "discovered_files": 76,
+          "discovered_bytes": 27117373,
+          "excluded_files": 1,
+          "retained_files": 75,
+          "retained_source_bytes": 595169
+        },
+        "chembench": {
+          "discovered_files": 165,
+          "discovered_bytes": 2822915,
+          "retained_files": 165,
+          "retained_source_bytes": 2822915
+        },
+        "aime": {
+          "discovered_files": 6,
+          "discovered_bytes": 100658,
+          "retained_files": 6,
+          "retained_source_bytes": 100658
+        },
+        "cmt": {
+          "discovered_files": 3013,
+          "discovered_bytes": 78947630,
+          "excluded_files": 3006,
+          "retained_files": 7,
+          "retained_source_bytes": 20574
+        },
+        "deepswe": {
+          "discovered_files": 1,
+          "discovered_bytes": 746,
+          "retained_files": 1,
+          "retained_source_bytes": 746
+        },
+        "gpqa": {
+          "discovered_files": 1,
+          "discovered_bytes": 908,
+          "retained_files": 1,
+          "retained_source_bytes": 908
+        },
+        "minif2f": {
+          "discovered_files": 1,
+          "discovered_bytes": 624,
+          "retained_files": 1,
+          "retained_source_bytes": 624
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "external-native-04e3ffc1",
+      "snapshot": "4d6ca423445cae561fb5800be7316cf50597f62058f8d743280e1e31dc7f66bf",
+      "source_root": "D:\\TgEngin-local-runs\\20261018\\preserved-historical-native-logs\\native-04e3ffc1\\run",
+      "source_files": 813,
+      "selected_source_files": 813,
+      "manifest_shards": [
+        {
+          "path": "manifests/external-native-04e3ffc1-000.jsonl.zst",
+          "bytes": 106663,
+          "sha256": "6c0360a30c537afdf9ee87907e9bf689ba7948e650d24089ea753a63878f1d7e"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 13.0,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 813
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 813,
+          "discovered_bytes": 467495270,
+          "retained_files": 813,
+          "retained_source_bytes": 467495270
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "external-native-af21274a",
+      "snapshot": "44faa8b34f432fc7afbce964c662628a16b50a440b6ab298ee0bc7d68fb54f3e",
+      "source_root": "D:\\TgEngin-local-runs\\20261018\\preserved-historical-native-logs\\native-af21274a\\run",
+      "source_files": 612,
+      "selected_source_files": 612,
+      "manifest_shards": [
+        {
+          "path": "manifests/external-native-af21274a-000.jsonl.zst",
+          "bytes": 98817,
+          "sha256": "ce797a010653903d76c434bd6ee32cb39b65f249570e637b4de71dc51b0107d2"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 13.3,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 612
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 612,
+          "discovered_bytes": 413679051,
+          "retained_files": 612,
+          "retained_source_bytes": 413679051
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "external-native-de1893c6",
+      "snapshot": "db677c02175660e71e27ed3f57de44f160ec36a5bd6df2edc7ecf170f6e8d5ef",
+      "source_root": "D:\\TgEngin-local-runs\\20261018\\preserved-historical-native-logs\\native-de1893c6\\run",
+      "source_files": 807,
+      "selected_source_files": 807,
+      "manifest_shards": [
+        {
+          "path": "manifests/external-native-de1893c6-000.jsonl.zst",
+          "bytes": 106855,
+          "sha256": "2f81c0f677a41707fd7d0464ac774a85a78dd2a3d55a0fb8bb52a6682ac4e6e5"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 22.5,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 807
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 807,
+          "discovered_bytes": 780675462,
+          "retained_files": 807,
+          "retained_source_bytes": 780675462
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "external-phase1-repair-2026-10-08t06-06-06-739z",
+      "snapshot": "e713c6a2463867251509f175ea8c2de6ea88f17ba70ef561979f57fe65e773ee",
+      "source_root": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-06-06-739Z",
+      "source_files": 15,
+      "selected_source_files": 15,
+      "manifest_shards": [
+        {
+          "path": "manifests/external-phase1-repair-2026-10-08t06-06-06-739z-000.jsonl.zst",
+          "bytes": 3730,
+          "sha256": "1b65f57f1378a855cc6ce5d373e5b57219e37dc6ecb58dcca03ffaf27c1f7d98"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 4.6,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-bundle": 1,
+        "selected_entries": 6
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 15,
+          "discovered_bytes": 13857459,
+          "retained_files": 7,
+          "retained_source_bytes": 10557979,
+          "database_sidecars": 8
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "external-phase1-repair-2026-10-08t06-06-41-201z",
+      "snapshot": "f7997201f3a5e168011b23bd095fb921ad3a76812021af2dc18d20bfdf54df57",
+      "source_root": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-06-41-201Z",
+      "source_files": 15,
+      "selected_source_files": 15,
+      "manifest_shards": [
+        {
+          "path": "manifests/external-phase1-repair-2026-10-08t06-06-41-201z-000.jsonl.zst",
+          "bytes": 4837,
+          "sha256": "beb87bb7503fc028b2b39eb85acf933403bc2b3de7eb82bb4bd6422d8c483fa5"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 11.2,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-bundle": 1,
+        "selected_entries": 6
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 15,
+          "discovered_bytes": 29656178,
+          "retained_files": 7,
+          "retained_source_bytes": 20922418,
+          "database_sidecars": 8
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "external-phase1-repair-2026-10-08t06-51-16-840z",
+      "snapshot": "01268c3cefe9c01c2fd0944bd732a654ef808b9585997db335221df38ef59f2f",
+      "source_root": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-51-16-840Z",
+      "source_files": 31,
+      "selected_source_files": 31,
+      "manifest_shards": [
+        {
+          "path": "manifests/external-phase1-repair-2026-10-08t06-51-16-840z-000.jsonl.zst",
+          "bytes": 5315,
+          "sha256": "2b942f98caaf251d8a4f74c4f1923662f085b97bb2417f733f9a13a0f5ea500b"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 2.7,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-bundle": 1,
+        "selected_entries": 22
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 31,
+          "discovered_bytes": 14477703,
+          "retained_files": 23,
+          "retained_source_bytes": 10589063,
+          "database_sidecars": 8
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "external-phase1-repair-2026-10-08t06-54-55-267z",
+      "snapshot": "c57c3e002abed09a5bcca18f61da83ebb49af96cdc6b762cdc281a2604be1358",
+      "source_root": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-54-55-267Z",
+      "source_files": 6423,
+      "selected_source_files": 6423,
+      "manifest_shards": [
+        {
+          "path": "manifests/external-phase1-repair-2026-10-08t06-54-55-267z-000.jsonl.zst",
+          "bytes": 610802,
+          "sha256": "6498264c30a11165c4d44694f69a79d375386b99f7e5970ed2ee008a1e5b7f1d"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 102.2,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-bundle": 1,
+        "selected_entries": 6414
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 6423,
+          "discovered_bytes": 116814972,
+          "retained_files": 6415,
+          "retained_source_bytes": 106412612,
+          "database_sidecars": 8
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "external-phase1-repair-2026-10-08t10-25-57-408z",
+      "snapshot": "4daa80b89b3f24dc5670a625287711e30122282683fb07efc26222d2d971c889",
+      "source_root": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T10-25-57-408Z",
+      "source_files": 2518,
+      "selected_source_files": 2518,
+      "manifest_shards": [
+        {
+          "path": "manifests/external-phase1-repair-2026-10-08t10-25-57-408z-000.jsonl.zst",
+          "bytes": 239984,
+          "sha256": "29db083eeb214dd95c9b37626fc7ec127a844869e6fae3123a56885b87407975"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 50.7,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-bundle": 1,
+        "selected_entries": 2501
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 2515,
+          "discovered_bytes": 48275644,
+          "retained_files": 2499,
+          "retained_source_bytes": 31347844,
+          "database_sidecars": 16
+        },
+        "chemiq": {
+          "discovered_files": 3,
+          "discovered_bytes": 13584989,
+          "retained_files": 3,
+          "retained_source_bytes": 13584989
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "external-phase1-repair-2026-10-08t17-36-10-873z",
+      "snapshot": "3f831bb3ea81c4902962ceb8a814c6cc85eb2a4d8790583e6549257c00807585",
+      "source_root": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T17-36-10-873Z",
+      "source_files": 1,
+      "selected_source_files": 1,
+      "manifest_shards": [
+        {
+          "path": "manifests/external-phase1-repair-2026-10-08t17-36-10-873z-000.jsonl.zst",
+          "bytes": 303,
+          "sha256": "c9f7a2464812322362a976cf1c62ea0206606b180826af491adb68bbbff3193b"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 1.4,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 1
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 1,
+          "discovered_bytes": 1904,
+          "retained_files": 1,
+          "retained_source_bytes": 1904
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "external-phase1-skb-jpg-2026-10-08t09-46-34-645z",
+      "snapshot": "a29d4c50583c93915cbae2404e89525a9eeb7439772be2ea7bb4df7bbfe5f67d",
+      "source_root": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-46-34-645Z",
+      "source_files": 1,
+      "selected_source_files": 1,
+      "manifest_shards": [],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 2.7,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-bundle": 1
+      },
+      "prior_export_by_bench": {
+        "skillsbench": {
+          "discovered_files": 1,
+          "discovered_bytes": 62690018,
+          "retained_files": 1,
+          "retained_source_bytes": 62690018
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "external-phase1-skb-jpg-2026-10-08t09-46-44-144z",
+      "snapshot": "89e1882f68d394ab66c93c3c3f96b972a88165c9f392a4d19255fd231fc854b3",
+      "source_root": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-46-44-144Z",
+      "source_files": 79,
+      "selected_source_files": 79,
+      "manifest_shards": [
+        {
+          "path": "manifests/external-phase1-skb-jpg-2026-10-08t09-46-44-144z-000.jsonl.zst",
+          "bytes": 8935,
+          "sha256": "62518418665a8bf2cbc8990d50ce829b7894ba460cb207985a3554f2bed8033b"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 3.7,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-bundle": 1,
+        "selected_entries": 70
+      },
+      "prior_export_by_bench": {
+        "skillsbench": {
+          "discovered_files": 79,
+          "discovered_bytes": 68749821,
+          "retained_files": 71,
+          "retained_source_bytes": 62784701,
+          "database_sidecars": 8
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "external-phase1-skb-jpg-2026-10-08t09-48-07-694z",
+      "snapshot": "080a93260dd7dde894c6ce25dfac20cc4e02eeaed860be9df6621c20d982ad13",
+      "source_root": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-48-07-694Z",
+      "source_files": 80,
+      "selected_source_files": 80,
+      "manifest_shards": [
+        {
+          "path": "manifests/external-phase1-skb-jpg-2026-10-08t09-48-07-694z-000.jsonl.zst",
+          "bytes": 8989,
+          "sha256": "96c2ed6faffed5e744e98829ec2f4a08b5ba6cf7d9eb69321906d39f1afd118e"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 3.9,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-bundle": 1,
+        "selected_entries": 71
+      },
+      "prior_export_by_bench": {
+        "skillsbench": {
+          "discovered_files": 80,
+          "discovered_bytes": 68750360,
+          "retained_files": 72,
+          "retained_source_bytes": 62785240,
+          "database_sidecars": 8
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "external-phase1-skb-jpg-2026-10-08t09-54-51-769z",
+      "snapshot": "8367c884a28955adbbe7a620a1d1306fa83634834cf54095dafefa559f555cfb",
+      "source_root": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-54-51-769Z",
+      "source_files": 90,
+      "selected_source_files": 90,
+      "manifest_shards": [
+        {
+          "path": "manifests/external-phase1-skb-jpg-2026-10-08t09-54-51-769z-000.jsonl.zst",
+          "bytes": 9762,
+          "sha256": "bf5f85e675d08279c074f8185c1ab6763f4b10e0e140b54a3de217710b4bf0a3"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 3.4,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-bundle": 1,
+        "selected_entries": 81
+      },
+      "prior_export_by_bench": {
+        "skillsbench": {
+          "discovered_files": 90,
+          "discovered_bytes": 68756356,
+          "retained_files": 82,
+          "retained_source_bytes": 62787116,
+          "database_sidecars": 8
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "external-phase1-tb-nginx-2026-10-08t07-48-23-195z",
+      "snapshot": "332835bc9d70e7abd3c4ab4ed417ca2fdc202887b7b89e4a1a7b4815dd6427ef",
+      "source_root": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\tb-nginx-2026-10-08T07-48-23-195Z",
+      "source_files": 2,
+      "selected_source_files": 2,
+      "manifest_shards": [
+        {
+          "path": "manifests/external-phase1-tb-nginx-2026-10-08t07-48-23-195z-000.jsonl.zst",
+          "bytes": 257,
+          "sha256": "30647971b0c1d454492c185e207d69acbdae4f7a77450f2b638d43978e8781d7"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 2.1,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-bundle": 1,
+        "selected_entries": 1
+      },
+      "prior_export_by_bench": {
+        "terminal-bench": {
+          "discovered_files": 2,
+          "discovered_bytes": 55217263,
+          "retained_files": 2,
+          "retained_source_bytes": 55217263
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "external-phase1-tb-nginx-2026-10-08t07-49-30-364z",
+      "snapshot": "6720a7746936d5d8bf5f110ad9d065570f224f05fcab5b44612afa3972a06eee",
+      "source_root": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\tb-nginx-2026-10-08T07-49-30-364Z",
+      "source_files": 78,
+      "selected_source_files": 78,
+      "manifest_shards": [
+        {
+          "path": "manifests/external-phase1-tb-nginx-2026-10-08t07-49-30-364z-000.jsonl.zst",
+          "bytes": 8521,
+          "sha256": "ffc375bb7cab66b3cfc19dac558aa022fff3a496d5a10b43e0ae7dc6a34def5f"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 5.5,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-bundle": 1,
+        "selected_entries": 69
+      },
+      "prior_export_by_bench": {
+        "terminal-bench": {
+          "discovered_files": 78,
+          "discovered_bytes": 63003772,
+          "retained_files": 70,
+          "retained_source_bytes": 57116932,
+          "database_sidecars": 8
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "external-phase1-tb-nginx-2026-10-08t08-35-56-432z",
+      "snapshot": "d7350216b55ef86ad54e48ed1a15a35dc08731a1363c4596692f8547abf16183",
+      "source_root": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\tb-nginx-2026-10-08T08-35-56-432Z",
+      "source_files": 116,
+      "selected_source_files": 116,
+      "manifest_shards": [
+        {
+          "path": "manifests/external-phase1-tb-nginx-2026-10-08t08-35-56-432z-000.jsonl.zst",
+          "bytes": 10968,
+          "sha256": "2cdbe8c06ebaf63a7d12180179f53e5b09136b78616da78fd7dd89264f2eddd0"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 4.8,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-bundle": 1,
+        "selected_entries": 107
+      },
+      "prior_export_by_bench": {
+        "terminal-bench": {
+          "discovered_files": 116,
+          "discovered_bytes": 107853111,
+          "retained_files": 108,
+          "retained_source_bytes": 101958031,
+          "database_sidecars": 8
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "external-phase1-tb-nginx-2026-10-08t10-47-06-544z",
+      "snapshot": "a41a975d01f4bcfeee327bb7339bfe3882ddcd5c885455a6a7143da2be77ee7f",
+      "source_root": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\tb-nginx-2026-10-08T10-47-06-544Z",
+      "source_files": 150,
+      "selected_source_files": 150,
+      "manifest_shards": [
+        {
+          "path": "manifests/external-phase1-tb-nginx-2026-10-08t10-47-06-544z-000.jsonl.zst",
+          "bytes": 15646,
+          "sha256": "d35ceb3c95781b62ab69865ad39d18c72d2c0a1679925cda6d8285e9f3891123"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 3.9,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-bundle": 1,
+        "selected_entries": 141
+      },
+      "prior_export_by_bench": {
+        "terminal-bench": {
+          "discovered_files": 150,
+          "discovered_bytes": 108069260,
+          "retained_files": 142,
+          "retained_source_bytes": 100250140,
+          "database_sidecars": 8
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "fullf-broker",
+      "snapshot": "8aeed4c08a44c15fc3b30432310f9e55e19ce523c2f9138f1e69cf9b2e5e57bf",
+      "source_root": "objrun/docs/repair-2026-10-10/full-f-rerun/broker",
+      "source_files": 66720,
+      "selected_source_files": 66720,
+      "manifest_shards": [
+        {
+          "path": "manifests/fullf-broker-000.jsonl.zst",
+          "bytes": 721825,
+          "sha256": "396130df304baa8c56b83781011eebd6565aca57f370d439cc1dcca886c0749f"
+        },
+        {
+          "path": "manifests/fullf-broker-001.jsonl.zst",
+          "bytes": 712540,
+          "sha256": "7b40747177f2715a9812c4ff8d603bc4dca84b383b1228009feec81c9df57914"
+        },
+        {
+          "path": "manifests/fullf-broker-002.jsonl.zst",
+          "bytes": 734632,
+          "sha256": "91df84f7915290288880a1b9e3d50967e2c18b8d51522b85eeadcdc65d939287"
+        },
+        {
+          "path": "manifests/fullf-broker-003.jsonl.zst",
+          "bytes": 737947,
+          "sha256": "8c21b0e566efcb353f6e2716b0f10b25986519639570a442352c60b6a77d6550"
+        },
+        {
+          "path": "manifests/fullf-broker-004.jsonl.zst",
+          "bytes": 651295,
+          "sha256": "5516010f0d07d3e2dea9fa12231823b0c6dac753f8381a2e63dec44696a34856"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 67.8,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 66720
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 66712,
+          "discovered_bytes": 619259225,
+          "retained_files": 66712,
+          "retained_source_bytes": 619259225
+        },
+        "chemiq": {
+          "discovered_files": 8,
+          "discovered_bytes": 16762,
+          "retained_files": 8,
+          "retained_source_bytes": 16762
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "fullf-chembench",
+      "snapshot": "d9127938983d381e8e76ccc5afa09f4f570692c6adab8bbf40b150de7ab06b87",
+      "source_root": "objrun/docs/repair-2026-10-10/full-f-rerun/chembench",
+      "source_files": 16580,
+      "selected_source_files": 16580,
+      "manifest_shards": [
+        {
+          "path": "manifests/fullf-chembench-000.jsonl.zst",
+          "bytes": 557248,
+          "sha256": "96d680bd678d5545b4cb63fc69c9fb10002086fedf0fc011df10653643fb358c"
+        },
+        {
+          "path": "manifests/fullf-chembench-001.jsonl.zst",
+          "bytes": 526352,
+          "sha256": "d4cbc7971d9fe1460d99ac9cf086772ed864ae3f7837ffcf187124271079ddfe"
+        },
+        {
+          "path": "manifests/fullf-chembench-002.jsonl.zst",
+          "bytes": 262501,
+          "sha256": "3e51a5880bf1ae407d777638c4775e7492afd046ffa30ae9f1e0532ddb14184e"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 367.9,
+      "prior_export_pending_count": 60,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 13736
+      },
+      "prior_export_by_bench": {
+        "chembench": {
+          "discovered_files": 16580,
+          "discovered_bytes": 1607311900,
+          "retained_files": 13736,
+          "retained_source_bytes": 262705500,
+          "database_sidecars": 2844,
+          "unverified_files": 60
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "gpqa-runtime",
+      "snapshot": "8340f9c52a67f793fc13a4216805b9c1103fa6361194b81cde04ca49ef94f90a",
+      "source_root": "objrun/scripts/repair-2026-10-10/full-f/gpqa/.runtime",
+      "source_files": 4101,
+      "selected_source_files": 0,
+      "manifest_shards": [],
+      "excluded_counts": {
+        "installed-runtime": 4101
+      },
+      "excluded_bytes": {
+        "installed-runtime": 105714600
+      },
+      "excluded_examples": {},
+      "elapsed_seconds": 0.8,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {},
+      "prior_export_by_bench": {
+        "gpqa": {
+          "discovered_files": 4101,
+          "discovered_bytes": 105714600,
+          "excluded_files": 4101
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "historical-novaeve-sources",
+      "snapshot": "f03bfd58090f1adb0984529ae5cace09a5526dba4ee4a7c2c8601d8145ea79aa",
+      "source_root": "objrun/scripts/repair-2026-10-10/full-f/novaeve_formal_v1",
+      "source_files": 9138,
+      "selected_source_files": 9138,
+      "manifest_shards": [],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 9.2,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-or-build-copy": 9138
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 8908,
+          "discovered_bytes": 66349030,
+          "retained_files": 8908,
+          "retained_source_bytes": 66349030
+        },
+        "terminal-bench": {
+          "discovered_files": 98,
+          "discovered_bytes": 1134315,
+          "retained_files": 98,
+          "retained_source_bytes": 1134315
+        },
+        "skillsbench": {
+          "discovered_files": 132,
+          "discovered_bytes": 1086442,
+          "retained_files": 132,
+          "retained_source_bytes": 1086442
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "historical-root-helpers",
+      "snapshot": "79f3771ec9bb4eee0e0a4b483af6454b50bd9feb0971f73ad47dc09614155959",
+      "source_root": "objrun/scripts/historical-root",
+      "source_files": 12,
+      "selected_source_files": 12,
+      "manifest_shards": [],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 1.5,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-or-build-copy": 12
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 12,
+          "discovered_bytes": 42709,
+          "retained_files": 12,
+          "retained_source_bytes": 42709
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "historical-runner-releases",
+      "snapshot": "4278653a62672cf3f20beb8de4a823329cb2dee26a23f4507b7b641b58d68b7c",
+      "source_root": "objrun/scripts/bench-runner/release",
+      "source_files": 167,
+      "selected_source_files": 167,
+      "manifest_shards": [],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 3.9,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-or-build-copy": 167
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 167,
+          "discovered_bytes": 14191791,
+          "retained_files": 167,
+          "retained_source_bytes": 14191791
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "historical-skills-next-segment",
+      "snapshot": "253f09fb0f6ec52a2582742e7c9aafec6e86330f0370be2f13eefdac6ed22ae0",
+      "source_root": "objrun/scripts/repair-2026-10-10/full-f/skillsbench/next-segment",
+      "source_files": 1221,
+      "selected_source_files": 1221,
+      "manifest_shards": [],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 4.3,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-or-build-copy": 1221
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 1221,
+          "discovered_bytes": 7972545,
+          "retained_files": 1221,
+          "retained_source_bytes": 7972545
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "historical-terminal-sources",
+      "snapshot": "9f2e9cc9a76e33c415b234dfdfb7592e9dd7ee3d6bae3a350c884cdf1fe5d2bd",
+      "source_root": "objrun/scripts/repair-2026-10-10/full-f/terminal-bench",
+      "source_files": 1916,
+      "selected_source_files": 1916,
+      "manifest_shards": [],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 6.6,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-or-build-copy": 1916
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 1916,
+          "discovered_bytes": 19637388,
+          "retained_files": 1916,
+          "retained_source_bytes": 19637388
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "local-tmp",
+      "snapshot": "44c1f51c50152675f59b4bd63c09b5eb6f2a3136250ce3ae63da354917f09ab6",
+      "source_root": "objrun/tmp",
+      "source_files": 17,
+      "selected_source_files": 17,
+      "manifest_shards": [],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 2.2,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-or-build-copy": 17
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 17,
+          "discovered_bytes": 1087606,
+          "retained_files": 17,
+          "retained_source_bytes": 1087606
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "newbench-runtime",
+      "snapshot": "bc5e9a2f0716b4badfe233685dbe567de564b9adfa169020b4ad537ff46ab043",
+      "source_root": "objrun/scripts/newbench-20261014/runtime-snapshot",
+      "source_files": 5621,
+      "selected_source_files": 0,
+      "manifest_shards": [],
+      "excluded_counts": {
+        "installed-runtime": 5621
+      },
+      "excluded_bytes": {
+        "installed-runtime": 76125534
+      },
+      "excluded_examples": {},
+      "elapsed_seconds": 0.3,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {},
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 5621,
+          "discovered_bytes": 76125534,
+          "excluded_files": 5621
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "novaeve-docker-shims",
+      "snapshot": "a01024c3a3fc976ba2fa11f5a3f97051367231951f49156a1ea39215058e438c",
+      "source_root": "objrun/scripts/repair-2026-10-10/full-f/novaeve_formal_v1/sb",
+      "source_files": 118,
+      "selected_source_files": 118,
+      "manifest_shards": [],
+      "excluded_counts": {
+        "binary-resource-executable": 3
+      },
+      "excluded_bytes": {
+        "binary-resource-executable": 344308488
+      },
+      "excluded_examples": {
+        "binary-resource-executable": "docker-shim-v2.exe"
+      },
+      "elapsed_seconds": 3.3,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "frozen-source-or-build-copy": 115
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 118,
+          "discovered_bytes": 344940852,
+          "retained_files": 115,
+          "retained_source_bytes": 632364,
+          "excluded_files": 3
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "paper-history",
+      "snapshot": "17706bfa1fb44cde8856720bc1711e83c3eebeb40a5ef8e71f2223080edd29d3",
+      "source_root": "objrun/paper",
+      "source_files": 1638,
+      "selected_source_files": 0,
+      "manifest_shards": [],
+      "excluded_counts": {
+        "historical-paper-copy": 1638
+      },
+      "excluded_bytes": {
+        "historical-paper-copy": 382404923
+      },
+      "excluded_examples": {},
+      "elapsed_seconds": 0.1,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {},
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 1472,
+          "discovered_bytes": 356695594,
+          "excluded_files": 1472
+        },
+        "cmt": {
+          "discovered_files": 51,
+          "discovered_bytes": 4830194,
+          "excluded_files": 51
+        },
+        "deepswe": {
+          "discovered_files": 35,
+          "discovered_bytes": 851716,
+          "excluded_files": 35
+        },
+        "gpqa": {
+          "discovered_files": 18,
+          "discovered_bytes": 420949,
+          "excluded_files": 18
+        },
+        "aime": {
+          "discovered_files": 20,
+          "discovered_bytes": 348975,
+          "excluded_files": 20
+        },
+        "mbpp-plus": {
+          "discovered_files": 2,
+          "discovered_bytes": 9904,
+          "excluded_files": 2
+        },
+        "chembench": {
+          "discovered_files": 9,
+          "discovered_bytes": 1366823,
+          "excluded_files": 9
+        },
+        "bird": {
+          "discovered_files": 2,
+          "discovered_bytes": 3372,
+          "excluded_files": 2
+        },
+        "llm-srbench": {
+          "discovered_files": 4,
+          "discovered_bytes": 247966,
+          "excluded_files": 4
+        },
+        "skillsbench": {
+          "discovered_files": 4,
+          "discovered_bytes": 1332246,
+          "excluded_files": 4
+        },
+        "terminal-bench": {
+          "discovered_files": 4,
+          "discovered_bytes": 692460,
+          "excluded_files": 4
+        },
+        "chemiq": {
+          "discovered_files": 7,
+          "discovered_bytes": 5160419,
+          "excluded_files": 7
+        },
+        "minif2f": {
+          "discovered_files": 10,
+          "discovered_bytes": 10444305,
+          "excluded_files": 10
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "paper-revisions",
+      "snapshot": "bb3acbd164db228c074d91920ac1593bbfdbd9770fdc1ac655616533c6b7ed49",
+      "source_root": "notes/paper-revisions",
+      "source_files": 22973,
+      "selected_source_files": 0,
+      "manifest_shards": [],
+      "excluded_counts": {
+        "historical-paper-copy": 22973
+      },
+      "excluded_bytes": {
+        "historical-paper-copy": 302183003
+      },
+      "excluded_examples": {},
+      "elapsed_seconds": 2.1,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {},
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 16206,
+          "discovered_bytes": 208787460,
+          "excluded_files": 16206
+        },
+        "aime": {
+          "discovered_files": 7,
+          "discovered_bytes": 42833,
+          "excluded_files": 7
+        },
+        "atmossci": {
+          "discovered_files": 1,
+          "discovered_bytes": 2316,
+          "excluded_files": 1
+        },
+        "biocoder": {
+          "discovered_files": 2,
+          "discovered_bytes": 4590,
+          "excluded_files": 2
+        },
+        "chembench": {
+          "discovered_files": 2676,
+          "discovered_bytes": 49195437,
+          "excluded_files": 2676
+        },
+        "chemiq": {
+          "discovered_files": 206,
+          "discovered_bytes": 1536496,
+          "excluded_files": 206
+        },
+        "cmt": {
+          "discovered_files": 13,
+          "discovered_bytes": 208126,
+          "excluded_files": 13
+        },
+        "deepswe": {
+          "discovered_files": 16,
+          "discovered_bytes": 241252,
+          "excluded_files": 16
+        },
+        "gpqa": {
+          "discovered_files": 8,
+          "discovered_bytes": 67992,
+          "excluded_files": 8
+        },
+        "humaneval-plus": {
+          "discovered_files": 55,
+          "discovered_bytes": 326487,
+          "excluded_files": 55
+        },
+        "llm-srbench": {
+          "discovered_files": 2,
+          "discovered_bytes": 7252,
+          "excluded_files": 2
+        },
+        "minif2f": {
+          "discovered_files": 62,
+          "discovered_bytes": 1036348,
+          "excluded_files": 62
+        },
+        "scicode": {
+          "discovered_files": 25,
+          "discovered_bytes": 81777,
+          "excluded_files": 25
+        },
+        "scienceworld": {
+          "discovered_files": 3,
+          "discovered_bytes": 11289,
+          "excluded_files": 3
+        },
+        "skillsbench": {
+          "discovered_files": 1612,
+          "discovered_bytes": 11938827,
+          "excluded_files": 1612
+        },
+        "terminal-bench": {
+          "discovered_files": 1999,
+          "discovered_bytes": 20472920,
+          "excluded_files": 1999
+        },
+        "mbpp-plus": {
+          "discovered_files": 25,
+          "discovered_bytes": 126600,
+          "excluded_files": 25
+        },
+        "bird": {
+          "discovered_files": 25,
+          "discovered_bytes": 7650807,
+          "excluded_files": 25
+        },
+        "classeval": {
+          "discovered_files": 30,
+          "discovered_bytes": 444194,
+          "excluded_files": 30
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "scratch-diagnostics-remainder",
+      "snapshot": "16774f9a4482c276973a020f3407ad6c85acc9595c9d6a0efbab967f7077ad0b",
+      "source_root": "objrun/.scratch",
+      "source_files": 20921,
+      "selected_source_files": 20814,
+      "manifest_shards": [
+        {
+          "path": "manifests/scratch-diagnostics-remainder-000.jsonl.zst",
+          "bytes": 63457,
+          "sha256": "15a370c737c2883c5d712bfdc7f02d02b3060d9d22d299c746228196dd158be7"
+        }
+      ],
+      "excluded_counts": {
+        "environment-or-cache-tree": 107,
+        "binary-resource-binary": 78,
+        "binary-resource-executable": 23
+      },
+      "excluded_bytes": {
+        "environment-or-cache-tree": 7348,
+        "binary-resource-binary": 3378859,
+        "binary-resource-executable": 57185176
+      },
+      "excluded_examples": {
+        "binary-resource-binary": "bun-cache-journal/018a776e45beab91.debug.pile",
+        "binary-resource-executable": "minif-fast-fixture-013e657b977f/official-27a748be/tools/leantar"
+      },
+      "elapsed_seconds": 124.2,
+      "prior_export_pending_count": 92,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 958,
+        "synthetic-bulk-fixture": 19348,
+        "unconfirmed-input-deferred-to-archive": 92,
+        "frozen-source-bundle": 9,
+        "duplicate-synthetic-diagnostic": 172
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 19227,
+          "discovered_bytes": 345995983,
+          "excluded_files": 103,
+          "retained_files": 18992,
+          "retained_source_bytes": 263796890,
+          "unverified_files": 92,
+          "database_sidecars": 132
+        },
+        "chemiq": {
+          "discovered_files": 1093,
+          "discovered_bytes": 32754224,
+          "retained_files": 1091,
+          "retained_source_bytes": 28597304,
+          "database_sidecars": 2
+        },
+        "skillsbench": {
+          "discovered_files": 88,
+          "discovered_bytes": 2560622,
+          "retained_files": 88,
+          "retained_source_bytes": 2560622
+        },
+        "terminal-bench": {
+          "discovered_files": 163,
+          "discovered_bytes": 570700,
+          "retained_files": 163,
+          "retained_source_bytes": 570700
+        },
+        "minif2f": {
+          "discovered_files": 341,
+          "discovered_bytes": 2846837,
+          "excluded_files": 105,
+          "retained_files": 236,
+          "retained_source_bytes": 1145031
+        },
+        "cmt": {
+          "discovered_files": 1,
+          "discovered_bytes": 8192,
+          "retained_files": 1,
+          "retained_source_bytes": 8192
+        },
+        "chembench": {
+          "discovered_files": 6,
+          "discovered_bytes": 26663,
+          "retained_files": 6,
+          "retained_source_bytes": 26663
+        },
+        "deepswe": {
+          "discovered_files": 2,
+          "discovered_bytes": 12067,
+          "retained_files": 2,
+          "retained_source_bytes": 12067
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "work-price-lifetime-20261018",
+      "snapshot": "89864fd12e7b795c5d76c792c2308d84d7b8a4475af6f539e64d4b62584bb871",
+      "source_root": "objrun/work/price-lifetime-20261018",
+      "source_files": 51,
+      "selected_source_files": 51,
+      "manifest_shards": [
+        {
+          "path": "manifests/work-price-lifetime-20261018-000.jsonl.zst",
+          "bytes": 18746,
+          "sha256": "4eab8cebfc1c33b97736f0a6da4c399a50b9dbeaa3fe3d57c0e6a478131b9049"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 3.5,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 51
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 51,
+          "discovered_bytes": 14872046,
+          "retained_files": 51,
+          "retained_source_bytes": 14872046
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "work-remainder",
+      "snapshot": "e2b7ae34396cc5f69f448843066914330c33bb7aac1adf375b928976db60496a",
+      "source_root": "objrun/work",
+      "source_files": 701,
+      "selected_source_files": 701,
+      "manifest_shards": [
+        {
+          "path": "manifests/work-remainder-000.jsonl.zst",
+          "bytes": 42287,
+          "sha256": "6fd11dd7680dd4282a1b68178b5a58d13f9cddbb25cef923a91ae30b3bd565b6"
+        }
+      ],
+      "excluded_counts": {
+        "binary-resource-pdf": 2,
+        "binary-resource-parquet": 4,
+        "binary-resource-image": 4
+      },
+      "excluded_bytes": {
+        "binary-resource-pdf": 3864378,
+        "binary-resource-parquet": 12619628,
+        "binary-resource-image": 4544689
+      },
+      "excluded_examples": {
+        "binary-resource-pdf": "fig1-public-score-audit-20261021/mavencoder.pdf",
+        "binary-resource-parquet": "llm-srbench-20261019-v1/data-download/lsr_synth_bio_pop_growth/train-00000-of-00001.parquet",
+        "binary-resource-image": "overview-concepts/A-method-overview-svg-preview.png"
+      },
+      "elapsed_seconds": 2.4,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 691
+      },
+      "prior_export_by_bench": {
+        "terminal-bench": {
+          "discovered_files": 14,
+          "discovered_bytes": 41598,
+          "retained_files": 14,
+          "retained_source_bytes": 41598
+        },
+        "shared-or-unassigned": {
+          "discovered_files": 499,
+          "discovered_bytes": 11101816,
+          "retained_files": 493,
+          "retained_source_bytes": 2692749,
+          "excluded_files": 6
+        },
+        "llm-srbench": {
+          "discovered_files": 183,
+          "discovered_bytes": 18395321,
+          "retained_files": 179,
+          "retained_source_bytes": 5775693,
+          "excluded_files": 4
+        },
+        "skillsbench": {
+          "discovered_files": 5,
+          "discovered_bytes": 602643,
+          "retained_files": 5,
+          "retained_source_bytes": 602643
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "work-skb-setup-recovery-20261018",
+      "snapshot": "beea69d6d37a0a9a9674931b8be4a607d68341301b7dd1a026866bf1c9c96314",
+      "source_root": "objrun/work/skb-setup-recovery-20261018",
+      "source_files": 465,
+      "selected_source_files": 465,
+      "manifest_shards": [
+        {
+          "path": "manifests/work-skb-setup-recovery-20261018-000.jsonl.zst",
+          "bytes": 21120,
+          "sha256": "b3c048e18e4d95c7f3f42d65b24168261814b4304dbe395ec834959b92818c0a"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 16.0,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 463
+      },
+      "prior_export_by_bench": {
+        "skillsbench": {
+          "discovered_files": 465,
+          "discovered_bytes": 104681626,
+          "retained_files": 463,
+          "retained_source_bytes": 104648858,
+          "database_sidecars": 2
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "work-tb-break-local-20261018",
+      "snapshot": "bc400f9b5771693b95ad53c43ca6e949878c19f5e7681113a81b5657f3ddeffe",
+      "source_root": "objrun/work/tb-break-local-20261018",
+      "source_files": 196,
+      "selected_source_files": 196,
+      "manifest_shards": [
+        {
+          "path": "manifests/work-tb-break-local-20261018-000.jsonl.zst",
+          "bytes": 35679,
+          "sha256": "17e30b606b6d9af93b12bd5e38fe43adb85d66e31ea06ef74c25ad22d4e459d4"
+        }
+      ],
+      "excluded_counts": {
+        "identified-resource-archive": 2,
+        "binary-resource-binary": 1,
+        "compressed-binary-resource-binary": 1
+      },
+      "excluded_bytes": {
+        "identified-resource-archive": 7923751905,
+        "binary-resource-binary": 1024,
+        "compressed-binary-resource-binary": 32
+      },
+      "excluded_examples": {
+        "identified-resource-archive": "docker-helper-verified.tar",
+        "binary-resource-binary": "helper-download/4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1/layer.tar",
+        "compressed-binary-resource-binary": "helper-download/4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1.gz"
+      },
+      "elapsed_seconds": 70.0,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 192
+      },
+      "prior_export_by_bench": {
+        "terminal-bench": {
+          "discovered_files": 196,
+          "discovered_bytes": 8389325382,
+          "retained_files": 192,
+          "retained_source_bytes": 465572421,
+          "excluded_files": 4
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "work-tb-configure-local-20261018",
+      "snapshot": "c3d42689bdf2be393bb107e9353d59fe6366de96d00f591bfe75d00d2b63bb0f",
+      "source_root": "objrun/work/tb-configure-local-20261018",
+      "source_files": 140,
+      "selected_source_files": 140,
+      "manifest_shards": [
+        {
+          "path": "manifests/work-tb-configure-local-20261018-000.jsonl.zst",
+          "bytes": 9411,
+          "sha256": "a111b470efa1c6638742d540e42d840c268e6004c131c485d1aeb2aef97a90aa"
+        }
+      ],
+      "excluded_counts": {
+        "identified-resource-archive": 1
+      },
+      "excluded_bytes": {
+        "identified-resource-archive": 228877312
+      },
+      "excluded_examples": {
+        "identified-resource-archive": "private-base.docker.tar"
+      },
+      "elapsed_seconds": 3.1,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 139
+      },
+      "prior_export_by_bench": {
+        "terminal-bench": {
+          "discovered_files": 140,
+          "discovered_bytes": 233526115,
+          "retained_files": 139,
+          "retained_source_bytes": 4648803,
+          "excluded_files": 1
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "work-tb-feal-local-20261018",
+      "snapshot": "be756f60caff3e4173a05e82eddc0352929d5da94b2098018970bf6bb038ca23",
+      "source_root": "objrun/work/tb-feal-local-20261018",
+      "source_files": 137,
+      "selected_source_files": 137,
+      "manifest_shards": [
+        {
+          "path": "manifests/work-tb-feal-local-20261018-000.jsonl.zst",
+          "bytes": 12444,
+          "sha256": "bdf6d7fc478642c0282fe4248fea292202abec084de53c2b21be96faca4ec09a"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 3.1,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 137
+      },
+      "prior_export_by_bench": {
+        "terminal-bench": {
+          "discovered_files": 137,
+          "discovered_bytes": 27030007,
+          "retained_files": 137,
+          "retained_source_bytes": 27030007
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "work-tb-windows-local-20261018",
+      "snapshot": "d8045e9ba20eea771e4bbc08b3082263d145320be659f6d45afab324af804e0d",
+      "source_root": "objrun/work/tb-windows-local-20261018",
+      "source_files": 103,
+      "selected_source_files": 103,
+      "manifest_shards": [
+        {
+          "path": "manifests/work-tb-windows-local-20261018-000.jsonl.zst",
+          "bytes": 9377,
+          "sha256": "e5b23f8e19688bc600b762ba0438c7da92f0b634be242ebdb151ccd2f054a0d9"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 3.3,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 103
+      },
+      "prior_export_by_bench": {
+        "terminal-bench": {
+          "discovered_files": 103,
+          "discovered_bytes": 13202606,
+          "retained_files": 103,
+          "retained_source_bytes": 13202606
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    },
+    {
+      "collection": "workspace-work",
+      "snapshot": "3e898244369953ca40fedd22aac203cadb67de596c7494df0ef636457d27acab",
+      "source_root": "work/remaining12-parallel-20261018",
+      "source_files": 4,
+      "selected_source_files": 4,
+      "manifest_shards": [
+        {
+          "path": "manifests/workspace-work-000.jsonl.zst",
+          "bytes": 653,
+          "sha256": "86424bab62aa463cbdb48f62fda303958fc2235c182b85574bd54bfee9c016c2"
+        }
+      ],
+      "excluded_counts": {},
+      "excluded_bytes": {},
+      "excluded_examples": {},
+      "elapsed_seconds": 1.4,
+      "prior_export_pending_count": 0,
+      "pending": [],
+      "selection_counts": {
+        "selected_entries": 4
+      },
+      "prior_export_by_bench": {
+        "shared-or-unassigned": {
+          "discovered_files": 4,
+          "discovered_bytes": 47067,
+          "retained_files": 4,
+          "retained_source_bytes": 47067
+        }
+      },
+      "coverage_note": "Prior export discovery counts; final retained counts are selection_counts, not prior_export_by_bench."
+    }
+  ],
+  "benches": {
+    "chembench": {
+      "discovered_files": 23761,
+      "discovered_bytes": 1883036591,
+      "excluded_files": 6968,
+      "database_sidecars": 2844,
+      "candidate_entries_before_selection": 13949,
+      "retained_files": 13948,
+      "retained_source_bytes": 275277360,
+      "archived_candidate_entries": 1,
+      "run_scopes_retained": 299,
+      "attributed_pack_bytes": 30158618
+    },
+    "shared-or-unassigned": {
+      "discovered_files": 142726,
+      "discovered_bytes": 4538285516,
+      "excluded_files": 23417,
+      "database_sidecars": 188,
+      "candidate_entries_before_selection": 119121,
+      "retained_files": 88450,
+      "retained_source_bytes": 2913703008,
+      "archived_candidate_entries": 30671,
+      "run_scopes_retained": 779,
+      "attributed_pack_bytes": 112827852
+    },
+    "humaneval-plus": {
+      "discovered_files": 18830,
+      "discovered_bytes": 1120775462,
+      "excluded_files": 383,
+      "database_sidecars": 1648,
+      "candidate_entries_before_selection": 16799,
+      "retained_files": 16799,
+      "retained_source_bytes": 111022709,
+      "run_scopes_retained": 12,
+      "attributed_pack_bytes": 7941016
+    },
+    "mbpp-plus": {
+      "discovered_files": 14347,
+      "discovered_bytes": 1583163495,
+      "excluded_files": 783,
+      "database_sidecars": 1660,
+      "candidate_entries_before_selection": 11904,
+      "retained_files": 11904,
+      "retained_source_bytes": 36303574,
+      "run_scopes_retained": 6,
+      "attributed_pack_bytes": 3914627
+    },
+    "frontierscience": {
+      "discovered_files": 21380,
+      "discovered_bytes": 480374188,
+      "excluded_files": 9683,
+      "database_sidecars": 298,
+      "candidate_entries_before_selection": 11399,
+      "retained_files": 11399,
+      "retained_source_bytes": 297785611,
+      "run_scopes_retained": 326,
+      "attributed_pack_bytes": 12104780
+    },
+    "gpqa": {
+      "discovered_files": 4192,
+      "discovered_bytes": 126713180,
+      "excluded_files": 4127,
+      "database_sidecars": 0,
+      "candidate_entries_before_selection": 65,
+      "retained_files": 65,
+      "retained_source_bytes": 20509639,
+      "run_scopes_retained": 14,
+      "attributed_pack_bytes": 1777067
+    },
+    "llm-srbench": {
+      "discovered_files": 210,
+      "discovered_bytes": 19028138,
+      "excluded_files": 10,
+      "database_sidecars": 0,
+      "candidate_entries_before_selection": 200,
+      "retained_files": 200,
+      "retained_source_bytes": 6153292,
+      "run_scopes_retained": 12,
+      "attributed_pack_bytes": 166665
+    },
+    "minif2f": {
+      "discovered_files": 33703,
+      "discovered_bytes": 362114259,
+      "excluded_files": 194,
+      "database_sidecars": 0,
+      "candidate_entries_before_selection": 33509,
+      "retained_files": 33292,
+      "retained_source_bytes": 347313781,
+      "archived_candidate_entries": 217,
+      "run_scopes_retained": 71,
+      "attributed_pack_bytes": 16315996
+    },
+    "aime": {
+      "discovered_files": 1568,
+      "discovered_bytes": 24250627,
+      "excluded_files": 27,
+      "database_sidecars": 0,
+      "candidate_entries_before_selection": 1541,
+      "retained_files": 1541,
+      "retained_source_bytes": 23858819,
+      "run_scopes_retained": 19,
+      "attributed_pack_bytes": 1444911
+    },
+    "atmossci": {
+      "discovered_files": 29,
+      "discovered_bytes": 416218,
+      "excluded_files": 1,
+      "database_sidecars": 0,
+      "candidate_entries_before_selection": 28,
+      "retained_files": 28,
+      "retained_source_bytes": 413902,
+      "run_scopes_retained": 3,
+      "attributed_pack_bytes": 29600
+    },
+    "biocoder": {
+      "discovered_files": 17,
+      "discovered_bytes": 226596,
+      "excluded_files": 2,
+      "database_sidecars": 0,
+      "candidate_entries_before_selection": 15,
+      "retained_files": 15,
+      "retained_source_bytes": 222006,
+      "run_scopes_retained": 2,
+      "attributed_pack_bytes": 15409
+    },
+    "chemiq": {
+      "discovered_files": 4006,
+      "discovered_bytes": 444807675,
+      "excluded_files": 214,
+      "database_sidecars": 60,
+      "candidate_entries_before_selection": 3732,
+      "retained_files": 2803,
+      "retained_source_bytes": 328055928,
+      "archived_candidate_entries": 929,
+      "run_scopes_retained": 112,
+      "attributed_pack_bytes": 7950610
+    },
+    "cmt": {
+      "discovered_files": 3121,
+      "discovered_bytes": 85403669,
+      "excluded_files": 3070,
+      "database_sidecars": 0,
+      "candidate_entries_before_selection": 51,
+      "retained_files": 51,
+      "retained_source_bytes": 1438293,
+      "run_scopes_retained": 18,
+      "attributed_pack_bytes": 59731
+    },
+    "scicode": {
+      "discovered_files": 128,
+      "discovered_bytes": 3768635,
+      "excluded_files": 25,
+      "database_sidecars": 0,
+      "candidate_entries_before_selection": 103,
+      "retained_files": 103,
+      "retained_source_bytes": 3686858,
+      "run_scopes_retained": 6,
+      "attributed_pack_bytes": 241921
+    },
+    "scienceworld": {
+      "discovered_files": 29,
+      "discovered_bytes": 2356456,
+      "excluded_files": 3,
+      "database_sidecars": 0,
+      "candidate_entries_before_selection": 26,
+      "retained_files": 26,
+      "retained_source_bytes": 2345167,
+      "run_scopes_retained": 3,
+      "attributed_pack_bytes": 152841
+    },
+    "terminal-bench": {
+      "discovered_files": 3832,
+      "discovered_bytes": 9295747513,
+      "excluded_files": 2042,
+      "database_sidecars": 24,
+      "candidate_entries_before_selection": 1766,
+      "retained_files": 1523,
+      "retained_source_bytes": 574991020,
+      "archived_candidate_entries": 243,
+      "run_scopes_retained": 108,
+      "attributed_pack_bytes": 4233352
+    },
+    "deepswe": {
+      "discovered_files": 70,
+      "discovered_bytes": 1826781,
+      "excluded_files": 51,
+      "database_sidecars": 0,
+      "candidate_entries_before_selection": 19,
+      "retained_files": 19,
+      "retained_source_bytes": 733813,
+      "run_scopes_retained": 6,
+      "attributed_pack_bytes": 64475
+    },
+    "skillsbench": {
+      "discovered_files": 6332,
+      "discovered_bytes": 772091640,
+      "excluded_files": 1764,
+      "database_sidecars": 26,
+      "candidate_entries_before_selection": 4542,
+      "retained_files": 4380,
+      "retained_source_bytes": 148623866,
+      "archived_candidate_entries": 162,
+      "run_scopes_retained": 289,
+      "attributed_pack_bytes": 2998721
+    },
+    "bird": {
+      "discovered_files": 27,
+      "discovered_bytes": 7654179,
+      "excluded_files": 27,
+      "database_sidecars": 0
+    },
+    "classeval": {
+      "discovered_files": 30,
+      "discovered_bytes": 444194,
+      "excluded_files": 30,
+      "database_sidecars": 0
+    }
+  },
+  "formats": {
+    "text": 183076,
+    "sqlite-tables": 3383,
+    "archive-members": 87
+  },
+  "pending": 0,
+  "missing_collections": [
+    "docs-labbench",
+    "docs-newbench-20261014",
+    "docs-olympiadbench",
+    "docs-repair-2026-10-09",
+    "external-phase1-repair-2026-10-08t18-32-57-118z",
+    "external-phase1-scicode-verified",
+    "fullf-chemiq",
+    "fullf-novaeve-formal-20261013",
+    "fullf-skillsbench",
+    "fullf-terminal-bench",
+    "legacy-runs",
+    "phase1",
+    "scibench",
+    "scicode-external",
+    "work-remaining12-parallel-20261018",
+    "work-skb-local-remaining-20261018",
+    "work-tb-c4-local-20261018",
+    "workspace-tmp"
+  ],
+  "deferred_original_collections": [
+    "docs-labbench",
+    "docs-newbench-20261014",
+    "docs-olympiadbench",
+    "docs-repair-2026-10-09",
+    "external-phase1-repair-2026-10-08t18-32-57-118z",
+    "external-phase1-scicode-verified",
+    "fullf-chemiq",
+    "fullf-novaeve-formal-20261013",
+    "fullf-skillsbench",
+    "fullf-terminal-bench",
+    "legacy-runs",
+    "phase1",
+    "scibench",
+    "scicode-external",
+    "work-remaining12-parallel-20261018",
+    "work-skb-local-remaining-20261018",
+    "work-tb-c4-local-20261018",
+    "workspace-tmp"
+  ],
+  "pack_count": 142,
+  "pack_bytes": 202398206,
+  "unique_fragments": 167905
+}

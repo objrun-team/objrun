@@ -1,0 +1,12 @@
+{"run_scope":"docs-llm-srbench/.","collection":"docs-llm-srbench","files":4,"status_fields":{},"identifiers":[]}
+{"run_scope":"docs-phase1/.","collection":"docs-phase1","files":1,"status_fields":{},"identifiers":[]}
+{"run_scope":"docs-phase1/pilots/phase1-llm-srbench-2026-10-07T22-05-05-487Z","collection":"docs-phase1","files":16,"status_fields":{"passed":12,"failed":14},"identifiers":[]}
+{"run_scope":"work-remainder/llm-srbench-20261019-v1","collection":"work-remainder","files":11,"status_fields":{},"identifiers":[]}
+{"run_scope":"work-remainder/llm-srbench-20261019-v1/package","collection":"work-remainder","files":71,"status_fields":{},"identifiers":[]}
+{"run_scope":"work-remainder/llm-srbench-20261019-v1/v2-proposal","collection":"work-remainder","files":5,"status_fields":{},"identifiers":[]}
+{"run_scope":"work-remainder/llm-srbench-20261019-v2/package","collection":"work-remainder","files":79,"status_fields":{},"identifiers":[]}
+{"run_scope":"work-remainder/llm-srbench-20261019-v2","collection":"work-remainder","files":1,"status_fields":{},"identifiers":[]}
+{"run_scope":"work-remainder/llm-srbench-concurrency16","collection":"work-remainder","files":4,"status_fields":{},"identifiers":[]}
+{"run_scope":"work-remainder/llm-srbench-infra-r1","collection":"work-remainder","files":2,"status_fields":{},"identifiers":[]}
+{"run_scope":"work-remainder/llm-srbench-resume-v3","collection":"work-remainder","files":4,"status_fields":{},"identifiers":[]}
+{"run_scope":"work-remainder/llm-srbench-v2-approved429","collection":"work-remainder","files":2,"status_fields":{},"identifiers":[]}

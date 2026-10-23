@@ -1,0 +1,25 @@
+bench,discovered_files,retained_files,excluded_files,archived_candidate_entries,run_scopes_retained,attributed_pack_bytes,deferred_sources
+aime,1568,1541,27,,19,1444911,legacy-runs | phase1
+atmossci,29,28,1,,3,29600,
+biocoder,17,15,2,,2,15409,
+bird,27,,27,,,,docs-newbench-20261014
+chembench,23761,13948,6968,1,299,30158618,legacy-runs
+chemiq,4006,2803,214,929,112,7950610,fullf-chemiq | legacy-runs
+classeval,30,,30,,,,docs-newbench-20261014
+cmt,3121,51,3070,,18,59731,legacy-runs
+deepswe,70,19,51,,6,64475,legacy-runs
+frontierscience,21380,11399,9683,,326,12104780,workspace-tmp
+gpqa,4192,65,4127,,14,1777067,legacy-runs | phase1
+humaneval-plus,18830,16799,383,,12,7941016,
+labbench,,,,,,,docs-labbench | workspace-tmp
+llm-srbench,210,200,10,,12,166665,legacy-runs
+mbpp-plus,14347,11904,783,,6,3914627,
+minif2f,33703,33292,194,217,71,16315996,legacy-runs | workspace-tmp
+olympiadbench,,,,,,,docs-olympiadbench | workspace-tmp
+scibench,,,,,,,scibench | workspace-tmp
+scicode,128,103,25,,6,241921,scicode-external
+scienceworld,29,26,3,,3,152841,
+shared-or-unassigned,142726,88450,23417,30671,779,112827852,
+skillsbench,6332,4380,1764,162,289,2998721,fullf-skillsbench | legacy-runs | work-skb-local-remaining-20261018
+terminal-bench,3832,1523,2042,243,108,4233352,docs-repair-2026-10-09 | fullf-terminal-bench | legacy-runs | work-tb-c4-local-20261018
+theophyseval,,,,,,,workspace-tmp

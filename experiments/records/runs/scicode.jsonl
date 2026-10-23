@@ -1,0 +1,6 @@
+{"run_scope":"docs-phase1/pilots/phase1-scicode-verified-2026-10-07T21-08-34-504Z","collection":"docs-phase1","files":5,"status_fields":{"passed":2},"identifiers":[]}
+{"run_scope":"docs-phase1/pilots/phase1-scicode-verified-2026-10-07T21-09-58-497Z","collection":"docs-phase1","files":43,"status_fields":{"passed":32,"failed":46},"identifiers":[]}
+{"run_scope":"docs-phase1/pilots/phase1-scicode-verified-2026-10-07T21-48-09-120Z","collection":"docs-phase1","files":44,"status_fields":{"passed":36,"failed":42},"identifiers":[]}
+{"run_scope":"docs-phase1/.","collection":"docs-phase1","files":8,"status_fields":{},"identifiers":[]}
+{"run_scope":"docs-repair-2026-10-08/.","collection":"docs-repair-2026-10-08","files":1,"status_fields":{},"identifiers":[]}
+{"run_scope":"docs-repair-2026-10-08/storage-actions/scicode-cold-cache","collection":"docs-repair-2026-10-08","files":2,"status_fields":{},"identifiers":[]}
