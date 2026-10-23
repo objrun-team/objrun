@@ -1,0 +1,10 @@
+import {readFileSync} from 'node:fs';
+import {join,resolve} from 'node:path';
+import {startFullFBroker} from './shared/digitalocean-broker-dynamic-sixteen-actual-disk.next.ts';
+import {atomicStateJson} from './shared/atomic-state.ts';
+const root=resolve(import.meta.dir,'../../..'),base=join(root,'docs/repair-2026-10-10/full-f-rerun');
+const runId='repair-'+new Date().toISOString().replace(/[:.]/g,'-');
+const broker=await startFullFBroker({root,output:join(base,'broker',runId),runId,recordAndContinue:true,maxInFlight:8,targetMax:8,perBenchMax:4,heavyCapacity:24,heavyMemoryMb:262144,perBenchHeavySlots:12});
+const c=JSON.parse(readFileSync(join(base,'control.json'),'utf8'));
+atomicStateJson(join(base,'control.json'),{...c,broker:broker.connection,paidReady:true,updatedAtUtc:new Date().toISOString()});
+console.log(JSON.stringify({pid:process.pid,runId,endpoint:broker.connection.endpoint,modelCalls:0}));

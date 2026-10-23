@@ -199,15 +199,40 @@ export class Registry {
   }
 }
 
+/** Secrets stay in the host environment and are sent only to explicitly trusted grader origins. */
+export async function graderFetch(url: string, init: RequestInit): Promise<Response> {
+  const token = process.env.TGENGIN_GRADER_TOKEN;
+  if (!token) return fetch(url, init);
+  const raw = process.env.TGENGIN_GRADER_ORIGINS?.trim();
+  if (!raw) throw new Error("TGENGIN_GRADER_ORIGINS is required when TGENGIN_GRADER_TOKEN is configured");
+  let entries: unknown[];
+  try { entries = raw.startsWith("[") ? JSON.parse(raw) as unknown[] : raw.split(","); }
+  catch { throw new Error("TGENGIN_GRADER_ORIGINS must be a list of URL origins"); }
+  if (!Array.isArray(entries) || entries.length === 0) throw new Error("TGENGIN_GRADER_ORIGINS must be a nonempty list of URL origins");
+  const origins = new Set(entries.map(entry => {
+    try {
+      const parsed = new URL(String(entry).trim());
+      if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.pathname !== "/" || parsed.search || parsed.hash) throw new Error();
+      return parsed.origin;
+    } catch { throw new Error("TGENGIN_GRADER_ORIGINS contains an invalid URL origin"); }
+  }));
+  const headers = new Headers(init.headers);
+  // Even a caller-supplied header must not bypass origin scoping.
+  headers.delete("X-ObjRun-Grader-Token");
+  const trusted = origins.has(new URL(url).origin);
+  if (trusted) headers.set("X-ObjRun-Grader-Token", token);
+  return fetch(url, { ...init, headers, ...(trusted ? { redirect: "error" } : {}) });
+}
+
 /** 给外面的接口合成一个调用器。名字本身就是地址。 */
 function remote(url: string): Handle {
   return async (arg: unknown) => {
-    const res = await fetch(url, {
+    const res = await graderFetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(arg ?? {}),
     });
-    if (!res.ok) throw new Error(`${url} returned ${res.status}`);
+    if (!res.ok) throw Object.assign(new Error(`${url} returned ${res.status}`), { statusCode: res.status });
     return await res.json();
   };
 }

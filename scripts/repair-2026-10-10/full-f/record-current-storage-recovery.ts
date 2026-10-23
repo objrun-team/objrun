@@ -1,0 +1,10 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {join} from 'node:path';
+import {atomicStateJson} from './shared/atomic-state';
+const base=join(process.cwd(),'docs/repair-2026-10-10/full-f-rerun'),path=join(base,'control.json');
+const c=JSON.parse(readFileSync(path,'utf8')),atUtc=new Date().toISOString();
+const backup=JSON.parse(readFileSync('../tmp/docker-storage-backup-current-20261011-0300/process.json','utf8'));
+const recovery={...c.dockerRecovery,phase:'preserving_current_disk_before_repair',graderHealthy:false,currentDiskBytes:49243226112,backupPid:backup.pid,backupBornUtc:backup.birthUtc,backupScript:backup.script,backupManifest:'F:/git/TgEngin-handoff-2026-10-07/tmp/docker-storage-backup-current-20261011-0300/backup-manifest.json',backupFullyVerified:false,nativeFilesystemReadonlyVerified:false,currentDiskBackupRequired:true,currentDiskMtimeUtc:backup.sourceMtimeUtc,priorBackupOnlyCoversBytes:36593205248};
+atomicStateJson(path,{...c,dockerRecovery:recovery,updatedAtUtc:atUtc});
+writeFileSync(join(base,'coordination-action-2026-10-11T03-02.json'),JSON.stringify({atUtc,authorization:c.chembenchRemainingSupplierTrial,independentChembenchPaidReady:c.independentChembenchPaidReady,threeDockerExplicitHold:true,backup:{...backup,manifest:recovery.backupManifest,fullyVerified:false},priorChangedSourcePartialRetained:true,currentDataBytes:49243226112,firstPaidVerification:'chembench/last2-first-paid-root-verification.json',knownUsdBeforeNewResponses:36.56419968070001,unknownBeforeNewResponses:121,oldLedgerChanged:false},null,2)+'\n');
+console.log(JSON.stringify({phase:recovery.phase,backupPid:backup.pid,paidReady:c.paidReady,onlyPaidBench:'chembench'}));

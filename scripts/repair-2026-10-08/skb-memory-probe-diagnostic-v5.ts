@@ -1,0 +1,3 @@
+import {spawnSync} from 'node:child_process';import {readFileSync} from 'node:fs';
+const r=JSON.parse(readFileSync(process.argv[2],'utf8')),s=JSON.parse(readFileSync(r.storageDescriptorPin.path,'utf8'));Object.assign(process.env,s.nativeEnvironment);
+const q=spawnSync('powershell.exe',['-NoProfile','-Command','Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory | Select-Object CommittedBytes,CommitLimit | ConvertTo-Json -Compress'],{windowsHide:true,encoding:'utf8',timeout:15000,maxBuffer:65536});console.log(JSON.stringify({status:q.status,error:q.error?.message,stdout:q.stdout,stderr:q.stderr}));

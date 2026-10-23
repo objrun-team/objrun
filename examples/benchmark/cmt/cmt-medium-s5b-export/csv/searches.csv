@@ -1,0 +1,172 @@
+task,unit,order,status,queries,pages_opened,moves,answer_chars,searcher_tokens_in,searcher_tokens_out,error
+cmt-0,2,1,error,36,9,21,0,280872,15996,"the search made 21 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-1,8,1,blocked,0,0,,0,119562,8431,Forbidden access: the publisher of this problem does not allow searching for related content. The whole result has been 
+cmt-1,8,2,blocked,0,0,,0,128689,2679,Forbidden access: the publisher of this problem does not allow searching for related content. The whole result has been 
+cmt-2,18,1,answered,9,1,4,2080,35036,12978,
+cmt-2,22,2,answered,13,2,6,2246,52245,16841,
+cmt-2,24,3,answered,54,1,12,38,76431,6151,
+cmt-2,48,4,answered,34,0,6,3295,85626,22155,
+cmt-3,4,1,error,43,8,20,0,280418,9159,"the search made 20 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-3,8,2,error,13,12,16,0,150514,4481,"the search made 16 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-3,16,3,answered,24,16,23,172,227173,8864,
+cmt-3,18,4,answered,17,18,23,66,210683,11237,
+cmt-4,2,1,error,0,0,,0,,,The operation timed out.
+cmt-4,8,2,error,30,8,16,0,188908,12941,"the search made 16 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-4,10,3,error,15,12,16,0,199600,6967,"the search made 16 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-4,16,4,answered,33,11,22,139,262751,12758,
+cmt-4,18,5,error,0,0,,0,,,The operation timed out.
+cmt-5,10,1,error,0,0,,0,,,The operation timed out.
+cmt-6,2,1,answered,18,2,8,3173,35650,5071,
+cmt-6,12,2,answered,3,2,3,1680,11091,1018,
+cmt-6,16,3,answered,24,0,4,3310,30841,10039,
+cmt-6,20,4,blocked,0,0,,0,158720,7144,Forbidden access: the publisher of this problem does not allow searching for related content. The whole result has been 
+cmt-7,2,1,answered,10,7,9,4502,89915,8291,
+cmt-7,2,2,answered,5,2,4,4744,32650,5147,
+cmt-8,2,1,blocked,0,0,,0,189709,9783,Forbidden access: the publisher of this problem does not allow searching for related content. The whole result has been 
+cmt-8,2,2,blocked,0,0,,0,191637,10436,Forbidden access: the publisher of this problem does not allow searching for related content. The whole result has been 
+cmt-9,2,1,answered,48,3,13,137,173404,19897,
+cmt-9,4,2,answered,23,11,17,4117,147227,11099,
+cmt-9,10,3,answered,43,3,14,4109,122835,12187,
+cmt-10,2,1,blocked,0,0,,0,134782,8254,Forbidden access: the publisher of this problem does not allow searching for related content. The whole result has been 
+cmt-11,8,1,error,0,0,,0,,,The operation timed out.
+cmt-11,10,2,error,0,0,,0,,,The operation timed out.
+cmt-11,48,3,answered,11,5,8,5432,98322,17384,
+cmt-11,52,4,answered,12,2,5,4468,47570,16871,
+cmt-11,62,5,answered,4,3,4,3227,26298,3194,
+cmt-11,80,6,answered,0,0,0,2138,4833,977,
+cmt-12,2,1,error,0,0,,0,,,The operation timed out.
+cmt-12,4,2,error,29,8,14,0,177794,15544,"the search made 14 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-12,12,3,error,61,6,19,0,316818,17222,"the search made 19 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-13,2,1,error,0,0,,0,,,The operation timed out.
+cmt-13,2,2,answered,34,9,18,7153,327523,18508,
+cmt-13,4,3,answered,29,12,19,223,362857,15673,
+cmt-13,12,4,answered,18,16,20,104,314056,16323,
+cmt-13,18,5,answered,30,13,21,79,260370,10178,
+cmt-14,2,1,error,57,2,21,0,142994,14513,"the search made 21 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-14,34,2,error,45,7,22,0,139913,10991,"the search made 22 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-15,12,1,answered,21,14,20,101,254636,8959,
+cmt-16,2,1,answered,12,1,6,2550,29030,7979,
+cmt-16,10,2,answered,10,0,2,2544,7159,3409,
+cmt-16,18,3,answered,0,0,0,1380,2454,1233,
+cmt-16,18,4,answered,0,0,0,1418,2939,756,
+cmt-16,20,5,answered,10,0,2,2777,33211,21107,
+cmt-17,2,1,answered,41,11,21,109,104619,6601,
+cmt-17,4,2,answered,41,14,20,145,62025,6405,
+cmt-17,10,3,error,72,3,14,0,139857,10292,"the search made 14 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-17,16,4,answered,48,20,29,126,163512,13094,
+cmt-17,28,5,answered,29,18,23,93,51137,5290,
+cmt-17,32,6,answered,55,14,24,84,81029,9216,
+cmt-18,12,1,answered,19,5,10,4203,135326,24739,
+cmt-18,24,2,error,0,0,,0,,,The operation timed out.
+cmt-18,34,3,answered,29,12,19,90,301283,12553,
+cmt-19,2,1,error,0,0,,0,,,The operation timed out.
+cmt-19,2,2,answered,20,16,23,150,192994,16013,
+cmt-19,4,3,answered,12,15,19,80,168913,8670,
+cmt-19,8,4,answered,4,20,22,136,177321,13546,
+cmt-20,9,1,answered,14,3,6,6862,60496,10170,
+cmt-23,14,1,answered,72,3,21,87,143110,16683,
+cmt-23,14,2,error,50,1,11,0,143130,22886,"the search made 11 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-24,2,1,error,43,0,11,0,107768,5765,"the search made 11 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-24,2,2,error,42,6,18,0,259521,17267,"the search made 18 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-24,4,3,answered,45,10,22,54,205878,9159,
+cmt-24,4,4,answered,35,10,19,47,137750,7306,
+cmt-24,8,5,answered,48,8,22,66,249981,11383,
+cmt-26,2,1,answered,17,18,22,146,208591,10154,
+cmt-26,4,2,answered,20,13,18,149,164298,9577,
+cmt-26,6,3,error,21,17,22,0,199347,17754,"the search made 22 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-27,14,1,error,0,0,,0,,,The operation timed out.
+cmt-27,28,2,error,0,0,,0,,,The operation timed out.
+cmt-28,2,1,error,32,7,17,0,171164,8585,"the search made 17 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-28,2,2,error,22,13,18,0,242670,3916,"the search made 18 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-28,6,3,answered,21,14,20,148,308192,10731,
+cmt-28,6,4,answered,30,6,14,260,249078,15233,
+cmt-28,8,5,answered,12,21,25,101,270646,9360,
+cmt-29,2,1,error,0,0,,0,,,The operation timed out.
+cmt-29,2,2,answered,7,2,4,2792,18050,2413,
+cmt-29,4,3,answered,13,8,12,6594,102045,13995,
+cmt-29,4,4,error,34,11,19,0,388368,22240,"the search made 19 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-29,6,5,error,0,0,,0,,,The operation timed out.
+cmt-29,6,6,answered,22,10,16,3903,235527,26065,
+cmt-29,12,7,answered,34,9,16,6413,332498,20006,
+cmt-29,14,8,over_cap,0,0,,0,,,the 5 searches for this attempt are spent. Searching costs time you need for the problem itself - work with what you alr
+cmt-30,2,1,answered,9,9,12,2515,63795,3314,
+cmt-30,4,2,answered,28,18,25,141,221690,22212,
+cmt-30,6,3,answered,16,21,25,181,206161,7031,
+cmt-30,16,4,answered,34,16,23,97,209062,12263,
+cmt-32,2,1,error,55,5,21,0,153261,10270,"the search made 21 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-32,4,2,answered,58,5,19,132,144825,7444,
+cmt-32,6,3,answered,2,6,7,2442,18686,1786,
+cmt-32,6,4,error,52,6,17,0,88966,4593,"the search made 17 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-32,8,5,answered,34,14,21,61,67259,7859,
+cmt-32,14,6,over_cap,0,0,,0,,,the 5 searches for this attempt are spent. Searching costs time you need for the problem itself - work with what you alr
+cmt-33,2,1,error,24,14,22,0,208803,10119,"the search made 22 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-33,4,2,answered,12,17,21,95,144801,3618,
+cmt-33,6,3,answered,8,18,21,104,163379,5136,
+cmt-33,8,4,answered,5,21,23,71,130106,4834,
+cmt-33,12,5,answered,11,22,25,99,218366,7013,
+cmt-34,2,1,answered,26,1,10,2848,78780,8834,
+cmt-34,4,2,answered,23,1,9,3724,76647,6648,
+cmt-34,8,3,answered,9,4,6,5634,43472,7713,
+cmt-34,8,4,answered,8,0,2,2900,14467,1778,
+cmt-34,10,5,error,40,6,15,0,258854,6656,"the search made 15 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-35,2,1,error,29,10,21,0,169992,9412,"the search made 21 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-35,4,2,answered,19,9,15,2356,174280,19233,
+cmt-35,6,3,answered,6,18,21,4892,233648,18673,
+cmt-35,6,4,answered,16,13,17,84,65612,2725,
+cmt-35,8,5,answered,20,13,18,146,78614,5342,
+cmt-35,8,6,over_cap,0,0,,0,,,the 5 searches for this attempt are spent. Searching costs time you need for the problem itself - work with what you alr
+cmt-35,32,7,over_cap,0,0,,0,,,the 5 searches for this attempt are spent. Searching costs time you need for the problem itself - work with what you alr
+cmt-36,4,1,answered,10,2,5,6486,41898,12100,
+cmt-36,8,2,answered,8,18,20,228,322087,13042,
+cmt-36,12,3,answered,8,10,12,5189,171710,7488,
+cmt-36,16,4,answered,35,0,7,3861,118755,4374,
+cmt-36,42,5,blocked,0,0,,0,194991,3592,Forbidden access: the publisher of this problem does not allow searching for related content. The whole result has been 
+cmt-37,2,1,answered,76,3,22,87,378776,25588,
+cmt-37,26,2,answered,49,8,22,65,307912,15926,
+cmt-37,40,3,answered,42,13,23,70,330208,20584,
+cmt-37,52,4,answered,39,9,20,105,303836,20356,
+cmt-37,54,5,answered,13,14,18,149,176946,8188,
+cmt-38,2,1,error,84,0,21,0,128958,9186,"the search made 21 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-38,4,2,answered,37,7,15,62,115388,4420,
+cmt-38,8,3,answered,34,7,14,48,132816,4062,
+cmt-38,14,4,answered,32,13,21,52,110450,5304,
+cmt-38,16,5,error,32,9,16,0,128732,5529,"the search made 16 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-40,10,1,answered,29,4,10,3772,159706,16594,
+cmt-40,10,2,answered,9,0,2,2829,20337,5846,
+cmt-40,14,3,answered,44,0,8,3691,69443,5872,
+cmt-40,14,4,answered,4,0,1,3668,15620,5474,
+cmt-41,2,1,error,0,0,,0,,,The operation timed out.
+cmt-41,4,2,answered,13,3,6,6750,72328,23375,
+cmt-41,6,3,answered,3,10,11,5481,97638,7093,
+cmt-41,8,4,answered,51,6,15,175,205222,13278,
+cmt-41,18,5,error,40,6,13,0,203588,6332,"the search made 13 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-41,20,6,answered,46,2,12,4888,137647,8477,
+cmt-42,2,1,error,0,0,,0,,,The operation timed out.
+cmt-42,10,2,blocked,0,0,,0,226177,8643,Forbidden access: the publisher of this problem does not allow searching for related content. The whole result has been 
+cmt-43,2,1,answered,41,7,16,101,305887,19473,
+cmt-43,18,2,answered,52,4,14,81,308937,19921,
+cmt-43,34,3,answered,52,4,20,110,278580,17709,
+cmt-44,2,1,error,44,1,11,0,99243,6529,"the search made 11 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-44,4,2,error,51,4,21,0,112478,4542,"the search made 21 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-44,6,3,error,48,3,13,0,94907,7699,"the search made 13 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-44,34,4,error,60,7,18,0,148588,7464,"the search made 18 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-44,40,5,answered,4,2,4,2989,7175,1489,
+cmt-44,44,6,over_cap,0,0,,0,,,the 5 searches for this attempt are spent. Searching costs time you need for the problem itself - work with what you alr
+cmt-45,2,1,error,39,4,14,0,133893,4264,"the search made 14 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-45,4,2,error,69,4,22,0,138792,7487,"the search made 22 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-45,6,3,answered,45,6,15,123,245896,10645,
+cmt-45,8,4,error,33,11,22,0,155336,3523,"the search made 22 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-46,2,1,error,0,0,,0,,,The operation timed out.
+cmt-46,2,2,error,0,0,,0,,,The operation timed out.
+cmt-46,4,3,error,21,15,20,0,379883,19122,"the search made 20 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-46,20,4,error,13,16,19,0,307851,23442,"the search made 19 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-46,22,5,answered,14,15,20,149,125932,11430,
+cmt-46,32,6,answered,21,19,25,195,199761,23201,
+cmt-47,24,1,error,0,0,,0,,,The operation timed out.
+cmt-49,2,1,error,48,3,13,0,113046,4100,"the search made 13 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-49,4,2,error,44,5,14,0,125720,4956,"the search made 14 moves and came back with nothing to say; the queries it tried are listed, so try asking for something"
+cmt-49,6,3,answered,36,4,14,146,181456,5880,
+cmt-49,6,4,answered,27,14,23,122,185712,9555,
+cmt-49,8,5,answered,32,14,22,67,193177,7923,
+cmt-49,44,6,over_cap,0,0,,0,,,the 5 searches for this attempt are spent. Searching costs time you need for the problem itself - work with what you alr
+cmt-49,46,7,over_cap,0,0,,0,,,the 5 searches for this attempt are spent. Searching costs time you need for the problem itself - work with what you alr

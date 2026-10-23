@@ -12,7 +12,7 @@ import { all } from "../H2H/db.ts";
 import { apply, dump, inspect, type Declare } from "../declare/index.ts";
 import { install } from "../install/index.ts";
 import type { Servers } from "../mcp/client.ts";
-import { openPlace } from "../place/index.ts";
+import { HOPS_HANDLE, type Pong } from "../place/index.ts";
 import type { Route } from "./spec.ts";
 
 const DECL = "declare";
@@ -264,20 +264,21 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
       returns: { place: "wsl", alive: true, ms: 812 },
       handler: async (a) => {
         const place = String(a.place);
-        const row = all(store.ro, `select runtime, forward from workplace where place = ?`, [place])[0] as
-          | { runtime: string | null; forward: number }
+        const row = all(store.ro, `select identity, forward from workplace where place = ?`, [place])[0] as
+          | { identity: string | null; forward: number }
           | undefined;
         // 不转发的地方压根没有连接这回事 —— 它只是「这一站在哪儿」的一个名字。
         // 不说清楚的话这儿会回一个 alive:false，看着像坏了。
         if (row && !Number(row.forward) && place !== "local") {
           return { place, alive: true, ms: 0, why: "this place does not forward, so there is no connection to probe" };
         }
+        // **探活跟转发是同一条句柄的两个动作**（`op`）。分两条的话，写自定义转发的
+        // 人得实现两个契约，而这两件本来就是同一件事的两面：够得着才转得过去。
+        const identity = String(row?.identity ?? "").trim() || HOPS_HANDLE;
         const t0 = Date.now();
         try {
-          const p = await openPlace(place, row?.runtime ?? undefined);
-          const alive = await p.alive();
-          p.close();
-          return { place, alive, ms: Date.now() - t0 };
+          const pong = (await reg.get(identity).call({ place, op: "ping" })) as Pong;
+          return { place, alive: Boolean(pong?.alive), ms: Date.now() - t0, ...(pong?.why ? { why: pong.why } : {}) };
         } catch (e) {
           return { place, alive: false, ms: Date.now() - t0, why: e instanceof Error ? e.message : String(e) };
         }

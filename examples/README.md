@@ -103,7 +103,8 @@ curl -s "$BASE/help?format=json"  # 机器读的
 | [`tool/`](./tool/) | 工具：同一个，两种写法 |
 | [`meet-join/`](./meet-join/) | 一个工具长出新句柄 |
 | [`meet-book/`](./meet-book/) | 真的开一个谷歌会议 |
-| [`benchmark/cmt/`](./benchmark/cmt/) | 跑一遍 CMT-Benchmark：`/bench` 整批发、G 判卷、判 0 换路重试 |
+| [`benchmark/cmt/`](./benchmark/cmt/) | 跑一遍 CMT-Benchmark：`/bench` 整批发、G 判卷、判 0 换路重试。基线 **44 / 50** |
+| [`benchmark/deepswe/`](./benchmark/deepswe/) | 跑一遍 DeepSWE：一道题一个容器，位置走自己那条句柄，官方判据判卷 |
 | [`rule/`](./rule/) | 规则（挂在时刻上就是钩子） |
 | [`skill/`](./skill/) | skill |
 | [`mode/`](./mode/) | 任务机制 |

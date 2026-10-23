@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /usr/bin/python3 -B /mnt/aliyunsb/pingxingwang/tgengin-bench/runtime/bin/project_docker.py "$@"

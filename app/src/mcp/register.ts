@@ -133,8 +133,8 @@ export async function pull(
     ]);
     run(
       db,
-      `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable)
-       values (?, ?, ?, ?, ?, ?, ?, ?, null, ?)
+      `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable, gives)
+       values (?, ?, ?, ?, ?, ?, ?, ?, null, ?, null)
        on conflict(name) do update set identity = excluded.identity, does = excluded.does,
          params = excluded.params, output = excluded.output, prompt = excluded.prompt,
          concurrent = excluded.concurrent, system = excluded.system, usable = excluded.usable`,

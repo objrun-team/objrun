@@ -51,44 +51,69 @@ const HALF = "The answer is 4 because ";
 /** 说完一句整话。 */
 const WHOLE = "Two plus two is four.";
 
-const reply = (text: string, why: string) =>
+/** 认得出是哪一道题：一道说了半句，另一道一个字都没说。 */
+const CUT = "two plus two";
+const MUTE = "hexagon";
+
+/** 撞上限时它想了一堆，但可见文本一个字都没有。 */
+const THINKING = "A hexagon has six corners, let me double check by counting the vertices ...";
+
+const reply = (text: string, why: string, thinking = "") =>
   new Response(
     JSON.stringify({
       id: "fake-1",
       object: "chat.completion",
       created: 0,
       model: "deepseek-v4-flash",
-      choices: [{ index: 0, message: { role: "assistant", content: text }, finish_reason: why }],
+      choices: [
+        {
+          index: 0,
+          message: { role: "assistant", content: text, ...(thinking ? { reasoning_content: thinking } : {}) },
+          finish_reason: why,
+        },
+      ],
       usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
     }),
     { headers: { "content-type": "application/json" } },
   );
 
-/** 这个例子只有两站：第一站走完去第二站，第二站走完收工。 */
-let hops = 0;
+/** 每道题都是两站：第一站走完去第二站，第二站走完收工。**按题数，不按总次数** —— 
+ * 按总次数的话第二道题一进来就直接收工，走不到重放那一步。 */
+const hops: Record<string, number> = {};
 
 const fake = Bun.serve({
   port: 0,
   async fetch(req) {
     if (new URL(req.url).pathname === "/infer") {
-      hops++;
-      return new Response(JSON.stringify(hops === 1 ? { to: "again" } : null), {
+      const who = JSON.stringify(await req.json()).includes("t-mute") ? "t-mute" : "t-cut";
+      hops[who] = (hops[who] ?? 0) + 1;
+      return new Response(JSON.stringify(hops[who] === 1 ? { to: "again" } : null), {
         headers: { "content-type": "application/json" },
       });
     }
 
     const body = (await req.json()) as Call;
     seen.push(body);
+    const tail = body.messages[body.messages.length - 1] as { role: string; reasoning_content?: string } | undefined;
+    /** 这一发是那道题的第一发么（刚 push 进去的这一条也算在内）。 */
+    const first = (mark: string) => seen.filter((c) => JSON.stringify(c.messages).includes(mark)).length === 1;
 
-    // **真网关那条规矩。** 谁让请求以助手消息结尾，谁就得带上思考。
-    if (body.messages[body.messages.length - 1]?.role === "assistant") {
-      return new Response(JSON.stringify({ error: { message: REFUSED, type: "invalid_request_error" } }), {
-        status: 400,
-        headers: { "content-type": "application/json" },
-      });
+    // **真网关那条规矩。** 谁让请求以助手消息结尾，谁就是在要求续写 —— 思考模式下
+    // 得把 `reasoning_content` 一起带回来，不带就 400。带了就接着往下说。
+    if (tail?.role === "assistant") {
+      if (!tail.reasoning_content) {
+        return new Response(JSON.stringify({ error: { message: REFUSED, type: "invalid_request_error" } }), {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return reply(WHOLE, "stop");
     }
-    // 第一发说半句就断，好让上面那条规矩被真正踩到一次。
-    return seen.length === 1 ? reply(HALF, "length") : reply(WHOLE, "stop");
+    // 第一发：一道题说了半句就断，另一道题**一个字可见文本都没有，光在想**。
+    if (JSON.stringify(body.messages).includes(MUTE)) {
+      return first(MUTE) ? reply("", "length", THINKING) : reply(WHOLE, "stop");
+    }
+    return first(CUT) ? reply(HALF, "length") : reply(WHOLE, "stop");
   },
 });
 
@@ -193,6 +218,67 @@ try {
     refused.length === 1,
     refused.length,
   );
+  step("7. it hit the limit while still thinking - the thinking is what gets carried back");
+  // **这一条焊的是「截断被当成断线」。** 撞上限时最常见的形态是一个字可见文本都
+  // 还没写出来。门槛要是「说过话没有」，这一轮就退化成把原题原样再问一遍 ——
+  // 那是断线的处理办法，而断线本来就有人管。实测重发出来的思维链**开头逐字等于
+  // 丢掉的那份**：同样的输入，它走同样的路，再撞同一堵墙。
+  await m.api("POST", "/tasks", {
+    id: "t-mute", mode: "talk", agent: "bot", place: "local", source: "user",
+    description: "how many corners has a hexagon", solveSeconds: 60,
+  });
+  const t2 = await until(
+    "t-mute to finish",
+    async () => {
+      const d = await m.api<{ state: string }>("GET", "/tasks/t-mute");
+      return d.state === "done" || d.state === "failed" ? d : null;
+    },
+    60_000,
+  );
+  ok("it finished", t2.state === "done", t2.state);
+
+  const carried = seen.filter(
+    (c) =>
+      JSON.stringify(c.messages).includes(MUTE) &&
+      (c.messages[c.messages.length - 1] as { role: string }).role === "assistant",
+  );
+  const tail2 = carried[0]?.messages.at(-1) as { content?: unknown; reasoning_content?: string } | undefined;
+  show("the tail of the continuation:", { content: tail2?.content, reasoning_content: tail2?.reasoning_content });
+  ok("a continuation went out even though it had said nothing", carried.length > 0, seen.length);
+  ok("and what it had been thinking went back with it", tail2?.reasoning_content === THINKING, tail2);
+  ok("no words were invented to fill the gap", !JSON.stringify(tail2?.content ?? "").includes("hexagon"), tail2?.content);
+
+  const asked = seen.filter((c) => JSON.stringify(c.messages).includes(MUTE));
+  show("how many messages each call to that task carried:", asked.map((c) => c.messages.length));
+  ok(
+    "the second call is not the first one sent again",
+    asked.length > 1 && asked[1].messages.length > asked[0].messages.length,
+    asked.map((c) => c.messages.length),
+  );
+
+  step("8. and the next station hears what it was thinking, not just what it said");
+  // 同一条规矩的另一半：厂商说带 `tools` 时历史轮次的 `reasoning_content` 都该回传。
+  // 库里 `thought` 一直存着，以前只是重放时不发 —— 于是下一站接手的是一份被抹掉了
+  // 推导过程的历史。
+  const fresh = seen.filter(
+    (c) =>
+      JSON.stringify(c.messages).includes(MUTE) &&
+      (c.messages[c.messages.length - 1] as { role: string }).role === "user" &&
+      c.messages.length > 3,
+  );
+  const before = fresh[0]?.messages.find((mm) => mm.role === "assistant") as
+    | { content?: unknown; reasoning_content?: string }
+    | undefined;
+  show("what the second station was handed about the first:", before);
+  ok("the next station really is a fresh question with history", fresh.length > 0, seen.length);
+  ok("and the earlier thinking came along", before?.reasoning_content === THINKING, before);
+  ok("together with what was actually said", JSON.stringify(before?.content ?? "").includes(WHOLE), before?.content);
+
+  const said2 = await m.api<{ rows: { body: string }[] }>("POST", "/query", {
+    sql: "select body from agent_bot_msg where instance = 't-mute#1' and role = 'assistant' order by seq",
+  });
+  show("what it ended up saying:", said2.rows);
+  ok("and it ended up answering, instead of handing back an empty row", said2.rows.some((r) => r.body.includes(WHOLE)), said2.rows);
 } finally {
   await fake.stop(true);
   m.stop();

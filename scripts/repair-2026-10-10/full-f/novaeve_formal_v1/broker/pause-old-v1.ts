@@ -1,0 +1,14 @@
+import {readFileSync} from 'node:fs';
+import {join,resolve} from 'node:path';
+import {atomicStateJson} from '../../shared/atomic-state.ts';
+const root=resolve(import.meta.dir,'../../../../..'),base=join(root,'docs/repair-2026-10-10/full-f-rerun');
+if(process.argv[2]!=='--pause')throw Error('use --pause');
+const c=JSON.parse(readFileSync(join(base,'control.json'),'utf8'));
+const response=await fetch(c.broker.endpoint+'/admin/pause',{method:'POST',headers:{authorization:'Bearer '+c.broker.accessToken},signal:AbortSignal.timeout(5000)});
+if(!response.ok)throw Error('old_pause_failed');
+const result=await response.json();
+const health:any=await(await fetch(c.broker.endpoint+'/health',{signal:AbortSignal.timeout(5000)})).json();
+if(!health.dispatchPaused||health.runId!==c.broker.runId)throw Error('old_pause_not_observed');
+const proof={protocol:'novaeve-old-broker-handoff-pause-v1',atUtc:new Date().toISOString(),runId:health.runId,endpoint:c.broker.endpoint,result,activeRequests:health.activeRequests,queuedRequests:health.queuedRequests,unclosedLanes:health.lanes.filter((x:any)=>!x.closed).length,canonicalOwnerPresent:!!health.canonicalOwner,unknownCostsRetained:health.lanes.reduce((n:number,x:any)=>n+x.unknownCount,0),modelCalls:0};
+atomicStateJson(join(base,'novaeve-formal-20261013/broker/old-broker-pause-'+Date.now()+'.json'),proof);
+console.log(JSON.stringify(proof));

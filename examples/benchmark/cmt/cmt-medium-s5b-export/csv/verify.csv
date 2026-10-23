@@ -1,0 +1,397 @@
+task,unit,order,asked_by,pass,why,checks_left,answer
+cmt-0,6,1,agent,1,,9,\boxed{\frac{U_1}{2}}
+cmt-0,8,2,submit,1,,,
+cmt-1,4,1,agent,0,equiv evaluated to false,9,\boxed{\langle c_\uparrow^\dagger(k)c_\uparrow(k)\rangle; \langle c_\downarrow^\dagger(k)c_\downarrow(k)\rangle; \langle c_\uparrow^\dagger(k)c_\downarrow(k)\rangle; \langle c_\downarrow^\dagger(k)c_\uparrow(k)\rangle}
+cmt-1,6,2,agent,0,equiv evaluated to false,8,\boxed{\frac{1}{N}\sum_k \langle c_\uparrow^\dagger(k)c_\uparrow(k)\rangle; \frac{1}{N}\sum_k \langle c_\downarrow^\dagger(k)c_\downarrow(k)\rangle; \frac{1}{N}\sum_k \langle c_\uparrow^\dagger(k)c_\downarrow(k)\rangle; \frac{1}{N}\sum_k \langle c_\downarrow^\dagger(k)c_\uparrow(k)\rangle}
+cmt-1,13,3,agent,0,equiv evaluated to false,9,\boxed{\langle c_\uparrow^\dagger(k)c_\uparrow(k)\rangle; \langle c_\uparrow^\dagger(k)c_\downarrow(k)\rangle; \langle c_\downarrow^\dagger(k)c_\uparrow(k)\rangle; \langle c_\downarrow^\dagger(k)c_\downarrow(k)\rangle}
+cmt-1,15,4,agent,0,equiv evaluated to false,8,\boxed{\langle c^\dagger_\uparrow(k)c_\uparrow(k)\rangle; \langle c^\dagger_\downarrow(k)c_\downarrow(k)\rangle; \langle c^\dagger_\uparrow(k)c_\downarrow(k)\rangle; \langle c^\dagger_\downarrow(k)c_\uparrow(k)\rangle}
+cmt-1,17,5,agent,0,equiv evaluated to false,7,\boxed{c_\uparrow^\dagger(k)c_\uparrow(k); c_\downarrow^\dagger(k)c_\downarrow(k); c_\uparrow^\dagger(k)c_\downarrow(k); c_\downarrow^\dagger(k)c_\uparrow(k)}
+cmt-1,19,6,agent,1,,6,\boxed{\langle c_\uparrow^\dagger(k)c_\uparrow(k)\rangle; \langle c_\downarrow^\dagger(k)c_\downarrow(k)\rangle}
+cmt-1,21,7,submit,1,,,
+cmt-2,10,1,agent,0,equiv evaluated to false,9,"\boxed{(2.42, 0.00); (1.21, 2.09); (-1.21, 2.09); (-2.42, 0.00); (-1.21, -2.09); (1.21, -2.09)}"
+cmt-2,16,2,agent,0,equiv evaluated to false,8,"\boxed{(0.00, 2.42); (2.09, 1.21); (2.09, -1.21); (0.00, -2.42); (-2.09, -1.21); (-2.09, 1.21)}"
+cmt-2,20,3,agent,0,equiv evaluated to false,7,"\boxed{(0.00, 4.19); (3.63, 2.09); (3.63, -2.09); (0.00, -4.19); (-3.63, -2.09); (-3.63, 2.09)}"
+cmt-2,26,4,agent,0,equiv evaluated to false,6,"\boxed{(3.63, 0.00); (1.81, 3.14); (-1.81, 3.14); (-3.63, 0.00); (-1.81, -3.14); (1.81, -3.14)}"
+cmt-2,26,5,agent,0,equiv evaluated to false,5,"\boxed{(0.00, 3.63); (3.14, 1.81); (3.14, -1.81); (0.00, -3.63); (-3.14, -1.81); (-3.14, 1.81)}"
+cmt-2,28,6,agent,0,equiv evaluated to false,4,"\boxed{(2.418399, 0.000000); (1.209200, 2.094395); (-1.209200, 2.094395); (-2.418399, 0.000000); (-1.209200, -2.094395); (1.209200, -2.094395)}"
+cmt-2,30,7,agent,0,equiv evaluated to false,3,"\boxed{(0.00, 2.09); (1.81, 1.05); (-1.81, 1.05); (0.00, -2.09); (-1.81, -1.05); (1.81, -1.05)}"
+cmt-2,30,8,agent,0,equiv evaluated to false,2,"\boxed{(2.09, 0.00); (1.05, 1.81); (-1.05, 1.81); (-2.09, 0.00); (-1.05, -1.81); (1.05, -1.81)}"
+cmt-2,32,9,agent,0,equiv evaluated to false,1,"\boxed{(0.00, 1.40); (1.21, 0.70); (-1.21, 0.70); (0.00, -1.40); (-1.21, -0.70); (1.21, -0.70)}"
+cmt-2,34,10,agent,0,equiv evaluated to false,0,"\boxed{(2.09, 1.21); (-2.09, 1.21); (0.00, -2.42); (0.00, 2.42); (2.09, -1.21); (-2.09, -1.21)}"
+cmt-2,40,11,agent,0,equiv evaluated to false,9,"\boxed{(0.00, 1.21); (1.05, 0.60); (-1.05, 0.60); (0.00, -1.21); (-1.05, -0.60); (1.05, -0.60)}"
+cmt-2,40,12,agent,0,equiv evaluated to false,8,"\boxed{(1.40, 0.00); (0.70, 1.21); (-0.70, 1.21); (-1.40, 0.00); (-0.70, -1.21); (0.70, -1.21)}"
+cmt-2,42,13,agent,0,equiv evaluated to false,7,"\boxed{(0.00000000, 2.41839915); (2.09439510, 1.20919958); (2.09439510, -1.20919958); (0.00000000, -2.41839915); (-2.09439510, -1.20919958); (-2.09439510, 1.20919958)}"
+cmt-2,42,14,agent,0,equiv evaluated to false,6,"\boxed{(1.21, 0.00); (0.60, 1.05); (-0.60, 1.05); (-1.21, 0.00); (-0.60, -1.05); (0.60, -1.05)}"
+cmt-2,44,15,agent,0,equiv evaluated to false,5,"\boxed{(0.33, 0.33); (0.67, -0.33); (-0.33, 0.67); (-0.33, -0.33); (-0.67, 0.33); (0.33, -0.67)}"
+cmt-2,44,16,agent,0,equiv evaluated to false,4,"\boxed{(0.33, 0.00); (0.33, 0.33); (0.00, 0.33); (-0.33, 0.00); (0.00, -0.33); (0.33, -0.33)}"
+cmt-2,46,17,agent,0,equiv evaluated to false,3,"\boxed{(0.00, 2.42); (2.10, 1.21); (2.10, -1.21); (0.00, -2.42); (-2.10, -1.21); (-2.10, 1.21)}"
+cmt-2,46,18,agent,0,equiv evaluated to false,2,"\boxed{(2.42, 0.00); (1.21, 2.10); (-1.21, 2.10); (-2.42, 0.00); (-1.21, -2.10); (1.21, -2.10)}"
+cmt-2,50,19,agent,0,equiv evaluated to false,1,"\boxed{(0.38, 0.00); (0.19, 0.33); (-0.19, 0.33); (-0.38, 0.00); (-0.19, -0.33); (0.19, -0.33)}"
+cmt-2,50,20,agent,0,equiv evaluated to false,0,"\boxed{(0.00, 0.38); (0.33, 0.19); (0.33, -0.19); (0.00, -0.38); (-0.33, -0.19); (-0.33, 0.19)}"
+cmt-2,55,21,submit,0,equiv evaluated to false,,
+cmt-3,6,1,agent,0,equiv evaluated to false,9,\boxed{\mathcal{O}(N_q^2)}
+cmt-3,10,2,agent,0,equiv evaluated to false,8,\boxed{4N_q^2}
+cmt-3,12,3,agent,0,equiv evaluated to false,7,\boxed{N_q^2}
+cmt-3,14,4,agent,0,equiv evaluated to false,6,\boxed{2N_q}
+cmt-3,20,5,agent,0,equiv evaluated to false,5,\boxed{N_q}
+cmt-3,20,6,agent,0,equiv evaluated to false,4,\boxed{4N_q}
+cmt-3,20,7,agent,0,equiv evaluated to false,3,\boxed{8N_q^2}
+cmt-3,20,8,agent,1,,2,\boxed{16N_q^2}
+cmt-3,20,9,agent,0,equiv evaluated to false,1,\boxed{2N_q^2}
+cmt-3,22,10,submit,1,,,
+cmt-4,6,1,agent,0,equiv evaluated to false,9,\boxed{d}
+cmt-4,14,2,agent,0,equiv evaluated to false,8,\boxed{b}
+cmt-4,24,3,agent,1,,7,\boxed{c}
+cmt-4,26,4,submit,1,,,
+cmt-5,4,1,submit,0,equiv evaluated to false,,
+cmt-5,16,2,submit,1,,,
+cmt-5,16,3,submit,1,,,
+cmt-6,4,1,agent,0,equiv evaluated to false,9,\boxed{a}
+cmt-6,6,2,agent,0,equiv evaluated to false,8,\boxed{a;d;e}
+cmt-6,8,3,agent,0,equiv evaluated to false,7,\boxed{a;b}
+cmt-6,10,4,agent,0,equiv evaluated to false,6,\boxed{a;b;d;e}
+cmt-6,14,5,agent,0,equiv evaluated to false,5,\boxed{a;b;c;d;e}
+cmt-6,14,6,agent,0,equiv evaluated to false,4,\boxed{a;c}
+cmt-6,14,7,agent,0,equiv evaluated to false,3,\boxed{a;b;c}
+cmt-6,18,8,agent,0,equiv evaluated to false,2,\boxed{a;e}
+cmt-6,18,9,agent,0,equiv evaluated to false,1,\boxed{a;d}
+cmt-6,18,10,agent,0,equiv evaluated to false,0,\boxed{d;e}
+cmt-6,26,11,agent,0,equiv evaluated to false,9,\boxed{b}
+cmt-6,26,12,agent,0,equiv evaluated to false,8,\boxed{a;b;e}
+cmt-6,26,13,agent,1,,7,\boxed{a;b;d}
+cmt-6,26,14,agent,0,equiv evaluated to false,6,\boxed{a;c;d;e}
+cmt-6,26,15,agent,0,equiv evaluated to false,5,\boxed{b;d;e}
+cmt-6,28,16,submit,1,,,
+cmt-7,4,1,agent,1,,9,\boxed{d}
+cmt-7,6,2,submit,1,,,
+cmt-8,6,1,agent,0,equiv evaluated to false,9,c
+cmt-8,8,2,agent,0,equiv evaluated to false,8,b
+cmt-8,8,3,agent,0,equiv evaluated to false,7,e
+cmt-8,10,4,agent,0,equiv evaluated to false,6,d
+cmt-8,10,5,agent,0,equiv evaluated to false,5,a
+cmt-8,10,6,agent,0,equiv evaluated to false,4,i
+cmt-8,10,7,agent,0,equiv evaluated to false,3,c;i
+cmt-8,12,8,agent,0,equiv evaluated to false,2,c;f;i
+cmt-8,12,9,agent,0,equiv evaluated to false,1,f;i
+cmt-8,14,10,agent,0,equiv evaluated to false,0,e;i
+cmt-8,16,11,submit,1,,,
+cmt-8,16,12,submit,1,,,
+cmt-9,6,1,agent,0,equiv evaluated to false,9,$\boxed{e}$
+cmt-9,8,2,agent,0,equiv evaluated to false,8,$\boxed{b;c}$
+cmt-9,12,3,agent,1,,7,$\boxed{b;e}$
+cmt-9,12,4,agent,0,equiv evaluated to false,6,$\boxed{d}$
+cmt-9,12,5,agent,0,equiv evaluated to false,5,$\boxed{a;c;d}$
+cmt-9,14,6,submit,1,,,
+cmt-10,6,1,agent,1,,9,\boxed{g}
+cmt-10,8,2,submit,1,,,
+cmt-11,46,1,agent,0,equiv evaluated to false,9,"\boxed{d(N)=2^{N/2},\quad c=\frac{1}{2}}"
+cmt-11,48,2,agent,0,equiv evaluated to false,8,"\boxed{2^{N/2},\ c=1}"
+cmt-11,50,3,agent,0,equiv evaluated to false,7,"\boxed{2^{N/2},\ c=\frac{1}{2}}"
+cmt-11,50,4,agent,0,equiv evaluated to false,6,"\boxed{2^{N/2},\quad c=\frac{1}{2}}"
+cmt-11,50,5,agent,0,equiv evaluated to false,5,"\boxed{2^{N/2},\ c=1/2}"
+cmt-11,54,6,agent,0,equiv evaluated to false,4,"\boxed{2^{\frac{N}{2}},\ c=\frac{1}{2}}"
+cmt-11,54,7,agent,0,equiv evaluated to false,3,"\boxed{2^{N/2},\ \frac{1}{2}}"
+cmt-11,58,8,agent,0,equiv evaluated to false,2,"\boxed{2^{N/2},\ 1}"
+cmt-11,58,9,agent,0,equiv evaluated to false,1,"\boxed{2^{N/2+1},\ \frac{1}{2}}"
+cmt-11,60,10,agent,0,equiv evaluated to false,0,\boxed{2^{N/2}}
+cmt-11,64,11,submit,0,equiv evaluated to false,,
+cmt-11,66,12,agent,0,equiv evaluated to false,9,"\boxed{2^{N/2},\ c=\frac{1}{2}}"
+cmt-11,66,13,agent,0,equiv evaluated to false,8,"\boxed{2^{N/2-1},\ c=\frac{1}{2}}"
+cmt-11,68,14,agent,0,equiv evaluated to false,7,\boxed{2^{N/2}\ \text{and}\ c=\frac{1}{2}}
+cmt-11,68,15,agent,0,equiv evaluated to false,6,"\boxed{2^{N/2+1},\ c=1}"
+cmt-11,68,16,agent,0,equiv evaluated to false,5,\boxed{2^{N/2}\quad c=\frac{1}{2}}
+cmt-11,70,17,agent,0,equiv evaluated to false,4,\boxed{2^{N/2}}\ \boxed{c=\frac{1}{2}}
+cmt-11,70,18,agent,0,equiv evaluated to false,3,\boxed{2^{cN}}
+cmt-11,72,19,agent,0,equiv evaluated to false,2,"\boxed{c=\frac{1}{2},\ 2^{N/2}}"
+cmt-11,72,20,agent,0,equiv evaluated to false,1,"\boxed{2^{N},\ c=\frac{1}{2}}"
+cmt-11,74,21,agent,0,equiv evaluated to false,0,"\boxed{2^{N/2},c=\frac{1}{2}}"
+cmt-11,78,22,agent,0,equiv evaluated to false,9,\boxed{c=\frac{1}{2}}
+cmt-11,78,23,agent,0,equiv evaluated to false,8,\boxed{2^{N/2};\ c=\frac{1}{2}}
+cmt-11,78,24,agent,0,equiv evaluated to false,7,"\boxed{2^{N/2},\ c = \frac{1}{2}}"
+cmt-11,82,25,agent,0,equiv evaluated to false,6,\boxed{\text{Ground-state degeneracy (open chain)}=2^{N/2}\qquad\qquad c=\tfrac{1}{2}}
+cmt-11,82,26,agent,0,equiv evaluated to false,5,"\boxed{\text{Degeneracy}=2^{N/2},\ c=\frac{1}{2}}"
+cmt-11,84,27,agent,0,equiv evaluated to false,4,"\boxed{2^{N/2},\ c=\tfrac{1}{2}}"
+cmt-11,84,28,agent,0,equiv evaluated to false,3,"\boxed{(2^{N/2},\ \frac{1}{2})}"
+cmt-11,84,29,agent,0,equiv evaluated to false,2,\boxed{2^{N/2}\ \text{and}\ c=1/2}
+cmt-11,86,30,agent,0,equiv evaluated to false,1,"\boxed{2^{N/2+1},\ c=\frac{1}{2}}"
+cmt-11,86,31,agent,0,equiv evaluated to false,0,"\boxed{2^{N/2},\ c=\frac{1}{4}}"
+cmt-11,90,32,agent,0,equiv evaluated to false,9,"\boxed{2^{(N/2)},\ c=\frac{1}{2}}"
+cmt-11,90,33,agent,0,equiv evaluated to false,8,"\boxed{2^{N/2},\ 1/2}"
+cmt-11,90,34,agent,0,equiv evaluated to false,7,"\boxed{2^{N/2-1},\ c=1}"
+cmt-11,92,35,agent,0,equiv evaluated to false,6,"\boxed{(\sqrt{2})^{N},\ c=\frac{1}{2}}"
+cmt-11,92,36,agent,0,equiv evaluated to false,5,"\boxed{2^{0.5N},\ c=\frac{1}{2}}"
+cmt-11,92,37,agent,0,equiv evaluated to false,4,"\boxed{4,\ c=\frac{1}{2}}"
+cmt-11,94,38,agent,0,equiv evaluated to false,3,"\boxed{2^{N\cdot\frac{1}{2}},\ c=\frac{1}{2}}"
+cmt-11,94,39,agent,0,equiv evaluated to false,2,"\boxed{2^{N-1},\ c=\frac{1}{2}}"
+cmt-11,94,40,agent,0,equiv evaluated to false,1,"\boxed{2^{N/2},\quad c=1/2}"
+cmt-11,96,41,agent,0,equiv evaluated to false,0,"\boxed{2^{N/2},1/2}"
+cmt-11,103,42,submit,0,equiv evaluated to false,,
+cmt-12,20,1,agent,1,,9,\boxed{c}
+cmt-12,22,2,submit,1,,,
+cmt-13,8,1,agent,0,equiv evaluated to false,9,\boxed{d}
+cmt-13,10,2,agent,0,equiv evaluated to false,8,\boxed{c}
+cmt-13,14,3,agent,0,equiv evaluated to false,7,\boxed{a}
+cmt-13,16,4,agent,0,equiv evaluated to false,6,\boxed{a;c}
+cmt-13,20,5,agent,0,equiv evaluated to false,5,\boxed{e}
+cmt-13,22,6,agent,0,equiv evaluated to false,4,\boxed{b}
+cmt-13,24,7,agent,1,,3,\boxed{d;e}
+cmt-13,26,8,submit,1,,,
+cmt-14,46,1,agent,0,equiv evaluated to false,9,\boxed{b;c;d;e}
+cmt-14,48,2,agent,0,equiv evaluated to false,8,\boxed{b;c;d}
+cmt-14,50,3,agent,0,equiv evaluated to false,7,\boxed{b;c}
+cmt-14,54,4,agent,0,equiv evaluated to false,6,\boxed{b}
+cmt-14,56,5,agent,0,equiv evaluated to false,5,\boxed{b;d}
+cmt-14,58,6,agent,1,,4,\boxed{b;e}
+cmt-14,60,7,submit,1,,,
+cmt-15,16,1,agent,1,,9,\boxed{a;d}
+cmt-15,18,2,submit,1,,,
+cmt-16,4,1,agent,0,equiv evaluated to false,9,$\boxed{3}$
+cmt-16,12,2,agent,0,equiv evaluated to false,8,$\boxed{5}$
+cmt-16,16,3,agent,0,equiv evaluated to false,7,$\boxed{6}$
+cmt-16,22,4,agent,0,equiv evaluated to false,6,$\boxed{9}$
+cmt-16,24,5,agent,0,equiv evaluated to false,5,$\boxed{12}$
+cmt-16,26,6,agent,0,equiv evaluated to false,4,$\boxed{8}$
+cmt-16,28,7,agent,0,equiv evaluated to false,3,$\boxed{4}$
+cmt-16,30,8,agent,1,,2,$\boxed{7}$
+cmt-16,32,9,submit,1,,,
+cmt-17,8,1,agent,0,equiv evaluated to false,9,"\boxed{f_{i,j,\sigma}+g_i = -t\left(p^{\dagger}_{i\sigma}p_{j\sigma}+p^{\dagger}_{j\sigma}p_{i\sigma}\right) - U\left(m_{i\uparrow}-\frac{1}{2}\right)\left(m_{i\downarrow}-\frac{1}{2}\right) - \mu\left(m_{i\uparrow}-m_{i\downarrow}\right)}"
+cmt-17,12,2,agent,0,equiv evaluated to false,8,"\boxed{f_{i,j,\sigma}+g_i = -t\left(p^{\dagger}_{i\sigma}p_{j\sigma}+p^{\dagger}_{j\sigma}p_{i\sigma}\right) - U\left(m_{i\uparrow}-\frac{1}{2}\right)\left(m_{i\downarrow}-\frac{1}{2}\right) + \mu\left(m_{i\uparrow}-m_{i\downarrow}\right)}"
+cmt-17,12,3,agent,0,equiv evaluated to false,7,"\boxed{f_{i,j,\sigma}+g_i = -t\left(p^{\dagger}_{i\sigma}p_{j\sigma}+p^{\dagger}_{j\sigma}p_{i\sigma}\right) + U\left(m_{i\uparrow}-\frac{1}{2}\right)\left(m_{i\downarrow}-\frac{1}{2}\right) - \mu\left(m_{i\uparrow}-m_{i\downarrow}\right)}"
+cmt-17,12,4,agent,0,equiv evaluated to false,6,"\boxed{f_{i,j,\sigma}+g_i = -t\left(p^{\dagger}_{i\sigma}p_{j\sigma}+p^{\dagger}_{j\sigma}p_{i\sigma}\right) + U\left(m_{i\uparrow}-\frac{1}{2}\right)\left(m_{i\downarrow}-\frac{1}{2}\right) + \mu\left(m_{i\uparrow}-m_{i\downarrow}\right)}"
+cmt-17,12,5,agent,0,equiv evaluated to false,5,"\boxed{f_{i,j,\sigma}+g_i = -t\left(p^{\dagger}_{i\sigma}p_{j\sigma}+p^{\dagger}_{j\sigma}p_{i\sigma}\right) - U m_{i\uparrow}m_{i\downarrow} + U m_{i\uparrow} - \mu\left(m_{i\uparrow}-m_{i\downarrow}\right)}"
+cmt-17,14,6,agent,0,equiv evaluated to false,4,"\boxed{f_{i,j,\sigma}+g_i = -t\left(p^{\dagger}_{i\sigma}p_{j\sigma}+p^{\dagger}_{j\sigma}p_{i\sigma}\right) - U\left(m_{i\uparrow}-\frac{1}{2}\right)\left(m_{i\downarrow}-\frac{1}{2}\right) - \mu\left(m_{i\uparrow}-m_{i\downarrow}\right) - \mu}"
+cmt-17,14,7,agent,0,equiv evaluated to false,3,"\boxed{f_{i,j,\sigma}+g_i = -t\left(p^{\dagger}_{i\sigma}p_{j\sigma}+p^{\dagger}_{j\sigma}p_{i\sigma}\right) - U\left(m_{i\uparrow}-\frac{1}{2}\right)\left(m_{i\downarrow}-\frac{1}{2}\right) + \mu\left(m_{i\uparrow}-m_{i\downarrow}\right) + \mu}"
+cmt-17,14,8,agent,0,equiv evaluated to false,2,"\boxed{f_{i,j,\sigma}+g_i = +t\left(p^{\dagger}_{i\sigma}p_{j\sigma}+p^{\dagger}_{j\sigma}p_{i\sigma}\right) - U\left(m_{i\uparrow}-\frac{1}{2}\right)\left(m_{i\downarrow}-\frac{1}{2}\right) - \mu\left(m_{i\uparrow}-m_{i\downarrow}\right)}"
+cmt-17,18,9,agent,0,equiv evaluated to false,1,\boxed{-t\left(p^{\dagger}_{i\sigma}p_{j\sigma}+p^{\dagger}_{j\sigma}p_{i\sigma}\right) - U\left(m_{i\uparrow}-\frac{1}{2}\right)\left(m_{i\downarrow}-\frac{1}{2}\right) - \mu\left(m_{i\uparrow}-m_{i\downarrow}\right)}
+cmt-17,20,10,agent,0,equiv evaluated to false,0,\boxed{-t\left(p^{\dagger}_{i\sigma}p_{j\sigma}+p^{\dagger}_{j\sigma}p_{i\sigma}\right) - U m_{i\uparrow}m_{i\downarrow} + \frac{U}{2}m_{i\uparrow} + \frac{U}{2}m_{i\downarrow} - \mu m_{i\uparrow} + \mu m_{i\downarrow}}
+cmt-17,22,11,submit,0,equiv evaluated to false,,
+cmt-17,26,12,agent,0,equiv evaluated to false,9,\boxed{-t\left(p^{\dagger}_{i\sigma}p_{j\sigma}+p^{\dagger}_{j\sigma}p_{i\sigma}\right)+\frac{U}{2}\left(m_{i\uparrow}-m_{i\downarrow}\right)^{2}-\mu\left(m_{i\uparrow}-m_{i\downarrow}\right)-\mu}
+cmt-17,26,13,agent,0,equiv evaluated to false,8,\boxed{-t\left(p^{\dagger}_{i\sigma}p_{j\sigma}+p^{\dagger}_{j\sigma}p_{i\sigma}\right)-U m_{i\uparrow}m_{i\downarrow}+\frac{U}{2}m_{i\uparrow}+\frac{U}{2}m_{i\downarrow}-\mu m_{i\uparrow}+\mu m_{i\downarrow}-\mu}
+cmt-17,34,14,agent,0,equiv evaluated to false,7,\boxed{-t p^{\dagger}_{i\sigma}p_{j\sigma} - t p^{\dagger}_{j\sigma}p_{i\sigma} - U m_{i\uparrow}m_{i\downarrow} + \frac{U}{2}m_{i\uparrow} + \frac{U}{2}m_{i\downarrow} - \frac{U}{4} - \mu m_{i\uparrow} + \mu m_{i\downarrow}}
+cmt-17,34,15,agent,0,equiv evaluated to false,6,\boxed{-t p^{\dagger}_{i\sigma}p_{j\sigma} - t p^{\dagger}_{j\sigma}p_{i\sigma} - U m_{i\uparrow}m_{i\downarrow} + \frac{U}{2}m_{i\uparrow} + \frac{U}{2}m_{i\downarrow} - \frac{U}{4} - \mu m_{i\uparrow} + \mu m_{i\downarrow} - \mu}
+cmt-17,36,16,agent,0,equiv evaluated to false,5,"\boxed{-t\left(p^{\dagger}_{i,\sigma}p_{j,\sigma}+p^{\dagger}_{j,\sigma}p_{i,\sigma}\right) - U\left(m_{i,\uparrow}-\frac{1}{2}\right)\left(m_{i,\downarrow}-\frac{1}{2}\right) - \mu\left(m_{i,\uparrow}-m_{i,\downarrow}\right)}"
+cmt-17,36,17,agent,1,,4,"\boxed{-t\left(p^{\dagger}_{i,\sigma}p_{j,\sigma}+p^{\dagger}_{j,\sigma}p_{i,\sigma}\right) - U\left(m_{i,\uparrow}-\frac{1}{2}\right)\left(m_{i,\downarrow}-\frac{1}{2}\right) - \mu\left(m_{i,\uparrow}-m_{i,\downarrow}\right) - \mu}"
+cmt-17,38,18,submit,1,,,
+cmt-18,16,1,agent,0,equiv evaluated to false,9,\boxed{a;d}
+cmt-18,38,2,agent,0,equiv evaluated to false,8,\boxed{b;c}
+cmt-18,42,3,agent,1,,7,\boxed{a;b}
+cmt-18,44,4,submit,1,,,
+cmt-19,10,1,agent,1,,9,\boxed{a}
+cmt-19,12,2,submit,1,,,
+cmt-20,5,1,agent,0,equiv evaluated to false,9,\boxed{a;c;d}
+cmt-20,7,2,agent,0,equiv evaluated to false,8,\boxed{a}
+cmt-20,11,3,agent,0,equiv evaluated to false,7,\boxed{c;d}
+cmt-20,11,4,agent,1,,6,\boxed{a;c}
+cmt-20,13,5,submit,1,,,
+cmt-21,4,1,submit,1,,,
+cmt-21,4,2,submit,1,,,
+cmt-22,40,1,agent,1,,9,\boxed{4}
+cmt-22,42,2,submit,1,,,
+cmt-23,34,1,agent,1,,9,"\boxed{(0.200, 0.003, 0.017, 0.027, 0.038)}"
+cmt-23,36,2,submit,1,,,
+cmt-24,10,1,agent,1,,9,\boxed{c; d; e}
+cmt-24,12,2,submit,1,,,
+cmt-25,34,1,agent,1,,9,\boxed{b;c;e}
+cmt-25,36,2,submit,1,,,
+cmt-26,12,1,agent,0,equiv evaluated to false,9,\boxed{O_n = E_n}
+cmt-26,16,2,agent,1,,8,\boxed{O_n = E_n - E_{n-1}}
+cmt-26,18,3,submit,1,,,
+cmt-27,34,1,agent,0,equiv evaluated to false,9,$\boxed{c;d;g}$
+cmt-27,38,2,agent,1,,8,$\boxed{d;g}$
+cmt-27,40,3,submit,1,,,
+cmt-28,10,1,agent,1,,9,\boxed{a}
+cmt-28,12,2,submit,1,,,
+cmt-29,8,1,agent,0,equiv evaluated to false,9,\boxed{b;d;e}
+cmt-29,16,2,agent,0,equiv evaluated to false,8,\boxed{b;c;d;e}
+cmt-29,18,3,agent,0,equiv evaluated to false,7,\boxed{d;e}
+cmt-29,20,4,agent,1,,6,\boxed{b;c}
+cmt-29,22,5,submit,1,,,
+cmt-30,18,1,agent,1,,9,\boxed{a;b;c}
+cmt-30,20,2,submit,1,,,
+cmt-31,2,1,agent,0,equiv evaluated to false,9,\boxed{a;b;c}
+cmt-31,4,2,agent,1,,8,\boxed{a;c}
+cmt-31,6,3,submit,1,,,
+cmt-32,12,1,agent,0,equiv evaluated to false,9,\boxed{M^z = 1}
+cmt-32,16,2,agent,0,equiv evaluated to false,8,\boxed{M^z = 1 - \frac{q^2t}{4\mu}B}
+cmt-32,16,3,agent,0,equiv evaluated to false,7,\boxed{M^z = 1 - \frac{qt}{\mu}\sin\!\left(\frac{qB}{4}\right)}
+cmt-32,18,4,agent,1,,6,\boxed{M^z = \mu - \frac{q^2t}{4}B}
+cmt-32,18,5,agent,0,equiv evaluated to false,5,\boxed{M^z = \mu - qt\sin\!\left(\frac{qB}{4}\right)}
+cmt-32,20,6,submit,1,,,
+cmt-33,10,1,agent,0,equiv evaluated to false,9,\boxed{a;c}
+cmt-33,14,2,agent,0,equiv evaluated to false,8,\boxed{a;c;d}
+cmt-33,20,3,agent,0,equiv evaluated to false,7,\boxed{c;d}
+cmt-33,22,4,agent,1,,6,\boxed{c}
+cmt-33,24,5,submit,1,,,
+cmt-34,6,1,agent,0,equiv evaluated to false,9,\boxed{a;c;d}
+cmt-34,12,2,agent,0,equiv evaluated to false,8,\boxed{a;b;c;d}
+cmt-34,14,3,agent,1,,7,\boxed{a;c}
+cmt-34,16,4,submit,1,,,
+cmt-35,44,1,agent,1,,9,$\boxed{a;b}$
+cmt-35,46,2,submit,1,,,
+cmt-36,4,1,agent,0,equiv evaluated to false,9,$\boxed{c;d}$
+cmt-36,6,2,agent,0,equiv evaluated to false,8,$\boxed{b;a}$
+cmt-36,10,3,agent,0,equiv evaluated to false,7,$\boxed{b;c;d}$
+cmt-36,14,4,agent,0,equiv evaluated to false,6,$\boxed{a;b;c;d}$
+cmt-36,14,5,agent,0,equiv evaluated to false,5,$\boxed{b;a;c;d}$
+cmt-36,14,6,agent,0,equiv evaluated to false,4,$\boxed{a;b}$
+cmt-36,14,7,agent,0,equiv evaluated to false,3,$\boxed{c;b;d}$
+cmt-36,18,8,agent,0,equiv evaluated to false,2,b;c;d
+cmt-36,18,9,agent,0,equiv evaluated to false,1,$\boxed{f;g;h}$
+cmt-36,20,10,agent,0,equiv evaluated to false,0,$\boxed{b;d}$
+cmt-36,22,11,submit,0,equiv evaluated to false,,
+cmt-36,24,12,agent,0,equiv evaluated to false,9,\boxed{c;d}
+cmt-36,24,13,agent,0,equiv evaluated to false,8,c;d
+cmt-36,24,14,agent,0,equiv evaluated to false,7,$\boxed{a;c;d}$
+cmt-36,24,15,agent,0,equiv evaluated to false,6,$\boxed{c;d;h}$
+cmt-36,26,16,agent,0,equiv evaluated to false,5,$\boxed{c;a}$
+cmt-36,26,17,agent,0,equiv evaluated to false,4,$\boxed{b;c;a}$
+cmt-36,26,18,agent,0,equiv evaluated to false,3,$\boxed{f;h}$
+cmt-36,26,19,agent,0,equiv evaluated to false,2,$\boxed{g;c;d}$
+cmt-36,26,20,agent,0,equiv evaluated to false,1,$\boxed{h;c;d}$
+cmt-36,28,21,agent,0,equiv evaluated to false,0,$\boxed{f;g}$
+cmt-36,30,22,submit,0,equiv evaluated to false,,
+cmt-36,32,23,agent,0,equiv evaluated to false,9,$\boxed{c;d;g}$
+cmt-36,32,24,agent,0,equiv evaluated to false,8,$\boxed{b;c;d;g}$
+cmt-36,32,25,agent,0,equiv evaluated to false,7,$\boxed{a;b;c;d;f;g;h}$
+cmt-36,32,26,agent,0,equiv evaluated to false,6,$\boxed{h;g}$
+cmt-36,32,27,agent,0,equiv evaluated to false,5,$\boxed{f;c;d}$
+cmt-36,32,28,agent,0,equiv evaluated to false,4,$\boxed{c;d;b;a}$
+cmt-36,34,29,agent,0,equiv evaluated to false,3,xyz
+cmt-36,34,30,agent,0,equiv evaluated to false,2,$\boxed{d}$
+cmt-36,34,31,agent,0,equiv evaluated to false,1,$\boxed{c;d;i}$
+cmt-36,34,32,agent,0,equiv evaluated to false,0,$\boxed{a;d}$
+cmt-36,36,33,submit,0,equiv evaluated to false,,
+cmt-36,38,34,agent,0,equiv evaluated to false,9,$\boxed{a;b;c;d;e;f;g;h}$
+cmt-36,38,35,agent,0,equiv evaluated to false,8,$\boxed{b;c}$
+cmt-36,38,36,agent,0,equiv evaluated to false,7,$\boxed{c;d;a}$
+cmt-36,38,37,agent,0,equiv evaluated to false,6,$\boxed{c;a;d}$
+cmt-36,38,38,agent,0,equiv evaluated to false,5,$\boxed{c;b;d;a}$
+cmt-36,38,39,agent,0,equiv evaluated to false,4,$\boxed{b;c;d;f;g;h}$
+cmt-36,40,40,agent,0,equiv evaluated to false,3,$\boxed{c;b;a;d}$
+cmt-36,40,41,agent,0,equiv evaluated to false,2,$\boxed{g;h;c;d}$
+cmt-36,40,42,agent,0,equiv evaluated to false,1,$\boxed{a;b;d}$
+cmt-36,40,43,agent,0,equiv evaluated to false,0,$\boxed{b;a;g}$
+cmt-36,44,44,submit,0,equiv evaluated to false,,
+cmt-36,46,45,agent,0,equiv evaluated to false,9,$\boxed{f;g;h;c;d}$
+cmt-36,46,46,agent,0,equiv evaluated to false,8,$\boxed{c;d;g;h}$
+cmt-36,46,47,agent,0,equiv evaluated to false,7,$\boxed{a;c}$
+cmt-36,46,48,agent,0,equiv evaluated to false,6,$\boxed{c;b}$
+cmt-36,46,49,agent,0,equiv evaluated to false,5,$\boxed{c;d;e}$
+cmt-36,48,50,agent,0,equiv evaluated to false,4,$\boxed{b;a;d}$
+cmt-36,48,51,agent,0,equiv evaluated to false,3,$\boxed{a;b;c}$
+cmt-36,48,52,agent,0,equiv evaluated to false,2,$\boxed{b;d;c}$
+cmt-36,48,53,agent,0,equiv evaluated to false,1,$\boxed{c;d;b}$
+cmt-36,48,54,agent,0,equiv evaluated to false,0,$\boxed{a;b;c;d;e}$
+cmt-36,52,55,agent,0,equiv evaluated to false,9,$\boxed{}$
+cmt-36,52,56,agent,0,equiv evaluated to false,8,$\boxed{f}$
+cmt-36,52,57,agent,0,equiv evaluated to false,7,$\boxed{c}$
+cmt-36,52,58,agent,0,equiv evaluated to false,6,$\boxed{b}$
+cmt-36,52,59,agent,0,equiv evaluated to false,5,$\boxed{a}$
+cmt-36,54,60,agent,0,equiv evaluated to false,4,$\boxed{b;c;d;i}$
+cmt-36,54,61,agent,0,equiv evaluated to false,3,$\boxed{c;d;}$
+cmt-36,54,62,agent,0,equiv evaluated to false,2,$\boxed{b;c;d;}$
+cmt-36,54,63,agent,0,equiv evaluated to false,1,$\boxed{e;c;d}$
+cmt-36,54,64,agent,0,equiv evaluated to false,0,$\boxed{h;f}$
+cmt-36,56,65,submit,0,equiv evaluated to false,,
+cmt-36,58,66,agent,0,equiv evaluated to false,9,$\boxed{g;f}$
+cmt-36,58,67,agent,0,equiv evaluated to false,8,$\boxed{c;d;f}$
+cmt-36,58,68,agent,0,equiv evaluated to false,7,$\boxed{b;c;d;f}$
+cmt-36,58,69,agent,0,equiv evaluated to false,6,$\boxed{c;d;h;g}$
+cmt-36,58,70,agent,0,equiv evaluated to false,5,$\boxed{a;b;c;d;h}$
+cmt-36,60,71,agent,0,equiv evaluated to false,4,\boxed{b;c;d}
+cmt-36,60,72,agent,0,equiv evaluated to false,3,\boxed{c;d
+cmt-36,60,73,agent,0,equiv evaluated to false,2,$\boxed{a;c;d;b}$
+cmt-36,60,74,agent,0,equiv evaluated to false,1,$\boxed{b;d;a;c}$
+cmt-36,60,75,agent,0,equiv evaluated to false,0,$\boxed{c;e;d}$
+cmt-36,64,76,agent,0,,,
+cmt-36,64,77,agent,0,equiv evaluated to false,9,$\boxed{b; c; d}$
+cmt-36,64,78,agent,0,equiv evaluated to false,8,"$\boxed{b,c,d}$"
+cmt-36,64,79,agent,0,equiv evaluated to false,7,$\boxed{e;d}$
+cmt-36,64,80,agent,0,equiv evaluated to false,6,$\boxed{c;g;d}$
+cmt-36,66,81,agent,0,equiv evaluated to false,5,$\boxed{c;d;e;f;g;h}$
+cmt-36,66,82,agent,0,equiv evaluated to false,4,$\boxed{c;f;d}$
+cmt-36,66,83,agent,0,equiv evaluated to false,3,$\boxed{e}$
+cmt-36,66,84,agent,0,equiv evaluated to false,2,$\boxed{c;e}$
+cmt-36,66,85,agent,0,equiv evaluated to false,1,$\boxed{b;c;d;e}$
+cmt-36,66,86,agent,0,equiv evaluated to false,0,$\boxed{h;g;f}$
+cmt-36,70,87,agent,0,equiv evaluated to false,9,$\boxed{h}$
+cmt-36,70,88,agent,0,equiv evaluated to false,8,$\boxed{c;h}$
+cmt-36,70,89,agent,0,equiv evaluated to false,7,$\boxed{a;b;c;d;g}$
+cmt-36,70,90,agent,0,equiv evaluated to false,6,$\boxed{b;c;d;g;h}$
+cmt-36,70,91,agent,0,equiv evaluated to false,5,$\boxed{b;c;d;e;f;g;h}$
+cmt-36,72,92,agent,0,equiv evaluated to false,4,$\boxed{c;h;d}$
+cmt-36,72,93,agent,0,equiv evaluated to false,3,$\boxed{a;c;b}$
+cmt-36,72,94,agent,0,equiv evaluated to false,2,$\boxed{d;c}$
+cmt-36,72,95,agent,1,,1,$\boxed{g}$
+cmt-36,72,96,agent,0,equiv evaluated to false,0,$\boxed{b;e}$
+cmt-36,74,97,submit,1,,,
+cmt-37,38,1,agent,0,equiv evaluated to false,9,\boxed{n_{FM}=2;\;n_{AF}=3}
+cmt-37,42,2,agent,0,equiv evaluated to false,8,\boxed{2;3}
+cmt-37,44,3,agent,0,equiv evaluated to false,7,\boxed{n_{FM}=2;\;n_{AF}=2}
+cmt-37,46,4,agent,0,equiv evaluated to false,6,\boxed{2;2}
+cmt-37,48,5,agent,0,equiv evaluated to false,5,\boxed{n_{FM}=2;n_{AF}=3}
+cmt-37,50,6,agent,0,equiv evaluated to false,4,\boxed{n_{FM}=2;n_{AF}=2}
+cmt-37,56,7,agent,0,equiv evaluated to false,3,\boxed{n_FM=2;n_AF=3}
+cmt-37,58,8,agent,0,equiv evaluated to false,2,n_{FM}=2;n_{AF}=3
+cmt-37,60,9,agent,0,equiv evaluated to false,1,\boxed{n_{FM}=2; n_{AF}=3}
+cmt-37,62,10,agent,0,equiv evaluated to false,0,$\boxed{n_{FM}=2;n_{AF}=3}$
+cmt-37,63,11,submit,0,equiv evaluated to false,,
+cmt-38,20,1,agent,0,equiv evaluated to false,9,\boxed{a;d;g;j}
+cmt-38,22,2,agent,0,equiv evaluated to false,8,\boxed{a;d;g;i}
+cmt-38,24,3,agent,1,,7,\boxed{a;d;i}
+cmt-38,26,4,submit,1,,,
+cmt-39,14,1,agent,0,equiv evaluated to false,9,"\boxed{\Delta \simeq 2\,\frac{t_2^2-t_1^2}{t_2}\left(\frac{t_1}{t_2}\right)^{n}}"
+cmt-39,16,2,agent,0,equiv evaluated to false,8,\boxed{2(t_2-t_1)}
+cmt-39,16,3,agent,0,equiv evaluated to false,7,\boxed{2t_1\left(\frac{t_1}{t_2}\right)^{n-1}}
+cmt-39,16,4,agent,1,,6,\boxed{2t_1\left(\frac{t_1}{t_2}\right)^{n}}
+cmt-39,18,5,submit,1,,,
+cmt-40,6,1,agent,0,equiv evaluated to false,9,$\boxed{a;e}$
+cmt-40,12,2,agent,0,equiv evaluated to false,8,$\boxed{a;f}$
+cmt-40,16,3,agent,0,equiv evaluated to false,7,$\boxed{a;c;e}$
+cmt-40,16,4,agent,0,equiv evaluated to false,6,$\boxed{a;c;f}$
+cmt-40,18,5,agent,0,equiv evaluated to false,5,$\boxed{b;f}$
+cmt-40,18,6,agent,0,equiv evaluated to false,4,$\boxed{a}$
+cmt-40,20,7,agent,1,,3,$\boxed{a;d;e}$
+cmt-40,20,8,agent,0,equiv evaluated to false,2,$\boxed{a;d;f}$
+cmt-40,20,9,agent,0,equiv evaluated to false,1,$\boxed{a;e;f}$
+cmt-40,20,10,agent,0,equiv evaluated to false,0,\boxed{a;e}
+cmt-40,22,11,submit,1,,,
+cmt-41,14,1,agent,0,equiv evaluated to false,9,\boxed{\alpha = \frac{2\tanh(\beta\hbar\omega/2)}{\hbar\omega V}}
+cmt-41,16,2,agent,0,equiv evaluated to false,8,\boxed{\alpha = \frac{1-e^{-\beta\hbar\omega}}{\hbar\omega V}}
+cmt-41,22,3,agent,0,equiv evaluated to false,7,\boxed{\alpha = \frac{1-e^{-\beta\hbar\omega}}{\hbar\omega}}
+cmt-41,24,4,agent,0,equiv evaluated to false,6,\boxed{\alpha = \frac{1-e^{-\beta\omega}}{\omega}}
+cmt-41,26,5,agent,0,equiv evaluated to false,5,\boxed{\frac{1-e^{-\beta\hbar\omega}}{\hbar\omega V}}
+cmt-41,28,6,agent,1,,4,\boxed{\alpha = \frac{2\tanh(\beta\omega/2)}{\omega}}
+cmt-41,30,7,submit,1,,,
+cmt-42,12,1,agent,0,equiv evaluated to false,9,\boxed{D_o = -\frac{v_0^2 \Omega \tau^2 \rho(\rho+2)}{(1+\Omega^2\tau^2)((\rho+1)^2+\Omega^2\tau^2)}}
+cmt-42,14,2,agent,1,,8,\boxed{D_o = \frac{v_0^2 \Omega \tau^2 \rho(\rho+2)}{(1+\Omega^2\tau^2)((\rho+1)^2+\Omega^2\tau^2)}}
+cmt-42,16,3,submit,1,,,
+cmt-43,36,1,agent,1,,9,\boxed{c}
+cmt-43,38,2,submit,1,,,
+cmt-44,48,1,agent,0,equiv evaluated to false,9,\boxed{K_c = 2\sigma\sqrt{\gamma}}
+cmt-44,58,2,agent,0,equiv evaluated to false,8,\boxed{K_c = \frac{\sigma\sqrt{\gamma}}{4}}
+cmt-44,68,3,agent,0,equiv evaluated to false,7,\boxed{K_c = \frac{\sigma\sqrt{\gamma}}{2}}
+cmt-44,70,4,agent,0,equiv evaluated to false,6,\boxed{K_c = \frac{\sqrt{6}}{4}\sigma\sqrt{\gamma}}
+cmt-44,73,5,agent,0,equiv evaluated to false,9,\boxed{K_c = \sigma\sqrt{\gamma}}
+cmt-44,75,6,agent,0,equiv evaluated to false,8,\boxed{K_c = \sigma\sqrt{2\gamma}}
+cmt-44,77,7,agent,0,equiv evaluated to false,7,\boxed{K_c = \frac{\sigma\sqrt{\gamma}}{\sqrt{2}}}
+cmt-44,78,8,submit,0,equiv evaluated to false,,
+cmt-45,10,1,agent,1,,9,\boxed{d}
+cmt-45,12,2,submit,1,,,
+cmt-46,24,1,agent,0,equiv evaluated to false,9,\boxed{\frac{(p+x^3)^2}{4x^4}-3x^2}
+cmt-46,28,2,agent,0,equiv evaluated to false,8,\boxed{\frac{(p-x^3)^2}{4x^4}}
+cmt-46,34,3,agent,0,equiv evaluated to false,7,\boxed{\frac{(p+x^3)^2}{4x^4}+x^2}
+cmt-46,46,4,agent,0,equiv evaluated to false,6,\boxed{\frac{(p+x^3)^2}{4x^4}}
+cmt-46,48,5,agent,0,equiv evaluated to false,5,\boxed{\frac{(p+x^3)^2}{4x^4}+\frac{1}{2}x^2}
+cmt-46,50,6,agent,0,equiv evaluated to false,4,\boxed{\frac{(p+x^3)^2}{4x^4}-\frac{1}{2}x^2}
+cmt-46,51,7,submit,0,equiv evaluated to false,,
+cmt-47,44,1,agent,1,,9,"$\boxed{2,2,1}$"
+cmt-47,46,2,submit,1,,,
+cmt-48,18,1,agent,1,,9,\boxed{6}
+cmt-48,20,2,submit,1,,,
+cmt-49,62,1,agent,0,equiv evaluated to false,9,"\boxed{0.50, 0.36}"
+cmt-49,68,2,agent,0,equiv evaluated to false,8,"\boxed{0.50, 0.45}"
+cmt-49,70,3,agent,0,equiv evaluated to false,7,"\boxed{0.50, 0.55}"
+cmt-49,77,4,agent,0,equiv evaluated to false,9,"\boxed{0.50, 0.41}"
+cmt-49,79,5,submit,0,equiv evaluated to false,,
+cmt-49,82,6,submit,0,equiv evaluated to false,,

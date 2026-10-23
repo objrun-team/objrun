@@ -1,0 +1,43 @@
+/** Restore an already-qualified Docker save archive under the existing owned pool. No build or model call. */
+import {readFileSync,writeFileSync,mkdirSync,openSync,closeSync} from 'node:fs';
+import {join,resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {verify} from 'node:crypto';
+import {pin,verifyPin,demand} from './manifest.ts';
+import {resource} from './original-owned-resource.ts';
+import {verifyAdoptedActivation} from '../repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-guard-v76.ts';
+import {processIdentity} from './runtime.ts';
+const [planPath,expectedHash,outPath]=process.argv.slice(2),out=resolve(outPath);
+const save=(name:string,value:any)=>writeFileSync(join(out,name),JSON.stringify(value,null,2)+'\n',{flag:'wx'});
+demand(pin(planPath).sha256===expectedHash,'exact_reviewed_cache_plan_required');
+const envelope=JSON.parse(readFileSync(planPath,'utf8')),plan=envelope.entry;
+demand(envelope.protocol==='bench-root-signed-cache-restore-v1'&&plan?.authorityPin&&typeof envelope.signature==='string','signed_cache_restore_required');
+verifyPin(plan.authorityPin);demand(verify(null,Buffer.from(JSON.stringify(plan)),readFileSync(plan.authorityPin.path),Buffer.from(envelope.signature,'base64')),'cache_root_signature_invalid');
+demand(plan.protocol==='bench-original-image-cache-load-preparation-data-v1'&&plan.rootReviewed===true&&plan.noBuild&&plan.noPull&&plan.noOracleReferenceOrQualification&&plan.modelCalls===0,'cache_restore_only');
+for(const p of [plan.candidateArchivePin,plan.candidateContentProofPin,plan.privateReuseProofPin,plan.originalQualificationPin,plan.activationPin,plan.loaderSourcePin,plan.dockerExecutablePin,...plan.sourcePins])verifyPin(p);
+demand(pin(import.meta.path).sha256===plan.loaderSourcePin.sha256,'cache_loader_source_changed');
+const a=JSON.parse(readFileSync(plan.activationPin.path,'utf8'));
+demand(JSON.stringify(plan.loadCommand)===JSON.stringify([plan.dockerExecutablePin.path,'--host',a.dockerHost,'image','load','--input',plan.candidateArchivePin.path]),'exact_load_argv_required');
+demand(plan.resourceContract.slots===1&&plan.resourceContract.memoryMb>0&&plan.resourceContract.growthBytes>0&&plan.timeoutSeconds===600,'original_cache_resource_boundary');
+mkdirSync(out,{recursive:false});save('intent.json',{planPin:pin(planPath),loaderPin:pin(import.meta.path),atUtc:new Date().toISOString(),owner:processIdentity(process.pid),operation:'restore-existing-image-cache-no-build'});
+const hostModule=await import(pathToFileURL(plan.hostGuardPin.path).href);hostModule.createHostCapacityGuard(plan.hostCapacityPolicy,out)();
+const {connection}=await verifyAdoptedActivation(plan.activationPin.path);
+const lease=await resource(connection,{planPin:pin(planPath),originalPeakMemoryMb:plan.resourceContract.memoryMb,originalPlannedGrowthBytes:plan.resourceContract.growthBytes});
+save('lease.private.json',{pid:process.pid,...lease,release:undefined});
+const stdout=openSync(join(out,'stdout.log'),'wx'),stderr=openSync(join(out,'stderr.log'),'wx');
+let child:any,timedOut=false;
+try{
+ child=Bun.spawn(plan.loadCommand,{stdin:'ignore',stdout,stderr,env:{...process.env,DOCKER_HOST:a.dockerHost}});
+ save('process.json',{pid:child.pid,owner:processIdentity(process.pid),argv:plan.loadCommand,startedAtUtc:new Date().toISOString()});
+ const timer=setTimeout(()=>{timedOut=true;child.kill('SIGTERM')},plan.timeoutSeconds*1000);
+ const exitCode=await child.exited;clearTimeout(timer);closeSync(stdout);closeSync(stderr);
+ save('command-close.json',{pid:child.pid,exitCode,timedOut,closeObserved:true,atUtc:new Date().toISOString(),stdoutPin:pin(join(out,'stdout.log')),stderrPin:pin(join(out,'stderr.log'))});
+ demand(!timedOut&&exitCode===0,'cache_load_not_confirmed_keep_owned_hold');
+ const expected=plan.expectedCandidate,r=await fetch(a.dockerHost.replace('tcp:','http:')+'/images/'+expected.classicConfigId+'/json',{signal:AbortSignal.timeout(15000)});
+ demand(r.ok,'loaded_exact_image_missing_keep_owned_hold');const actual:any=await r.json();save('loaded-image-inspect.json',actual);
+ demand(actual.Id===expected.classicConfigId&&actual.Os===expected.platform.os&&actual.Architecture===expected.platform.architecture&&JSON.stringify(actual.RootFS?.Layers)===JSON.stringify(expected.orderedRootFS),'loaded_image_content_mismatch_keep_owned_hold');
+ for(const [k,v] of Object.entries(expected.executionConfig))demand(JSON.stringify(actual.Config?.[k])===JSON.stringify(v),'loaded_image_config_mismatch:'+k);
+ await lease.release();save('exact-owned-lease-released.json',{owner:processIdentity(process.pid),released:true,atUtc:new Date().toISOString()});
+ save('result.json',{protocol:'bench-reviewed-existing-image-cache-restore-result-v1',planPin:pin(planPath),actualImageId:actual.Id,loadedImageInspectPin:pin(join(out,'loaded-image-inspect.json')),nativeCommandPin:pin(join(out,'command-close.json')),resourceReleased:true,noBuild:true,modelCalls:0,gradeCalls:0,oracleCalls:0});
+ console.log(JSON.stringify({output:out,imageId:actual.Id,resourceReleased:true,modelCalls:0}));
+}catch(error){save('unknown-load-hold.json',{error:String(error),timedOut,resourceReleased:false,holdRetained:true,atUtc:new Date().toISOString()});throw error}

@@ -152,12 +152,9 @@ const SEARCH_TOOL = {
     },
   },
   prompt:
-    "When a question turns on something you would be recalling rather than deriving - which paper reported a " +
-    "result, what a measured value is, who showed what - look it up instead of reconstructing it from memory. " +
-    "Guessing at titles and authors costs more than asking does, and it is usually wrong. Ask one full question " +
-    "rather than a keyword: it searches on your behalf and answers, so tell it what you actually want to know. " +
-    "What it hands back is someone else's writing - treat it as a source to reason from, not as your answer.",
+    "It takes a full question, not keywords: it searches and answers. What comes back is a third party's text.",
   concurrent: true,
+  gives: "event",
   expectMs: SEARCH_WALL_MS + 30_000,
   // **条件不写在这儿，在 `OFFERED_TO`** —— 「不在交卷站」那条也在那边，跟「这家会搜」
   // 与在一起。两处各写一半的话，落库时后写的顶掉先写的，而先写的那半看着还在。
@@ -512,7 +509,7 @@ export function registerSearchTool(db: Conn, reg: Registry, log?: { warn(msg: st
     if (!res.ok || d.error) {
       // 原样交回去。**这一端不翻译供应商的错** —— 翻译过的错读起来像我们的毛病，
       // 而查起来要去翻它那边的文档。
-      return { error: `search failed (${res.status}): ${d.error?.message ?? "no message"}` };
+      return { valid: false, outcome: "provider_error", httpStatus: res.status, error: `search failed (${res.status}): ${d.error?.message ?? "no message"}` };
     }
 
     const got = unpack(d);

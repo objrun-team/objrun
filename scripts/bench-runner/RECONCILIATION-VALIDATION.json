@@ -1,0 +1,36 @@
+{
+  "protocol": "bench-pre-native-reconciliation-validation-v1",
+  "atUtc": "2026-10-14T09:26:39.110Z",
+  "executionSourcePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\reconcile-reviewed.ts",
+    "bytes": 15942,
+    "sha256": "e4c79ba0d2a5ec6edb1d0b64f917b0e6710084f3c4acbe11e4ed456be2f9d35e"
+  },
+  "readonlyProcessSourcePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\processes.py",
+    "bytes": 2807,
+    "sha256": "e7a4aebec584b29a9ce658e8fc61aa1c20d77c693e4fe140e49f7f25556fb908"
+  },
+  "tests": {
+    "passed": 6,
+    "failed": 0,
+    "assertions": 26
+  },
+  "unsignedActualReviewPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\cobol-first-failure-closure\\reconciliation-review.unsigned.json",
+    "bytes": 4493,
+    "sha256": "dfe542297a87c46a8a7113e121e438bc3af2e2ece69dc6d85908a93837d3b186"
+  },
+  "productionApplied": false,
+  "newModelCalls": 0,
+  "newNativeCalls": 0,
+  "admissionChanged": false,
+  "pidReuse": {
+    "sameLiveIncarnation": "denied",
+    "differentObservedIncarnation": "oldIdentityAbsent",
+    "missingIncarnation": "unknownDenied",
+    "processMutation": false
+  },
+  "authorityTrust": "read-only original queue manifest -> nested pinned authority -> exact original lock signed entry -> same-authority root closure review",
+  "actualOriginalEnvelopeAndReviewSignaturesVerified": true
+}

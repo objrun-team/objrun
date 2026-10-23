@@ -1,0 +1,16 @@
+// Inactive generic instruction projection. No network, grader, owner or answer extraction.
+import fs from 'node:fs';import assert from 'node:assert/strict';
+import {verifyPin,hash} from '../../../repair-2026-10-08/paid-resource-proof-v2.ts';
+export function projectContinuationHandoff(request,{previousAggregatePin,createdAtMs,nowMs}){
+ verifyPin(previousAggregatePin);const response=JSON.parse(fs.readFileSync(previousAggregatePin.path,'utf8')),choice=response.choices?.[0],message=choice?.message;
+ assert.equal(request.model,'deepseek/deepseek-v4.1-flash');assert.equal(request.max_tokens,16384);assert.equal(request.reasoning?.effort,'high');assert.equal(request.provider?.allow_fallbacks,false);
+ assert.equal(response.model,request.model);assert.equal(choice?.finish_reason,'length');assert.equal(message?.content??'','');assert.equal(message?.tool_calls?.length??0,0);assert(message?.reasoning?.length>0);assert(Number.isFinite(response.usage?.cost)&&response.usage.cost>=0);
+ assert(Number.isFinite(createdAtMs)&&Number.isFinite(nowMs)&&nowMs>=createdAtMs&&nowMs<createdAtMs+900000,'original900 deadline must remain open');
+ const assistant=request.messages.filter(m=>m.role==='assistant').map(m=>m.reasoning??m.reasoning_content??'');assert(assistant.some(text=>text.includes(message.reasoning)),'previous actual reasoning must already be preserved');
+ assert(request.tools.some(t=>t.function?.name==='submit'),'actual registered submit tool required');
+ const secondsLeft=Math.max(0,Math.floor((createdAtMs+900000-nowMs)/1000));
+ const instruction=`The previous complete response reached the output limit with reasoning only; it produced no content or tool call. The existing reasoning is preserved in the assistant history. Continue from it; do not restart the same analysis or repeat rejected alternatives. The original task deadline has ${secondsLeft} seconds remaining. When further analysis is repeating instead of resolving uncertainty, choose your current best candidate and call the existing submit tool with its registered arguments, even if uncertain. Reasoning text and plain text are not submissions. Do not wait for the automatic hand-in station. The tools and task constraints are unchanged.`;
+ const projected=structuredClone(request);projected.messages=[{role:'system',content:instruction},...projected.messages];
+ const reversed=structuredClone(projected);reversed.messages.shift();assert.deepEqual(reversed,request,'projection may only add generic instructions');
+ return{request:projected,evidence:{protocol:'chemiq-generic-continuation-handoff-candidate-v1',inactive:true,paidOutcomeProven:false,modelCalls:0,answerExtracted:false,privateReferenceRead:false,previousAggregatePin,originalRequestSha256:hash(JSON.stringify(request)),projectedRequestSha256:hash(JSON.stringify(projected)),instructionSha256:hash(instruction),secondsLeft,protocolDifference:'One new generic system instruction after a full reasoning-only length response; fresh remaining-time fact. Not installed in historical815 harness.',unchanged:['model','provider','allow_fallbacks','reasoning','max_tokens','tools','original messages','solveSeconds900','grader','checks5','branches4','dead100000','maxUnits12']}};
+}

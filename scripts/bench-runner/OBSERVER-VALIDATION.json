@@ -1,0 +1,66 @@
+{
+  "protocol": "bench-universal-observer-validation-v1",
+  "atUtc": "2026-10-14T08:51:40.750Z",
+  "tests": {
+    "passed": 54,
+    "failed": 0,
+    "expectations": 185,
+    "files": 7
+  },
+  "runtimeCoreSourcePins": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\manifest.ts",
+      "bytes": 5056,
+      "sha256": "7d774b5c42b6f27e17b92d3f3198e191397b1b7ff2eafd86cadb05f5fa71f8dc"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\queue.ts",
+      "bytes": 17667,
+      "sha256": "c69270c983b26e0f8b63885a33afda3ba500c8404b2b66884630d564b477bde1"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\admission.ts",
+      "bytes": 3588,
+      "sha256": "a5f8e1e81c3ac03616d926092bc3a686417151073536612c1cf89ddf3ae522f8"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\runner.ts",
+      "bytes": 15667,
+      "sha256": "3d040b33d7e13a808e984d3d3f853f42883f537803b349c6c7db7c07474e5983"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\cli.ts",
+      "bytes": 3499,
+      "sha256": "8f3018d44cde184d889f75976f9f021539c0366f518857357e636107ba20183f"
+    }
+  ],
+  "readOnlyObserverSourcePins": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\observer.ts",
+      "bytes": 15604,
+      "sha256": "807aee6a26a922796aa5fe3f19d1a4c211a14786c72eaa8a256f6108f0585331"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\processes.py",
+      "bytes": 2807,
+      "sha256": "e7a4aebec584b29a9ce658e8fc61aa1c20d77c693e4fe140e49f7f25556fb908"
+    }
+  ],
+  "originalMainSelectionProofPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\observations\\original-erlang-main-selection.json",
+    "bytes": 885,
+    "sha256": "5a7df441ffb7854cb069105ec177d0c5250ce48b6f1307e3f4f037a905ab0962"
+  },
+  "productionSnapshotPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\observations\\actual-task-status-1791967725831-b5c33990-5058-4807-b725-eada9e433e3f.json",
+    "bytes": 695,
+    "sha256": "2a9c20d7bf4b1a8b93baa5d8d5c1afd68b6d3451631d26b190dd02a54a7eeaf4"
+  },
+  "scope": {
+    "newBenchCalls": 0,
+    "newResources": 0,
+    "nativeMutations": 0,
+    "admissionModified": false
+  },
+  "note": "Core imports adapters/runtime/bindings/recovery/retention/types supplied by team; root release must bind their actual import graph. Tests/docs/observer are not driver source dependencies unless CLI observe is selected."
+}

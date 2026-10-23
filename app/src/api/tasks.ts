@@ -241,6 +241,35 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
     },
     {
       method: "GET",
+      path: "/tasks/:id/status",
+      group: TASK,
+      does: "The task state, stored result, creation time and solving deadline",
+      why: "Progress polling needs the finalization state and task deadline. This reads one task row without assembling every execution unit and ancestor chain.",
+      params: [{ name: "id", in: "path", kind: "string", required: true, note: "Task id" }],
+      returns: {
+        id: "t-1", state: "claimed", result: null, created_at: 1788001988000, solve_seconds: 900,
+        solve: { limitSeconds: 900, elapsedMs: 41000, leftMs: 859000, overdue: false },
+      },
+      errs: [{ code: 404, when: "no such task" }],
+      handler: async (a, _req, reply) => {
+        const t = one(store, "select id,state,result,created_at,solve_seconds from task where id = ?", [String(a.id)]);
+        if (!t) return reply.code(404).send({ error: `no such task: ${String(a.id)}` });
+        const now = Date.now();
+        const created = Number(t.created_at);
+        const limitMs = Number(t.solve_seconds) * 1000;
+        return {
+          ...t,
+          solve: {
+            limitSeconds: Number(t.solve_seconds),
+            elapsedMs: now - created,
+            leftMs: created + limitMs - now,
+            overdue: now - created > limitMs,
+          },
+        };
+      },
+    },
+    {
+      method: "GET",
       path: "/tasks/:id",
       group: TASK,
       does: "The whole picture of one task: its main row, the grading verdict, and every execution unit",

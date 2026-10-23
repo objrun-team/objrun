@@ -64,6 +64,11 @@
           "type": "text",
           "notnull": true,
           "_": "Which failures are worth trying again, as a JSON list of HTTP status codes plus the word network for a call that never got a reply. Anything not listed is returned as it is - a 400 says the request itself was wrong, and sending it again only spends the clock to fail the same way. Which failures are transient differs per key and per model, so it lives on this row rather than in code"
+        },
+        {
+          "name": "compress_at",
+          "type": "integer",
+          "_": "How many tokens of context this row tolerates before the context is compressed on the way out. Empty = never; the messages go as they are. It belongs to the row and not to the code because the ceiling is a property of this key and this model: one measured run put 1033906 tokens on the wire against a limit of 1048576, and the three stations that went over were over by 738, 1714 and 4150 - a margin, not a runaway. The engine has no tokenizer, so it counts the bytes it is about to send and divides: 4234989 bytes measured against a reported 1033906 tokens, so 4 bytes to a token"
         }
       ],
       "pk": [
@@ -312,6 +317,11 @@
           "_": "A layered address string"
         },
         {
+          "name": "identity",
+          "type": "text",
+          "_": "The handle that resolves this address and forwards tool calls there -> handle.name. Required whenever forward is on; empty otherwise"
+        },
+        {
           "name": "runtime",
           "type": "text",
           "_": "The runtime shipped over when the connection is made (a local file path). Empty for local"
@@ -492,6 +502,11 @@
           "name": "usable",
           "type": "integer",
           "notnull": true
+        },
+        {
+          "name": "gives",
+          "type": "text",
+          "_": "-> msg_part.name: what kind of thing its result is, so that compressing a context knows what it may throw away. look is a state that can be looked at again and that goes stale - a file read is the file as it was, and once the same file has been edited the copy is worse than nothing. event is something that happened and cannot be had back - a test run that took four minutes, a verdict. receipt is the line that says a change went through. Empty = event, because assuming a thing can be had again when it cannot is the one direction that loses what nobody can get back"
         }
       ],
       "pk": [
@@ -595,6 +610,214 @@
       "pk": [
         "name"
       ]
+    },
+    {
+      "name": "press_how",
+      "_": "Registers what can be done to a part of a message when the context is compressed, and who does it. A row here is a name the l1/l2/l3 columns of msg_part are allowed to hold - a value that is not registered is a typo that would otherwise silently do nothing. Shaped like the tool table on purpose: a name, the handle that runs it, and the two schemas. So the ones that ship in the binary and the ones declared over HTTP are the same kind of row, and a way of pressing that needs a model - or a machine that is not this one - is declared, not coded in.",
+      "columns": [
+        {
+          "name": "name",
+          "type": "text",
+          "notnull": true
+        },
+        {
+          "name": "note",
+          "type": "text"
+        },
+        {
+          "name": "identity",
+          "type": "text",
+          "_": "-> handle.name: who actually does it. fn: runs inside this process, http:// runs somewhere else. Empty = the way is registered but nothing implements it here; asking for it is an error at press time rather than a silent pass-through"
+        },
+        {
+          "name": "params",
+          "type": "text",
+          "_": "What the handle is given, as a JSON schema. The same shape for every way: which part it is, the text of it, how big, which level asked. Declared rather than assumed, because an outside implementation has no way to read our minds and every mismatch here is a wrong context that still looks like a context"
+        },
+        {
+          "name": "output",
+          "type": "text",
+          "_": "What the handle answers, as a JSON schema: the text that stands in, or nothing at all for a way that drops. A way that answers something else is refused at press time - a compressed context that quietly became the string undefined is the worst of the failures, because it still sends"
+        }
+      ],
+      "pk": [
+        "name"
+      ]
+    },
+    {
+      "name": "msg_part",
+      "_": "One row = one kind of thing a message carries, and what happens to it at each level. A message row is not one lump: an assistant row holds the reasoning (its own column), what it said, and the calls it asked for, and those three are worth keeping to very different degrees - one measured run had 143 MB of reasoning against 1.7 MB of speech. The kernel writes down which parts a row has and how big they are; which of them survives a level is this table's business, so that no tool name and no policy ever lands in kernel code.",
+      "columns": [
+        {
+          "name": "name",
+          "type": "text",
+          "notnull": true,
+          "_": "What this part is. A part is recognised from the shape a message already has to carry (deliver.ts checks it on the way in), never from what a tool means"
+        },
+        {
+          "name": "note",
+          "type": "text"
+        },
+        {
+          "name": "l1",
+          "type": "text",
+          "notnull": true,
+          "_": "-> press_how.name: what happens to this part at the lightest level"
+        },
+        {
+          "name": "l2",
+          "type": "text",
+          "notnull": true,
+          "_": "-> press_how.name"
+        },
+        {
+          "name": "l3",
+          "type": "text",
+          "notnull": true,
+          "_": "-> press_how.name: the heaviest of the levels that are set up"
+        },
+        {
+          "name": "l4",
+          "type": "text",
+          "_": "-> press_how.name: the fourth level, and the only one that may be empty. Empty anywhere in this column means the level is not set up: nothing is written for it and nothing is sent at it, and l3 stays the last thing between a chain and the ceiling. It is the place kept for a way of pressing that costs a call - a model handed a stretch and answering with what it amounted to - which is the only kind that can say what a stretch came to rather than which parts of it were dropped. Nullable because the levels above it are not: a level nobody has filled in has to be distinguishable from one filled in with keep"
+        }
+      ],
+      "pk": [
+        "name"
+      ]
+    },
+    {
+      "name": "press",
+      "_": "One row = one compressed form of one stretch of context, one column per level, each naming a row in that level's table: l1 is the least compressed, and the last column that msg_part has been filled in for is the most. Which level goes out is decided per request - the engine counts the bytes it is about to send, and drops a level at a time while it is over api.compress_at. Levels are columns rather than rows because a unit has all three at once, and a lookup that had to scan for 'the l2 row of this unit' would be one join deeper on the hottest path there is. Empty in a column = that level has not been made; the caller falls back to the level below it, and to the raw messages if none exist",
+      "columns": [
+        {
+          "name": "id",
+          "type": "text",
+          "notnull": true,
+          "_": "What task_{mode}.press points at. The kernel does not mint these: whoever writes a level decides, and a hash of the content is what makes two units that compress to the same thing land on the same row without anyone comparing them"
+        },
+        {
+          "name": "l1",
+          "type": "text",
+          "_": "-> press_l1.id"
+        },
+        {
+          "name": "l2",
+          "type": "text",
+          "_": "-> press_l2.id"
+        },
+        {
+          "name": "l3",
+          "type": "text",
+          "_": "-> press_l3.id"
+        },
+        {
+          "name": "l4",
+          "type": "text",
+          "_": "-> press_l4.id. Empty for as long as msg_part says nothing about that level"
+        }
+      ],
+      "pk": [
+        "id"
+      ]
+    },
+    {
+      "name": "press_l1",
+      "_": "The least compressed level. Several rows of press may name the same row here - that is the point: one line standing in for a stretch of units. Whoever reads it takes such a row once, not once per unit that points at it.",
+      "columns": [
+        {
+          "name": "id",
+          "type": "text",
+          "notnull": true
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "notnull": true,
+          "_": "The text that goes out in place of those messages"
+        },
+        {
+          "name": "bytes",
+          "type": "integer",
+          "notnull": true,
+          "_": "How big body is. Written down because the decision to drop a level is made by adding these up, and reading every body to measure it is the work being avoided"
+        }
+      ],
+      "pk": [
+        "id"
+      ]
+    },
+    {
+      "name": "press_l2",
+      "_": "The middle level. Same shape as press_l1; a level is a table rather than a column on one table so that a stretch compressed at one level is one row, and the rows of different levels do not have to line up.",
+      "columns": [
+        {
+          "name": "id",
+          "type": "text",
+          "notnull": true
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "notnull": true
+        },
+        {
+          "name": "bytes",
+          "type": "integer",
+          "notnull": true
+        }
+      ],
+      "pk": [
+        "id"
+      ]
+    },
+    {
+      "name": "press_l4",
+      "_": "The fourth level. Nothing is written here yet: msg_part.l4 is empty, which is what says the level is not set up. It exists so that the level after the last one is a column that is already there rather than a migration - the one it is kept for is the way of pressing that costs a call, and that one arrives as a handle, from outside, on a running database. Same shape as the other three.",
+      "columns": [
+        {
+          "name": "id",
+          "type": "text",
+          "notnull": true
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "notnull": true
+        },
+        {
+          "name": "bytes",
+          "type": "integer",
+          "notnull": true
+        }
+      ],
+      "pk": [
+        "id"
+      ]
+    },
+    {
+      "name": "press_l3",
+      "_": "The heaviest level that is set up - as things stand, the last thing between a chain and the ceiling. Same shape as the others.",
+      "columns": [
+        {
+          "name": "id",
+          "type": "text",
+          "notnull": true
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "notnull": true
+        },
+        {
+          "name": "bytes",
+          "type": "integer",
+          "notnull": true
+        }
+      ],
+      "pk": [
+        "id"
+      ]
     }
   ],
   "templates": [
@@ -659,6 +882,11 @@
           "name": "status",
           "type": "text",
           "_": "Terminal status: reached / dead_failed / dead_below_bar. Fixed once written, never revised; empty = still running"
+        },
+        {
+          "name": "press",
+          "type": "text",
+          "_": "-> press.id: what this unit says in compressed form, at each level that is set up. Empty = nothing has been compressed for it, so it goes out as its messages. One row per unit rather than one per node, because the chain is what grows: a station's messages are on the chain of every station after it, and a run that measured 4136k bytes on one chain had 65 to 86 percent of it in replayed reasoning. A reference rather than the text itself, so that several units can share one compressed line - and written down rather than derived at send time, because derived, the same unit compresses differently on every request, and a context that changes underneath a model is a bug nobody can reproduce"
         },
         {
           "name": "done",

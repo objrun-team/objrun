@@ -1,0 +1,39 @@
+{
+  "count": 100,
+  "sourceCommit": "90825141e640418ae6dc8257397345ee3ac36cbc",
+  "sourceVersion": "v1.0.0",
+  "addedImports": [
+    {
+      "taskId": "ClassEval_39",
+      "addedImports": [
+        "import re",
+        "from collections import deque",
+        "from decimal import Decimal"
+      ]
+    },
+    {
+      "taskId": "ClassEval_45",
+      "addedImports": [
+        "from PIL import Image, ImageEnhance, ImageChops"
+      ]
+    },
+    {
+      "taskId": "ClassEval_61",
+      "addedImports": [
+        "import random"
+      ]
+    },
+    {
+      "taskId": "ClassEval_92",
+      "addedImports": [
+        "import sqlite3"
+      ]
+    }
+  ],
+  "privateFieldsExcluded": [
+    "test",
+    "solution_code",
+    "test_classes"
+  ],
+  "publicCatalogSha256": "904067cbc143153f3bbb67bc77a004018b5e342d1097d2d80c5fd70a3bf76477"
+}

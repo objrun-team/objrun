@@ -43,32 +43,30 @@ import type { Registry } from "../engine/registry.ts";
 import { whereAmI } from "../tasks/where.ts";
 import { tableNameOf } from "../install/index.ts";
 import { declareTool } from "../tools/register.ts";
-import { evaluate } from "./run.ts";
+import { candidateInput, evaluate } from "./run.ts";
 import type { Sealed } from "./store.ts";
 
 const VERIFY_TOOL = {
   name: "verify",
   does:
     "Check one candidate answer against the bar for this task. Says whether it meets the bar and, when it does " +
-    "not, what is wrong with it. It never reveals the correct answer. Use what it tells you to find the mistake " +
-    "in your reasoning - it is not a way to search for the answer, and there are only a few checks per attempt.",
+    "not, what is wrong with it. It does not return the correct answer.",
   params: CANDIDATE,
   output: {
     type: "object",
     properties: {
       pass: { type: "integer", description: "1 = meets the bar, 0 = does not" },
+      valid: { type: "boolean", description: "Whether the grader completed successfully. An unavailable grader is not an incorrect answer." },
+      outcome: { type: "string", description: "passed, rejected, or grader_error" },
       why: { type: "string", description: "What is wrong with it. Empty when it passed." },
+      note: { type: "string", description: "Whatever the bar itself had to add about this answer. Empty when it passed, and empty when the bar has nothing to add." },
       graded: { type: "string", description: "The exact text this verdict is about. If it passed, hand in this text unchanged." },
       left: { type: "integer", description: "How many checks remain in this attempt" },
     },
   },
   prompt:
-    "You get a few checks per attempt - the number is fixed before you start, and every call spends one whether " +
-    "it passes or not. **A check is for finding the mistake, not for finding the answer.** When one comes back " +
-    "negative, read what it says is wrong and fix the reasoning that produced it; sending a variation of the same " +
-    "answer spends a check and teaches you nothing. Work the problem out first and check once you believe you " +
-    "have it. A verdict is about the exact text echoed back in `graded` and nothing else: change one character " +
-    "and it no longer applies, so hand a passing text in unchanged.",
+    "The number of checks per attempt is fixed before the attempt starts; every completed grading decision spends one, pass or fail. Grader errors do not spend a check. " +
+    "`left` says how many remain. A verdict applies to the exact text echoed back in `graded` and to nothing else.",
   expectMs: 120_000,
 };
 
@@ -122,17 +120,14 @@ export function registerVerifyTool(db: Conn, reg: Registry, sealed: Sealed): str
 
     // 形状跟 `tree/dfs.ts` 里那次一致 —— 同一个 G，同一批句柄，喂进去的东西
     // 不该因为「是谁问的」而变形。
-    const v = await evaluate(g, reg, {
-      task: { ...(task ?? {}), result: answer },
-      chain: [],
-      result: { kind: "prompt", body: answer },
-    });
+    const v = await evaluate(g, reg, candidateInput(task ?? {}, answer));
+    if (!v.valid) return { valid: false, outcome: "grader_error", error: v.why || "the grader did not complete", graded: answer, left: here - spent };
     // **回执带上判的是哪一份。** 只回一个 1 的话，隔几轮它就对不上号了 ——
     // 实测：模型验出过一份 equiv=True 的答案，后面又交了另一份。上下文里那条
     // `{pass:1, why:""}` 没说过的是哪一段，等于验了个寂寞。
     //
     // `trace`（每个节点算出了什么）仍然不回，那是给我们排障看的。
-    return { pass: v.pass, why: v.why, graded: answer, left: here - spent - 1 };
+    return { pass: v.pass, valid: v.valid, outcome: v.outcome, why: v.why, note: v.note, graded: answer, left: here - spent - 1 };
   });
   // **落库走同一条路。** 以前这儿是手写的一条 upsert 加两条 `insert into trigger`，
   // 跟 `register.ts` 里那份各写各的 —— 而它们已经漂开了一列（那边更新
@@ -140,6 +135,9 @@ export function registerVerifyTool(db: Conn, reg: Registry, sealed: Sealed): str
   declareTool(db, {
     ...VERIFY_TOOL,
     concurrent: false,
+    // **判决拿不回来。** 再问一次 G 要 3–97 秒（五种语言各量了一道），而且那次调用
+    // 花的是这一轮的额度 —— 压上下文的时候它跟一次跑了四分钟的测试是一类东西。
+    gives: "event",
     // 两条同一组 = AND：**这道题有 G，而且这一站不是交卷站。**
     //
     // 第一条：有 G 就该能问 G，不按 mode 分 —— 单链机制也一样。
@@ -209,10 +207,11 @@ function checksIn(db: Conn, at: { sub: string; task: string; agent: string; inst
   let n = 0;
   for (const r of rows) {
     try {
-      const v = JSON.parse(r.body) as { id?: string; name?: string; value?: { pass?: unknown } };
+      const v = JSON.parse(r.body) as { id?: string; name?: string; value?: { pass?: unknown; valid?: unknown; outcome?: unknown } };
       if (v.name !== VERIFY_TOOL.name) continue;
       if (String(v.id ?? "").startsWith("g-")) continue; // 交卷那一次
-      if (typeof v.value?.pass !== "number") continue; // 被拦下的那几次不算
+      if (v.value?.valid === false || v.value?.outcome === "grader_error") continue;
+      if (v.value?.pass !== 0 && v.value?.pass !== 1) continue;
       n++;
     } catch {
       // 读不出来的行不算

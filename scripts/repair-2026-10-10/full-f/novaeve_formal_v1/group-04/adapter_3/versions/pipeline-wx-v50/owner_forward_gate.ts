@@ -1,0 +1,2 @@
+/** Guard errors happen before attempted=true; original cash catch confirms no forward. */
+export async function forwardAfterOwnerGuard(options:{validateForwardSource:()=>void;ownerForwardGuard:()=>Promise<void>;markAttempted:()=>void;transport?: (wire:string)=>Promise<{httpStatus:number;rawResponse:string}>;wire:string}){options.validateForwardSource();await options.ownerForwardGuard();if(!options.transport)throw Error('terminal_full_F_shared_transport_required');options.markAttempted();return options.transport(options.wire);}

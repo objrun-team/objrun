@@ -28,10 +28,11 @@
 import type { Conn, Store } from "../H2H/db.ts";
 import { all, run } from "../H2H/db.ts";
 import { tableNameOf } from "../install/index.ts";
+import { bodiesAt, pressNode, readyLevels, swapClosed, type Level, type Line } from "../msg/press.ts";
 import { SUBMIT } from "../tree/dfs.ts";
 import { chainOf, type Unit } from "./chain.ts";
 import type { Registry } from "./registry.ts";
-import { answerMissing, checkBody, deliver, type Said, sentAsIn } from "../msg/deliver.ts";
+import { answerMissing, mendPairs, type Pair, checkBody, deliver, type Said, sentAsIn } from "../msg/deliver.ts";
 import { fire, type Facts } from "./trigger.ts";
 
 type Row = Record<string, unknown>;
@@ -73,7 +74,7 @@ function nextOf(db: Conn, mode: string, cycle: string): string[] {
 export interface Hooks {
   /** 一个任务的执行单元全干完了。判它成没成是别人的事，内核只报告「跑完了」。 */
   /** 这道题收工了。`expired` 有值 = 是被时限逼停的，不是自己走完的。 */
-  onDone?(task: string, expired?: string): void;
+  onDone?(task: string, expired?: string): void | Promise<void>;
 }
 
 export class Kernel {
@@ -87,6 +88,8 @@ export class Kernel {
   #cried = new Set<string>();
   #again = false;
   #stopped = true;
+  /** Only deduplicate live finalization calls; the pending work itself remains in task.result. */
+  #finalizing = new Set<string>();
 
   constructor(store: Store, log: Log, reg: Registry, hooks: Hooks = {}) {
     this.#store = store;
@@ -126,6 +129,7 @@ export class Kernel {
     this.#ticking = true;
     try {
       this.#reg.sync(this.#store.rw);
+      this.#resumeFinalization();
       const rows = this.#scan();
       this.#reap(rows);
       for (const p of this.#ready(rows)) void this.#advance(p);
@@ -189,7 +193,7 @@ export class Kernel {
    * **挑在这儿挑，适配器只管调。** 适配器自己再挑一次的话，「这一站用哪条轨」
    * 就有两个地方说了算，早晚漂。
    */
-  #handleOf(p: Pending): { handle: string; api: { key_env: string; model: string; base_url: string; retry_on: string } | null } {
+  #handleOf(p: Pending): { handle: string; api: { key_env: string; model: string; base_url: string; retry_on: string; compress_at: number | null } | null } {
     const agent = one(this.#store.ro, `select unit, apis from agent where name = ?`, [p.agent]);
     if (!agent) throw new Error(`no row in agent for ${p.agent}`);
 
@@ -204,7 +208,7 @@ export class Kernel {
       throw new Error(`agent ${p.agent} has apis that is not a readable list`);
     }
     for (const [keyEnv, model] of apis) {
-      const row = one(this.#store.ro, `select key_env, model, handle, modes, base_url, retry_on from api where key_env = ? and model = ?`, [
+      const row = one(this.#store.ro, `select key_env, model, handle, modes, base_url, retry_on, compress_at from api where key_env = ? and model = ?`, [
         keyEnv,
         model,
       ]);
@@ -213,7 +217,17 @@ export class Kernel {
         .split(",")
         .map((x) => x.trim());
       if (modes.includes(want)) {
-        return { handle: String(row.handle), api: { key_env: keyEnv, model, base_url: String(row.base_url), retry_on: String(row.retry_on) } };
+        return {
+          handle: String(row.handle),
+          api: {
+            key_env: keyEnv,
+            model,
+            base_url: String(row.base_url),
+            retry_on: String(row.retry_on),
+            // 空 = 从不压。**是这一行自己的天花板** —— 换把钥匙换个模型就是另一个数。
+            compress_at: row.compress_at === null || row.compress_at === undefined ? null : Number(row.compress_at),
+          },
+        };
       }
     }
     throw new Error(`${p.mode}/${p.cycle} needs a ${want} lane, but none of agent ${p.agent} apis supports it`);
@@ -258,26 +272,28 @@ export class Kernel {
     const now = Date.now();
     for (const t of all(
       this.#store.ro,
-      `select id, created_at, solve_seconds from task where state not in ('done','failed')`,
-    ) as { id: string; created_at: number; solve_seconds: number }[]) {
+      `select id, created_at, solve_seconds, state from task where state not in ('done','failed')`,
+    ) as { id: string; created_at: number; solve_seconds: number; state: string }[]) {
       if (now - Number(t.created_at) <= Number(t.solve_seconds) * 1000) continue;
       const key = `task expired\u0000${t.id}`;
       if (this.#cried.has(key)) continue;
-      this.#cried.add(key);
       // **一道题出岔子不该带走整轮扫描。** 这个循环还要接着看别的任务和别的
       // 执行单元；这儿抛出去的话，后面那些一个都轮不到 —— 而且下一圈还会从头
       // 再抛一次，等于一道坏题把判死这件事整个停掉。
       this.#log.warn(`task ${t.id} expired: ran ${Math.round((now - Number(t.created_at)) / 1000)}s, limit ${t.solve_seconds}s`);
+      const closing = JSON.stringify({ pass: 0, valid: false, outcome: "task_timeout", why: `over solve_seconds=${t.solve_seconds}s` });
       try {
         // 先落一个失败，让它别再被排上；有 G 的话下面那一声会按判决改写。
         run(this.#store.rw, `update task set state = 'failed', result = ? where id = ?`, [
-          JSON.stringify({ pass: 0, why: `over solve_seconds=${t.solve_seconds}s` }),
+          closing,
           t.id,
         ]);
         // **超时也要问 G。** 以前这条路直接写 failed 就完了，于是「时限内交对了、
         // 只是树没来得及收尾」跟「什么都没做出来」在成绩单上长得一模一样。
-        this.#hooks.onDone?.(t.id, `over solve_seconds=${t.solve_seconds}s`);
+        this.#finalize(t.id, `over solve_seconds=${t.solve_seconds}s`, closing);
+        this.#cried.add(key);
       } catch (e) {
+        this.#cried.delete(key);
         this.#log.error(`task ${t.id} expired but could not be closed: ${msg(e)}`);
       }
     }
@@ -430,6 +446,7 @@ export class Kernel {
    * 崩在中间就有「已经发出去、库里没有」的调用，那种状态恢复不了。
    */
   async #advance(p: Pending): Promise<void> {
+    if (["done", "failed"].includes(String(one(this.#store.ro, "select state from task where id = ?", [p.task])?.state))) return;
     // **先占位，再干活。**「这一行已经派出去了」这件事必须在**任何 await 之前**
     // 就写进库 —— 挑活的人（`#ready`）看的就是这一行。
     //
@@ -548,6 +565,28 @@ export class Kernel {
       const r = (back ?? {}) as { role?: string; kind?: string; body?: unknown } & Partial<Said>;
       this.#push(p, r.role ?? "assistant", r.kind ?? "prompt", text(r.body ?? back), r);
 
+      // A late HTTP/model response may be recorded, but cannot reopen a closed task or unit.
+      const taskState = String(one(this.#store.ro, "select state from task where id = ?", [p.task])?.state);
+      const unitDone = Number(one(this.#store.ro, `select done from "${p.sub}" where task = ? and unit = ?`, [p.task, p.unit])?.done) === 1;
+      if (["done", "failed"].includes(taskState) || unitDone) {
+        run(this.#store.rw, `update "${p.sub}" set done = 1 where task = ? and unit = ?`, [p.task, p.unit]);
+        run(this.#store.rw, `update "${tableNameOf("agent_{}_ctx", p.agent)}" set done = 1 where instance = ? and unit = ?`, [p.instance, p.unit]);
+        this.#answerAll(p.task, p.sub);
+        this.wake();
+        return;
+      }
+
+      // Tool units can receive an account fault from a nested searcher even though their own handle succeeds.
+      for (const receipt of all(this.#store.ro, `select body from "${this.#msgTable(p.agent)}" where instance = ? and unit = ? and kind = 'tool'`, [p.instance, p.unit])) {
+        let value: { valid?: unknown; outcome?: unknown; httpStatus?: unknown; error?: unknown } | undefined;
+        try { value = (JSON.parse(String(receipt.body)) as { value?: typeof value }).value; } catch { continue; }
+        const status = Number(value?.httpStatus);
+        if (value?.valid === false && value.outcome === "provider_error" && [401, 402, 403].includes(status)) {
+          this.#providerFault(p, status, String(value.error ?? "provider refused the nested request"));
+          return;
+        }
+      }
+
       await this.#atMoment(p, facts, "post_send");
       await this.#infer(p, facts, back);
       // 成功推完才醒下一圈。**失败不醒** —— 醒了就是原地热循环：
@@ -556,6 +595,12 @@ export class Kernel {
       this.wake();
     } catch (e) {
       const why = msg(e);
+      const serviceError = e as { statusCode?: unknown; cause?: { statusCode?: unknown }; lastError?: { statusCode?: unknown } };
+      const httpStatus = Number(serviceError?.statusCode ?? serviceError?.cause?.statusCode ?? serviceError?.lastError?.statusCode);
+      if ([401, 402, 403].includes(httpStatus)) {
+        this.#providerFault(p, httpStatus, why);
+        return;
+      }
       this.#log.error(`${p.sub} ${p.task} ${p.cycle}#${p.unit} is stuck: ${why}`);
       // **也落进库。** 只进日志的话，从接口上看这一行就是「不知为何不动」——
       // 而客户端手里只有接口。日志在服务器上，看日志的人和被卡住的人不是同一个。
@@ -577,6 +622,56 @@ export class Kernel {
           // 连这一行都落不进去（多半是子表还没长出来），那就只剩日志了
         }
       }
+    }
+  }
+
+  #providerFault(p: Pending, httpStatus: number, why: string): void {
+    run(this.#store.rw, `update task set state = 'failed', result = ? where id = ?`, [JSON.stringify({ pass: 0, valid: false, outcome: "provider_error", httpStatus, why }), p.task]);
+    run(this.#store.rw, `update "${p.sub}" set done = 1, status = 'dead_service' where task = ? and done = 0`, [p.task]);
+    run(this.#store.rw, `update "${tableNameOf("agent_{}_ctx", p.agent)}" set done = 1 where instance = ?`, [p.instance]);
+    this.#answerAll(p.task, p.sub);
+    this.#log.error(`${p.task} stopped after provider ${httpStatus}: ${why}`);
+    this.wake();
+  }
+
+  #pendingFinalizations(): { id: string; result: string }[] {
+    return all(this.#store.ro, `select id,result from task where state in ('done','failed') and json_valid(result) and json_extract(result,'$.outcome') in ('finalization_pending','finalization_error')`) as { id: string; result: string }[];
+  }
+
+  #resumeFinalization(): void {
+    for (const row of this.#pendingFinalizations()) {
+      if (this.#finalizing.has(row.id)) continue;
+      const prior = JSON.parse(row.result) as { expired?: string; retryAt?: number };
+      if (Number(prior.retryAt ?? 0) > Date.now()) continue;
+      this.#finalize(row.id, prior.expired);
+    }
+  }
+
+  #finalize(task: string, expired?: string, fallback: string | null = null): void {
+    if (!this.#hooks.onDone || this.#finalizing.has(task)) return;
+    const pending = JSON.stringify({ pass: 0, valid: false, outcome: "finalization_pending", ...(expired ? { expired, why: expired } : {}) });
+    run(this.#store.rw, "update task set result = ? where id = ?", [pending, task]);
+    this.#finalizing.add(task);
+    const finish = () => {
+      if (this.#stopped) return; // Persist the marker if shutdown interrupts finalization.
+      run(this.#store.rw, "update task set result = ? where id = ? and result = ?", [fallback, task, pending]);
+    };
+    const fail = (e: unknown) => {
+      if (this.#stopped) return;
+      const failure = JSON.stringify({ pass: 0, valid: false, outcome: "finalization_error", why: msg(e), retryAt: Date.now() + 1000, ...(expired ? { expired } : {}) });
+      run(this.#store.rw, "update task set state = 'failed', result = ? where id = ? and result = ?", [failure, task, pending]);
+      this.#log.error(`task ${task} could not be finalized: ${msg(e)}`);
+    };
+    try {
+      const closed = this.#hooks.onDone(task, expired);
+      if (closed) {
+        void closed.then(finish).catch(fail).finally(() => { this.#finalizing.delete(task); this.wake(); });
+      } else {
+        finish();
+        this.#finalizing.delete(task);
+      }
+    } catch (e) {
+      try { fail(e); } finally { this.#finalizing.delete(task); }
     }
   }
 
@@ -740,6 +835,50 @@ export class Kernel {
     };
   }
 
+  /** 这一份要发出去的东西有多大，按 token 估。**内核没有分词器**，数字节再除 4 —— 量过一道题：4234989 字节对模型报的 1033906 token。 */
+  #tokensOf(rows: Row[]): number {
+    let n = 0;
+    for (const r of rows) {
+      n += Buffer.byteLength(String(r.body ?? ""), "utf8") + Buffer.byteLength(String(r.thought ?? ""), "utf8");
+    }
+    return Math.round(n / 4);
+  }
+
+  /**
+   * 把**已经收口的那些节点**换成它们压过的那一份。当前节点原样不动 —— 它的话正被用着。
+   *
+   * 按**节点**换，不按格换：一次调用和它的结果可能落在相邻两格上，只换其中一格的话，
+   * 上下文里会留下一个没有调用的结果，而模型那边直接拒收整份。
+   *
+   * 没压过的节点（`press` 是空的）照原文发。压是收口那一刻做的，做不成不该让这一发
+   * 也跟着完蛋。
+   */
+  /**
+   * 按阈值降级，降到装得下为止。**默认一级都不降。**
+   *
+   * 阈值是 `api.compress_at`（这把钥匙这个模型的天花板），空 = 从不压。装不下就降一级，
+   * 还装不下再降 —— 降到**设好了的**最后一级为止（`readyLevels`：`msg_part` 里那一列
+   * 每行都填了才算设好。`l4` 现在还空着，所以现在就是三级）。最后一级还超就把它发出去，
+   * 让模型那边拒 —— 到那一步已经没有更狠的了，而在这儿假装没事更糟。
+   */
+  #fit(p: Pending, rows: Row[], line: number[]): Row[] {
+    const api = this.#handleOf(p).api;
+    const cap = Number(api?.compress_at ?? 0);
+    if (!cap || this.#tokensOf(rows) <= cap) return rows;
+    let out = rows;
+    const levels = readyLevels(this.#store.ro);
+    for (const level of levels) {
+      out = swapClosed(this.#store.ro, p, rows as unknown as Line[], line, level) as unknown as Row[];
+      const now = this.#tokensOf(out);
+      if (now <= cap) {
+        this.#log.info(`${p.task} ${p.cycle}#${p.unit}: context ${String(this.#tokensOf(rows))} tok > ${String(cap)}, sent at ${level} (${String(now)} tok)`);
+        return out;
+      }
+    }
+    this.#log.warn(`${p.task} ${p.cycle}#${p.unit}: still ${String(this.#tokensOf(out))} tok at ${levels.at(-1) ?? "l0"}, over ${String(cap)}`);
+    return out;
+  }
+
   #contextOf(p: Pending): Row[] {
     const line: number[] = [];
     const seen = new Set<string>();
@@ -764,9 +903,9 @@ export class Kernel {
     const t = this.#msgTable(p.agent);
     const holes = line.map(() => "?").join(", ");
     // 按 unit 的先后、再按 seq 排 —— unit 编号在一个任务里单调递增，所以它就是时间序。
-    const rows = all(
+    let rows = all(
       this.#store.ro,
-      `select unit, seq, role, kind, body from "${t}"
+      `select unit, seq, role, kind, body, thought from "${t}"
         where instance = ? and unit in (${holes}) order by unit, seq`,
       [p.instance, ...line],
     );
@@ -783,14 +922,37 @@ export class Kernel {
     // 永远没人答。
     const cyc = one(this.#store.ro, `select api_mode from cycle where mode = ? and cycle = ?`, [p.mode, p.cycle]);
     if (String(cyc?.api_mode ?? "").trim() === "") return rows;
+
+    // **先补齐，再压。** 顺序反过来会出事，撞过：补齐靠 `kind='tool'` 认「这个调用
+    // 答过了」，而压过的那份里，收口节点的调用和结果都已经是一段文字 —— 它一个都
+    // 认不出来，该补的漏掉。漏掉之后原文里那个悬空的调用还在，一路发到那一端，
+    // SDK 本地就拒：`Tool result is missing for tool call …`。八站栽在这儿，全是交卷站。
     const typed = rows as unknown as { unit: number; seq: number; kind: string; body: string }[];
-    if (answerMissing(this.#store.rw, p.agent, p.instance, typed) === 0) return rows;
-    return all(
-      this.#store.ro,
-      `select unit, seq, role, kind, body from "${t}"
-        where instance = ? and unit in (${holes}) order by unit, seq`,
-      [p.instance, ...line],
+    if (answerMissing(this.#store.rw, p.agent, p.instance, typed) > 0) {
+      rows = all(
+        this.#store.ro,
+        `select unit, seq, role, kind, body, thought from "${t}"
+          where instance = ? and unit in (${holes}) order by unit, seq`,
+        [p.instance, ...line],
+      );
+    }
+    return this.#mend(p, this.#fit(p, rows, line));
+  }
+
+  /**
+   * 发出去之前最后看一眼：调用和结果还配得上吗。配不上就摘掉那一小段，**不回退**。
+   *
+   * 正常情况下这儿什么都不会做 —— 真动了手就说明前面漏了一条结果，所以动手必留一条
+   * warn，带上是哪一格哪个调用。悄悄摘掉的话，这个洞下次还在，而表现只是「模型好像
+   * 少看见了点什么」。
+   */
+  #mend(p: Pending, rows: Row[]): Row[] {
+    const got = mendPairs(rows as unknown as Pair[]);
+    if (got.dropped.length === 0) return rows;
+    this.#log.warn(
+      `${p.task} ${p.cycle}#${p.unit}: context did not hold together, dropped ${String(got.dropped.length)}: ${got.dropped.slice(0, 3).join("; ")}`,
     );
+    return got.rows as unknown as Row[];
   }
 
   /** 往上下文里压一条。`seq` 在这个单元里连着排。 */
@@ -881,6 +1043,32 @@ export class Kernel {
       p.cycle,
       p.unit,
     ]);
+    // **节点收口了，就把它压好。** 收口 = 这一站拿到了终止状态（`status` 非空）。
+    // 压的是已经出完的那个节点：还在出的节点不压，它的话正被用着。
+    //
+    // 压不成不该带走这一站 —— 那一站是真做完了。压不成的表现是这个节点的 `press`
+    // 还是空的，而拼上下文那边见到空的就照原文发（见 `#contextOf`）。
+    if (status !== null) {
+      const node = one(this.#store.ro, `select node from "${p.sub}" where task = ? and cycle = ? and unit = ?`, [
+        p.task,
+        p.cycle,
+        p.unit,
+      ]);
+      if (node) {
+        try {
+          const n = await pressNode(this.#store.rw, this.#reg, {
+            sub: p.sub,
+            task: p.task,
+            node: Number(node.node),
+            agent: p.agent,
+            instance: p.instance,
+          });
+          if (n > 0) this.#log.info(`${p.task} node ${String(node.node)}: pressed ${String(n)} unit(s)`);
+        } catch (e) {
+          this.#log.warn(`${p.task} node ${String(node.node)}: could not be pressed: ${msg(e)}`);
+        }
+      }
+    }
     const ctx = tableNameOf("agent_{}_ctx", p.agent);
     run(this.#store.rw, `update "${ctx}" set done = 1 where instance = ? and unit = ?`, [p.instance, p.unit]);
 
@@ -1031,7 +1219,9 @@ export class Kernel {
     // 挂在表里，这张表也就当不成一份完整的快照。
     if (justDone) this.#answerAll(task, sub);
     // 跑完了喊一声。**内核不知道那边会干什么** —— 判成没成不是它的事。
-    if (justDone) this.#hooks.onDone?.(task);
+    if (justDone) {
+      this.#finalize(task);
+    }
     return justDone;
   }
 
@@ -1067,6 +1257,9 @@ export class Kernel {
     ) as { created_at: number; solve_seconds: number }[]) {
       deadlines.push(Number(t.created_at) + Number(t.solve_seconds) * 1000);
     }
+    for (const row of this.#pendingFinalizations()) {
+      if (!this.#finalizing.has(row.id)) deadlines.push(Number((JSON.parse(row.result) as { retryAt?: number }).retryAt ?? now));
+    }
 
     if (deadlines.length === 0) return;
     const soonest = Math.min(...deadlines);
@@ -1079,6 +1272,33 @@ function text(v: unknown): string {
   return typeof v === "string" ? v : JSON.stringify(v ?? null);
 }
 
-function msg(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
+/**
+ * 一个错误变成一行话。**连 `cause` 一起说。**
+ *
+ * 只打最外面那一句是不够的，撞过：AI SDK 收到 200 之后把返回体映射成自己的结构，
+ * 那一步失败就包一句 `Failed to process successful response`，**真正的原因挂在
+ * `cause` 上**（`@ai-sdk/provider-utils` 的 `postToApi`）。日志里只有外面那句的话，
+ * 「body 收到一半断了」「某个字段的形状对不上」「回了个空壳」这三种分不开 ——
+ * 而分不开就查不下去，一整趟只留下十几条一模一样的话。
+ *
+ * 顺带把那一端说了什么也带上（`statusCode` / `responseBody`）：400 的时候那句话
+ * 就是答案本身（`Thinking mode does not support this tool_choice` 就是这么找到的）。
+ */
+export function msg(e: unknown): string {
+  const out: string[] = [];
+  let cur: unknown = e;
+  for (let i = 0; cur && i < 5; i++) {
+    const x = cur as { message?: unknown; name?: unknown; statusCode?: unknown; responseBody?: unknown; cause?: unknown };
+    const one = typeof x.message === "string" ? x.message : String(cur);
+    const extra: string[] = [];
+    if (x.statusCode) extra.push(`status ${String(x.statusCode)}`);
+    if (typeof x.responseBody === "string" && x.responseBody) extra.push(`body ${x.responseBody.slice(0, 300)}`);
+    out.push(one + (extra.length ? ` (${extra.join(", ")})` : ""));
+    cur = x.cause;
+    // 同一句重复挂两层的时候不重复说 —— 有的包装层原样透传 message。
+    if (typeof (cur as { message?: unknown } | null)?.message === "string" && (cur as { message: string }).message === one) {
+      cur = (cur as { cause?: unknown }).cause;
+    }
+  }
+  return out.join(" <- ");
 }

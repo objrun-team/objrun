@@ -14,46 +14,20 @@
 import type { Conn } from "../H2H/db.ts";
 import { all, run } from "../H2H/db.ts";
 import type { Registry } from "../engine/registry.ts";
-import { openPlace, type Place } from "../place/index.ts";
+import { openLocal } from "../place/index.ts";
 import { TOOLS } from "./index.ts";
-
-/** 开过的位置留着复用 —— 每次调用都重送一遍运行时的话，什么都别干了。 */
-export class Places {
-  #open = new Map<string, Promise<Place>>();
-  #db: Conn;
-
-  constructor(db: Conn) {
-    this.#db = db;
-  }
-
-  /** 送什么过去，登记在 `workplace.runtime` 里 —— 不在代码里写死。 */
-  #runtimeOf(place: string): string | undefined {
-    const row = all(this.#db, `select runtime from workplace where place = ?`, [place])[0] as
-      | { runtime: string | null }
-      | undefined;
-    return row?.runtime ?? undefined;
-  }
-
-  get(place: string): Promise<Place> {
-    let p = this.#open.get(place);
-    if (!p) {
-      p = openPlace(place, this.#runtimeOf(place));
-      this.#open.set(place, p);
-      // 连不上就把这次的坑清掉，下次还能重试 —— 留着的话这个位置就永久废了
-      p.catch(() => this.#open.delete(place));
-    }
-    return p;
-  }
-
-  closeAll(): void {
-    for (const p of this.#open.values()) void p.then((x) => x.close()).catch(() => {});
-    this.#open.clear();
-  }
-}
 
 interface Policy {
   tool: string;
   policy: string;
+}
+
+/** 这一次在哪儿跑，以及**由谁把调用送过去**。 */
+export interface Where {
+  /** 位置串。`local` = 就在这个进程里跑。 */
+  place: string;
+  /** 转发它的那条句柄 → `workplace.identity`。本机跑的时候是空的。 */
+  identity: string;
 }
 
 /**
@@ -64,14 +38,20 @@ interface Policy {
  *
  * 都不满足就在本机跑 —— **不是报错**。位置登记的是「可以转到哪儿」，
  * 不是「必须转过去」。
+ *
+ * 判出要转发的时候，**得一并说清由谁转** —— 「怎么到那个位置」是那条句柄的事，
+ * 不是这个文件的事。声明那一关保证了 `forward = 1` 的行必有 `identity`；
+ * 真缺了在这儿炸，不往下走：往下走的话它会**悄悄退回本机跑**，而一件本该在
+ * 容器里跑的 `bash` 落到宿主机上，是不报错的那种错。
  */
-export function placeFor(db: Conn, tool: string, place: string, agentWants: boolean | undefined): string {
-  if (!place || place === "local") return "local";
-  const w = all(db, `select forward, tools from workplace where place = ?`, [place])[0] as
-    | { forward: number; tools: string }
+export function placeFor(db: Conn, tool: string, place: string, agentWants: boolean | undefined): Where {
+  const HERE: Where = { place: "local", identity: "" };
+  if (!place || place === "local") return HERE;
+  const w = all(db, `select forward, tools, identity from workplace where place = ?`, [place])[0] as
+    | { forward: number; tools: string; identity: string | null }
     | undefined;
   if (!w) throw new Error(`no row in workplace for ${place}`);
-  if (!Number(w.forward)) return "local";
+  if (!Number(w.forward)) return HERE;
 
   let list: Policy[];
   try {
@@ -80,11 +60,23 @@ export function placeFor(db: Conn, tool: string, place: string, agentWants: bool
     throw new Error(`workplace ${place} has tools that is not a readable list`);
   }
   const hit = list.find((x) => x.tool === tool);
-  if (!hit) return "local";
-  if (hit.policy === "always") return place;
-  if (hit.policy === "agent") return agentWants === false ? "local" : place;
+  if (!hit) return HERE;
+
+  const there = (): Where => {
+    const identity = String(w.identity ?? "").trim();
+    if (!identity) throw new Error(`workplace ${place} forwards, but no handle is registered to carry the call there`);
+    return { place, identity };
+  };
+  if (hit.policy === "always") return there();
+  if (hit.policy === "agent") return agentWants === false ? HERE : there();
   throw new Error(`unknown policy for ${tool} on workplace ${place}: ${hit.policy}`);
 }
+
+/** 不转发的时候工具就在这儿跑。**跟运行时里装的是同一份实现**，所以两边行为一样。 */
+const here = openLocal();
+
+/** 把一次工具调用发出去。转发的话经那条句柄，不转发的话就在这儿跑。 */
+type Send = (tool: string, args: Record<string, unknown>) => Promise<unknown>;
 
 /** 改文件之前得先读过它 —— 这几个是「改」。 */
 const MUTATES = new Set(["edit", "write"]);
@@ -127,9 +119,9 @@ function hasRead(db: Conn, agent: string, instance: string, path: string): boole
  * 读不出来的错不止「没有这个文件」一种（没权限、那是个目录……）。只有 ENOENT
  * 才算「不存在」—— 别的错一律当成存在，否则一个读不动的文件就把整道闸绕过去了。
  */
-async function existsAt(p: Place, path: string): Promise<boolean> {
+async function existsAt(send: Send, path: string): Promise<boolean> {
   try {
-    await p.call("read", { file_path: path, limit: 1 });
+    await send("read", { file_path: path, limit: 1 });
     return true;
   } catch (e) {
     return !/ENOENT|no such file/i.test(e instanceof Error ? e.message : String(e));
@@ -144,6 +136,8 @@ export interface Declared {
   output: Record<string, unknown>;
   prompt: string;
   concurrent: boolean;
+  /** 它的返回是哪一类东西 → `msg_part.name`。不填 = `event`。 */
+  gives?: string;
   when?: { dim: string; key: string; op: string; value: string }[][];
 }
 
@@ -165,12 +159,12 @@ export function declareTool(db: Conn, t: Declared, identity = `fn:tool.${t.name}
   const conditional = (t.when ?? []).length > 0;
   run(
     db,
-    `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable)
-     values (?, ?, ?, ?, ?, ?, ?, ?, null, 1)
+    `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable, gives)
+     values (?, ?, ?, ?, ?, ?, ?, ?, null, 1, ?)
      on conflict(name) do update set
        identity = excluded.identity, does = excluded.does, params = excluded.params,
        output = excluded.output, prompt = excluded.prompt,
-       concurrent = excluded.concurrent, system = excluded.system`,
+       concurrent = excluded.concurrent, system = excluded.system, gives = excluded.gives`,
     [
       t.name,
       identity,
@@ -180,6 +174,7 @@ export function declareTool(db: Conn, t: Declared, identity = `fn:tool.${t.name}
       t.prompt,
       t.concurrent ? 1 : 0,
       conditional ? 0 : 1,
+      t.gives ?? null,
     ],
   );
   run(db, `delete from trigger where owner_kind = 'tool' and owner = ?`, [t.name]);
@@ -200,7 +195,7 @@ export function declareTool(db: Conn, t: Declared, identity = `fn:tool.${t.name}
  * **落进去的是 `system = 1`**：读写这一组谁一上来都有，不看 `trigger`。
  * 不标的话，按「一条条件都没有 = 从不触发」那条语义，它们谁也拿不到。
  */
-export function registerTools(db: Conn, reg: Registry, places: Places): string[] {
+export function registerTools(db: Conn, reg: Registry): string[] {
   const names: string[] = [];
   for (const t of TOOLS) {
     const identity = `fn:tool.${t.name}`;
@@ -216,8 +211,12 @@ export function registerTools(db: Conn, reg: Registry, places: Places): string[]
       };
       const args = a.args ?? {};
 
+      // 在哪儿跑、由谁送过去。**送过去这件事经注册表**，跟调 G 的节点、调推断
+      // 函数是同一条路 —— 这个文件不认得 wsl、ssh、docker 里的任何一个。
       const where = placeFor(db, t.name, a.place ?? "local", a.forward);
-      const p = await places.get(where);
+      const send: Send = where.identity
+        ? (tool, args) => reg.get(where.identity).call({ place: where.place, op: "call", tool, args })
+        : (tool, args) => here.call(tool, args);
 
       // 改之前没读过 → **不拒，回一个操作单元**：先去做这一步，再回来改。
       //
@@ -230,7 +229,7 @@ export function registerTools(db: Conn, reg: Registry, places: Places): string[]
       // `write` 说「先去读」，`read` 说 ENOENT，两边各说各的，死循环。
       // 实测烧掉过一整道题（cmt-0：12 个单元全花在这上面，一个字答案都没写）。
       const path = typeof args.file_path === "string" ? args.file_path : "";
-      if (MUTATES.has(t.name) && a.agent && a.instance && path && (await existsAt(p, path))) {
+      if (MUTATES.has(t.name) && a.agent && a.instance && path && (await existsAt(send, path))) {
         if (!hasRead(db, a.agent, a.instance, path)) {
           return {
             unit: { tool: "read", args: { file_path: path } },
@@ -239,7 +238,7 @@ export function registerTools(db: Conn, reg: Registry, places: Places): string[]
         }
       }
 
-      return await p.call(t.name, args);
+      return await send(t.name, args);
     });
 
     declareTool(db, t, identity);

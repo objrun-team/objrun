@@ -1,0 +1,172 @@
+{
+  "protocol": "bench-common-stage-custody-release-v1",
+  "kind": "terminal-driver",
+  "bundlePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\c67a55f354be2bdcf6f726a09b88395003db5a273094857ec47574cd419cae46\\terminal-driver.js",
+    "bytes": 205656,
+    "sha256": "c67a55f354be2bdcf6f726a09b88395003db5a273094857ec47574cd419cae46"
+  },
+  "builderPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\build-stage-release.ts",
+    "bytes": 5166,
+    "sha256": "6dd5edbdc3f84eafdc14e4d82885e4ee83df9d4a251b872be5f7763202219548"
+  },
+  "sharedBuildAdapterPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\build-release.ts",
+    "bytes": 6896,
+    "sha256": "1709e4aac5fbdb68e57d5447ee3eefdace0e246f6c69e9e571f44762eab0297f"
+  },
+  "inputPins": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\terminal-driver.ts",
+      "bytes": 21903,
+      "sha256": "c7cfd12769e1c6afb629839ef2338b85a7b4bbbca1bf6d7e75c1b02900524a6d"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\campaign-stand-adapter.ts",
+      "bytes": 6370,
+      "sha256": "218df30e3f6fec92df0569b5fff28f3a3f1ca906517e0b21dfd3b0c99a8e6b7c"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\runtime.ts",
+      "bytes": 16682,
+      "sha256": "8b81c4aa99eeb7c9ba6e7626ee85e517b0849dffc92b7188b827070a9c301a07"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\runtime-stage-custody.ts",
+      "bytes": 17046,
+      "sha256": "aead6d81bc5ef36c48c21dd20fe2b39cdf2348f4ec62043f86c98be6ce9f8c9c"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\pre-native-history.ts",
+      "bytes": 3062,
+      "sha256": "c33f16a4fdf84a6f75fc78532eeaa13f717172a95d0424d249c75cbedafb4dda"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\original-history.ts",
+      "bytes": 13629,
+      "sha256": "d987b1e03a15b5c0e0e4980f2d8c442f9468e5e30af801b382caff33ea6af9cc"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\bindings.ts",
+      "bytes": 6909,
+      "sha256": "dd92e46e41d60d50b2cb8386fd7be5c94a7018cdf990ab1509c115243bbffc03"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-10\\full-f\\shared\\digitalocean-journal.ts",
+      "bytes": 40360,
+      "sha256": "1e0ab90fe37fe3ba47684b1d1822efdd747079788f6756172bb86c0a790c113f"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-10\\full-f\\shared\\digitalocean-usd-cash.ts",
+      "bytes": 18096,
+      "sha256": "e1e73e0dcd332580999643120de184a24ece680d4515b0f79e7432626389bf75"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\manifest.ts",
+      "bytes": 5056,
+      "sha256": "7d774b5c42b6f27e17b92d3f3198e191397b1b7ff2eafd86cadb05f5fa71f8dc"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\admission.ts",
+      "bytes": 3588,
+      "sha256": "a5f8e1e81c3ac03616d926092bc3a686417151073536612c1cf89ddf3ae522f8"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\stage-custody.ts",
+      "bytes": 6186,
+      "sha256": "422054b5d02959b16ce2cd4e879a63f2e49b791417b7b0c9a9e6ed09870a470c"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-10\\full-f\\shared\\digitalocean-provider.ts",
+      "bytes": 7884,
+      "sha256": "d911719fabe8c98a941f4c8173f6c9808e3bc41a6bbf36f52173b6026ca9d3f4"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\campaign-contract.ts",
+      "bytes": 12504,
+      "sha256": "bef7231be96f5586110d6dd8d5542aff41834a945eb16ef08535ec6ee4a830be"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\paid-resource-proof-v2.ts",
+      "bytes": 10146,
+      "sha256": "cb52ef14b4ffcdc88517f90f19e80678e0a5509a2678c8c6b90f366c1ccaf3bd"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\cny-cash-shadow-v2.ts",
+      "bytes": 24804,
+      "sha256": "21aa08b4aa9140bb26bf77990e0b41ebbc766e08105b4df06027a3fa19587387"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\types.ts",
+      "bytes": 3066,
+      "sha256": "3770d2cc1aea49430f31a13b771b2d0ab742e3405445beb0c1206c1190ce0728"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\app\\src\\objective\\spec.ts",
+      "bytes": 11584,
+      "sha256": "d92626d4d18eeeaf9c2a0291d2c17880dbdfeab193b6f6e9db7d93cb9f8705de"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\app\\src\\engine\\registry.ts",
+      "bytes": 10061,
+      "sha256": "eddb8367f4072dcccc90c5c9234038add933202563685bd28ddbd63592805e8f"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\app\\src\\objective\\run.ts",
+      "bytes": 7416,
+      "sha256": "f9eb9cbefb9b3cbc1002e886098fc3147c54ee5fed4d41e9de8bd5aa2bcf67a2"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\campaign-journal.ts",
+      "bytes": 40166,
+      "sha256": "6cf553b458b1847cc037006186ab9853773bc09ee751bfc0d1d81acdf6c85f2b"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\app\\src\\engine\\plugin.ts",
+      "bytes": 9839,
+      "sha256": "2ce497a566bb3b41cfe23f760fcc994b879a9ed2b3fa0a0f6fc755c2be894c1d"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\app\\src\\H2H\\db.ts",
+      "bytes": 5902,
+      "sha256": "3eea317e7d643f1566a895ceec5aec19d4c9e32e48ba384d978d0af09bb45946"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\benchmark-provider.ts",
+      "bytes": 7866,
+      "sha256": "a4c4f74501cb1b5888e773d6e8cb216b881dc6f29c52e4cb0616ccebec30709b"
+    }
+  ],
+  "transforms": [
+    {
+      "inputPin": {
+        "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\terminal-driver.ts",
+        "bytes": 21903,
+        "sha256": "c7cfd12769e1c6afb629839ef2338b85a7b4bbbca1bf6d7e75c1b02900524a6d"
+      },
+      "transformedSha256": "d9a2538c0b3b5ea5c363a38022b94dc92acdcd72dbac00ae760ae946db9f0540"
+    },
+    {
+      "inputPin": {
+        "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\runtime.ts",
+        "bytes": 16682,
+        "sha256": "8b81c4aa99eeb7c9ba6e7626ee85e517b0849dffc92b7188b827070a9c301a07"
+      },
+      "transformedSha256": "aead6d81bc5ef36c48c21dd20fe2b39cdf2348f4ec62043f86c98be6ce9f8c9c"
+    },
+    {
+      "inputPin": {
+        "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\bindings.ts",
+        "bytes": 6909,
+        "sha256": "dd92e46e41d60d50b2cb8386fd7be5c94a7018cdf990ab1509c115243bbffc03"
+      },
+      "transformedSha256": "2021061c22cb969e610da82f1e46300062ba0106d27352045dc4bc18ae85404e"
+    }
+  ],
+  "taskSpecificSourceClones": 0,
+  "originalFilesModified": false,
+  "modelCalls": 0,
+  "nativeBenchCalls": 0,
+  "originalHistoryRouting": "explicit ordered canonical cash history via strict original-history consumer; legacy and signed-pre-native unchanged"
+}

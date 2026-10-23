@@ -1,0 +1,34 @@
+{
+  "benchmark": "TheoPhysEval automatic49",
+  "purpose": "Four-arm engineering pilot; no cost matching",
+  "run": "theophyseval-pilot-20261016-v3",
+  "model": "deepseek/deepseek-v4.1-flash",
+  "canonicalModel": "deepseek/deepseek-v4.1-flash-20260910",
+  "provider": "DigitalOcean",
+  "maxTokens": 16384,
+  "temperature": 0,
+  "reasoning": "high",
+  "arms": [
+    "baseline",
+    "objrun",
+    "independent",
+    "binary"
+  ],
+  "checks": 5,
+  "solveSeconds": 600,
+  "maxBranches": 4,
+  "cyclesMaxUnits": 12,
+  "samples": 5,
+  "toolTurns": 12,
+  "concurrency": 2,
+  "perQuestionDollarCap": null,
+  "pilotBudgetUsd": null,
+  "proxy": "http://127.0.0.1:10809",
+  "taskIds": [
+    "axion-dielectric-conversion",
+    "sllod-thermostat",
+    "dispersion-pi-series",
+    "all-electron-to-crystal"
+  ],
+  "formalExperimentAuthorized": false
+}

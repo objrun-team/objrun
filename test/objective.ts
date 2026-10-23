@@ -52,6 +52,18 @@ const out = await outside({
     graded.push({ who: "look-fail", input: a.input });
     return false;
   },
+  /**
+   * 观测节点：判「不成」，**并且说清为什么**。
+   *
+   * 回的是 `{ value, note }` —— 判卷台那一侧常常手里有整份报告（哪一条没过、
+   * 报的什么错）。光回一个 `false` 的话那些话就地蒸发，模型只拿得到一句
+   * 「evaluated to false」，下一轮多半原样再来一遍。`why` 那一栏没动 ——
+   * 它说的是「这一格根本没算出来」，跟「算出来是假」不是一回事。
+   */
+  "/look-fail-loud": (a) => {
+    graded.push({ who: "look-fail-loud", input: a.input });
+    return { value: false, note: { failed: ["shape", "units"], hint: "two of the three parts are missing" } };
+  },
   /** 输出节点：把上游喂进来的那一位原样接出去。 */
   "/verdict": (a) => {
     const feed = (a.feed ?? []) as { value: unknown }[];
@@ -94,6 +106,7 @@ try {
       { name: out.url("/infer"), expectMs: 10_000 },
       { name: out.url("/look-pass"), expectMs: 10_000 },
       { name: out.url("/look-fail"), expectMs: 10_000 },
+      { name: out.url("/look-fail-loud"), expectMs: 10_000 },
       { name: out.url("/verdict"), expectMs: 10_000 },
     ],
     places: [{ place: "local" }],
@@ -190,6 +203,23 @@ try {
     { state: failed.state, verdict: failed.objective.verdict },
   );
   ok("and it can say why", String((failed.objective.verdict as { why?: string })?.why ?? "").length > 0, failed.objective);
+
+  step("7b. a node that judges false can add a note of its own");
+  await m.api("POST", "/tasks", {
+    id: "t-loud", mode: "demo", agent: "bot", place: "local", source: "user",
+    description: "this one fails and explains itself", objective: G(out.url("/look-fail-loud")), readable: false,
+  });
+  const loud = await until("a verdict for t-loud", async () => {
+    const d = await m.api<{ state: string; objective: { verdict: unknown } }>("GET", "/tasks/t-loud");
+    return d.objective.verdict !== null ? d : null;
+  });
+  const loudNote = String((loud.objective.verdict as { note?: string })?.note ?? "");
+  show("note:", loudNote);
+  ok(
+    "what the node said came through - a bare false leaves nothing but 'evaluated to false', and that teaches the next attempt nothing",
+    loudNote.includes("two of the three parts are missing") && loudNote.includes("units"),
+    loudNote,
+  );
 
   step("8. can the definition be reached from the main database");
   const row = await m.api<{ count: number; rows: Record<string, unknown>[] }>("POST", "/query", {

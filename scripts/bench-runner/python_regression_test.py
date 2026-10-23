@@ -1,0 +1,48 @@
+"""Zero-Bench regression: recorded native receipts, synthetic nodeids, and local pytest only."""
+import base64,copy,hashlib,importlib.util,json,os,sqlite3,subprocess,sys,tempfile,unittest
+from pathlib import Path
+HERE=Path(__file__).resolve().parent;ROOT=HERE.parents[1];sys.path.insert(0,str(HERE/'python'))
+import mailbox_completion,nodeid_phase_reporter,grade_phase_contract,module_bindings
+
+def pin(path):
+ p=Path(path).resolve();raw=p.read_bytes();return {'path':str(p),'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()}
+class Regression(unittest.TestCase):
+ @classmethod
+ def setUpClass(cls):
+  cls.ledger=ROOT/'docs/repair-2026-10-10/full-f-rerun/terminal-bench/runs/novaeve-torch-pipeline-parallelism-aa37d336-ef37-4862-95dc-017ecc7261e6/stand-process/stand/owned-native.sqlite';c=sqlite3.connect(cls.ledger.resolve().as_uri()+'?mode=ro',uri=True);rows=[json.loads(r[0]) for r in c.execute('select json from command')];c.close();cls.failed=next(r for r in rows if r['index']==270);cls.after=next(r for r in rows if r['index']==271);cls.cid=cls.failed['argv'][cls.failed['argv'].index('exec')+1];cls.actual=json.loads(Path(cls.after['stdout']['path']).read_text());cls.original=ROOT/'scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/mailbox_transport.py';mailbox_completion.configure(pin(cls.original))
+ def native(self,state=None):
+  me=self
+  class Recorded:
+   def assert_actor(self,cid):assert cid==me.cid;return copy.deepcopy(state or me.actual)
+  return Recorded()
+ def test_recorded_completion_and_fault_negatives(self):
+  r=mailbox_completion.classify_checker_completion(self.native(),self.cid,self.failed);self.assertEqual(r['classification'],'checker-completed');self.assertFalse(r['missing']);self.assertIsNone(r['gradePassed']);self.assertEqual(r['originalCommandReceipt'],self.failed)
+  for field,value in [('exitCode',None),('closeObserved',False),('timedOut',True),('overflow',True),('captureFaults',['original fault'])]:
+   bad={**self.failed,field:value}
+   with self.assertRaises(AssertionError):mailbox_completion.classify_checker_completion(self.native(),self.cid,bad)
+  for field,value in [('ExitCode',1),('OOMKilled',True),('Status','unknown'),('Running',True),('Error','actual fault')]:
+   state=copy.deepcopy(self.actual);state['State'][field]=value
+   with self.assertRaises(AssertionError):mailbox_completion.classify_checker_completion(self.native(state),self.cid,self.failed)
+  with self.assertRaises(AssertionError):mailbox_completion.classify_checker_completion(self.native(),'a'*64,self.failed)
+ def test_local_pytest_four_distinct_cases_two_failed(self):
+  with tempfile.TemporaryDirectory(prefix='phase-reporter-local-') as d:
+   p=Path(d);(p/'pytest.ini').write_text('[pytest]\n');test=p/'test_local_cases.py';test.write_text('import pytest\ndef test_one():assert True\ndef test_two():assert True\n@pytest.mark.parametrize("world",[1,2])\ndef test_parameter(world):assert False\n');child=p/'run.py';child.write_text('import sys,json\nfrom pathlib import Path\nsys.path.insert(0,'+repr(str(HERE/'python'))+')\nimport pytest\nfrom nodeid_phase_reporter import NodeidPhaseReporter\nr=NodeidPhaseReporter();code=pytest.main(['+repr(str(test))+',"-q","-p","no:cacheprovider"],plugins=[r]);Path('+repr(str(p/'ledger.json'))+').write_text(json.dumps(r.ledger()));sys.exit(code)\n');completed=subprocess.run([sys.executable,str(child)],cwd=d,env={**os.environ,'PYTEST_DISABLE_PLUGIN_AUTOLOAD':'1'},capture_output=True);self.assertEqual(completed.returncode,1,completed.stdout.decode('utf-8',errors='replace')+completed.stderr.decode('utf-8',errors='replace'));ledger=json.loads((p/'ledger.json').read_text());expected={'test_one','test_two','test_parameter[1]','test_parameter[2]'};checked=nodeid_phase_reporter.validate_ledger(ledger,expected,1);self.assertEqual((checked['total'],checked['passed'],checked['failed']),(4,2,2));missing=copy.deepcopy(ledger);missing['reports'].pop()
+   with self.assertRaises(AssertionError):nodeid_phase_reporter.validate_ledger(missing,expected,1)
+   with self.assertRaises(AssertionError):nodeid_phase_reporter.validate_ledger(ledger,expected,0)
+ def test_original_grade_bridge_anchors_do_not_rewrite_tests(self):
+  original=ROOT/'scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/pipeline_grade.py';raw=original.read_bytes();module_bindings.CONFIG={'checker':{'runnerPin':pin(HERE/'python/checker_phase_runner.py')}};transformed=module_bindings.transform_grade(raw.decode('utf-8',errors='replace'),{});compile(transformed,str(original),'exec');self.assertIn('checkerCompleted',transformed);self.assertIn("task['officialTestHashes']['test_outputs.py']",transformed);self.assertEqual(original.read_bytes(),raw)
+ def test_complete_nodeid_ledger_does_not_relabel_raw_ctrf_or_missing_cases(self):
+  original=ROOT/'scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/grade_contract.py';grade_phase_contract.configure(pin(original));expected=sorted(grade_phase_contract._original.EXPECTED);ledger={'protocol':'bench-pytest-nodeid-phase-ledger-v1','collected':['test.py::'+n for n in expected],'reports':[{'nodeid':'test.py::'+n,'when':phase,'outcome':'failed' if phase=='call' and i>=2 else 'passed','wasxfail':None} for i,n in enumerate(expected) for phase in ['setup','call','teardown']],'collectionErrors':[],'sourceSha256':pin(HERE/'python/nodeid_phase_reporter.py')['sha256']};lr=json.dumps(ledger).encode();raw=json.dumps({'results':{'tests':[{'name':'original-plugin-collapsed'}]*3}}).encode();result={'protocol':'tb12-private-checker-result-v1','taskId':'fixture','invocationId':'original','checkerSourceSha256':'a'*64,'numericGuestPid':1,'numericParentPid':0,'exitCode':1,'reward':0,'collectOnly':False,'ctrf':json.loads(raw),'ctrfRawBase64':base64.b64encode(raw).decode(),'ctrfRawSha256':hashlib.sha256(raw).hexdigest(),'privateNamespaces':{n:n+':[original]' for n in ['pid','mnt','net']},'pythonExecutable':'/opt/python','pythonExecutableSha256':'b'*64,'mountInfoSha256':'c'*64,'procStatus':'original','packages':{'pytest':'fixture'},'wallStart':1,'wallStop':2,'monotonicSeconds':1,'nodeidLedger':ledger,'nodeidLedgerRawBase64':base64.b64encode(lr).decode(),'nodeidLedgerRawSha256':hashlib.sha256(lr).hexdigest()};verified=grade_phase_contract.validate_result(result,'fixture','original','a'*64,raw);self.assertEqual(verified['caseLedgerValidation']['total'],4);self.assertEqual(verified['caseLedgerValidation']['failed'],2);self.assertEqual(verified['ctrfRawBase64'],result['ctrfRawBase64']);self.assertEqual(verified['reward'],0);bad=copy.deepcopy(result);bad.pop('nodeidLedgerRawBase64')
+  with self.assertRaises(KeyError):grade_phase_contract.validate_result(bad,'fixture','original','a'*64,raw)
+ def test_manifest_bootstrap_intercepts_exact_dynamic_preload_without_running_native(self):
+  with tempfile.TemporaryDirectory(prefix='binding-bootstrap-local-') as d:
+   p=Path(d);original=p/'original_grade.py';original.write_text("from pathlib import Path\ndef grade(native,checker,configpath,name,request,capture_receipt):\n runner=Path(__file__).with_name('checker_runner.py');native.upload(runner,checker,'/opt/pipeline-checker/checker_runner.py');data={'name':name,'missing':request is None,'receipt':capture_receipt};assert receipt['closeObserved'] and not receipt.get('timedOut') and receipt['exitCode']==0;return data\n")
+   config={'protocol':'bench-qualified-python-module-bindings-v1','checker':{'runnerPin':pin(HERE/'python/checker_phase_runner.py'),'reporterPin':pin(HERE/'python/nodeid_phase_reporter.py')},'modules':[{'name':'nodeid_phase_reporter','kind':'plain-module','sourcePin':pin(HERE/'python/nodeid_phase_reporter.py')},{'name':'grade_contract','kind':'configured-module','sourcePin':pin(HERE/'python/grade_phase_contract.py'),'originalPin':pin(ROOT/'scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/grade_contract.py')},{'name':'pipeline_grade','kind':'checker-phase-source-bridge','originalPin':pin(original)}]};cfg=p/'config.json';cfg.write_text(json.dumps(config));child=p/'bootstrap_test.py';child.write_text('import sys,json,importlib.util\nsys.path.insert(0,'+repr(str(HERE/'python'))+')\nimport module_bindings\nmodule_bindings.install(json.loads(open('+repr(str(cfg))+').read()))\nspec=importlib.util.spec_from_file_location("pipeline_grade",'+repr(str(original))+');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)\nassert m.__file__=='+repr(str(original))+'\nassert callable(m.prepare_checker_inputs) and callable(m.grade)\nprint("binding-pass-no-native")\n');r=subprocess.run([sys.executable,str(child)],capture_output=True);self.assertEqual(r.returncode,0,r.stderr.decode('utf-8',errors='replace'));self.assertIn(b'binding-pass-no-native',r.stdout)
+ def test_shared_checker_sources_stage_exact_bytes_inside_actual_native_owner_directory(self):
+  with tempfile.TemporaryDirectory(prefix='checked-source-stage-') as d:
+   class Owner:directory=Path(d)
+   source=pin(HERE/'python/checker_phase_runner.py');staged=module_bindings.stage_checked_source(Owner(),source);self.assertTrue(staged.resolve().is_relative_to(Path(d).resolve()));self.assertEqual(pin(staged)['sha256'],source['sha256']);self.assertEqual(module_bindings.stage_checked_source(Owner(),source),staged);staged.write_bytes(b'changed')
+   with self.assertRaises(AssertionError):module_bindings.stage_checked_source(Owner(),source)
+if __name__=='__main__':unittest.main()
+
+

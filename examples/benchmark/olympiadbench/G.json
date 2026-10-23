@@ -1,0 +1,12 @@
+{
+  "slug": "olympiadbench",
+  "nodes": [
+    {"name": "present", "moment": "task_done", "domain": "bool", "handle": "{GRADER}/present"},
+    {"name": "correct", "moment": "task_done", "domain": "bool", "handle": "{GRADER}/correct"}
+  ],
+  "edges": [{"src": "present", "out": 0, "dst": "correct"}],
+  "sink": "correct",
+  "checks": 5,
+  "reuse": "text",
+  "task": {"domain": "science", "solveSeconds": 600, "maxBranches": 4, "maxSearches": 0}
+}

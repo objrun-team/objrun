@@ -1,0 +1,8 @@
+{
+  "protocol": "jpg-native-python-executable-v2",
+  "executable": "D:/ProgramData/anaconda3/python.exe",
+  "bytes": 104208,
+  "sha256": "6965927a96b81d1717c1d2186de7feb9b29ebf8775464020ebc2f25de6ef8ee0",
+  "preservedBytes": "docs/repair-2026-10-08/jpg-lifecycle-revisions/pre-native-lifecycle-v2-2026-10-08/native-executable/python.exe",
+  "scope": "Host native executable only. Does not certify the complete Anaconda distribution or the private task grader interpreter."
+}

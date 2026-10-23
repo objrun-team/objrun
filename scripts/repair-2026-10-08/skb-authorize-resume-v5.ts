@@ -1,0 +1,13 @@
+import {join,resolve} from 'node:path';
+import {readFileSync,mkdirSync} from 'node:fs';
+import {actualPin,jsonPin} from './paid-resource-proof-v2.ts';
+import {durableJpgJson} from './jpg-paid-resource-admission-v1.ts';
+const r=jsonPin(actualPin(resolve(process.argv[2]!))),s=jsonPin(r.storageDescriptorPin),dir=join(s.directories.source,'authorized-resume-v5');mkdirSync(dir,{recursive:true});
+const names=['skb-artifact-fast-resume-runtime-v5.ts','skb-fast-admission-v5.ts','skb-hidden-launch-v5.py','skb-grade-recovered-v5.py','skb-authorize-resume-v5.ts'];
+const rows=names.map(name=>{const source=actualPin(join(import.meta.dir,name)),target=join(dir,name);const fd=Bun.write(target,readFileSync(source.path));return {source,target,fd};});
+for(const x of rows)await x.fd;
+const files=rows.map(x=>({originalPin:x.source,snapshotPin:actualPin(x.target)}));
+r.executedRevisionPin=durableJpgJson(join(dir,'revision.json'),{protocol:'skillsbench-executed-resume-revision-v5',files,modelCalls:0});
+for(const name of ['forwardSourcePins','sourcePins'])r[name]=r[name].map((p:any)=>files.find(x=>x.originalPin.path===p.path)?.originalPin??p);
+r.explicitExternalDataAuthorizationPin=durableJpgJson(join(r.output,'explicit-external-data-authorization.json'),{userReply:'授权发送上述数据到 DeepSeek 并继续试跑',destination:'https://api.deepseek.com/chat/completions',payload:'公开 SkillsBench 任务提示和候选容器工具结果',scope:'remaining fixed10-UF20 cases 16-19',balanceIsPrecondition:false,observedAtUtc:new Date().toISOString()});
+console.log(JSON.stringify({recipePin:durableJpgJson(join(r.output,'resumed-authorized-recipe.json'),r),modelCalls:0}));

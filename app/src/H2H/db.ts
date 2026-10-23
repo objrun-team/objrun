@@ -65,12 +65,22 @@ function wrap(raw: Database): Conn {
   return {
     exec: (sql) => raw.exec(sql),
     all: (sql, params) => {
-      const rows = raw.prepare(sql).all(...bind(params)) as Record<string, unknown>[];
-      return rows.map((r) => plain(r) as Record<string, unknown>);
+      const stmt = raw.prepare(sql);
+      try {
+        const rows = stmt.all(...bind(params)) as Record<string, unknown>[];
+        return rows.map((r) => plain(r) as Record<string, unknown>);
+      } finally {
+        stmt.finalize();
+      }
     },
     run: (sql, params) => {
-      const r = raw.prepare(sql).run(...bind(params));
-      return { changes: Number(r.changes), lastInsertRowid: Number(r.lastInsertRowid) };
+      const stmt = raw.prepare(sql);
+      try {
+        const r = stmt.run(...bind(params));
+        return { changes: Number(r.changes), lastInsertRowid: Number(r.lastInsertRowid) };
+      } finally {
+        stmt.finalize();
+      }
     },
     close: () => raw.close(),
   };

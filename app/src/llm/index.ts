@@ -55,8 +55,24 @@ type Row = Record<string, unknown>;
  * `web_search` 这件工具**发不发**：一家都不认得就一件都不发，而不是发一件调用起来
  * 才报错的。
  */
-export const VENDORS: Record<string, { baseURL: string; keyEnv: string; ws?: string; searches?: boolean }> = {
+/**
+ * `extra` = 这一家每次请求都要多带的字段（塞进请求体，跟 `reasoning_effort` 走同一条
+ * 中间件）。OpenRouter 用它钉死供应商和量化：不钉的话每次调用可能落到不同的供应商、
+ * 不同的量化上，同一个模型名跑出来的不是同一个模型。
+ */
+export const VENDORS: Record<string, { baseURL: string; keyEnv: string; ws?: string; searches?: boolean; extra?: Record<string, unknown> }> = {
   deepseek: { baseURL: "https://api.deepseek.com/v1", keyEnv: "DEEPSEEK_API_KEY", searches: true },
+  // 第三方托管的开源权重。DeepSeek 官方 2026-09-10 把 V4-Flash 退役、把旧名字指到 V4.1，
+  // 而论文里那一跑（2026-09-01）用的是 V4-Flash-0731 —— 同一个模型只剩这条路还能调到。
+  // 钉 fp8（DeepSeek 原生精度）+ 固定供应商顺序，不许回退到别家。
+  openrouter: {
+    baseURL: "https://openrouter.ai/api/v1",
+    keyEnv: "OPENROUTER_API_KEY",
+    // 顺序按实测吞吐（2026-09-25，2500 token 输出）：BaseTen 447 tok/s、Baidu 227、CoreWeave 180、
+    // GMICloud 168；OpenInference 只有 24（一次调用 8 分钟，一小时的题限就不可比了）。
+    // 官方 DeepSeek 在 9-01 那跑约 110 tok/s。
+    extra: { provider: { order: ["BaseTen", "Baidu", "CoreWeave", "GMICloud"], allow_fallbacks: false, quantizations: ["fp8"] } },
+  },
   dashscope: {
     baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
     keyEnv: "DASHSCOPE_API_KEY",
@@ -157,8 +173,9 @@ export interface Unit {
   instance: string;
   unit: number;
   /** 内核挑好的那条轨。**适配器不再自己挑** —— 挑的地方只许有一个。 */
-  api: { key_env: string; model: string; base_url: string; retry_on: string } | null;
-  context: { seq: number; role: string; kind: string; body: string }[];
+  /** 内核挑好的那条轨。`compress_at` = 上下文到多少 token 就先压再发，空 = 不压。 */
+  api: { key_env: string; model: string; base_url: string; retry_on: string; compress_at?: number | null } | null;
+  context: { seq: number; role: string; kind: string; body: string; thought?: string | null }[];
   /**
    * 哪种 role 出站时去哪儿 —— **从 `msg_role` 表读的，内核给过来。**
    *
@@ -277,7 +294,17 @@ export function sendable(r: { role: string; kind: string }, sentAs: Record<strin
  * 那条是工具的返回 —— 消息表只有一列 `body`，这两样没有自己的列，所以塞在里面。
  * 两头都是我们，约定一致就行；哪天觉得该有一列再补。
  */
-function toMsg(r: { role: string; kind: string; body: string }, sentAs: Record<string, string>): ModelMessage | null {
+function toMsg(
+  r: { role: string; kind: string; body: string; thought?: string | null },
+  sentAs: Record<string, string>,
+): ModelMessage | null {
+  // **当时想的那份跟着回去。** 厂商把这一条写死在文档里：请求带 `tools` 时，
+  // 历史轮次的 `reasoning_content` 都该回传（不带 `tools` 才是「传了也忽略」）。
+  // 而这套机制每一次请求都带 `tools`。
+  //
+  // 这跟「思考不进 `body`」那条决定不冲突：`body` 还是那份谁都认得的重放材料，
+  // 思考另占一列，出站时才拼进消息里。库里存着、发得出去，两边都要得到。
+  const thought = String(r.thought ?? "");
   // `graded` 跟 `call` 长得一样、也照样念给模型听 —— 差别只在**谁写的**：
   // `call` 是模型要的，得有人去跑；`graded` 是系统事后记下的一次外部裁决，
   // 结果当场就配好了，没有人该去跑它。分不开的话，跑工具那一站会把判决当成
@@ -287,6 +314,7 @@ function toMsg(r: { role: string; kind: string; body: string }, sentAs: Record<s
     return {
       role: "assistant",
       content: [
+        ...(thought ? [{ type: "reasoning" as const, text: thought }] : []),
         ...(v.text ? [{ type: "text" as const, text: v.text }] : []),
         ...(v.calls ?? []).map((c) => ({
           type: "tool-call" as const,
@@ -312,7 +340,17 @@ function toMsg(r: { role: string; kind: string; body: string }, sentAs: Record<s
     };
   }
   if (!sendable(r, sentAs)) return null;
-  if (r.role === "assistant") return { role: "assistant", content: r.body };
+  if (r.role === "assistant") {
+    return thought
+      ? {
+          role: "assistant",
+          content: [
+            { type: "reasoning" as const, text: thought },
+            ...(r.body ? [{ type: "text" as const, text: r.body }] : []),
+          ],
+        }
+      : { role: "assistant", content: r.body };
+  }
   return { role: "user", content: r.body };
 }
 
@@ -477,12 +515,20 @@ export function registerVendors(
       // 内核按周期表的 `api_mode` 已经挑好了这一站走哪条轨，这儿直接用。
       if (!u.api) throw new Error(`fn:api.${vendor} was called, but the kernel did not say which model this station uses`);
       const { model, key_env: keyEnv } = u.api;
+      const officialOpenRouter = vendor === "openrouter" && model === "deepseek/deepseek-v4.1-flash";
       const retryOn = retrySet(u.api.retry_on);
       // 这一次生效的旋钮 —— 整跑的打底，这个智能体自己那份盖上去。**得在建 provider
       // 之前算**：思考强度是靠 fetch 中间件塞进请求体的，而中间件是建 provider 时挂的。
       const knobs = knobsOf(u, runKnobs);
       // 见下面建 provider 那儿：钉死工具的站不能思考。
-      const effort = u.mustCall ? "none" : knobs.reasoningEffort;
+      const effort = officialOpenRouter ? "high" : u.mustCall ? "none" : knobs.reasoningEffort;
+      // 请求体里要多带的：这一家固定的那几样（`VENDORS[…].extra`）+ 思考强度。
+      const extra: Record<string, unknown> = { ...(v.extra ?? {}), ...(effort ? { reasoning_effort: effort } : {}) };
+      if (officialOpenRouter) {
+        extra.provider = { only: ["digitalocean"], allow_fallbacks: false, max_price: { prompt: 0.3, completion: 1.2 } };
+        extra.reasoning = { enabled: true, effort: "high", exclude: false };
+        extra.seed = undefined;
+      }
       // **地址从表里来。** 以前它写死在 `VENDORS` 里，后来我又加了一条环境变量去顶
       // 它 —— 那条更糟：同一份库，换个环境变量行为就不一样，而库里、代码里都看不
       // 出来。库要能当一份跟内核无关的快照用，这种东西一个都不能有。
@@ -502,16 +548,17 @@ export function registerVendors(
         //
         // 而这两件事本来也不冲突：会钉死工具的站（比如交卷）要的是「把已经算好的
         // 东西交出去」，不是再想一遍。
-        ...(effort ? { fetch: withExtra({ reasoning_effort: effort }) } : {}),
+        ...(Object.keys(extra).length ? { fetch: withExtra(extra) } : {}),
       });
 
-      const instructions = instructionsOf(u);
+      const instructions = [instructionsOf(u), officialOpenRouter && u.mustCall
+        ? `This station requires calling the ${u.mustCall} tool exactly once. A text-only response does not submit the task. Use the available tool.` : ""].filter(Boolean).join("\n\n");
       const messages = messagesOf(u);
 
       // 工具**只声明不执行**：没有 execute，SDK 就只把调用请求还回来。
       // 真去跑它是下一个执行单元的事 —— 在这儿跑掉的话，那一步就从库里消失了。
       const tools = Object.fromEntries(
-        u.tools.map((t) => [
+        u.tools.filter(t => !officialOpenRouter || !u.mustCall || t.name === u.mustCall).map((t) => [
           String(t.name),
           dynamicTool({
             description: String(t.does ?? ""),
@@ -564,7 +611,7 @@ export function registerVendors(
                 // 错误原样抛出去，看得见就改得动（清空 `cycle.must_call`，或者
                 // 把思考关掉）。
                 ...(u.mustCall && tools[u.mustCall]
-                  ? { toolChoice: { type: "tool" as const, toolName: u.mustCall } }
+                  ? officialOpenRouter ? { toolChoice: "auto" as const } : { toolChoice: { type: "tool" as const, toolName: u.mustCall } }
                   : {}),
                 // A benchmark run has to be reproducible: without a fixed temperature
                 // there is no telling how much of a score change came from an edit and
@@ -595,24 +642,46 @@ export function registerVendors(
         // 只留最后一轮的话，续过写的那些格子会把前面几轮的开销记成零。
         const spent = { prompt_tokens: 0, completion_tokens: 0, reasoning_tokens: 0, cached_tokens: 0 };
         for (let round = 0; ; round++) {
-          // 已经说出来的那半截接在末尾 —— 让它续，而不是重来一遍。
+          // 已经产出的那半截接在末尾 —— 让它续，而不是重来一遍。
           //
           // **思考那半截也得带回去。** 思考型模型把上一轮的思考当成这一轮的前提，
           // 只回传可见文本的话，有的厂商直接拒收：
           //   The `reasoning_content` in the thinking mode must be passed back to the API.
           // 实测一整道题就这么卡死在续写的第一轮上。
-          const so_far: ModelMessage[] = text
-            ? [
-                ...messages,
-                {
-                  role: "assistant",
-                  content: [
-                    ...(thought ? [{ type: "reasoning" as const, text: thought }] : []),
-                    { type: "text" as const, text },
-                  ],
-                },
-              ]
-            : messages;
+          //
+          // ## 门槛是「产出过东西没有」，不是「说过话没有」
+          //
+          // 撞上限最常见的形态是**它一直在想，一个字可见文本都还没写**。这时候
+          // `text` 是空的 —— 拿它当门槛的话这一轮就退化成 `messages` 原样再发一遍，
+          // 也就是**原地重问**。而重发是断线的处理办法（那条本来就有人管：SDK 的
+          // `maxRetries` 管 HTTP，外面 `retryTimes` 配 `api.retry_on` 管厂商认的
+          // 可重试错误），不是截断的：截断意味着上一轮产出了满满一屏 token，
+          // 只是没说完，扔掉重走同一条路是**系统性无效**的 —— 输入一样，它会想到
+          // 同一个地方、同样撞上限。
+          //
+          // 拿真的一次截断打过三档（同一道题、同一段历史、同一个 16 万字的思考）：
+          //
+          // | 这一轮怎么发 | 结果 |
+          // | --- | --- |
+          // | 什么都不带，重发 | `length`，4,096 全是思考，文本 0 字，29 秒；**新思维链开头逐字等于丢掉那份** |
+          // | 带上思考 | `tool_calls`，7 秒，只新想了 423 个 token，接着上次的推导往下走 |
+          // | 前缀续写（`/beta` + `prefix`） | 400 `Function call should not be used with prefix` —— 带工具就用不了 |
+          //
+          // 代价是那份思考要作为输入再发一遍（上面那次 66,886 个输入 token）。
+          // 换回来的是不用再吐一轮输出，而卡着这类任务的是钟。
+          const so_far: ModelMessage[] =
+            text || thought
+              ? [
+                  ...messages,
+                  {
+                    role: "assistant",
+                    content: [
+                      ...(thought ? [{ type: "reasoning" as const, text: thought }] : []),
+                      ...(text ? [{ type: "text" as const, text }] : []),
+                    ],
+                  },
+                ]
+              : messages;
           // **续写这一轮炸了，不该把整道题带走。** 已经说出半截了，那半截就是答案的
           // 一部分；这儿抛出去的话，这一站挂到 expect_ms，一道题直接没了。截断着交
           // 比什么都没有强 —— 第一轮除外，那时候手上一个字都没有。
@@ -620,7 +689,9 @@ export function registerVendors(
           try {
             out = await ask(so_far);
           } catch (e) {
-            if (round === 0) throw e;
+            const accountError = e as { statusCode?: unknown; cause?: { statusCode?: unknown }; lastError?: { statusCode?: unknown } };
+            const status = Number(accountError?.statusCode ?? accountError?.cause?.statusCode ?? accountError?.lastError?.statusCode);
+            if (round === 0 || [401, 402, 403].includes(status)) throw e;
             this_broke = e instanceof Error ? e.message : String(e);
             break;
           }
@@ -631,6 +702,14 @@ export function registerVendors(
             out.reasoningText ||
             (out.reasoning ?? []).map((r) => ("text" in r ? String(r.text) : "")).join("");
           calls = out.toolCalls.map((c) => ({ id: c.toolCallId, name: c.toolName, input: c.input }));
+          // Enforce must_call locally with the official endpoint's supported auto
+          // mode. Thinking stays enabled, including at the submission station.
+          if (officialOpenRouter && u.mustCall && out.finishReason !== "length" &&
+              (calls.length !== 1 || calls[0]?.name !== u.mustCall)) {
+            const error = new Error(`The required ${u.mustCall} tool was not called exactly once`);
+            error.name = "RequiredToolCallMissing";
+            throw error;
+          }
           // 用量按轮累加。**捞不到就记 0，不猜** —— 一个猜出来的数比没有这个数更坏，
           // 因为它看起来像量出来的。哪一家不报，那一列就是 0，看得出来。
           spent.prompt_tokens += Number(out.usage?.inputTokens ?? 0);

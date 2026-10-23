@@ -191,11 +191,10 @@ export const python = {
     },
   },
   prompt:
-    "Prefer computing over guessing. If a quantity can be counted, enumerated, expanded or checked numerically, " +
-    "write the program and read the answer off it. Nothing carries over between calls - each program starts from " +
-    "an empty namespace, so repeat the definitions you need. Several calls in one turn cost the same as one: " +
-    "every call you make is run before you are asked again, so batch the work rather than spending a turn per question.",
+    "Nothing carries over between calls - each program starts from an empty namespace. Every call made in one " +
+    "turn is run before the next turn.",
   concurrent: false,
+  gives: "event",
   expectMs: PYTHON_WALL_MS + 30_000,
   // **交卷站不摆它。** 跑工具的只有动作站；交卷站是模型站、下一站也是模型站，
   // 在那儿请求算力没有人会去跑 —— 那次调用会一直挂着，最后被补一条「没跑成」。

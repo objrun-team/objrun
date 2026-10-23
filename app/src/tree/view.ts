@@ -26,6 +26,15 @@
  * 按行读的那一版是错的：读到一个动作站就是一片空白（那一站不说话，只跑工具），
  * 而那不是「它没说什么」，是问错了粒度。
  *
+ * ## 每个节点还带一段纯文本
+ *
+ * `task_tree` 列节点的时候，每个节点带一份 `summary` —— 那一段几格消息拼成的一段
+ * 纯文本。拼之前去掉三样：**系统那一侧**（工具约定、skill、内核记账）、**思维链**、
+ * 以及**写出去的那几段内容**（按行截，见 `WROTE_LINES`）。
+ *
+ * 列表本身就带着，是因为**看一眼别的分支干了什么，不该先花一次调用**：只给状态的话，
+ * 「哪几条走不通」得一个节点一个节点地 `node_load` 才问得出来。要原文再去 `node_load`。
+ *
  * ## 为什么按 mode 分发
  *
  * 只有会分叉的机制才需要这两个。一条道走到黑的单链机制，上下文本来就是直接继承的，
@@ -36,15 +45,18 @@
 import type { Conn } from "../H2H/db.ts";
 import { SUBMIT } from "./dfs.ts";
 import { all, run } from "../H2H/db.ts";
+import { bodiesAt, readyLevels, type Level } from "../msg/press.ts";
 import type { Registry } from "../engine/registry.ts";
 import { tableNameOf } from "../install/index.ts";
+import { sendable } from "../llm/index.ts";
+import { sentAsIn } from "../msg/deliver.ts";
 import { whereAmI } from "../tasks/where.ts";
 
 type Row = Record<string, unknown>;
 
 /** 内核递给工具的那一份（见 `tools/unit.ts` 的 `runOne`）。 */
 interface At {
-  args?: { node?: number };
+  args?: { node?: number; level?: string };
   agent?: string;
   instance?: string;
   unit?: number;
@@ -74,36 +86,88 @@ function byNode(units: Unit[]): Unit[][] {
   return [...g.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v.sort((x, y) => x.unit - y.unit));
 }
 
+/**
+ * 一个节点的摘要 —— **第三级那一份，直接读表**。
+ *
+ * 以前这儿自己压一遍。两处各压一份的话，模型从 `task_tree` 看到的和它自己上下文里
+ * 那一份就不是一个东西，而两边都说得通、都不报错。现在压只有一处：节点收口那一刻
+ * （`msg/press.ts`），这儿只是把最狠那一级取出来。
+ *
+ * 没压过的节点回空串 —— 还在出的那个节点就是这样，它的话正被用着，本来也不该有摘要。
+ *
+ * **同一段只出一次**：好几格合用一段是常态（`press` 里几行指着子表同一行），
+ * 每格都出一遍的话，省下来的又原样加回去了。
+ */
+function summaryOf(db: Conn, sub: string, task: string, units: number[]): string {
+  return [...bodiesAt(db, sub, task, units, "l3").values()].join("\n");
+}
+
 const TREE_TOOL = {
   name: "task_tree",
-  does: "See the whole tree for this task: which attempts were made, which were ruled out, how far each got. One node is a whole attempt - it runs from thinking, through the tool work, to the hand-in that closes it. What a node actually said is NOT here: use node_load to read one.",
+  does:
+    "This task's context is a tree of attempts, and the conversation carries only the chain from the root down to the current attempt. " +
+    "This lists every node of that tree, the current chain and the other branches alike. One node is a whole attempt: it spans the thinking, the tool work and the hand-in that closes it. " +
+    "Takes no arguments. Returns task, and nodes - for each: node (its number), at (the cycles it spans), status, done, mine (true for the attempt running now), and summary - empty on that one, since its messages are already in this conversation. " +
+    "summary is that node at the heaviest of the three compression levels - the same text the conversation itself would carry if it had to be squeezed that far. " +
+    "It is empty for a node that has not been compressed, which is any node still being worked on. node_load reads a node at whatever level is asked for, and untouched by default. " +
+    "What either tool hands back is not carried along: once this attempt closes it is dropped from the conversation at every level of compression, since it is a copy of what the tree already holds. Ask again when you need it - that is one call.",
   params: { type: "object", properties: {} },
   output: {
     type: "object",
     properties: {
       task: { type: "string" },
-      here: { type: "string" },
-      nodes: { type: "array", items: { type: "object" } },
+      nodes: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            node: { type: "integer", description: "Node number, as node_load takes it" },
+            at: { type: "string", description: "The cycles this node spans, e.g. ask#1 > act#2 > submit#3" },
+            status: { type: "string", description: "Empty while the attempt is still open, reached once its hand-in was accepted, dead_* once it was ruled out" },
+            done: { type: "boolean" },
+            mine: { type: "boolean", description: "True for the attempt running now" },
+            summary: { type: "string", description: "That node's messages as plain text, compressed as the description says. Empty on the attempt running now - those messages are already in this conversation" },
+          },
+        },
+      },
     },
   },
-  prompt:
-    "When a branch of yours was ruled out, task_tree shows which paths have already been tried and how far " +
-    "each got. Read it before trying a direction again.",
+  prompt: "",
   expectMs: 10_000,
 };
 
 const NODE_TOOL = {
   name: "node_load",
-  does: "Read a whole attempt: everything the model said across that node, together with the verdict its hand-in got. Node numbers come from task_tree. A ruled-out attempt is a trap someone already stepped in - read it to avoid repeating it, not to copy it.",
+  does:
+    "Read one node of this task's tree, branches outside the current context included. " +
+    "Takes node, a number from task_tree, and optionally level - l1, l2 or l3 - to get that node compressed to that degree instead: l1 keeps nearly everything, l3 is what task_tree already shows. Left out, the node comes back untouched. " +
+    "Returns node, at (the cycles it spans), status, and said - the prompts of that attempt, its own text with the names of the tools it called, and every verdict its hand-in got. Tool results other than verdicts are not in it. " +
+    "What either tool hands back is not carried along: once this attempt closes it is dropped from the conversation at every level of compression, since it is a copy of what the tree already holds. Ask again when you need it - that is one call.",
   params: {
     type: "object",
-    properties: { node: { type: "integer", description: "Which attempt to read, as numbered by task_tree" } },
+    properties: {
+      node: { type: "integer", description: "Which node to read, as numbered by task_tree" },
+      level: {
+        type: "string",
+        description: "l1, l2 or l3 to get it compressed to that degree. Left out, it comes back whole",
+      },
+    },
     required: ["node"],
   },
-  output: { type: "object", properties: { node: { type: "integer" }, at: { type: "string" }, status: { type: "string" }, said: { type: "array" } } },
-  prompt:
-    "node_load reads one whole earlier attempt - everything said across it, plus the verdict its hand-in got. " +
-    "A ruled-out attempt is a trap someone already stepped in: read it to avoid repeating it, not to copy it.",
+  output: {
+    type: "object",
+    properties: {
+      node: { type: "integer" },
+      at: { type: "string", description: "The cycles this node spans" },
+      status: { type: "string", description: "Empty while the attempt is still open, reached once its hand-in was accepted, dead_* once it was ruled out" },
+      said: {
+        type: "array",
+        description: "In order. kind prompt carries text; kind call carries the model's text and called, the names of the tools it asked for; kind verdict carries what the hand-in got back.",
+        items: { type: "object" },
+      },
+    },
+  },
+  prompt: "",
   expectMs: 10_000,
 };
 
@@ -130,6 +194,7 @@ export function registerTreeView(db: Conn, reg: Registry, treeInfer: string): st
       task: at.task,
       nodes: byNode(units).map((g) => {
         const end = g[g.length - 1];
+        const mine = g.some((u) => Number(u.unit) === Number(a.unit));
         return {
           node: Number(g[0].node),
           at: g.map((u) => `${u.cycle}#${u.unit}`).join(" > "),
@@ -137,7 +202,10 @@ export function registerTreeView(db: Conn, reg: Registry, treeInfer: string): st
           // 空 = 还没交到卷。
           status: end.status,
           done: g.every((u) => Number(u.done) === 1),
-          mine: g.some((u) => Number(u.unit) === Number(a.unit)),
+          mine,
+          // **正在走的这个节点不给摘要**：它那几站的消息本来就在上下文里，
+          // 再抄一份是把同一段话收进去两次，而每调一次 `task_tree` 就再收一次。
+          summary: mine ? "" : summaryOf(db, at.sub, at.task, g.map((u) => Number(u.unit))),
         };
       }),
     };
@@ -158,6 +226,27 @@ export function registerTreeView(db: Conn, reg: Registry, treeInfer: string): st
       [at.task, want],
     ) as unknown as Unit[];
     if (units.length === 0) return { node: want, said: [], note: "there is no such node in this task" };
+
+    // **要哪一级就给哪一级；不说就给原文。** 压过的那三份是节点收口那一刻算好落库的
+    // （`msg/press.ts`），这儿只是取出来 —— 取不到就是这个节点还没收口，那本来也没有
+    // 压过的版本可给。
+    const level = String(a.args?.level ?? "").trim();
+    if (level) {
+      const levels = readyLevels(db);
+      if (!(levels as readonly string[]).includes(level)) {
+        return { error: `level is ${level}; it can be ${levels.join(", ")}, or left out for the node untouched` };
+      }
+      const body = [...bodiesAt(db, at.sub, at.task, units.map((u) => Number(u.unit)), level as Level).values()].join("\n");
+      const end = units[units.length - 1];
+      return {
+        node: want,
+        at: units.map((u) => `${u.cycle}#${u.unit}`).join(" > "),
+        status: end.status,
+        level,
+        said: body ? [{ kind: "pressed", text: body }] : [],
+        ...(body ? {} : { note: "this node has not been compressed - it is still being worked on" }),
+      };
+    }
 
     const t = tableNameOf("agent_{}_msg", String(a.agent));
     const holes = units.map(() => "?").join(",");
@@ -207,11 +296,12 @@ export function registerTreeView(db: Conn, reg: Registry, treeInfer: string): st
   for (const t of [TREE_TOOL, NODE_TOOL]) {
     run(
       db,
-      `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable)
-       values (?, ?, ?, ?, ?, ?, 0, 0, null, 1)
+      `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable, gives)
+       values (?, ?, ?, ?, ?, ?, 0, 0, null, 1, 'recall')
        on conflict(name) do update set
          identity = excluded.identity, does = excluded.does, params = excluded.params,
-         output = excluded.output, prompt = excluded.prompt, system = excluded.system`,
+         output = excluded.output, prompt = excluded.prompt, system = excluded.system,
+         gives = excluded.gives`,
       [t.name, `fn:tool.${t.name}`, t.does, JSON.stringify(t.params), JSON.stringify(t.output), t.prompt],
     );
     // **不是 system 工具** —— 按 mode 分发：只有走树的那种机制才挂得上。

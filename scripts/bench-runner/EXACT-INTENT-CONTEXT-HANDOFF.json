@@ -1,0 +1,58 @@
+{
+  "protocol": "bench-common-exact-intent-context-release-handoff-v1",
+  "sourcePins": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\exact-intent-context.ts",
+      "bytes": 952,
+      "sha256": "00ffe37f6e7aa22bb8c08a7c8c62f3e5b7e9ddc9a6655136ce29427102c292a2"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\close-activated-no-effects.ts",
+      "bytes": 10065,
+      "sha256": "5e2f85545087917340248fb9dd1bad4fa49a258846884a9571fcca65387a2d6b"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\build-exact-context-release.ts",
+      "bytes": 16454,
+      "sha256": "cd1e80ffb9788e23e55e064e388c1eba74538229eb4e1da585d0e2dffb9faacf"
+    }
+  ],
+  "testPins": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\exact-intent-context.test.ts",
+      "bytes": 962,
+      "sha256": "855745c592c45f50d1e3dfa0809a43c4be28d89c72c3f1a3b213715a45bcb64b"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\close-activated-no-effects.test.ts",
+      "bytes": 5820,
+      "sha256": "9dd045483cbfb70e047589b2cc937d15b493faa7a8f5d4d991ed6d1a0f34c224"
+    }
+  ],
+  "tests": {
+    "pass": 4,
+    "expect": 24,
+    "exitCode": 0,
+    "models": 0,
+    "resources": 0
+  },
+  "hostPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\0fd8dd99f08860e004709b3cf62f2eb9ed657846c4d73cfa6cea7e2061da5f21\\runner.js",
+    "bytes": 368756,
+    "sha256": "0fd8dd99f08860e004709b3cf62f2eb9ed657846c4d73cfa6cea7e2061da5f21"
+  },
+  "hostAttestationPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\0fd8dd99f08860e004709b3cf62f2eb9ed657846c4d73cfa6cea7e2061da5f21\\release-80fb4dc3704efacaaf3e3c3911692c7e5d3b4d247e6dedcfd1fb34fb289383eb.json",
+    "bytes": 15969,
+    "sha256": "80fb4dc3704efacaaf3e3c3911692c7e5d3b4d247e6dedcfd1fb34fb289383eb"
+  },
+  "driverUnchanged": "bcd884a0779bc35b36c5a0eccdd985240ac1fc6d8ea3d8d37f908c10c453ad45",
+  "actualReadOnlyCheckPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\manifests\\pov-common-production-v3\\activated-no-effects.checked.json",
+    "bytes": 15951,
+    "sha256": "3768cb9292ea9235e2fd6d497154c58ecd1aae42c7498dec685af84f6093a8fb"
+  },
+  "scope": "Only exact prepared context may be reused before activate; conflicting context/runtime artifacts fail closed. Root-admin current intent with only planned+planned-activated and no runtime effects ->retryable, retaining original signed entry and metadata. No cash receipt manufactured; no budget changes.",
+  "applied": false,
+  "oldActiveSourceChanged": false
+}

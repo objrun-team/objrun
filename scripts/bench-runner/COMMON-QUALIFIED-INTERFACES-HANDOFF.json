@@ -1,0 +1,92 @@
+{
+  "protocol": "bench-common-qualified-interface-release-handoff-v1",
+  "hostBundlePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\0d9d99c74b370791c54821a80eea6d24eb84601e35ea98189074fb98c1d5c2b7\\runner.js",
+    "bytes": 348182,
+    "sha256": "0d9d99c74b370791c54821a80eea6d24eb84601e35ea98189074fb98c1d5c2b7"
+  },
+  "driverBundlePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\43815b7668b5771d36e5dedbf0d4de23800487b7e13b629210b2263b258ada66\\terminal-driver.js",
+    "bytes": 216640,
+    "sha256": "43815b7668b5771d36e5dedbf0d4de23800487b7e13b629210b2263b258ada66"
+  },
+  "hostReleasePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\0d9d99c74b370791c54821a80eea6d24eb84601e35ea98189074fb98c1d5c2b7\\release-1208f062d580ea0ac3f3c5b2b7ec99c85bd108268d44aca8524ddc8468a055f4.json",
+    "bytes": 12109,
+    "sha256": "1208f062d580ea0ac3f3c5b2b7ec99c85bd108268d44aca8524ddc8468a055f4"
+  },
+  "driverReleasePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\43815b7668b5771d36e5dedbf0d4de23800487b7e13b629210b2263b258ada66\\release-359012671ce1d20592a0341bb7ac2428f3d964b0cbd6ebc3f180d9a78653a4fb.json",
+    "bytes": 7805,
+    "sha256": "359012671ce1d20592a0341bb7ac2428f3d964b0cbd6ebc3f180d9a78653a4fb"
+  },
+  "sourcePins": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\build-qualified-release.ts",
+      "bytes": 8774,
+      "sha256": "acbb61491c14d78cec9f9ba156a179f97159cb2caafc71b590120765e3258655"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\qualified-driver-interfaces.ts",
+      "bytes": 10214,
+      "sha256": "b9110c7232cd93d5750e7b1dc67564383449b493b00be3ca9a61104089276e47"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\qualified-driver-interfaces.test.ts",
+      "bytes": 7410,
+      "sha256": "9e37b23aa8907acb69a87ebf05cccad042a16ce7daed4526286ff6918237b61b"
+    }
+  ],
+  "previousReleaseHandoffPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\COMMON-NATIVE-CANONICAL-RELEASE-HANDOFF.json",
+    "bytes": 6479,
+    "sha256": "0717522a898698ef240b9b02da92457d5a6b3c691d66384ef5df3ce7b49b6f7b"
+  },
+  "actualEvidenceAuditPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\manifests\\pipeline-common-production-v1\\actual-common-interface-source-audit.json",
+    "bytes": 242767,
+    "sha256": "5d4585ca6c462ac067370a1da2df94b0408da73c8d0ac3c3d3604e7517827e4d"
+  },
+  "actualDataManifestPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\manifests\\pipeline-common-production-v1\\manifest.production.interfaces-pending-v3.json",
+    "bytes": 381973,
+    "sha256": "b45e229573d800cf057745e19664e1025a18c4f12b4cc844fd8353412f9fabde"
+  },
+  "actualInterfaceDataPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\manifests\\pipeline-common-production-v1\\qualified-interfaces.review-pending-v4.data.json",
+    "bytes": 146800,
+    "sha256": "adcbd6764211e734759926e66bee3128a6cd02c452c1512c233e3cc02a151dc0"
+  },
+  "validation": {
+    "localTests": 4,
+    "assertions": 25,
+    "failed": 0,
+    "realInstalledBunGatewayPlugin": true,
+    "preJournalGuardRejectJournalAdmissions": 0,
+    "nativeBenchCommands": 0,
+    "models": 0,
+    "resourceClaims": 0,
+    "grades": 0,
+    "oracleRuns": 0,
+    "actualSourceDataAuditPassed": true,
+    "actualSignedProductionPreflightPassed": false
+  },
+  "behavior": [
+    "Absolute existing Stand expression remains byte-identical; original pinned dynamic runpy/sys.modules graph reviewed instead of false local module resolution",
+    "Only original launcher spawn import is instrumented for exact stream/process custody",
+    "False nativeReady and absent publishAllowed remain unchanged; root-reviewed exact original proof predicates plus official task context select qualification",
+    "Candidate CPU/memory/storage remain actor contract; actual original aggregate memory/disk reservation stays separate",
+    "Actual acquired token and process.pid supply standard owned environment, with original live owned guard retained",
+    "Original ownerForwardGuard is awaited with fresh current parent budget before journal and before transport",
+    "Exact source-pinned gateway budget expression gains awaited guard before journal.admit; local rejection creates zero journal entries",
+    "Canonical original history receipt semantics from prior corrected host preserved; old legacy route unchanged"
+  ],
+  "remainingProductionPrerequisites": [
+    "root-approved exact qualifiedInterfaces reviewPin bound in manifest.contractPins and true root-signed entry.rootReview.qualifiedInterfacesReviewPin",
+    "Final task JSON must pin these immutable release bundles and actual input sources; signing is root-only",
+    "Actual same-signed preflight must pass before new attempt; this delivery executed no production campaign"
+  ],
+  "oldSourcesOrBundlesModified": false,
+  "newTaskSpecificRunnerClones": 0,
+  "status": "common release frozen; task awaiting root review/signature, not claimed production ready"
+}

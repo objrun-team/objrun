@@ -1,0 +1,21 @@
+{
+  "allPassed": true,
+  "fixtureRoot": "/var/tmp/tgengin-scibench-20261016/fixtures/infra-retry-fixture-1792144574",
+  "realProviderCalls": 0,
+  "observedPeakTasks": 32,
+  "completedFreshAttempts": 48,
+  "preservedExecuteOneSha256": "aa39e270ff04848b7db7917183e12d06aa6264245f9de502e2bb8bdcf2c73ef8",
+  "checks": [
+    "actual runner completes all planned identities",
+    "four arms share32",
+    "independent context isolation",
+    "binary own answer and boolean feedback only",
+    "baseline1 and sequence5 ceilings",
+    "EX early stop",
+    "unique attempt primary keys and completed claim rejection",
+    "valid failures excluded",
+    "native budget and no-submit excluded",
+    "unclassified and integrity errors quarantined",
+    "account check and provider faults included"
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "slug": "aime",
+  "grader_port": 7911,
+  "nodes": [
+    {
+      "name": "parsed",
+      "moment": "task_done",
+      "domain": "bool",
+      "handle": "{GRADER}/parsed"
+    },
+    {
+      "name": "correct",
+      "moment": "task_done",
+      "domain": "bool",
+      "handle": "{GRADER}/correct"
+    }
+  ],
+  "edges": [
+    {
+      "src": "parsed",
+      "out": 0,
+      "dst": "correct"
+    }
+  ],
+  "sink": "correct",
+  "checks": 10,
+  "task": {
+    "domain": "math",
+    "solveSeconds": 1800,
+    "maxBranches": 4,
+    "maxDeadSiblings": 8,
+    "maxSearches": 5,
+    "noSearch": [
+      "aime 2024",
+      "aime 2025",
+      "aime 2026",
+      "aime solution",
+      "matharena",
+      "artofproblemsolving aime",
+      "aops aime"
+    ]
+  },
+  "suffix": "\n\nPut the final answer (an integer from 0 to 999) inside \\boxed{}."
+}

@@ -1,0 +1,3 @@
+/** Common host adapter decoration; original adapter retains all evidence/budget/acceptance checks. */
+import{getAdapter as originalGetAdapter}from'./adapters/index.ts';import{usesStageOperation,closeStageOperation}from'./stage-custody.ts';import type{Bench,BenchAdapter}from'./types.ts';
+export function getAdapter(bench:Bench):BenchAdapter{const original=originalGetAdapter(bench);return{...original,async execute(manifest,spec,context){const result=await original.execute(manifest,spec,context);if(usesStageOperation(context,spec)&&result.nativeClosed&&result.financialClosed&&['complete','retryable'].includes(result.status)){closeStageOperation(manifest,context,result)}return result}}}

@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TgEngin</title>
+<style>
+:root{--bg:#ffffff;--fg:#1f2328;--mut:#6b7280;--line:#e5e7eb;--card:#f6f8fa;--sel:#eaf2ff;--acc:#2563eb;--ok:#15803d;--bad:#dc2626;--warn:#b45309}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--fg:#e6e8eb;--mut:#9aa3ad;--line:#262b33;--card:#171a20;--sel:#1b2a44;--acc:#7cb1ff;--ok:#4ade80;--bad:#f87171;--warn:#fbbf24}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Microsoft YaHei",Helvetica,Arial,sans-serif}
+a{color:var(--acc)}
+button,select,input,textarea{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:4px 8px}
+button{cursor:pointer;background:var(--card)}
+button:hover{border-color:var(--acc)}
+button.primary{background:var(--acc);color:#fff;border-color:var(--acc)}
+button:disabled{opacity:.5;cursor:default}
+textarea{width:100%;min-height:80px;resize:vertical}
+.mono,code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;font-size:12.5px}
+pre{margin:0;white-space:pre-wrap;word-break:break-word}
+.mut{color:var(--mut)}
+.sm{font-size:12px}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:18px;padding:8px 16px;background:var(--bg);border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:15px;letter-spacing:.3px}
+nav{display:flex;gap:14px}
+nav a{color:var(--mut);text-decoration:none;padding:6px 0;border-bottom:2px solid transparent}
+nav a.on{color:var(--fg);border-color:var(--acc)}
+#health{margin-left:auto;font-size:12px;color:var(--mut);display:flex;gap:10px;align-items:center;white-space:nowrap}
+#health .dot{width:8px;height:8px;border-radius:50%;background:var(--bad);display:inline-block}
+#health .dot.ok{background:var(--ok)}
+main{padding:12px 16px 40px}
+#err{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--bad);color:#fff;padding:8px 14px;border-radius:6px;max-width:80vw;z-index:9;display:none;white-space:pre-wrap;font-size:13px}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.bar input[type=text]{min-width:160px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:4px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--mut);font-weight:500;font-size:12px;white-space:nowrap}
+tr.row{cursor:pointer}
+tr.row:hover{background:var(--card)}
+tr.sel{background:var(--sel)}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.b{display:inline-block;padding:0 6px;border-radius:4px;font-size:11px;line-height:18px;border:1px solid var(--line);color:var(--mut);white-space:nowrap;vertical-align:middle}
+.b.done,.b.reached,.b.pass,.b.ok{color:var(--ok);border-color:var(--ok)}
+.b.failed,.b.dead_failed,.b.dead_below_bar,.b.fail,.b.bad{color:var(--bad);border-color:var(--bad)}
+.b.claimed,.b.running,.b.human{color:var(--acc);border-color:var(--acc)}
+.b.open,.b.pending{color:var(--warn);border-color:var(--warn)}
+.split{display:grid;grid-template-columns:minmax(440px,1fr) minmax(0,1.3fr);gap:16px;align-items:start}
+.split>*{min-width:0}
+.tree{max-height:55vh;overflow:auto}
+td.nw,th.nw{white-space:nowrap}
+@media (max-width:1100px){.split{grid-template-columns:1fr}}
+.card{border:1px solid var(--line);border-radius:8px;background:var(--card);padding:10px 12px;margin-bottom:12px}
+.card h3{margin:0 0 8px;font-size:12px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:2px 14px;font-size:13px}
+.kv div:nth-child(odd){color:var(--mut)}
+.tn{padding:2px 6px;border-radius:4px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tn:hover{background:var(--sel)}
+.tn.sel{background:var(--sel);outline:1px solid var(--acc)}
+.m{border:1px solid var(--line);border-left-width:3px;border-radius:6px;margin:6px 0;background:var(--bg)}
+.m.assistant{border-left-color:var(--acc)}
+.m.user{border-left-color:var(--ok)}
+.m.system{border-left-color:var(--mut)}
+.m.tool{border-left-color:var(--warn)}
+.m>.hd{display:flex;gap:10px;align-items:center;padding:3px 8px;font-size:12px;color:var(--mut);border-bottom:1px solid var(--line)}
+.m>.bd{padding:6px 10px;white-space:pre-wrap;word-break:break-word;max-height:420px;overflow:auto}
+.m .call{margin:4px 0;padding:4px 8px;background:var(--card);border-radius:4px;white-space:normal}
+.verdict{padding:8px 12px;border-radius:6px;border:1px solid var(--line);margin-top:8px;background:var(--bg)}
+.verdict.pass{border-color:var(--ok)}
+.verdict.fail{border-color:var(--bad)}
+.stats{display:flex;gap:22px;flex-wrap:wrap}
+.stat b{font-size:22px;font-weight:600;display:block;line-height:1.1}
+.stat span{font-size:12px;color:var(--mut)}
+details summary{cursor:pointer;color:var(--mut)}
+details pre{margin-top:6px;background:var(--bg);padding:8px;border-radius:6px;border:1px solid var(--line)}
+form.new{max-width:760px;display:grid;grid-template-columns:max-content 1fr;gap:8px 12px;align-items:center}
+form.new label{color:var(--mut)}
+form.new .full{grid-column:1/-1}
+form.new input,form.new select{width:100%}
+.clip button{margin-top:4px;font-size:12px;padding:1px 6px}
+.empty{color:var(--mut);padding:20px;text-align:center}
+ul{margin:0;padding-left:20px}
+</style>
+</head>
+<body>
+<header>
+  <h1>TgEngin</h1>
+  <nav id="nav"></nav>
+  <div id="health">
+    <span class="dot"></span><span id="hl">…</span>
+    <label>刷新 <select id="auto"><option value="0">关</option><option value="5">5s</option><option value="15">15s</option><option value="60">60s</option></select></label>
+    <button id="tokbtn" title="config.yaml 里 api.token 配了才需要">令牌</button>
+  </div>
+</header>
+<main id="main"></main>
+<div id="err"></div>
+<script>
+'use strict';
+// 这张页是又一个客户端：看的全是 /api 下那些口，一行表都不读。
+// 状态取值、消息类型不写死，开机从 /about 拿 —— 那边加一种，这边自动就有。
+const PREFIX = "__PREFIX__";
+const BASE = location.origin + PREFIX;
+const $ = (s, el = document) => el.querySelector(s);
+const enc = encodeURIComponent;
+
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  if (attrs) for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k === 'on') for (const [e, f] of Object.entries(v)) el.addEventListener(e, f);
+    else if (k === 'value') el.value = v;
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const k of kids.flat(Infinity)) if (k != null && k !== false) el.append(k instanceof Node ? k : String(k));
+  return el;
+}
+const badge = (s) => h('span', { class: 'b ' + String(s) }, String(s));
+const kv = (pairs) => h('div', { class: 'kv' }, pairs.map(([k, v]) => [h('div', null, k), h('div', null, v == null || v === '' ? '-' : v)]));
+const qs = (o) => { const p = new URLSearchParams(); for (const [k, v] of Object.entries(o)) if (v !== '' && v != null) p.set(k, v); const s = p.toString(); return s ? '?' + s : ''; };
+const p2 = (n) => String(n).padStart(2, '0');
+const fmtAt = (ms) => ms ? new Date(Number(ms)).toLocaleString('zh-CN', { hour12: false }) : '-';
+const fmtShort = (ms) => { if (!ms) return '-'; const d = new Date(Number(ms)); return `${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`; };
+function fmtDur(ms) {
+  if (ms == null || !isFinite(ms)) return '-';
+  const neg = ms < 0; const s = Math.floor(Math.abs(ms) / 1000);
+  const parts = s >= 3600 ? [Math.floor(s / 3600) + 'h', Math.floor(s % 3600 / 60) + 'm'] : s >= 60 ? [Math.floor(s / 60) + 'm', (s % 60) + 's'] : [s + 's'];
+  return (neg ? '-' : '') + parts.join('');
+}
+const clipText = (s, n) => { s = String(s ?? ''); return s.length > n ? s.slice(0, n) + '…' : s; };
+// 长文本先给一截，点了再给全 —— 不摘要、不改写，只是晚一点给。
+function clip(text, mode) {
+  const LIM = 1500; text = String(text ?? '');
+  const el = h(mode === 'pre' ? 'pre' : 'div', { class: 'clip' });
+  if (text.length <= LIM) { el.textContent = text; return el; }
+  const body = h('span', null, text.slice(0, LIM) + '…');
+  const btn = h('button', { on: { click: () => { body.textContent = text; btn.remove(); } } }, `展开全部 (${text.length} 字)`);
+  el.append(body, h('div', null, btn));
+  return el;
+}
+
+let errTimer;
+function showErr(e) {
+  console.error(e);
+  const box = $('#err');
+  let msg = e instanceof Error ? e.message : String(e);
+  if (e && e.data && Array.isArray(e.data.problems)) msg += '\n' + e.data.problems.join('\n');
+  box.textContent = msg; box.style.display = 'block';
+  clearTimeout(errTimer); errTimer = setTimeout(() => { box.style.display = 'none'; }, 8000);
+  if (e && e.status === 401) tokenPrompt();
+}
+
+async function api(path, opts = {}) {
+  const headers = {};
+  const tok = localStorage.getItem('tg.token');
+  if (tok) headers.Authorization = 'Bearer ' + tok;
+  let body;
+  if (opts.body !== undefined) { headers['content-type'] = 'application/json'; body = JSON.stringify(opts.body); }
+  const r = await fetch(BASE + path, { method: opts.method || 'GET', headers, body });
+  const text = await r.text();
+  let data; try { data = JSON.parse(text); } catch { data = { raw: text }; }
+  if (!r.ok) { const e = new Error(data.error || (r.status + ' ' + r.statusText)); e.status = r.status; e.data = data; throw e; }
+  return data;
+}
+
+// ── 状态与路由 ──────────────────────────────────────────────
+const S = {
+  about: null, view: 'tasks',
+  task: null, unit: null, kind: '',
+  filters: { state: '', run: '', q: '' }, offset: 0, limit: 50, list: null,
+  detail: null, msgs: { rows: [], total: 0 }, msgTask: null,
+  run: null, runs: [],
+};
+const VIEWS = [['tasks', '任务'], ['bench', '跑分'], ['declared', '声明'], ['check', '诊断'], ['new', '发任务']];
+function route() {
+  const m = location.hash.replace(/^#\/?/, '').split('/');
+  const v = VIEWS.some(([k]) => k === m[0]) ? m[0] : 'tasks';
+  const arg = m.slice(1).join('/');
+  S.view = v;
+  if (v === 'tasks') S.task = arg ? decodeURIComponent(arg) : null;
+  if (v === 'bench') S.run = arg ? decodeURIComponent(arg) : null;
+  drawNav();
+  render().catch(showErr);
+}
+const go = (v, arg) => { location.hash = '#/' + v + (arg != null ? '/' + enc(arg) : ''); };
+window.addEventListener('hashchange', route);
+function drawNav() { $('#nav').replaceChildren(...VIEWS.map(([k, l]) => h('a', { href: '#/' + k, class: k === S.view ? 'on' : '' }, l))); }
+
+async function health() {
+  try {
+    const hh = await api('/health');
+    $('#health .dot').className = 'dot ok';
+    $('#hl').textContent = `${S.about ? 'v' + S.about.version + ' · ' : ''}${String(hh.db || '').split(/[\\/]/).pop()} · ${hh.tables} 表 · 写${hh.write ? '开' : '关'} · 起了 ${fmtDur(hh.uptimeMs)}`;
+  } catch (e) {
+    $('#health .dot').className = 'dot';
+    $('#hl').textContent = '连不上 ' + BASE;
+  }
+}
+
+async function render() {
+  const main = $('#main');
+  if (S.view === 'tasks') return renderTasks(main);
+  if (S.view === 'bench') return renderBench(main);
+  if (S.view === 'declared') return renderDeclared(main);
+  if (S.view === 'check') return renderCheck(main);
+  if (S.view === 'new') return renderNew(main);
+}
+
+// ── 任务 ────────────────────────────────────────────────────
+async function renderTasks(main) {
+  if (main.dataset.view !== 'tasks') {
+    main.dataset.view = 'tasks'; main.replaceChildren();
+    const states = (S.about && S.about.taskStates || []).map((s) => s.name);
+    const reload = () => { S.offset = 0; loadTasks().catch(showErr); };
+    const bar = h('div', { class: 'bar' },
+      h('select', { on: { change: (e) => { S.filters.state = e.target.value; reload(); } } },
+        h('option', { value: '' }, '全部状态'), states.map((s) => h('option', { value: s, selected: S.filters.state === s }, s))),
+      h('select', { on: { change: (e) => { S.filters.run = e.target.value; reload(); } } },
+        h('option', { value: '' }, '全部 run'), S.runs.map((r) => h('option', { value: r.run, selected: S.filters.run === r.run }, `${r.run} (${r.total ?? r.n ?? '?'})`))),
+      h('input', { type: 'text', placeholder: '搜描述', value: S.filters.q, on: { change: (e) => { S.filters.q = e.target.value.trim(); reload(); } } }),
+      h('span', { id: 'f-count', class: 'mut sm', style: 'margin-left:auto' }),
+      h('button', { on: { click: () => { S.offset = Math.max(0, S.offset - S.limit); loadTasks().catch(showErr); } } }, '‹'),
+      h('button', { on: { click: () => { if (S.list && S.offset + S.limit < S.list.total) { S.offset += S.limit; loadTasks().catch(showErr); } } } }, '›'),
+    );
+    main.append(h('div', { class: 'split' }, h('div', null, bar, h('div', { id: 'list' })), h('div', { id: 'detail' })));
+  }
+  if (!S.list) await loadTasks(); else drawList();
+  if (S.task) await loadTask(S.task);
+  else { S.detail = null; $('#detail').replaceChildren(h('div', { class: 'empty' }, '左边点一个任务')); }
+}
+
+async function loadTasks() {
+  const { state, run, q } = S.filters;
+  S.list = await api('/tasks' + qs({ state, run, q, limit: S.limit, offset: S.offset }));
+  drawList();
+}
+
+function timeCell(t) {
+  if (t.state === 'done' || t.state === 'failed') return fmtShort(t.created_at);
+  return `${fmtDur(t.elapsedMs)} / ${t.solveSeconds ? fmtDur(t.solveSeconds * 1000) : '∞'}`;
+}
+
+function drawList() {
+  const d = S.list; const box = $('#list'); if (!box || !d) return;
+  $('#f-count').textContent = d.total ? `${d.offset + 1}–${Math.min(d.offset + d.rows.length, d.total)} / ${d.total}` : '0 条';
+  const rows = d.rows.map((t) => h('tr', { class: 'row' + (t.id === S.task ? ' sel' : ''), title: clipText(t.description, 300), on: { click: () => go('tasks', t.id) } },
+    h('td', { class: 'mono' }, t.id),
+    h('td', null, badge(t.state)),
+    h('td', { class: 'nw' }, t.mode),
+    h('td', { class: 'nw' }, (t.agents || []).join(', ')),
+    h('td', { class: 'sm nw' }, t.run || ''),
+    h('td', { class: 'num' }, `${t.progress ? t.progress.done : 0}/${t.progress ? t.progress.units : 0}`),
+    h('td', { class: 'num', title: fmtAt(t.created_at) }, timeCell(t)),
+    h('td', null, t.hasObjective ? 'G' : ''),
+  ));
+  box.replaceChildren(h('table', null,
+    h('thead', null, h('tr', null, ['id', '状态', 'mode', 'agent', 'run', '单元', '时间', ''].map((x) => h('th', null, x)))),
+    h('tbody', null, rows.length ? rows : h('tr', null, h('td', { colspan: 8, class: 'empty' }, '没有任务')))));
+}
+
+async function fetchTask(id) {
+  const [t, tree, why] = await Promise.all([api('/tasks/' + enc(id)), api('/tasks/' + enc(id) + '/tree'), api('/tasks/' + enc(id) + '/why')]);
+  return { t, tree, why };
+}
+
+async function loadTask(id) {
+  if (S.msgTask !== id) { S.msgs = { rows: [], total: 0 }; S.unit = null; S.kind = ''; S.msgTask = id; }
+  S.detail = await fetchTask(id);
+  if (S.task !== id) return; // 还没回来人就点了别的
+  drawList(); drawDetail();
+  await loadMsgs(true);
+}
+
+const active = (t) => t && (t.state === 'open' || t.state === 'claimed');
+function timeLine(t) {
+  const limit = t.solve && t.solve.limitSeconds ? fmtDur(t.solve.limitSeconds * 1000) : '∞';
+  if (active(t)) return `${fmtDur(t.solve && t.solve.elapsedMs)} / ${limit}${t.solve && t.solve.overdue ? ' · 超时' : ''}`;
+  const t0 = Number(t.created_at); const last = Math.max(t0, ...(t.units || []).map((u) => Number(u.at) || 0));
+  return `最后一站开在 +${fmtDur(last - t0)} · 上限 ${limit}`;
+}
+
+function drawTree(tree, t0) {
+  const out = [];
+  const walk = (n, d) => {
+    out.push(h('div', { class: 'tn mono' + (S.unit === n.unit ? ' sel' : ''), style: `padding-left:${6 + d * 16}px`, title: n.chain || '', on: { click: () => pickUnit(n.unit) } },
+      `${n.cycle}#${n.unit} `, badge(n.phase), n.status ? [' ', badge(n.status)] : null,
+      h('span', { class: 'mut' }, ` +${fmtDur(n.at - t0)}${n.deadlineInMs != null ? ' · 剩 ' + fmtDur(n.deadlineInMs) : ''}`)));
+    const kids = n.children || [];
+    for (const c of kids) walk(c, kids.length > 1 ? Math.min(d + 1, 14) : d);
+  };
+  for (const r of tree.roots || []) walk(r, 0);
+  if ((tree.orphans || []).length) {
+    out.push(h('div', { class: 'mut sm', style: 'margin-top:6px;color:var(--bad)' }, '孤儿（父节点不在，数据断了）：'));
+    for (const o of tree.orphans) walk(o, 0);
+  }
+  return out.length ? out : [h('div', { class: 'mut' }, '还没有执行单元')];
+}
+const branchy = (tree) => { let b = false; const walk = (n) => { if ((n.children || []).length > 1) b = true; for (const c of n.children || []) walk(c); }; for (const r of tree.roots || []) walk(r); return b; };
+function pickUnit(u) { S.unit = S.unit === u ? null : u; drawDetail(); loadMsgs(true).catch(showErr); }
+
+function drawDetail() {
+  const box = $('#detail'); if (!box || !S.detail) return;
+  const { t, tree, why } = S.detail; const t0 = Number(t.created_at);
+  const v = t.objective ? t.objective.verdict : null;
+  const kinds = (S.about && S.about.msgKinds || []).map((k) => k.name);
+  const typed = $('#say') ? $('#say').value : '';
+  let verdict = null;
+  if (v && typeof v === 'object') {
+    const pass = Number(v.pass) === 1;
+    verdict = h('div', { class: 'verdict ' + (pass ? 'pass' : 'fail') }, h('b', null, pass ? '判 1 · 通过' : '判 0 · 未过'),
+      v.why ? h('div', null, v.why) : null, v.note ? h('div', { class: 'mut sm' }, v.note) : null);
+  } else if (v) verdict = h('div', { class: 'verdict' }, String(v));
+
+  // replaceChildren 收到 null 会写成一个 "null" 文本节点 —— 先滤掉
+  box.replaceChildren(...[
+    h('div', { class: 'card' },
+      h('div', { style: 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px' },
+        h('b', { class: 'mono', style: 'font-size:15px' }, t.id), badge(t.state),
+        t.objective && t.objective.has ? h('span', { class: 'b' }, 'G' + (t.objective.agentReadable ? ' · 智能体可读' : '')) : null,
+        h('a', { href: BASE + '/tasks/' + enc(t.id), target: '_blank', class: 'sm', style: 'margin-left:auto' }, 'JSON')),
+      kv([['mode', t.mode], ['place', t.place], ['source', t.source], ['run', t.run], ['domain', t.domain], ['workdir', t.workdir],
+        ['发布', fmtAt(t.created_at)],
+        ['用时', timeLine(t)]]),
+      verdict,
+      h('details', { open: String(t.description || '').length < 500 }, h('summary', null, '题目描述'), h('pre', null, t.description || '(空)'))),
+    why && why.problems && why.problems.length ? h('div', { class: 'card', style: 'border-color:var(--warn)' }, h('h3', null, '为什么不动'), h('ul', null, why.problems.map((p) => h('li', null, p)))) : null,
+    h('div', { class: 'card' }, h('h3', null, `执行树 · ${(t.units || []).length} 单元` + (branchy(tree) ? '' : ' · 单链，缩进只在分叉处')), h('div', { class: 'tree' }, drawTree(tree, t0))),
+    h('div', { class: 'card' },
+      h('div', { class: 'bar' }, h('h3', { style: 'margin:0' }, '上下文'),
+        S.unit != null ? h('button', { on: { click: () => pickUnit(S.unit) } }, `只看 #${S.unit} ×`) : h('span', { class: 'mut sm' }, '点树上的节点只看那一站'),
+        h('select', { on: { change: (e) => { S.kind = e.target.value; loadMsgs(true).catch(showErr); } } },
+          h('option', { value: '' }, '全部类型'), kinds.map((k) => h('option', { value: k, selected: S.kind === k }, k))),
+        h('span', { id: 'm-count', class: 'mut sm', style: 'margin-left:auto' })),
+      h('div', { id: 'msgs' }),
+      h('button', { id: 'm-more', hidden: true, on: { click: () => loadMsgs(false).catch(showErr) } }, '再取 200 条'),
+      active(t) ? h('div', { style: 'margin-top:10px' },
+        h('textarea', { id: 'say', placeholder: '往它正在跑的上下文里插一句', value: typed }),
+        h('button', { class: 'primary', on: { click: () => intervene().catch(showErr) } }, '插进去')) : null),
+  ].filter(Boolean));
+  drawMsgs();
+}
+
+async function loadMsgs(reset) {
+  if (!S.detail) return;
+  const id = S.detail.t.id;
+  if (reset) S.msgs = { rows: [], total: 0 };
+  const d = await api('/tasks/' + enc(id) + '/messages' + qs({ unit: S.unit, kind: S.kind, limit: 200, offset: S.msgs.rows.length }));
+  if (!S.detail || S.detail.t.id !== id) return;
+  S.msgs.rows.push(...(d.rows || []));
+  S.msgs.total = d.total ?? S.msgs.rows.length;
+  drawMsgs();
+}
+
+function msgBody(m) {
+  const p = m.parsed;
+  if (m.kind === 'call' && p && typeof p === 'object') {
+    const out = [];
+    if (p.text) out.push(clip(p.text));
+    for (const c of p.calls || []) {
+      const input = c.input ?? c.args ?? c.arguments ?? '';
+      out.push(h('div', { class: 'call' }, h('b', null, c.name || c.tool || c.function || '?'), ' ',
+        h('code', null, clipText(typeof input === 'string' ? input : JSON.stringify(input), 800))));
+    }
+    return out.length ? out : [h('span', { class: 'mut' }, '(空)')];
+  }
+  if (p !== undefined) return [clip(typeof p === 'string' ? p : JSON.stringify(p, null, 2), 'pre')];
+  const text = m.text != null ? m.text : (m.body || '');
+  return [String(text).trim() ? clip(text) : h('span', { class: 'mut' }, '(空)')];
+}
+
+function drawMsgs() {
+  const box = $('#msgs'); if (!box || !S.detail) return;
+  const { rows, total } = S.msgs; const t0 = Number(S.detail.t.created_at);
+  $('#m-count').textContent = `${rows.length} / ${total}`;
+  box.replaceChildren(...rows.map((m) => h('div', { class: 'm ' + String(m.role || '') },
+    h('div', { class: 'hd' }, h('span', { class: 'mono' }, `#${m.unit}.${m.seq}`), h('span', null, m.role), badge(m.kind), m.human ? badge('human') : null,
+      h('span', { style: 'margin-left:auto', title: fmtAt(m.at) }, '+' + fmtDur(m.at - t0))),
+    h('div', { class: 'bd' }, msgBody(m)))));
+  if (!rows.length) box.append(h('div', { class: 'empty' }, '没有消息'));
+  $('#m-more').hidden = rows.length >= total;
+}
+
+async function intervene() {
+  const ta = $('#say'); const body = ta.value.trim(); if (!body) return;
+  await api('/tasks/' + enc(S.detail.t.id) + '/messages', { method: 'POST', body: { body } });
+  ta.value = '';
+  await loadMsgs(false);
+}
+
+// ── 跑分 ────────────────────────────────────────────────────
+async function renderBench(main) {
+  main.dataset.view = 'bench';
+  S.runs = (await api('/bench')).runs || [];
+  const rows = S.runs.map((r) => {
+    const total = r.total ?? r.n ?? 0, passed = r.passed ?? 0;
+    return h('tr', { class: 'row' + (r.run === S.run ? ' sel' : ''), on: { click: () => go('bench', r.run) } },
+      h('td', { class: 'mono' }, r.run), h('td', { class: 'num' }, total), h('td', { class: 'num' }, passed),
+      h('td', { class: 'num' }, total ? Math.round(passed / total * 100) + '%' : '-'));
+  });
+  const left = h('table', null, h('thead', null, h('tr', null, ['run', '总', '过', '通过率'].map((x) => h('th', null, x)))),
+    h('tbody', null, rows.length ? rows : h('tr', null, h('td', { colspan: 4, class: 'empty' }, '还没跑过'))));
+  main.replaceChildren(h('div', { class: 'split' }, h('div', null, left), h('div', { id: 'score' })));
+  if (S.run) await loadScore(S.run); else $('#score').append(h('div', { class: 'empty' }, '左边点一跑'));
+}
+
+async function loadScore(run) {
+  const s = await api('/bench/' + enc(run)); const box = $('#score'); if (!box) return;
+  const stat = (n, l) => h('div', { class: 'stat' }, h('b', null, n == null ? 0 : n), h('span', null, l));
+  box.replaceChildren(
+    h('div', { class: 'card' }, h('h3', null, run), h('div', { class: 'stats' },
+      stat(s.total, '总'), stat(s.passed, '过'), stat(s.failed, '败'), stat(s.running, '跑着'), stat(s.open, '没领'),
+      stat(s.total ? Math.round((s.passed || 0) / s.total * 100) + '%' : '-', '通过率'))),
+    h('table', null, h('thead', null, h('tr', null, ['id', '状态', '判语'].map((x) => h('th', null, x)))),
+      h('tbody', null, (s.tasks || []).map((t) => {
+        let r = null; try { r = t.result ? JSON.parse(t.result) : null; } catch { r = { why: t.result }; }
+        return h('tr', { class: 'row', on: { click: () => go('tasks', t.id) } }, h('td', { class: 'mono' }, t.id), h('td', null, badge(t.state)),
+          h('td', { class: 'sm' }, r && typeof r === 'object' ? [r.pass != null ? badge(Number(r.pass) === 1 ? 'pass' : 'fail') : null, ' ', clipText(r.why || '', 240)] : String(r || '')));
+      }))));
+}
+
+// ── 声明 ────────────────────────────────────────────────────
+const whenText = (w) => (w || []).map((g) => (g || []).map((t) => `${t.dim}${t.key ? '.' + t.key : ''} ${t.op} ${t.value == null ? '' : t.value}`).join(' ∧ ')).join('  ∨  ') || '—';
+const fires = (r) => r.neverFires ? h('span', { class: 'b bad' }, '永远不触发') : whenText(r.when);
+const okBadge = (b) => badge(b ? 'ok' : 'bad');
+
+async function renderDeclared(main) {
+  main.dataset.view = 'declared';
+  main.replaceChildren(h('div', { class: 'empty' }, '取声明…'));
+  const [ag, mo, pl, to, ru, sk] = await Promise.all(['/agents', '/modes', '/places', '/tools', '/rules', '/skills'].map((p) => api(p)));
+  const table = (title, cols, rows) => h('div', { class: 'card' }, h('h3', null, `${title} · ${rows.length}`),
+    rows.length ? h('table', null, h('thead', null, h('tr', null, cols.map((c) => h('th', null, c[0])))),
+      h('tbody', null, rows.map((r) => h('tr', null, cols.map((c) => h('td', { class: c[2] || '' }, c[1](r))))))) : h('div', { class: 'mut' }, '没有'));
+  main.replaceChildren(
+    table('agents', [['name', (r) => r.name, 'mono'], ['state', (r) => badge(r.state)], ['unit', (r) => r.unit, 'mono'],
+      ['tracks', (r) => (r.tracks || []).map((t) => h('div', { class: 'sm' }, `${t.model} [${(t.modes || []).join(',')}] ${t.keyEnv} `, t.keySet ? '✓' : h('span', { style: 'color:var(--bad)' }, '✗ 钥匙没配')))],
+      ['modes', (r) => (r.modes || []).join(', ')], ['running', (r) => r.running, 'num']], ag.agents || []),
+    table('modes', [['mode', (r) => r.mode, 'mono'], ['cycles', (r) => r.cycles, 'num'], ['entries', (r) => (r.entries || []).join(', ')],
+      ['walkable', (r) => okBadge(r.walkable)], ['agents', (r) => (r.agents || []).join(', ')], ['running', (r) => r.runningTasks, 'num'], ['note', (r) => r.note || '', 'sm']], mo.modes || []),
+    table('places', [['place', (r) => r.place, 'mono'], ['identity', (r) => r.identity || '-', 'mono sm'], ['forward', (r) => r.forward ? '转发' : '本进程'], ['usable', (r) => okBadge(r.usable)],
+      ['runtime', (r) => r.runtime || '-', 'mono'], ['tools', (r) => (r.tools || []).map((t) => t.tool + (t.policy && t.policy !== 'always' ? `(${t.policy})` : '')).join(', '), 'sm']], pl.places || []),
+    table('tools', [['name', (r) => r.name, 'mono'], ['identity', (r) => r.identity, 'mono'], ['does', (r) => r.does || '', 'sm'], ['system', (r) => r.system ? '系统' : ''],
+      ['usable', (r) => okBadge(r.usable)], ['when', fires, 'sm']], to.tools || []),
+    table('rules', [['identity', (r) => r.identity, 'mono'], ['when', fires, 'sm']], ru.rules || []),
+    table('skills', [['identity', (r) => r.identity, 'mono'], ['role', (r) => r.role], ['dynamic', (r) => r.dynamic ? '生成' : '固定'],
+      ['usable', (r) => okBadge(r.usable)], ['when', fires, 'sm']], sk.skills || []),
+  );
+}
+
+// ── 诊断 ────────────────────────────────────────────────────
+async function renderCheck(main) {
+  main.dataset.view = 'check';
+  const d = await api('/check');
+  const list = (title, rows, f) => h('div', { class: 'card' }, h('h3', null, `${title} · ${rows.length}`),
+    rows.length ? h('ul', null, rows.map((r) => h('li', null, f(r)))) : h('div', { style: 'color:var(--ok)' }, '没有问题'));
+  main.replaceChildren(
+    h('p', { class: 'mut sm' }, '条件写错不报错，那条规则只是永远不触发。这一页就是查这个的。'),
+    list('触发条件', d.trigger || [], (r) => `${r.owner_kind} ${r.owner} · 组 ${r.group}：${r.why}`),
+    list('数据一致性', d.data || [], (r) => `${r.what}：${r.why}`));
+}
+
+// ── 发任务 ──────────────────────────────────────────────────
+async function renderNew(main) {
+  main.dataset.view = 'new';
+  const [mo, pl] = await Promise.all([api('/modes'), api('/places')]);
+  const modes = mo.modes || [];
+  const modeSel = h('select', null, modes.map((m) => h('option', { value: m.mode }, `${m.mode}${m.walkable ? '' : '（走不通）'}`)));
+  const agentSel = h('select');
+  const fillAgents = () => { const m = modes.find((x) => x.mode === modeSel.value); agentSel.replaceChildren(...((m && m.agents || []).map((a) => h('option', { value: a }, a)))); };
+  modeSel.addEventListener('change', fillAgents); fillAgents();
+  const placeSel = h('select', null, (pl.places || []).map((p) => h('option', { value: p.place }, p.place)));
+  const idIn = h('input', { type: 'text', value: 't-' + new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '') });
+  const desc = h('textarea', { placeholder: '任务描述', style: 'min-height:140px' });
+  const workdir = h('input', { type: 'text', placeholder: '空 = 那台机器的 cwd' });
+  const domain = h('input', { type: 'text', placeholder: 'physics / chem / coding …' });
+  const secs = h('input', { type: 'number', placeholder: '不填用默认' });
+  const out = h('pre', { style: 'margin-top:12px' });
+  const submit = async () => {
+    const body = { id: idIn.value.trim(), mode: modeSel.value, agent: agentSel.value, place: placeSel.value, source: 'user', description: desc.value };
+    if (workdir.value.trim()) body.workdir = workdir.value.trim();
+    if (domain.value.trim()) body.domain = domain.value.trim();
+    if (secs.value) body.solveSeconds = Number(secs.value);
+    try { const r = await api('/tasks', { method: 'POST', body }); out.textContent = JSON.stringify(r, null, 2); S.list = null; go('tasks', r.id); }
+    catch (e) { out.textContent = JSON.stringify(e.data || { error: e.message }, null, 2); }
+  };
+  main.replaceChildren(h('form', { class: 'new', on: { submit: (e) => { e.preventDefault(); submit(); } } },
+    h('label', null, 'id'), idIn, h('label', null, 'mode'), modeSel, h('label', null, 'agent'), agentSel, h('label', null, 'place'), placeSel,
+    h('label', null, 'domain'), domain, h('label', null, 'workdir'), workdir, h('label', null, 'solveSeconds'), secs,
+    h('label', { class: 'full' }, '描述'), h('div', { class: 'full' }, desc),
+    h('div', { class: 'full' }, h('button', { class: 'primary', type: 'submit' }, '发布'), ' ',
+      h('span', { class: 'mut sm' }, 'source=user。带判卷函数 G 的任务用 curl 发，用法见 ', h('a', { href: BASE + '/help', target: '_blank' }, PREFIX + '/help')))), out);
+}
+
+// ── 自动刷新 / 令牌 / 启动 ──────────────────────────────────
+let timer = null;
+function setAuto(sec) {
+  clearInterval(timer); timer = null; localStorage.setItem('tg.auto', String(sec));
+  if (sec > 0) timer = setInterval(() => refresh().catch(() => {}), sec * 1000);
+}
+async function refresh() {
+  health();
+  if (S.view === 'tasks') {
+    await loadTasks();
+    if (S.detail && active(S.detail.t)) {
+      const id = S.detail.t.id; const d = await fetchTask(id);
+      if (!S.detail || S.detail.t.id !== id) return;
+      S.detail = d; drawDetail(); await loadMsgs(false);
+    }
+  } else if (S.view === 'bench' && S.run) await loadScore(S.run);
+}
+function tokenPrompt() {
+  const cur = localStorage.getItem('tg.token') || '';
+  const v = prompt('api.token（留空 = 清掉）', cur);
+  if (v === null) return;
+  if (v) localStorage.setItem('tg.token', v); else localStorage.removeItem('tg.token');
+  S.list = null; route();
+}
+
+(async function init() {
+  const auto = $('#auto'); auto.value = localStorage.getItem('tg.auto') || '0';
+  auto.addEventListener('change', (e) => setAuto(Number(e.target.value)));
+  $('#tokbtn').addEventListener('click', tokenPrompt);
+  try { S.about = await api('/about'); } catch (e) { showErr(e); }
+  try { S.runs = (await api('/bench')).runs || []; } catch (e) { /* 没有 bench 也能看 */ }
+  await health();
+  setAuto(Number(auto.value));
+  route();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+import {readFileSync,writeFileSync,existsSync} from 'node:fs';
+import {join} from 'node:path';
+import {atomicStateJson} from './shared/atomic-state';
+const base=join(process.cwd(),'docs/repair-2026-10-10/full-f-rerun');
+const path=join(base,'control.json'),c=JSON.parse(readFileSync(path,'utf8'));
+if(c.chembenchRemainingSupplierTrial?.authorizedByUser!==true||JSON.stringify(c.chembenchRemainingSupplierTrial.indices)!=='[204,243]')throw Error('human_scope_required');
+const cq=JSON.parse(readFileSync(join(base,'chemiq/storage-paid-hold.json'),'utf8'));
+const sb=JSON.parse(readFileSync(join(base,'skillsbench/status.json'),'utf8'));
+const tb=JSON.parse(readFileSync(join(base,'terminal-bench/status.json'),'utf8'));
+if(!cq.requested||sb.phase!=='waiting_explicit_skillsbench_resume_after_root_storage_recovery'||!tb.storageRecoveryHold?.resumeRequiresExplicitTerminalBenchResume)throw Error('independent_three_bench_holds_required');
+const hp=join(base,'chembench/upstream-timeout-hold.json'),hold=JSON.parse(readFileSync(hp,'utf8'));
+const archive=join(base,'chembench/last2-prior-upstream-hold-20261011.json');if(!existsSync(archive))writeFileSync(archive,JSON.stringify(hold,null,2)+'\n');
+const atUtc=new Date().toISOString();
+atomicStateJson(hp,{...hold,requested:false,releasedAtUtc:atUtc,releaseReason:'Human authorized material supplier change only204/243; independent grader healthy; three Docker Bench explicit holds confirmed'});
+atomicStateJson(path,{...c,paidReady:true,dockerBenchResume:{chemiq:false,skillsbench:false,'terminal-bench':false},independentChembenchPaidReady:{atUtc,indices:[204,243],onlyBench:'chembench',threeDockerHoldsConfirmed:true},updatedAtUtc:atUtc});
+console.log(JSON.stringify({paidReady:true,onlyBench:'chembench',indices:[204,243],dockerGraderHealthy:false}));

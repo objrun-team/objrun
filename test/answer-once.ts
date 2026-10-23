@@ -54,6 +54,34 @@ let handIns = 0;
 
 const CALL_ID = "call-run-me-once";
 
+/** 交上去的一份三十行的答案。摘要那边只该留前二十行。 */
+const LONG = Array.from({ length: 30 }, (_, i) => `line ${String(i + 1)}`).join("\n");
+
+/**
+ * 交卷那一次调用。**第一次交一份三十行的**，第二次交 `42`。
+ *
+ * 三十行那份是给摘要那条路留的料：`task_tree` 的摘要把调用参数里超过二十行的字串
+ * 按行截掉（`write` 的 `content`、`edit` 的两段字串、heredoc 那一整段都是这个形状）。
+ */
+function handIn(id: string): Record<string, unknown> {
+  const nth = handIns++;
+  return {
+    id,
+    type: "function",
+    function: { name: "submit", arguments: JSON.stringify({ answer: nth === 0 ? LONG : "42" }) },
+  };
+}
+
+/** 一条发出去的消息。**按供应商那边的形状**，不是库里的形状。 */
+interface Msg {
+  role?: string;
+  content?: unknown;
+  tool_calls?: { id?: string }[];
+}
+
+/** 每一次请求带出去的消息列表，按顺序。 */
+const sent: Msg[][] = [];
+
 const answer = (message: Record<string, unknown>, why: string) =>
   new Response(
     JSON.stringify({
@@ -88,7 +116,10 @@ const fake = Bun.serve({
       });
     }
     // 这一次请求带了什么 `tool_choice` —— 「这一站必须调哪个」验的就是它。
-    const body = (await req.json()) as { tool_choice?: unknown; messages?: { content?: unknown }[] };
+    const body = (await req.json()) as { tool_choice?: unknown; messages?: Msg[] };
+    // **发出去的原样留一份。** 压缩验的是「这一发到底带了什么」，而那只有在这儿看得见：
+    // 库里躺的永远是原文，压是拼这一发的时候才发生的。
+    sent.push(body.messages ?? []);
     // **这道题要那个慢工具。** 视图里带着任务描述，照它认出是哪一道 —— 只有真
     // 请求了一个比时限还慢的工具，才造得出「钟响了而那一站还在跑」的现场。
     const racing = JSON.stringify(body.messages ?? []).includes("cut this one off mid-call");
@@ -127,8 +158,8 @@ const fake = Bun.serve({
           content: "",
           tool_calls: [
             alwaysCalls
-              ? handIns++ < 2
-                ? { id: `submit-${String(asked)}`, type: "function", function: { name: "submit", arguments: JSON.stringify({ answer: "42" }) } }
+              ? handIns < 2
+                ? handIn(`submit-${String(asked)}`)
                 : { id: `look-${String(asked)}`, type: "function", function: { name: "task_tree", arguments: "{}" } }
               : { id: CALL_ID, type: "function", function: { name: "glob", arguments: JSON.stringify({ pattern: "*.md" }) } },
           ],
@@ -376,6 +407,66 @@ try {
   show("calls whose results do not follow straight away:", bad);
   ok("none - every one is answered right where it was asked", bad.length === 0, bad);
 
+  step("10. a node that closed comes back compressed");
+  // 节点收口那一刻就把三级都压好落库了（`msg/press.ts`）。`task_tree` 给的 `summary`
+  // 就是**最狠那一级**，不是它自己另压一份 —— 两处各压一份的话，模型从树上看到的和它
+  // 上下文里那一份不是一个东西，而两边都说得通、都不报错。
+  //
+  // 哪一部分在哪一级怎么办，全在 `msg_part` 那张表上；这儿验的是**表真的说了算**。
+  const looked = all
+    .filter((r) => r.kind === "tool" && String(r.body).includes('"name":"task_tree"'))
+    .map((r) => (JSON.parse(r.body) as { value?: { nodes?: { node: number; status: string | null; summary?: string; mine?: boolean }[] } }).value ?? {})
+    .filter((v) => Array.isArray(v.nodes));
+  ok("the model got a real task_tree result back", looked.length > 0, all.filter((r) => r.kind === "tool").length);
+  const seenNodes = looked[looked.length - 1].nodes ?? [];
+  show(
+    "what it saw:",
+    seenNodes.map((n) => `node${String(n.node)}[${n.status ?? ""}]${n.mine ? " (mine)" : ""} ${String(n.summary ?? "").length} chars`),
+  );
+  const closed = seenNodes.filter((n) => !n.mine);
+  ok("every closed node came back with something", closed.length > 0 && closed.every((n) => String(n.summary ?? "").length > 0), seenNodes);
+  ok("and the one being worked on came back with nothing", seenNodes.filter((n) => n.mine).every((n) => n.summary === ""), seenNodes);
+
+  const text = closed.map((n) => String(n.summary ?? "")).join("\n");
+  // 每一块前面挂着它是哪一部分 —— 不挂的话工具返回和模型说的话拼在一起分不出是谁说的。
+  ok("each piece says which part it is", /\[(task|said|call|receipt|look|event|verdict) /.test(text) || text.includes("[task]"), text.slice(0, 200));
+  ok("what it asked for is there - msg_part keeps call at every level", text.includes("[call submit]"), text.slice(0, 200));
+  // `thought` 在第三级是 drop，`ledger` 三级都是 drop。
+  ok("the reasoning is gone at this level", !text.includes("[thought]"), text.slice(0, 200));
+  ok("and so is the kernel's own bookkeeping", !text.includes("[ledger]"), text.slice(0, 200));
+  ok("nothing from the system side leaked in", !text.includes("[system]"), text.slice(0, 200));
+  // 一个节点的摘要里**不会**夹着另一个节点的摘要：`task_tree` / `node_load` 回的是
+  // 这次对话自己的上下文（`tool.gives` = `recall`），三级都丢 —— 库里本来就有，
+  // 模型要看再调一次就是了。调用本身留着（`call` 三级都 keep），所以看得出它看过。
+  ok("a summary does not carry another summary inside it", !text.includes("[recall "), text.slice(0, 300));
+  ok("but the fact that it looked is still there", !text.includes("task_tree ") || text.includes("[call task_tree]"), text.slice(0, 300));
+
+  step("10b. and node_load reads a node at whichever level is asked for");
+  // 树上那几行的号是给 `node_load` 用的，这儿只核一件事：压过的节点在库里三级都有行。
+  const levels = (
+    await m.api<{ rows: { n: number }[] }>("POST", "/query", {
+      sql: "select (select count(*) from press) as n",
+    })
+  ).rows[0].n;
+  show("rows in press:", levels);
+  ok("the closed nodes really were pressed into the tables", levels > 0, levels);
+  const three = (
+    await m.api<{ rows: { l1: number; l2: number; l3: number }[] }>("POST", "/query", {
+      sql: "select (select count(*) from press_l1) as l1, (select count(*) from press_l2) as l2, (select count(*) from press_l3) as l3",
+    })
+  ).rows[0];
+  show("rows per level:", three);
+  ok("all three levels exist", three.l1 > 0 && three.l2 > 0 && three.l3 > 0, three);
+  // 第四级的列都在，但**一格都没写** —— `msg_part.l4` 是空的，所以那一级还没设好，
+  // 压不写它、发也不会发它。留着列是给要花一次调用的那种压法占位。
+  const four = (
+    await m.api<{ rows: { l4rows: number; unset: number; parts: number }[] }>("POST", "/query", {
+      sql: "select (select count(*) from press_l4) as l4rows, (select count(*) from press where l4 is not null) as unset, (select count(*) from msg_part where l4 is not null) as parts",
+    })
+  ).rows[0];
+  show("the fourth level:", four);
+  ok("the fourth level is there and empty", four.l4rows === 0 && four.unset === 0 && four.parts === 0, four);
+
   step("11. the hand-in station leaves it no choice");
   // 摆什么工具决定它**能**调什么；这一列决定它**必须**调什么 —— 两件事。只摆一个
   // 工具挡不住它在交卷站说一堆话然后什么都没交，而「没调」在那一站就等于这一步
@@ -589,6 +680,85 @@ try {
   } else {
     ok("(only one attempt happened here - the reset is covered by the counter being per node)", true);
   }
+  part("Part five: over the threshold, what goes out is the pressed one");
+
+  step("15. with the threshold at nothing, every request past the first node is pressed");
+  // 阈值放到 1 token —— 于是每一发都超，降到设好的最后一级为止。真跑的时候这个数是
+  // 那把钥匙那个模型的天花板；这儿要的只是**让那条路真的走一遍**。
+  await m.api("POST", "/exec", {
+    sql: "update api set compress_at = 1 where model = 'deepseek-v4-flash'",
+  });
+  checking = false;
+  sent.length = 0;
+  await m.api("POST", "/tasks", {
+    id: "t-press", mode: "tree", agent: "bot", place: "local", source: "user",
+    description: "this one gets pressed", readable: false, maxDeadSiblings: 2, solveSeconds: 45,
+    objective: {
+      nodes: [
+        { name: "look", moment: "done", domain: { kind: "bool" }, handle: at("/nope") },
+        { name: "verdict", moment: "done", domain: { kind: "bool" }, handle: at("/verdict") },
+      ],
+      edges: [{ src: "look", out: 0, dst: "verdict" }],
+      sink: "verdict",
+    },
+  });
+  await until(
+    "t-press to finish",
+    async () => {
+      const d = await m.api<{ state: string }>("GET", "/tasks/t-press");
+      return d.state === "done" || d.state === "failed" ? d : null;
+    },
+    60_000,
+  );
+  show("requests it sent:", sent.length);
+  const tagged = sent.filter((ms) => ms.some((x) => x.role === "user" && String(x.content ?? "").includes("[call ")));
+  show("how many of them carried a pressed node:", tagged.length);
+  ok("something went out pressed", tagged.length > 0, sent.map((ms) => ms.length));
+
+  const last = tagged[tagged.length - 1];
+  show(
+    "the shape of that request:",
+    last.map((x) => `${String(x.role)}${x.tool_calls ? "(" + String(x.tool_calls.length) + " calls)" : ""} ${String(x.content ?? "").slice(0, 40).replace(/\n/g, " / ")}`),
+  );
+
+  // **一次调用和它的结果不能被拆开。** 少一条结果，供应商那边整份拒收：
+  //   An assistant message with 'tool_calls' must be followed by tool messages
+  //   responding to each of them
+  // 换的是整个节点而不是单独一格，就是为了这个 —— 这儿钉的是它真的成立。
+  const unpaired: string[] = [];
+  for (let i = 0; i < last.length; i++) {
+    const n = last[i].tool_calls?.length ?? 0;
+    if (!n) continue;
+    const after = last.slice(i + 1, i + 1 + n);
+    if (after.length !== n || !after.every((x) => x.role === "tool")) {
+      unpaired.push(`message ${String(i)} asked for ${String(n)}, got ${after.map((x) => String(x.role)).join(",")}`);
+    }
+  }
+  ok("every call that went out still has its results right behind it", unpaired.length === 0, unpaired);
+  ok("and nothing went out empty", last.every((x) => x.role !== "user" || String(x.content ?? "").trim() !== ""), last.map((x) => String(x.role) + ":" + String(String(x.content ?? "").length)));
+
+  // 压过的那几行在前、这个节点的原文在后 —— 换的是**已经收口的**节点，当前节点原样。
+  const lastPressed = last
+    .map((x, i) => ({ i, x }))
+    .filter(({ x }) => x.role === "user" && String(x.content ?? "").includes("[call "))
+    .pop();
+  const firstRaw = last.findIndex((x) => x.role === "tool");
+  ok(
+    "the pressed nodes come first and the one being worked on stays raw at the end",
+    lastPressed !== undefined && (firstRaw === -1 || firstRaw > lastPressed.i),
+    { pressedAt: lastPressed?.i, firstToolResultAt: firstRaw },
+  );
+
+  // 压过的那份**比原文短**：库里那几格的正文加起来，对上这一发里替它们出场的那几行。
+  const raw = (
+    await m.api<{ rows: { n: number }[] }>("POST", "/query", {
+      sql: "select sum(length(body)) + sum(length(coalesce(thought, ''))) as n from agent_bot_msg where instance = 't-press#1'",
+    })
+  ).rows[0].n;
+  const out = last.reduce((n, x) => n + JSON.stringify(x.content ?? "").length, 0);
+  show("all of that instance's messages, in bytes:", raw);
+  show("what the last request actually carried:", out);
+  ok("what went out is smaller than what the store holds", out < raw, { out, raw });
 } finally {
   await fake.stop(true);
 

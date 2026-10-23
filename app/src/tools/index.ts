@@ -20,16 +20,35 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 
 import { python } from "./python.ts";
 
-/** 一次 read 默认/最多返回多少行。 */
-export const READ_LIMIT = 2000;
-/** 单行超过这么多字符就截断 —— 一行几十万字符会把上下文顶爆。 */
+/**
+ * **一次搜索最多往回带多少。** 一个池子，装满就当场中断，回一个「截断了」的结果。
+ *
+ * 不压缩、不摘要：带回来的每一条都是原样的，只是到点不再往下走。压缩是拿真东西
+ * 换一个看起来完整的假象，而这两件工具的用处正是「看见真的那几行」。
+ *
+ * 按 token 定量（5000），换算成字节按 4 —— 量过一道题的整份上下文，4234989 字节
+ * 对模型报的 1033906 token。
+ *
+ * `read` 不用这个池子截断，它**先算再决定**：一次要的范围超了就整个拒掉，一行都
+ * 不给。给半份的话它读到的是一个看着完整的残缺文件，而那种错要等到改坏了才看得出来。
+ */
+export const TOOL_POOL_TOKENS = 5_000;
+export const TOOL_POOL_BYTES = TOOL_POOL_TOKENS * 4;
+
+/** grep 的一条命中里，正文最多留多少字符。一行几十万字符的话，一条就把池子吃光了。 */
 export const READ_MAX_LINE_LENGTH = 2000;
-/** 一次 read 最多返回多少字节，行数没到也停。 */
-export const READ_MAX_BYTES = 50 * 1024;
-/** glob 最多返回多少条。 */
-export const GLOB_MAX_RESULTS = 100;
-/** grep 最多返回多少条。 */
-export const GREP_MAX_MATCHES = 200;
+
+/**
+ * 一条命令的输出最多带回多少字节，**stdout 和 stderr 各算一份**。
+ *
+ * 没有上限的时候实测过一次：`grep` 扫进 `node_modules`，一次返回 3.9 MB，
+ * 那一条落进上下文之后这道题再也发不出去 ——「requested 1443851 tokens」，
+ * 而模型的上限是 1048576。之后每一站都是同一句，直到这一站被判死。
+ *
+ * 比搜索那个池子松：一条命令的输出（编译报错、测试结果）是它接着往下走的依据，
+ * 而搜索是拿来定位的，定位不需要一次看两百条。
+ */
+export const SH_MAX_BYTES = 50 * 1024;
 
 /** 一个工具：给模型看的那几样 + 真正干活的那个函数。 */
 export interface Tool {
@@ -44,6 +63,19 @@ export interface Tool {
   prompt: string;
   /** 能不能跟别的工具同时跑。 */
   concurrent: boolean;
+  /**
+   * 它的返回是哪一类东西 → `msg_part.name`。**压上下文的时候按这个决定丢什么。**
+   *
+   * - `look` 状态：**再看一眼就有，而且会过期**。读到的是文件当时的样子，同一个文件
+   *   后来被改过的话，留着那一份比丢了还糟 —— 模型照着一段已经不成立的内容往下推
+   * - `event` 事件：**拿不回来了**。跑了四分钟的测试、一次判决，丢了就是丢了
+   * - `receipt` 回执：「这件事办成了」的一行账，几十个字节
+   * - `recall` 回放：**把这次对话自己的上下文读回来**（那棵树、另一个节点）。压的时候
+   *   哪一级都丢：库里本来就有，留着等于在一个节点的摘要里夹着另一个节点的摘要
+   *
+   * 不填 = `event`。把拿不回来的当成能再拿一次，是唯一赔不起的那个方向。
+   */
+  gives: string;
   /** 预期多久，超过判死。 */
   expectMs: number;
   /**
@@ -87,12 +119,14 @@ function num(args: Record<string, unknown>, key: string, dflt: number): number {
 
 export const read: Tool = {
   name: "read",
-  does: "Read a UTF-8 text file and return line-numbered content.",
+  does:
+    "Read a UTF-8 text file and return its lines, numbered, whole - nothing is shortened. " +
+    `A range bigger than about ${TOOL_POOL_TOKENS} tokens is refused instead, and the refusal says how many lines the file has, so offset and limit can name a smaller range.`,
   params: schema(
     {
       file_path: { type: "string", description: "Path to read." },
       offset: { type: "number", description: "1-based first line to return. Defaults to 1." },
-      limit: { type: "number", description: `Maximum number of lines to return. Defaults to ${READ_LIMIT}.` },
+      limit: { type: "number", description: "How many lines to return. Defaults to all of them from offset on." },
     },
     ["file_path"],
   ),
@@ -103,43 +137,59 @@ export const read: Tool = {
       offset: { type: "integer" },
       lines: { type: "array", items: { type: "object", properties: { number: { type: "integer" }, text: { type: "string" } } } },
       totalLines: { type: "integer" },
-      truncated: { type: "boolean" },
+      bytes: { type: "integer", description: "How big the range asked for is" },
+      error: { type: "string", description: "Present when the range was too big to return; nothing was read" },
     },
   },
   prompt:
-    "Use read before edit or write on an existing file. Content comes back line-numbered; " +
-    `a single line longer than ${READ_MAX_LINE_LENGTH} characters is truncated, and one call returns at most ` +
-    `${READ_LIMIT} lines or ${READ_MAX_BYTES} bytes — use offset to continue.`,
+    `Lines come back whole and numbered. This is the one tool that returns everything it was asked for: a range over ${TOOL_POOL_BYTES} bytes ` +
+    "is refused rather than shortened, and the refusal carries the file's line count.",
   concurrent: true,
+  gives: "look",
   expectMs: 30_000,
   async run(args) {
     const path = str(args, "file_path");
     const offset = Math.max(1, Math.trunc(num(args, "offset", 1)));
-    const limit = Math.min(Math.max(1, Math.trunc(num(args, "limit", READ_LIMIT))), READ_LIMIT);
+    const limit = Math.max(1, Math.trunc(num(args, "limit", Number.MAX_SAFE_INTEGER)));
+
+    // **文件比池子还大的时候连读都不读。** 一个几百兆的文件读进内存再回一句「太大了」，
+    // 那句话本身没错，代价却已经付掉了。这一层只看 `stat`。
+    const size = (await stat(path)).size;
+    if (size > TOOL_POOL_BYTES && !("limit" in args)) {
+      return {
+        path,
+        bytes: size,
+        error: `this file is ${size} bytes, over the ${TOOL_POOL_BYTES} one call may return; ask for a range with offset and limit`,
+      };
+    }
 
     const text = await readFile(path, "utf8");
     const all = text.split(/\r?\n/);
     // 末尾的换行会切出一个空段，那不是一行。
     if (all.length > 1 && all[all.length - 1] === "") all.pop();
 
-    const lines: { number: number; text: string }[] = [];
-    let bytes = 0;
-    let truncated = false;
-    for (let i = offset - 1; i < all.length && lines.length < limit; i++) {
-      let t = all[i];
-      if (t.length > READ_MAX_LINE_LENGTH) {
-        t = t.slice(0, READ_MAX_LINE_LENGTH) + `... (${all[i].length - READ_MAX_LINE_LENGTH} more characters on this line)`;
-        truncated = true;
-      }
-      bytes += Buffer.byteLength(t, "utf8") + 1;
-      if (bytes > READ_MAX_BYTES && lines.length > 0) {
-        truncated = true;
-        break;
-      }
-      lines.push({ number: i + 1, text: t });
+    const want = all.slice(offset - 1, offset - 1 + limit);
+    // 要多少算多少 —— 行号和换行也在这份账里，因为它们也要出现在返回里。
+    const bytes = want.reduce((n, t) => n + Buffer.byteLength(t, "utf8") + 12, 0);
+    // **拒了就一行都不给**，不给半份。给半份的话它读到的是一个看着完整的残缺文件，
+    // 而那种错要等到改坏了才看得出来。
+    if (bytes > TOOL_POOL_BYTES) {
+      return {
+        path,
+        totalLines: all.length,
+        bytes,
+        error:
+          `lines ${offset}-${offset + want.length - 1} are ${bytes} bytes, over the ${TOOL_POOL_BYTES} one call may return; ` +
+          `this file has ${all.length} lines - ask for fewer with offset and limit`,
+      };
     }
-    if (offset - 1 + lines.length < all.length) truncated = true;
-    return { path, offset, lines, totalLines: all.length, truncated };
+    return {
+      path,
+      offset,
+      lines: want.map((t, i) => ({ number: offset + i, text: t })),
+      totalLines: all.length,
+      bytes,
+    };
   },
 };
 
@@ -156,10 +206,9 @@ export const write: Tool = {
     ["file_path", "content"],
   ),
   output: { type: "object", properties: { path: { type: "string" }, bytes: { type: "integer" }, created: { type: "boolean" } } },
-  prompt:
-    "Use write to create a file or completely replace its contents. Existing files are overwritten — " +
-    "read it first, and prefer edit for targeted changes.",
+  prompt: "An existing file is overwritten in full.",
   concurrent: false,
+  gives: "receipt",
   expectMs: 30_000,
   async run(args) {
     const path = str(args, "file_path");
@@ -192,11 +241,9 @@ export const edit: Tool = {
     ["file_path", "old_string", "new_string"],
   ),
   output: { type: "object", properties: { path: { type: "string" }, replaced: { type: "integer" } } },
-  prompt:
-    "Use edit for targeted changes to existing UTF-8 text files. It replaces literal old_string with new_string; " +
-    "by default old_string must appear exactly once. If it appears multiple times, give a more specific old_string " +
-    "or set replace_all. Read the file first unless you just created or edited it.",
+  prompt: "",
   concurrent: false,
+  gives: "receipt",
   expectMs: 30_000,
   async run(args) {
     const path = str(args, "file_path");
@@ -235,12 +282,25 @@ function count(hay: string, needle: string): number {
 
 const SKIP = new Set([".git", "node_modules", ".hg", ".svn"]);
 
+/**
+ * 走树最多看几个文件、最多走多久。
+ *
+ * **期限得有人去停，不能只记在账上。** `expectMs` 是内核放弃这一站的时刻，工具
+ * 自己不会因此停下 —— 实测过一条 `grep -rln … /` 从根目录扫起，工具那边早就交回
+ * 「超时」了，活还在容器里烧着，50 分钟一直占着一整个核。
+ *
+ * 池子满了会中断，可**一次命中都没有的时候池子一直是满的** —— 从 `/` 走起，那就
+ * 一直走。这两道闸管的是那种。
+ */
+const WALK_MAX_FILES = 20_000;
+const WALK_MS = 20_000;
+
 export const glob: Tool = {
   name: "glob",
   does:
     "Find files whose paths match a glob pattern. Returns matching file paths — never directories — " +
-    `including hidden files (VCS metadata directories are excluded). Up to ${GLOB_MAX_RESULTS} paths come back ` +
-    "in modification-time order, newest first.",
+    "including hidden files (VCS metadata directories are excluded), newest first among the ones it gathered. " +
+    `It stops as soon as what it has gathered reaches about ${TOOL_POOL_TOKENS} tokens, and says so in truncated.`,
   params: schema(
     {
       pattern: {
@@ -258,10 +318,9 @@ export const glob: Tool = {
     type: "object",
     properties: { files: { type: "array", items: { type: "string" } }, truncated: { type: "boolean" } },
   },
-  prompt:
-    'Use glob — not shell find — to discover files by path pattern. A pattern with no "/" matches basenames at ' +
-    'any depth, so "*" matches every file in the tree rather than its top level. Results are files only, never directories.',
+  prompt: "",
   concurrent: true,
+  gives: "look",
   expectMs: 60_000,
   async run(args) {
     const pattern = str(args, "pattern");
@@ -272,14 +331,23 @@ export const glob: Tool = {
     const re = globToRegExp(pattern);
 
     const found: { path: string; mtimeMs: number }[] = [];
-    await walk(root, async (file, st) => {
+    let left = TOOL_POOL_BYTES;
+    let full = false;
+    const cut = await walk(root, async (file, st) => {
       const rel = relative(root, file).split(sep).join("/");
-      if (re.test(onBase ? rel.slice(rel.lastIndexOf("/") + 1) : rel)) {
-        found.push({ path: file, mtimeMs: st.mtimeMs });
+      if (!re.test(onBase ? rel.slice(rel.lastIndexOf("/") + 1) : rel)) return;
+      const cost = Buffer.byteLength(file, "utf8") + 3;
+      if (cost > left) {
+        full = true;
+        return "stop";
       }
+      left -= cost;
+      found.push({ path: file, mtimeMs: st.mtimeMs });
     });
+    // **「最新的在前」是在收到的这些里面排**，不是整棵树里最新的那几个：装满就中断，
+    // 后面还有什么根本没看过。
     found.sort((a, b) => b.mtimeMs - a.mtimeMs);
-    return { files: found.slice(0, GLOB_MAX_RESULTS).map((f) => f.path), truncated: found.length > GLOB_MAX_RESULTS };
+    return { files: found.map((f) => f.path), truncated: cut || full };
   },
 };
 
@@ -308,26 +376,39 @@ export function globToRegExp(pattern: string): RegExp {
   return new RegExp(`^${out}$`);
 }
 
-async function walk(dir: string, hit: (file: string, st: { mtimeMs: number }) => Promise<void>): Promise<void> {
+/**
+ * 走一棵树。**回 true 表示没走完就停了** —— 上限到了，或者调用方说够了。
+ *
+ * `hit` 回 `"stop"` 就当场收工。之前那一版走不完不回话，于是 `grep` 命中够了
+ * 之后接着把整棵树走完，走的那部分一条结果都不会多出来。
+ */
+async function walk(
+  dir: string,
+  hit: (file: string, st: { mtimeMs: number }) => Promise<void | "stop">,
+  budget: { files: number; until: number } = { files: WALK_MAX_FILES, until: Date.now() + WALK_MS },
+): Promise<boolean> {
   let entries;
   try {
     entries = await readdir(dir, { withFileTypes: true });
   } catch {
-    return; // 读不动的目录跳过，不让一个权限问题毁掉整次搜索
+    return false; // 读不动的目录跳过，不让一个权限问题毁掉整次搜索
   }
   for (const e of entries) {
+    if (budget.files <= 0 || Date.now() > budget.until) return true;
     const p = join(dir, e.name);
     if (e.isDirectory()) {
       if (SKIP.has(e.name)) continue;
-      await walk(p, hit);
+      if (await walk(p, hit, budget)) return true;
     } else if (e.isFile()) {
+      budget.files--;
       try {
-        await hit(p, await stat(p));
+        if ((await hit(p, await stat(p))) === "stop") return true;
       } catch {
         /* 中途没了就算了 */
       }
     }
   }
+  return false;
 }
 
 // ── grep ────────────────────────────────────────────────────────────────────
@@ -335,8 +416,9 @@ async function walk(dir: string, hit: (file: string, st: { mtimeMs: number }) =>
 export const grep: Tool = {
   name: "grep",
   does:
-    "Search file contents with a regular expression. Returns matching lines with line numbers, grouped by file. " +
-    `Returns the first ${GREP_MAX_MATCHES} matches; a capped result says so. Use read on a matched file for context.`,
+    "Search file contents with a regular expression. Returns matching lines with line numbers. " +
+    `It stops as soon as what it has gathered reaches about ${TOOL_POOL_TOKENS} tokens, and says so in truncated; the matches it does return are whole. ` +
+    "Use read on a matched file for context.",
   params: schema(
     {
       pattern: { type: "string", description: "Regular expression to search for." },
@@ -355,8 +437,9 @@ export const grep: Tool = {
       truncated: { type: "boolean" },
     },
   },
-  prompt: "Use grep — not shell grep — to search file contents. Use read on a matched file when you need surrounding context.",
+  prompt: "",
   concurrent: true,
+  gives: "look",
   expectMs: 60_000,
   async run(args) {
     const re = new RegExp(str(args, "pattern"));
@@ -366,9 +449,11 @@ export const grep: Tool = {
 
     const matches: { path: string; line: number; text: string }[] = [];
     let truncated = false;
+    // 池子按**真要带回去的那份**扣：一条命中的路径、行号、正文加起来多少字节。
+    let left = TOOL_POOL_BYTES;
 
-    const scan = async (file: string) => {
-      if (matches.length >= GREP_MAX_MATCHES) return;
+    const scan = async (file: string): Promise<void | "stop"> => {
+      if (left <= 0) return "stop";
       if (inc && !inc.test(file.slice(file.lastIndexOf(sep) + 1))) return;
       let text: string;
       try {
@@ -379,18 +464,24 @@ export const grep: Tool = {
       const lines = text.split(/\r?\n/);
       for (let i = 0; i < lines.length; i++) {
         if (!re.test(lines[i])) continue;
-        if (matches.length >= GREP_MAX_MATCHES) {
-          truncated = true;
-          return;
-        }
         const t = lines[i];
-        matches.push({ path: file, line: i + 1, text: t.length > READ_MAX_LINE_LENGTH ? t.slice(0, READ_MAX_LINE_LENGTH) + "…" : t });
+        const one = { path: file, line: i + 1, text: t.length > READ_MAX_LINE_LENGTH ? t.slice(0, READ_MAX_LINE_LENGTH) + "…" : t };
+        // 加一是把它跟上一条之间那个逗号也算上 —— 池子量的是**真发出去的那串 JSON**，
+        // 只按元素算的话，一百多条就差出一百多字节，刚好翻过线。
+        const cost = Buffer.byteLength(JSON.stringify(one), "utf8") + 1;
+        // **装不下就当场中断**，不塞半条进去。
+        if (cost > left) {
+          truncated = true;
+          return "stop";
+        }
+        left -= cost;
+        matches.push(one);
       }
     };
 
     const st = await stat(target);
     if (st.isFile()) await scan(target);
-    else await walk(target, async (f) => await scan(f));
+    else if (await walk(target, async (f) => await scan(f))) truncated = true;
     return { matches, truncated };
   },
 };
@@ -399,9 +490,7 @@ export const grep: Tool = {
 
 export const bash: Tool = {
   name: "bash",
-  does:
-    "Run a shell command and return its stdout, stderr and exit code. " +
-    "Uses /bin/sh on POSIX and PowerShell on Windows.",
+  does: "Run a shell command and return its stdout, stderr and exit code.",
   params: schema(
     {
       command: { type: "string", description: "The shell command to run." },
@@ -420,11 +509,9 @@ export const bash: Tool = {
     },
   },
   prompt:
-    "Use bash for commands that have no dedicated tool. Prefer read / write / edit / glob / grep over cat, tee, " +
-    "sed, find and grep — they give structured results and the shell ones do not. " +
-    "On Windows this runs in PowerShell: when only Windows PowerShell 5.1 is installed, `&&` and `||` are parse " +
-    "errors — use `;` or `if ($?) { ... }` instead.",
+    `stdout and stderr each come back whole up to ${SH_MAX_BYTES} bytes. Past that the middle is cut out and a line in its place says how many bytes went.`,
   concurrent: false,
+  gives: "event",
   expectMs: 130_000,
   async run(args) {
     const command = str(args, "command");
@@ -449,6 +536,46 @@ function pwsh(): string {
   return PWSH;
 }
 
+/**
+ * 输出超了就**掐掉中间**，两头留着，中间记一句掐了多少。
+ *
+ * 掐中间不掐尾巴：一条命令要紧的往往在最后几行（跑挂了的那条断言、`exit 1` 前
+ * 那句话），只留开头的话，最要紧的那段正好是丢掉的那段。
+ */
+function cut(s: string): string {
+  const bytes = Buffer.byteLength(s, "utf8");
+  if (bytes <= SH_MAX_BYTES) return s;
+  const half = Math.floor(SH_MAX_BYTES / 2);
+  const buf = Buffer.from(s, "utf8");
+  // 按字节切会把一个多字节字符劈成两半，`toString` 那儿变成一个替换符 —— 一个字
+  // 的事，不值得为它多绕一层。
+  const head = buf.subarray(0, half).toString("utf8");
+  const tail = buf.subarray(bytes - half).toString("utf8");
+  return `${head}\n... (${bytes - SH_MAX_BYTES} more bytes cut from the middle of this output)\n${tail}`;
+}
+
+/**
+ * 把一条命令连同它起的活一起停掉。
+ *
+ * POSIX：进程组的号就是组长的 pid，`kill(-pid)` 送给整组。Windows 没有进程组这
+ * 回事，用 `taskkill /T`（连着子孙一起）。
+ */
+function stop(p: { pid?: number; kill: (sig?: NodeJS.Signals) => boolean }): void {
+  const pid = p.pid;
+  if (pid === undefined) return;
+  try {
+    if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(pid), "/T", "/F"], { windowsHide: true });
+    else process.kill(-pid, "SIGKILL");
+  } catch {
+    // 已经没了，或者组长不在了 —— 补一刀给它自己，杀不掉就算了
+    try {
+      p.kill("SIGKILL");
+    } catch {
+      /* 已经走了 */
+    }
+  }
+}
+
 /** 跑一条命令。**一定要有上限** —— 没有的话一个不返回的命令能把整个位置钉死。 */
 export function sh(
   command: string,
@@ -461,6 +588,10 @@ export function sh(
     // 走 PowerShell 的 -EncodedCommand：参数是 UTF-16 的 base64，进去这一路不经过
     // 代码页；再在里面把输出编码钉成 UTF-8，出来这一路也就对了。
     const win = process.platform === "win32";
+    // POSIX 上 `detached` 让子进程自成一个进程组，超时那一下才杀得动**整组** ——
+    // 不这么起的话 `p.kill()` 只送走那个 shell，它起的活（`grep -r /` 那种）被
+    // init 收养接着跑。实测：六个容器各占一整个核，最久的一条烧了 50 分钟，而工具
+    // 那边早就交回「超时」了。
     const spawned = win
       ? spawn(
           pwsh(),
@@ -475,24 +606,24 @@ export function sh(
           ],
           { cwd, windowsHide: true },
         )
-      : spawn(command, { shell: true, cwd, windowsHide: true });
+      : spawn(command, { shell: true, cwd, windowsHide: true, detached: true });
     const p = spawned;
     let out = "";
     let err = "";
     let timedOut = false;
     const timer = setTimeout(() => {
       timedOut = true;
-      p.kill();
+      stop(p);
     }, timeoutMs);
     p.stdout.on("data", (d: Buffer) => (out += d.toString()));
     p.stderr.on("data", (d: Buffer) => (err += d.toString()));
     p.on("close", (code) => {
       clearTimeout(timer);
-      done({ code: code ?? -1, stdout: out, stderr: err, timedOut });
+      done({ code: code ?? -1, stdout: cut(out), stderr: cut(err), timedOut });
     });
     p.on("error", (e) => {
       clearTimeout(timer);
-      done({ code: -1, stdout: out, stderr: String(e), timedOut });
+      done({ code: -1, stdout: cut(out), stderr: String(e), timedOut });
     });
   });
 }

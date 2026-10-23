@@ -1,0 +1,8 @@
+{
+  "id": "sha256:45bd04b2941a81856945b5e46cff8ba2ae5111ec7ead633b12f5c89ab6989b56",
+  "size": 622752266,
+  "repoTags": [
+    "objrun-classeval:20261014"
+  ],
+  "dockerEndpoint": "http://127.0.0.1:18750"
+}

@@ -1,0 +1,40 @@
+{
+  "slug": "chembench",
+  "grader_port": 7913,
+  "nodes": [
+    {
+      "name": "parsed",
+      "moment": "task_done",
+      "domain": "bool",
+      "handle": "{GRADER}/parsed"
+    },
+    {
+      "name": "correct",
+      "moment": "task_done",
+      "domain": "bool",
+      "handle": "{GRADER}/correct"
+    }
+  ],
+  "edges": [
+    {
+      "src": "parsed",
+      "out": 0,
+      "dst": "correct"
+    }
+  ],
+  "sink": "correct",
+  "checks": 1,
+  "task": {
+    "domain": "chemistry",
+    "solveSeconds": 600,
+    "maxBranches": 2,
+    "maxDeadSiblings": 2,
+    "maxSearches": 3,
+    "noSearch": [
+      "chembench",
+      "lamalab",
+      "jablonka"
+    ]
+  },
+  "suffix": ""
+}

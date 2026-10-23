@@ -1,0 +1,8 @@
+import {join,resolve} from 'node:path';
+import {actualPin,jsonPin,demand} from './paid-resource-proof-v2.ts';
+import {durableJpgJson} from './jpg-paid-resource-admission-v1.ts';
+import {prepareFastRecipe} from './skb-fast-recipe-v3.ts';
+const p=prepareFastRecipe(process.argv[2]!);const r=jsonPin(p.recipePin),priorPin=actualPin(resolve(process.argv[3]!)),prior=jsonPin(priorPin);
+r.protocol='skillsbench-fast-resume-recipe-v5';r.resumeIndices=[16,17,18,19];r.priorRecipePin=priorPin;r.reuseGenerationPins=Array.from({length:16},(_,i)=>actualPin(join(prior.output,'generation-'+i+'.json')));r.reuseStageGradePins=prior.reuseStageGradePins;
+for(let i=0;i<16;i++){const old=jsonPin(r.reuseGenerationPins[i]);demand(old.index===i&&old.apiCalls.some((c:any)=>c.providerAttempted&&c.httpStatus===200&&c.completionValid&&c.usage),'resume_actual_prior_case');}
+console.log(JSON.stringify({recipePin:durableJpgJson(join(r.output,'resumed-final-recipe.json'),r),modelCalls:0}));

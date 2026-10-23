@@ -1,0 +1,203 @@
+{
+  "protocol": "bench-native-actual-input-preflight-v1",
+  "atUtc": "2026-10-14T10:14:37.620Z",
+  "rows": [
+    {
+      "protocol": "bench-native-mapping-preflight-v1",
+      "inputPin": {
+        "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\owner-data\\group-01\\fix-visual-stability.native-receipt-mapping.successor-20261014.json",
+        "bytes": 258708,
+        "sha256": "9188d1aaf9580d17abec270f2a92008aa374b9146f46308d8efe63412f657510"
+      },
+      "taskId": "fix-visual-stability",
+      "sourcePinsVerified": 146,
+      "stages": [
+        {
+          "key": "reference-oracle-and-original-grade",
+          "stage": "qualify",
+          "status": "blocked",
+          "blockers": [
+            "legacy command is provenance only; shared stage-bound invocation not yet supplied",
+            "owner explicitly has not approved dispatch",
+            "original driver emits no generic result envelope and no complete normalization/producer mapping is declared",
+            "actual nested owner FILETIME/parent/source capture not yet declared",
+            "stage-bound before-journal and before-forward model denial contract not declared"
+          ],
+          "originalLimits": {
+            "oracleSeconds": 3000,
+            "referenceGradeSeconds": 900,
+            "legacyOuterCustodySeconds": 7200,
+            "outerDoesNotExpandOriginalClocks": true
+          },
+          "originalSuccessfulCheckpointsReused": true,
+          "newExecution": false
+        },
+        {
+          "key": "wrong-control-original-grade",
+          "stage": "qualify",
+          "status": "blocked",
+          "blockers": [
+            "legacy command is provenance only; shared stage-bound invocation not yet supplied",
+            "owner explicitly has not approved dispatch",
+            "original driver emits no generic result envelope and no complete normalization/producer mapping is declared",
+            "actual nested owner FILETIME/parent/source capture not yet declared",
+            "stage-bound before-journal and before-forward model denial contract not declared"
+          ],
+          "originalLimits": {
+            "combinedVerifierSeconds": 900,
+            "legacyOuterCustodySeconds": 7200
+          },
+          "originalSuccessfulCheckpointsReused": true,
+          "newExecution": false
+        },
+        {
+          "key": "HTTP-qualification",
+          "stage": "qualify",
+          "status": "blocked",
+          "blockers": [
+            "legacy command is provenance only; shared stage-bound invocation not yet supplied",
+            "owner explicitly has not approved dispatch",
+            "original driver emits no generic result envelope and no complete normalization/producer mapping is declared",
+            "actual nested owner FILETIME/parent/source capture not yet declared",
+            "stage-bound before-journal and before-forward model denial contract not declared"
+          ],
+          "originalLimits": {
+            "setupTransferSeconds": 180,
+            "upHttpSeconds": 600,
+            "closeHttpSeconds": 660,
+            "combinedVerifierSeconds": 900,
+            "legacyOuterCustodySeconds": 7200
+          },
+          "originalSuccessfulCheckpointsReused": true,
+          "newExecution": false
+        }
+      ],
+      "ownerDeclaredGaps": [
+        {
+          "field": "legacyOwnerFILETIME/resourceTokenSha256",
+          "scope": "stages116/126/136/141/npm104",
+          "reason": "Frozen worker acquire response token retained only in process env; guard returns identity internally but worker owned-prefix trims FILETIME/tokenSHA and does not persist to stage output. Root exit release flag is retained, cannot fill historical identity."
+        },
+        {
+          "field": "owned-native SQLite ledger path/table",
+          "scope": "legacy preparation",
+          "reason": "Transport writes file receipts only; no sqlite ledger integration. Future common interface must capture independent exact owner/native custody without rewriting past receipts."
+        },
+        {
+          "field": "successful reference image/grade",
+          "reason": "141 command25 failed stderr_limit/WatchpackENOSPC, no successful reference checkpoint; wrong/HTTP not executed."
+        },
+        {
+          "field": "actual rootHostInotifyRepairPin",
+          "reason": "WX142 pin null; original watcher semantics and stderr limit unchanged. No repair/probe performed."
+        },
+        {
+          "field": "historical original.taskCapUsd/priorKnownUsd/priorUnknownUsd/toolSeconds",
+          "reason": "Previous owner draft intentionally unresolved; remains quarantined and no paid solve command generated."
+        },
+        {
+          "field": "HTTP actual candidate/controls/output bindings",
+          "reason": "WX117 plan still null controls/candidate, historical output. Preserve modules as static sources; universal data must bind actual controls and canonical output before future approval."
+        }
+      ],
+      "allReady": false,
+      "admissionChanged": false,
+      "newModelCalls": 0,
+      "nativeMutations": 0,
+      "qualifiedArtifactsReexecuted": false,
+      "originalReceiptPayloadsReplayed": false
+    },
+    {
+      "protocol": "bench-native-mapping-preflight-v1",
+      "inputPin": {
+        "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\owner-data\\group-02\\spring-boot-jakarta-migration.remaining-native-mapping.v2.json",
+        "bytes": 33115,
+        "sha256": "86f9f56c80416b5181ed6754ffc6de8f310985d919b6fe1386a6fd778b001678"
+      },
+      "taskId": "spring-boot-jakarta-migration",
+      "sourcePinsVerified": 15,
+      "stages": [
+        {
+          "key": "private-grader-image",
+          "stage": "prepare",
+          "status": "blocked",
+          "blockers": [
+            "legacy command is provenance only; shared stage-bound invocation not yet supplied",
+            "original driver emits no generic result envelope and no complete normalization/producer mapping is declared",
+            "actual nested owner FILETIME/parent/source capture not yet declared",
+            "stage-bound before-journal and before-forward model denial contract not declared"
+          ],
+          "originalLimits": {
+            "cpu": 1,
+            "memoryMb": 4096,
+            "buildTimeoutSeconds": 600,
+            "outerLeaseMemoryMb": 8192,
+            "plannedGrowthBytes": 3221225472,
+            "singleContainerQuota": false
+          },
+          "originalSuccessfulCheckpointsReused": true,
+          "newExecution": false
+        },
+        {
+          "key": "original10-controls",
+          "stage": "qualify",
+          "status": "blocked",
+          "blockers": [
+            "legacy command is provenance only; shared stage-bound invocation not yet supplied",
+            "original driver emits no generic result envelope and no complete normalization/producer mapping is declared",
+            "actual nested owner FILETIME/parent/source capture not yet declared",
+            "stage-bound before-journal and before-forward model denial contract not declared"
+          ],
+          "originalLimits": {
+            "cpu": 1,
+            "memoryMb": 4096,
+            "agentSeconds": 900,
+            "verifierSeconds": 900,
+            "mvnCompileSeconds": 300,
+            "mvnTestSeconds": 300,
+            "upHttpSeconds": 600,
+            "closeHttpSeconds": 630,
+            "outerLeaseMemoryMb": 8192,
+            "outerLeaseGrowthBytes": 3221225472
+          },
+          "originalSuccessfulCheckpointsReused": true,
+          "newExecution": false
+        },
+        {
+          "key": "native-http-worker-tools",
+          "stage": "qualify",
+          "status": "blocked",
+          "blockers": [
+            "legacy command is provenance only; shared stage-bound invocation not yet supplied",
+            "original driver emits no generic result envelope and no complete normalization/producer mapping is declared",
+            "actual nested owner FILETIME/parent/source capture not yet declared",
+            "stage-bound before-journal and before-forward model denial contract not declared"
+          ],
+          "originalLimits": {
+            "cpu": 1,
+            "memoryMb": 4096,
+            "agentSeconds": 900,
+            "verifierSeconds": 900,
+            "mvnCompileSeconds": 300,
+            "mvnTestSeconds": 300,
+            "upHttpSeconds": 600,
+            "closeHttpSeconds": 630,
+            "outerLeaseMemoryMb": 8192,
+            "outerLeaseGrowthBytes": 3221225472
+          },
+          "originalSuccessfulCheckpointsReused": true,
+          "newExecution": false
+        }
+      ],
+      "ownerDeclaredGaps": [],
+      "allReady": false,
+      "admissionChanged": false,
+      "newModelCalls": 0,
+      "nativeMutations": 0,
+      "qualifiedArtifactsReexecuted": false,
+      "originalReceiptPayloadsReplayed": false
+    }
+  ],
+  "modelCalls": 0,
+  "nativeMutations": 0
+}

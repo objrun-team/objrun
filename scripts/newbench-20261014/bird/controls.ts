@@ -1,0 +1,18 @@
+import {join} from 'node:path';
+import {HERE,OUT,read,save,grade,binaryFeedback,fullFeedback,balance} from './common.ts';
+import {native} from './native.ts';
+const dir=join(OUT,'controls'),task=read(join(HERE,'public-tasks.json'))[1],gold=read(join(HERE,'dev_20251106.json'))[1].SQL;
+const checks:any={};
+checks.reference=await grade(task,gold,dir);checks.wrong=await grade(task,'SELECT NULL',dir);
+checks.syntax=await grade(task,'SELEC 1',dir);checks.write=await grade(task,'CREATE TABLE forbidden(x)',dir);
+checks.attach=await grade(task,"ATTACH DATABASE ':memory:' AS extra",dir);checks.extension=await grade(task,"SELECT load_extension('x')",dir);
+checks.setSemantics=await grade(task,'SELECT 1 UNION ALL SELECT 1',dir,'SELECT 1');
+checks.orderSemantics=await grade(task,'SELECT 1 UNION ALL SELECT 2 ORDER BY 1 DESC',dir,'SELECT 1 UNION ALL SELECT 2 ORDER BY 1 ASC');
+checks.goldFailure=await grade(task,'SELECT 1',dir,'SELECT * FROM __missing_gold_table');
+checks.binaryRedaction=['passed','failed'].includes(binaryFeedback(checks.syntax))&&binaryFeedback(checks.syntax)==='failed'&&!binaryFeedback(checks.wrong).includes('mismatch');
+checks.structuredFeedback=fullFeedback(checks.syntax).includes('syntax');
+checks.native=await native({officialId:'synthetic-control',prompt:'Return SELECT 1. Verify the initial SELECT 0, then hand in SELECT 1.'},join(dir,'native'),join(dir,'no-model-calls'),true);
+const allPassed=checks.reference.valid&&checks.reference.passed&&['wrong','syntax','write','attach','extension'].every(k=>checks[k].valid&&!checks[k].passed)&&checks.setSemantics.passed&&checks.orderSemantics.passed&&!checks.goldFailure.valid&&checks.binaryRedaction&&checks.structuredFeedback&&checks.native.answer==='SELECT 1'&&checks.native.candidateHow==='submitted'&&checks.native.feedbackObserved;
+save(join(dir,'summary.json'),{atUtc:new Date().toISOString(),allPassed,checks});
+console.log(JSON.stringify({allPassed,native:checks.native}));
+if(!allPassed)process.exitCode=1;else console.log(JSON.stringify({remainingUsd:await balance(true)}));

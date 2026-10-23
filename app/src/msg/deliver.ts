@@ -163,6 +163,103 @@ export function checkBody(kind: string, body: string): void {
  * 补一条「没跑成」两样都解决：模型看得见自己调过、也看得见没结果；而库里存的
  * 就是发出去的那一份。
  */
+/** 一行消息，配对校验只用得上这几列。 */
+export interface Pair {
+  unit: number;
+  seq: number;
+  role: string;
+  kind: string;
+  body: string;
+  thought?: string | null;
+}
+
+/**
+ * **发出去之前最后一道闸：这份消息列表还成不成立。**
+ *
+ * 那一端只有一条硬规矩：一个调用必须跟着它的结果，一条结果必须跟着它的调用。破了
+ * 整份拒收，而错误信息说的是「少了谁」，不是「谁把它弄丢的」——
+ * `Tool result is missing for tool call …` / `Messages with role 'tool' must be a
+ * response to a preceding message with 'tool_calls'`。
+ *
+ * **对不上就把那一小段摘掉，不回退。** 压缩是照着阈值算出来该压的，为了一个悬空的
+ * 调用把整份换回原文，等于用「一定超上下文」换「可能不合法」—— 而摘掉的代价只有
+ * 那一次调用本身：它的结果本来就不在，模型看不到它也不损失什么。
+ *
+ * 摘的是最小的那一块：调用是从那一行的 `calls` 里挑掉一个，整行只有在**一个调用都
+ * 不剩、话也没说**的时候才整行不要。
+ *
+ * 回的是「留下来的行」和「摘掉了什么」——后者是给日志的：这一步一旦真动了手，
+ * 说明前面某个环节漏了一条结果，那才是要修的地方。
+ */
+export function mendPairs(rows: Pair[]): { rows: Pair[]; dropped: string[] } {
+  const answered = new Set<string>();
+  const asked = new Set<string>();
+  for (const r of rows) {
+    if (r.kind === "tool") {
+      const id = idOf(r.body);
+      if (id) answered.add(id);
+      continue;
+    }
+    if (r.kind !== "call" && r.kind !== "graded") continue;
+    for (const c of callsOf(r.body)) if (c.id) asked.add(String(c.id));
+  }
+
+  const dropped: string[] = [];
+  const out: Pair[] = [];
+  for (const r of rows) {
+    if (r.kind === "tool") {
+      const id = idOf(r.body);
+      if (id && !asked.has(id)) {
+        dropped.push(`result ${id} (nothing asked for it)`);
+        continue;
+      }
+      out.push(r);
+      continue;
+    }
+    if (r.kind !== "call" && r.kind !== "graded") {
+      out.push(r);
+      continue;
+    }
+    let v: { text?: unknown; calls?: { id?: unknown }[] };
+    try {
+      v = JSON.parse(r.body) as typeof v;
+    } catch {
+      out.push(r);
+      continue;
+    }
+    const calls = v.calls ?? [];
+    const keep = calls.filter((c) => c.id && answered.has(String(c.id)));
+    if (keep.length === calls.length) {
+      out.push(r);
+      continue;
+    }
+    for (const c of calls) if (!keep.includes(c)) dropped.push(`call ${String(c.id)} (no result for it)`);
+    const text = typeof v.text === "string" ? v.text : "";
+    // 一个调用都不剩、话也没说 → 这一行没有内容了，整行不要。
+    if (keep.length === 0 && !text.trim()) continue;
+    out.push({ ...r, body: JSON.stringify({ ...v, calls: keep }) });
+  }
+  return { rows: out, dropped };
+}
+
+/** `kind='tool'` 那一行答的是哪一个调用。读不出来就是没有。 */
+function idOf(body: string): string {
+  try {
+    return String((JSON.parse(body) as { id?: unknown }).id ?? "");
+  } catch {
+    return "";
+  }
+}
+
+/** 一行里请求了哪几个调用。 */
+function callsOf(body: string): { id?: unknown }[] {
+  try {
+    return (JSON.parse(body) as { calls?: { id?: unknown }[] }).calls ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export function answerMissing(
   db: Conn,
   agent: string,
@@ -413,6 +510,158 @@ export const KINDS: [string, string][] = [
   ],
   ["intervene", "A mark left by a user intervening while it runs"],
 ];
+
+/**
+ * 压缩的时候能对一部分做什么。**`press_how` 表的种子。**
+ *
+ * 开着的一张单子：想多一种处置就多一行，`msg_part` 那三列填它的名字即可。
+ */
+/**
+ * 每种处置方式收什么。**一份形状，所有方式共用** —— 内置的和外面声明进来的收到的是
+ * 同一份东西，换一个实现不用改调用方。
+ */
+export const PRESS_IN = {
+  type: "object",
+  properties: {
+    part: { type: "string", description: "Which part of a message this is - a name registered in msg_part" },
+    name: { type: "string", description: "The tool this part belongs to, when it belongs to one; empty otherwise" },
+    level: { type: "string", description: "Which level is asking: l1, l2 or l3" },
+    body: { type: "string", description: "The text of that part, whole" },
+    bytes: { type: "integer", description: "How big body is" },
+  },
+  required: ["part", "level", "body"],
+} as const;
+
+/** 每种处置方式回什么。**空 = 这一部分不出现**，跟回一句「这里省略了什么」不是一回事。 */
+export const PRESS_OUT = {
+  type: "object",
+  properties: {
+    body: { type: "string", description: "The text that goes out in place of it. Absent or empty means it does not go out at all" },
+  },
+} as const;
+
+/**
+ * 压缩的时候能对一部分做什么。**`press_how` 表的种子。**
+ *
+ * 一行 = 一个名字 + 干这件事的句柄 + 两个 schema，跟 `tool` 表一个形状。所以
+ * **内置的和外面 `/declare` 送进来的是同一种行** —— 想换一种压法，声明一个新的
+ * 就行，不用改内核。
+ *
+ * `ask` 那一档没有句柄：它得有个模型，而挑哪个模型是外面的事。留着名字和 schema，
+ * 谁实现谁把 `identity` 填上。
+ */
+export const HOWS: [string, string, string | null][] = [
+  ["keep", "Goes out as it is", "fn:press.keep"],
+  ["drop", "Does not go out at all. What was there is not mentioned either - a line saying something was dropped costs tokens and says nothing the level does not already say", "fn:press.drop"],
+  ["cut", "Only the head of it goes out, with a count of what is missing. For anything whose beginning identifies it and whose tail is detail", "fn:press.cut"],
+  ["sample", "Some of it goes out - the first and the last of a run of like things, with a count of the ones in between. For a stretch of many small parts where the shape matters more than each one", "fn:press.sample"],
+  ["top", "The first lines of it go out, with a count of the lines missing. cut measured in lines rather than bytes - for anything that has lines, since cutting by bytes stops mid-line and half a line reads as confidently as a whole one", "fn:press.top"],
+  ["tail", "The last lines of it go out, with a count of the lines before them. For anything whose point is at the end - what a test run came to, the innermost frame of a stack, the line in a build log that actually failed. Keeping the head of those keeps the preamble and drops the part worth reading", "fn:press.tail"],
+  ["ask", "A model is given it and answers with a line or two, and that answer goes out instead. The only one that costs a call, and the only one that can say what a stretch amounted to rather than what it contained. Nothing in the binary implements it - declare a handle for it", "ask"],
+];
+
+/** 把认得的处置方式灌进 `press_how`。幂等，**不覆盖外面填过的 `identity`**。 */
+export function seedHows(db: Conn): string[] {
+  for (const [name, note, identity] of HOWS) {
+    run(
+      db,
+      `insert into press_how (name, note, identity, params, output) values (?, ?, ?, ?, ?)
+       on conflict(name) do update set note = excluded.note, params = excluded.params, output = excluded.output`,
+      [name, note, identity === "ask" ? null : identity, JSON.stringify(PRESS_IN), JSON.stringify(PRESS_OUT)],
+    );
+  }
+  return HOWS.map(([n]) => n);
+}
+
+/**
+ * 一条消息里分得出哪几部分，以及每一级拿它怎么办。**`msg_part` 表的种子。**
+ *
+ * ## 认部分只认形状，不认工具的含义
+ *
+ * 判据是消息本来就得有的那几样：`thought` 那一列、`body.text`、`body.calls[]`、
+ * `body.name`、`kind`、`role`。内核不知道 `bash` 和 `verify` 谁更要紧 —— 那是
+ * 这张表的事，而这张表是数据。
+ *
+ * ## 每一种从哪儿认出来
+ *
+ * | 部分 | 判据 |
+ * | --- | --- |
+ * | `thought` | `thought` 那一列不空 |
+ * | `said` | `kind=prompt` 的 `body`，或者 `kind=call` 的 `body.text` |
+ * | `call` | `kind=call` 的 `body.calls[]` |
+ * | `look` / `event` / `receipt` / `recall` | `kind=tool` 的 `body.value`，是哪一类看那件工具的 `tool.gives`（空 = `event`） |
+ * | `verdict` | `kind=graded` —— 判据是 kind，不是「那件叫 verify 的工具」 |
+ * | `task` | 这个实例的**第一条**（`unit=1, seq=1`）。题面按 `source` 走 `user` 或 `world` 两条路投递，kind 跟后面人说的话一样，只有位置分得开 |
+ * | `person` | `kind=user` / `voice`，且不是第一条 |
+ * | `world` | `kind=inject` **且 `role=user`** |
+ * | `skill` | `kind=skill` |
+ * | `intervene` | `kind=intervene` |
+ * | `ledger` | `kind=inject` **且 `role=system`** |
+ *
+ * ## `look` 和 `event` 差在哪
+ *
+ * 不在大小 —— `read` 单次 9511 B 是所有返回里最贵的。在于 **`look` 还拿得到、
+ * 而且会过期**：同一个文件后来被 `edit` 过，留着的那一份说的就不是现在那个文件了。
+ * `event` 反过来：跑了四分钟的测试、一次判决，丢了谁也变不回来，所以到了最狠那一级
+ * 也留个头。
+ *
+ * 哪件工具产哪一类，写在 `tool.gives` 上 —— **工具自己说**，这张表里一个工具名都没有。
+ *
+ * **`inject` 那两行必须连 role 一起看。** 它是两样东西共用的一个值（见上面那张
+ * 推断表）：世界注入是 `inject`+`user`，**进消息流**；内核记账是 `inject`+`system`，
+ * 走 instructions。一刀切成 `ledger` 的话，非真人发的任务连题面都会被当成记账丢掉。
+ *
+ * ## 三列是默认值，不是规矩
+ *
+ * 跟 `tool.usable` 一个待遇：冲突时只更新 `note`，改过的策略不会被下次启动盖回去。
+ * 填的名字得是 `press_how` 里注册过的。
+ *
+ * 现在**没有一格填 `ask`** —— 那一档还没有实现（`press_how` 里它的 `identity`
+ * 是空的），填了就是跑到那一级撞空。等它有了实现，`said` 和 `call` 的 `l3` 是它
+ * 该去的地方：那两样正是「说不清剩下什么、只能让人重新讲一遍」的东西。
+ *
+ * 各部分一趟有多大（112 道的全量，量出来的）：
+ *
+ * | 部分 | 一趟多大 |
+ * | --- | --- |
+ * | `thought` | **143 MB**，占七成 |
+ * | 工具返回 | 28.8 MB —— `bash` 一件就占 24.5 MB（`event`）；`read` 单次最贵 9511 B（`look`）；`write` 的返回才 131 B（`receipt`） |
+ * | `call` | 7.5 MB，里头有写出去的内容（`write` 的入参平均 8248 B） |
+ * | `said` | 1.7 MB |
+ * | `verdict` | 225 KB |
+ * | `task` | 240 KB |
+ */
+export const PARTS: [string, string, string, string, string][] = [
+  ["thought", "The reasoning a model produced before it spoke. Its own column, replayed inside every later request", "keep", "sample", "drop"],
+  ["said", "What the model itself said, apart from the calls it asked for", "keep", "keep", "keep"],
+  ["call", "The tools it asked for, with their arguments - which is where the content it wrote out lives", "keep", "keep", "keep"],
+  ["look", "A tool answered with a state that can be looked at again - a file as it was, a listing, a search. It can be had back, and it goes stale: once the same file has been edited, the copy in the context is describing something that is no longer there. Kept by lines rather than bytes: what it holds is lines - a file, a listing, matches - and a byte count stops in the middle of one, which then reads as confidently as a whole one", "keep", "top", "top"],
+  ["event", "A tool answered with something that happened and cannot be had back - a test run that took four minutes, a build, a script. Kept by its end rather than its head: a run says what it came to in its last lines, and its first lines are the command echoing back. Something of it survives the last level too, because nothing can produce it a second time", "tail", "sample", "sample"],
+  ["receipt", "A tool answered that a change went through. Tens of bytes, and the only index of what this attempt actually changed", "keep", "keep", "keep"],
+  ["recall", "A tool answered with this conversation's own context read back - the tree of attempts, another node. Gone at every level: it is a copy of something the store already holds, so keeping it inside a compressed node means carrying another node's summary in the middle of this one. Nothing is lost by dropping it, since asking for it again is one call", "drop", "drop", "drop"],
+  ["verdict", "A judgement written down after the fact, not asked for by the model. Recognised by its kind, not by which tool produced it", "keep", "keep", "keep"],
+  ["task", "The task as it was handed over - the first message of the instance. Its kind is the same as a person talking, so only its position tells them apart", "keep", "keep", "keep"],
+  ["person", "A line from whoever is on the other side, typed or spoken, after the task itself", "keep", "keep", "drop"],
+  ["world", "Something the system put into the conversation. Goes out as a user message - inject alone does not say which of the two this is, role does", "cut", "cut", "drop"],
+  ["skill", "A prompt a skill placed. Its own role so it is never taken for a person talking; it goes out as instructions rather than in the stream", "keep", "keep", "drop"],
+  ["intervene", "A mark left by a person intervening while it runs. Registered since the beginning and still written by nothing - the route that says it writes one delivers it as a plain user line", "drop", "drop", "drop"],
+  ["ledger", "The kernel's own note of what was on offer that round. inject as well, but role=system: it goes out as instructions and was never in the message stream", "drop", "drop", "drop"],
+];
+
+/** 把认得的部分灌进 `msg_part`。幂等，**不覆盖改过的三列策略**。 */
+export function seedParts(db: Conn): string[] {
+  for (const [name, note, l1, l2, l3] of PARTS) {
+    run(
+      db,
+      // `l4` 明写成 null：那一级还没设，而**没设跟设成 `keep` 得分得开** ——
+      // 前者是「别走这一级」，后者是「走，什么都别压」。
+      `insert into msg_part (name, note, l1, l2, l3, l4) values (?, ?, ?, ?, ?, null)
+       on conflict(name) do update set note = excluded.note`,
+      [name, note, l1, l2, l3],
+    );
+  }
+  return PARTS.map(([n]) => n);
+}
 
 /** 把认得的消息类型灌进 `msg_kind`。幂等。 */
 export function seedKinds(db: Conn): string[] {

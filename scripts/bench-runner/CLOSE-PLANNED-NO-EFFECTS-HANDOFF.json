@@ -1,0 +1,79 @@
+{
+  "protocol": "bench-close-planned-no-effects-handoff-v1",
+  "frozen": true,
+  "sourcePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\close-planned-no-effects.ts",
+    "bytes": 9517,
+    "sha256": "aa50ade868a65a969bc0b622b579dd0396e99384e4532279fbfc99863e9e9055"
+  },
+  "testsPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\close-planned-no-effects.test.ts",
+    "bytes": 5497,
+    "sha256": "47b9db4d9d116a76f35786af14abf1aa14a33d0d597d259bd0015b85273c18d0"
+  },
+  "testLogPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\CLOSE-PLANNED-NO-EFFECTS-TESTS.log",
+    "bytes": 476,
+    "sha256": "a8bd9789ec3407309ca7c1808246082cd09c41c7a5f86db13ee2a955a3d78138"
+  },
+  "tests": {
+    "pass": 3,
+    "fail": 0,
+    "assertions": 19,
+    "exitCode": 0
+  },
+  "actualReadOnlyCheckPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\manifests\\pipeline-saved-candidate-data-v10\\planned-no-effects-independent-check.json",
+    "bytes": 22430,
+    "sha256": "731afd75be33f78b482af0193fb58f3df99d3f7116978452cb2803fd069c1c78"
+  },
+  "rootPreflightFailureFactPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\manifests\\pipeline-saved-candidate-data-v10\\root-actual-preflight-failure.json",
+    "bytes": 1967,
+    "sha256": "e4685d2c161cb4c3367f5726a27daebb49720a0bc7744ea09b0f007c1305a413"
+  },
+  "actualAttemptId": "b1175b90-d084-42fb-9cd7-1435bf6e311f",
+  "productionApplied": false,
+  "rootApplyArgv": [
+    "bun",
+    "--smol",
+    "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\close-planned-no-effects.ts",
+    "--mode",
+    "apply",
+    "--database",
+    "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\queue.sqlite",
+    "--manifest",
+    "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\manifests\\pipeline-saved-candidate-data-v10\\manifest.json",
+    "--attempt",
+    "b1175b90-d084-42fb-9cd7-1435bf6e311f",
+    "--output",
+    "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\manifests\\pipeline-saved-candidate-data-v10\\root-planned-no-effects-applied.json"
+  ],
+  "strictChecks": [
+    "queue exact planned/manifest/context/stage",
+    "original authority Ed signed runtime bindings/template/argv/inputs",
+    "blocked job, only planned event, no other unresolved same-task attempt",
+    "no intent/process/native/provider/cash/businessoutput/currentnonce permanent launchlock",
+    "metadata-only exact regular files, signed plainentry and root-preflight context identity",
+    "transaction recheck, event+states atomic rollback"
+  ],
+  "mutatesOnly": [
+    "subject planned attempt.state to retryable",
+    "subject planned stage.state to retryable",
+    "append original rows and no-effects evidence event"
+  ],
+  "preserves": [
+    "all plans/signatures/results/locks",
+    "task inventory/valid/quarantine",
+    "job state",
+    "all budget/cash/held funds",
+    "admission/broker"
+  ],
+  "effects": {
+    "models": 0,
+    "resources": 0,
+    "native": 0,
+    "financeClosureFabricated": false,
+    "hostDriverRebuilt": false
+  }
+}

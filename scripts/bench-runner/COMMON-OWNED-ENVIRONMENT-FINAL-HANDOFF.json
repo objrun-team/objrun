@@ -1,0 +1,131 @@
+{
+  "protocol": "bench-common-complete-owned-environment-and-canonical-reconciliation-handoff-v1",
+  "hostBundlePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\69f9b915f0a0e68af4b592bf75bd8d1e68cffa2a77ba36b1dfeb9bf371639091\\runner.js",
+    "bytes": 348521,
+    "sha256": "69f9b915f0a0e68af4b592bf75bd8d1e68cffa2a77ba36b1dfeb9bf371639091"
+  },
+  "driverBundlePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\9bbc218058b7a94a791714914e957549ab34a620276a78ed2d2b8bf4a9e08c2b\\terminal-driver.js",
+    "bytes": 221983,
+    "sha256": "9bbc218058b7a94a791714914e957549ab34a620276a78ed2d2b8bf4a9e08c2b"
+  },
+  "hostReleasePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\69f9b915f0a0e68af4b592bf75bd8d1e68cffa2a77ba36b1dfeb9bf371639091\\release-b20273594d5bc3e5b7e064555356b5912391bcc05c1b8f42bc5b58fbe5228f4d.json",
+    "bytes": 12578,
+    "sha256": "b20273594d5bc3e5b7e064555356b5912391bcc05c1b8f42bc5b58fbe5228f4d"
+  },
+  "driverReleasePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\9bbc218058b7a94a791714914e957549ab34a620276a78ed2d2b8bf4a9e08c2b\\release-229248437fb2de8e6a451fb356c5087889fc6cbda0716d2b6919209310253b44.json",
+    "bytes": 8274,
+    "sha256": "229248437fb2de8e6a451fb356c5087889fc6cbda0716d2b6919209310253b44"
+  },
+  "sourcePins": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\signed-dispatch-contract.ts",
+      "bytes": 2350,
+      "sha256": "382500075f0d7de1417aebcc4a49c83523708432d12f9738f981e08a4719707f"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\signed-dispatch-contract.test.ts",
+      "bytes": 4036,
+      "sha256": "40221a7eaef4a4c5d4cb082e0bb216eca50d061ab228238b3d9af46a6d19b83f"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\signed-owned-environment.ts",
+      "bytes": 2708,
+      "sha256": "b8c6582c97b7c73b19727e678c253df3098e341b0d7cad6a0f9dc8e0a325d5f0"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\signed-owned-environment.test.ts",
+      "bytes": 2834,
+      "sha256": "a33e63d28b9b85479e2590465fa0a98683c01a61cca5c3b7fb22697b64b502cb"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\build-owned-environment-release.ts",
+      "bytes": 10272,
+      "sha256": "13471d350219698e13bd9dd43cd0274a30c8cce0a4c0751cff4e3b4691c56d07"
+    }
+  ],
+  "predecessorHandoffPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\COMMON-SIGNED-DISPATCH-HANDOFF.json",
+    "bytes": 4173,
+    "sha256": "6d0a22272dfa2ccc6d301c9a586fab65524e9e0d334152bb1490982c646f7e97"
+  },
+  "allActualLauncherRequiredFields": [
+    "NOVAEVE_RESOURCE_PARENT_PID",
+    "NOVAEVE_RESOURCE_LEASE_PID",
+    "NOVAEVE_RESOURCE_MEMORY_MB",
+    "NOVAEVE_RESOURCE_GROWTH_BYTES",
+    "NOVAEVE_RESOURCE_BENCH",
+    "NOVAEVE_RESOURCE_TOKEN",
+    "NOVAEVE_RESOURCE_SLOTS",
+    "NOVAEVE_ROOT_ONLY_DISPATCH"
+  ],
+  "gates": [
+    "preflight reads pinned original launcher literal env loop and rejects unknown/dynamic requirements before resource",
+    "run verifies actual signed manifest/template/argv/nonce and exact permanent lock receipt then derives rootdispatch field",
+    "actual acquired lease token and FILETIME, PID, memory/growth/bench/slots checked against every original launcher required field after original owned guard contract",
+    "returned campaign fatal or incomplete durable outcome sets exit2 without inventing native close or changing original verdict",
+    "original unknown attempt/cash/locks unchanged; root resource-only release actualproof must join root-signed pre-native reconciliation before any successor"
+  ],
+  "tests": {
+    "passed": 4,
+    "failed": 0,
+    "assertions": 18,
+    "actualLauncherSourceRead": true,
+    "models": 0,
+    "nativeCommands": 0,
+    "resources": 0,
+    "grades": 0,
+    "oracles": 0
+  },
+  "reconciliation": {
+    "modulePin": {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\reconcile-canonical.ts",
+      "bytes": 16853,
+      "sha256": "48cae990f6cc8d1793552815c6d65445303ddfdb986a462e894fbf60f53dbf65"
+    },
+    "historyConsumerPin": {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\original-history.ts",
+      "bytes": 13629,
+      "sha256": "d987b1e03a15b5c0e0e4980f2d8c442f9468e5e30af801b382caff33ea6af9cc"
+    },
+    "reviewProtocol": "bench-root-signed-pre-native-reconciliation-v1",
+    "requiredHistory": "old four actual cash and canonical locks retained; fifth zero cash appended via adapterConfig.preNativeRecoveryHistory with root signed review and actual resource release; no fake Stand/ledger receipt",
+    "doNotUseTransportRetry": "this is proven pre-native native-entry failure; generic pre-native reconciliation is the correct path, not fabricated provider-fault evidence",
+    "taskDataOwner": "sb_first JSON, tb_first actual closure facts",
+    "testPin": {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\reconcile-canonical.test.ts",
+      "bytes": 11374,
+      "sha256": "9bb5554bf03a11877c5ac2c167cbbd38579e05ed5145e4ce74802e1ac9d87a0d"
+    },
+    "tests": {
+      "passed": 7,
+      "failed": 0,
+      "assertions": 29,
+      "realSQLiteApplyRollback": true,
+      "existingOriginalLegacyRoutePreserved": true,
+      "inheritedCanonicalOriginalNonceEntryJoin": true
+    },
+    "lockCarry": "Current receipt canonical may be immutable original canonical: exact old policy pin + old originalHistory nonce/entry must join actual file; current attempt lock still exact current manifest/attempt. Next historical pins retain old prefix then unique append receipt pins, not duplicate canonical and not fake current nonce."
+  },
+  "rootExecutionStillRequired": [
+    "root-signed generic reconciliation review",
+    "new data-only manifest full five cash and actual original/current lock pins plus immutable new release bundle pins",
+    "reconcile-canonical.ts --check then root --apply; same signed protocol, strict actual cash/journal/PID/live lane/pool checks unchanged",
+    "normal plan/sign/run through shared queue only; no original attempt replay"
+  ],
+  "frozenOriginalsModified": false,
+  "newTaskSpecificRunners": 0,
+  "previousHandoffPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\COMMON-COMPLETE-OWNED-ENVIRONMENT-HANDOFF.json",
+    "bytes": 5679,
+    "sha256": "c4a7d47ead93ff5bb9d07638c09568457574fd0f6f3810b156757277d5d98722"
+  },
+  "actualRootReleasePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\pipeline-fc5fd7b8-exact-closure-review\\root-resource-release.actual.json",
+    "bytes": 643,
+    "sha256": "84df07d9e8335a2f196f243ff582428784f5d1a7c3c86d926809382ecd63152b"
+  }
+}

@@ -51,6 +51,8 @@ export function h2hRoutes(cfg: Config, store: Store, onWrite: () => void): Route
         tables: tables(store.ro).length,
         write: cfg.api.allowWrite,
         query: cfg.api.allowQuery,
+        // 绑判据这道闸是令牌还是自报来源。客户端（和审计）一眼看得出这台机器的边界有多硬。
+        objectiveGate: cfg.api.publisherToken ? "publisher-token" : "open",
         uptimeMs: Date.now() - started,
       }),
     },

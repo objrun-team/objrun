@@ -1,0 +1,17 @@
+{
+  "allPassed": true,
+  "fixtureRoot": "/var/tmp/tgengin-scibench-20261016/fixtures/infra-retry-build-1792144737",
+  "realProviderCalls": 0,
+  "checks": [
+    "full1664 final prerequisite",
+    "two infra attempts selected",
+    "native no-submit excluded",
+    "original registry SHA unchanged",
+    "same model and method config",
+    "solver module bytes preserved",
+    "attempt uniqueness",
+    "duplicate batch refused",
+    "active original refused",
+    "unreceipted original refused"
+  ]
+}

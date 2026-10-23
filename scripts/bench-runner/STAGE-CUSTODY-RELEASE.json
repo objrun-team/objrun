@@ -1,0 +1,47 @@
+{
+  "protocol": "bench-shared-stage-custody-release-v1",
+  "atUtc": "2026-10-14T09:22:14.778Z",
+  "bundlePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\24d38d26fe07c03e5d1204cde42ce48504fb0a455db634e4297a9c628a2e1255\\runtime.js",
+    "bytes": 23754,
+    "sha256": "24d38d26fe07c03e5d1204cde42ce48504fb0a455db634e4297a9c628a2e1255"
+  },
+  "sourcePins": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\runtime-stage-custody.ts",
+      "bytes": 17046,
+      "sha256": "aead6d81bc5ef36c48c21dd20fe2b39cdf2348f4ec62043f86c98be6ce9f8c9c"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\stage-custody.ts",
+      "bytes": 6186,
+      "sha256": "422054b5d02959b16ce2cd4e879a63f2e49b791417b7b0c9a9e6ed09870a470c"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\manifest.ts",
+      "bytes": 5056,
+      "sha256": "7d774b5c42b6f27e17b92d3f3198e191397b1b7ff2eafd86cadb05f5fa71f8dc"
+    }
+  ],
+  "frozenOriginalRuntimePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\runtime.ts",
+    "bytes": 16682,
+    "sha256": "8b81c4aa99eeb7c9ba6e7626ee85e517b0849dffc92b7188b827070a9c301a07"
+  },
+  "modelCalls": 0,
+  "nativeBenchCalls": 0,
+  "scope": "prepare-qualify operation locks; formal original task locks",
+  "adapterDecorationSourcePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\stage-adapter.ts",
+    "bytes": 693,
+    "sha256": "686b8554d9c073d9cb5157a749a580bb38a32e829fda045e2daa8518e41061c6"
+  },
+  "tests": {
+    "passed": 1,
+    "failed": 0,
+    "assertions": 16,
+    "actualContentAddressedBundleExecuted": true
+  },
+  "productionIntegrated": false,
+  "currentCobolScope": "not included; prepare and qualify reuse only"
+}

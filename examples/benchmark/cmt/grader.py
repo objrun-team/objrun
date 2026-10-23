@@ -119,13 +119,15 @@ def judge(response: str, item: dict) -> tuple[bool, bool, str]:
             r = EV.evaluate_functional_solution(
                 response, solution_string=solution, parameter_string=parameters, function_string=functions
             )
-    except Exception as e:  # 官方那套自己会抛，抛了就是没解析出来
-        return False, False, f"{type(e).__name__}: {e}"
+    except Exception:
+        # Official parsers report ordinary invalid candidates through r.success.
+        # An unhandled evaluator exception is an unavailable measurement.
+        raise
     return bool(r.success), bool(r.is_equivalent), r.error_message or ""
 
 
 # 一道题判一次就够 —— `parsed` 和 `equiv` 两个节点问的是同一次判卷的两栏。
-CACHE: dict[tuple[str, int], tuple[bool, bool, str]] = {}
+CACHE: dict[tuple[str, str], tuple[bool, bool, str]] = {}
 
 
 def answer_of(body: dict) -> tuple[str, dict | None, str]:
@@ -137,9 +139,10 @@ def answer_of(body: dict) -> tuple[str, dict | None, str]:
     inp = body.get("input") or {}
     task = inp.get("task") or {}
     tid = str(task.get("id", ""))
-    item = BOOK.get(int(tid[4:])) if tid.startswith("cmt-") and tid[4:].isdigit() else None
-    result = inp.get("result") or {}
-    said = result.get("body")
+    tail = tid.rsplit("/", 1)[-1]
+    item = BOOK.get(int(tail[4:])) if tail.startswith("cmt-") and tail[4:].isdigit() else None
+    result = inp.get("result")
+    said = result.get("body") if isinstance(result, dict) else result
     if said is None:
         said = task.get("result")
     return tid, item, "" if said is None else str(said)
@@ -149,8 +152,8 @@ def verdict(body: dict) -> tuple[bool, bool]:
     tid, item, said = answer_of(body)
     if item is None:
         print(f"[cmt] {tid} is not in the problem set", flush=True)
-        return False, False
-    key = (tid, hash(said))
+        raise LookupError("UnknownTask")
+    key = (tid, said)
     if key not in CACHE:
         ok, eq, err = judge(said, item)
         CACHE[key] = (ok, eq, err)
@@ -215,7 +218,11 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(n) or b"{}")
         except Exception:
             body = {}
-        ok, eq = verdict(body)
+        try:
+            ok, eq = verdict(body)
+        except Exception as e:
+            self._send({"valid": False, "outcome": "grader_error", "error": type(e).__name__}, 422 if isinstance(e, LookupError) else 503)
+            return
         # **回一个裸 bool。** G 的值域是封闭的（bool / bool[n]），
         # 回别的东西内核当违约，一律归 0。
         if self.path == "/parsed":
@@ -226,17 +233,21 @@ class Handler(BaseHTTPRequestHandler):
             self._send({"error": "404"}, 404)
 
 
-def selftest() -> None:
+def selftest() -> int:
     """拿题库自己的 GT 当回答喂进去 —— 官方判据该说「解析得出来、而且等价」。"""
     bad = 0
-    for idx in sorted(BOOK)[:5]:
+    selected = sorted(BOOK)[:10]
+    for idx in selected:
         it = BOOK[idx]
         ok, eq, err = judge(it["solution"], it)
         flag = "√" if (ok and eq) else "×"
-        if not (ok and eq):
+        wrong = judge(r"\boxed{999999999}", it)[1]
+        junk = judge("I cannot provide an answer", it)[1]
+        if not (ok and eq) or wrong or junk:
             bad += 1
-        print(f"  {flag} cmt-{idx} ({it['type']}) parsed={ok} equiv={eq} {err[:70]}")
-    print(f"  feeding the ground truth back as the answer: {5 - bad} of 5 judged equivalent")
+        print(f"  {flag} cmt-{idx} ({it['type']}) parsed={ok} equiv={eq} wrong={wrong} junk={junk} {err[:70]}")
+    print(f"  reference/wrong/format checks: {len(selected) - bad} of {len(selected)} pass")
+    return 1 if bad else 0
 
 
 if __name__ == "__main__":
@@ -245,7 +256,6 @@ if __name__ == "__main__":
     ap.add_argument("--selftest", action="store_true")
     a = ap.parse_args()
     if a.selftest:
-        selftest()
-        raise SystemExit(0)
+        raise SystemExit(selftest())
     print(f"[cmt] grader up: http://0.0.0.0:{a.port}/{{parsed,equiv}} | {len(BOOK)} problems", flush=True)
     ThreadingHTTPServer(("0.0.0.0", a.port), Handler).serve_forever()

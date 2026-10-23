@@ -44,17 +44,20 @@ async function freePort(): Promise<number> {
 }
 
 export interface Machine {
+  /** PID of the actual Bun engine, rather than a package-manager shim. */
+  pid: number;
   /** 打一个口。4xx/5xx 会把服务端说的话原样抛出来 —— 例子里最有用的就是那句话。 */
   api<T = unknown>(method: string, path: string, body?: unknown): Promise<T>;
   /** 打一个口，**期待它失败**，把服务端回的那份 JSON 拿回来。 */
   bad(method: string, path: string, body?: unknown): Promise<Record<string, unknown>>;
   base: string;
-  stop(): void;
+  directory: string;
+  stop(): Promise<void>;
 }
 
 /** 起一台临时引擎。 */
-export async function machine(llm: Record<string, string | number> = {}): Promise<Machine> {
-  const dir = mkdtempSync(join(tmpdir(), "tgengin-example-"));
+export async function machine(llm: Record<string, string | number> = {}, options: { directory?: string; keep?: boolean } = {}): Promise<Machine> {
+  const dir = options.directory ?? mkdtempSync(join(tmpdir(), "tgengin-example-"));
   const port = await freePort();
   writeFileSync(
     join(dir, "config.yaml"),
@@ -86,10 +89,12 @@ export async function machine(llm: Record<string, string | number> = {}): Promis
   );
 
   const proc: ChildProcess = spawn(
-    "bun",
+    process.execPath,
     [`--env-file=${join(ROOT, ".env")}`, join(ROOT, "app", "src", "main.ts")],
-    { env: { ...process.env, TGENGIN_CONFIG: join(dir, "config.yaml") }, stdio: ["ignore", "pipe", "pipe"] },
+    { env: { ...process.env, TGENGIN_CONFIG: join(dir, "config.yaml") }, stdio: ["ignore", "pipe", "pipe"], windowsHide: true },
   );
+  const enginePid = proc.pid;
+  if (enginePid === undefined) throw new Error("the test engine did not obtain a process ID");
   let log = "";
   proc.stdout?.on("data", (d: Buffer) => (log += d.toString()));
   proc.stderr?.on("data", (d: Buffer) => (log += d.toString()));
@@ -124,7 +129,9 @@ export async function machine(llm: Record<string, string | number> = {}): Promis
   };
 
   return {
+    pid: enginePid,
     base,
+    directory: dir,
     async api<T>(method: string, path: string, body?: unknown): Promise<T> {
       const { res, json } = await call(method, path, body);
       if (!res.ok) throw new Error(`${method} ${path} → ${res.status}\n${JSON.stringify(json, null, 2)}`);
@@ -135,8 +142,15 @@ export async function machine(llm: Record<string, string | number> = {}): Promis
       if (res.ok) throw new Error(`${method} ${path} should have been rejected, but returned ${res.status}`);
       return json as Record<string, unknown>;
     },
-    stop() {
-      proc.kill();
+    async stop() {
+      if (proc.exitCode === null && proc.signalCode === null) {
+        await new Promise<void>(resolve => {
+          const hard = setTimeout(() => { proc.kill("SIGKILL"); }, 3000);
+          proc.once("exit", () => { clearTimeout(hard); resolve(); });
+          proc.kill();
+        });
+      }
+      if (options.keep) return;
       try {
         rmSync(dir, { recursive: true, force: true });
       } catch {

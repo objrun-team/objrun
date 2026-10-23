@@ -44,6 +44,13 @@ export interface Config {
   api: {
     prefix: string;
     token: string | null;
+    /**
+     * **谁能绑判据。** 设了这个，发布带 objective 的任务（`/tasks`、`/bench`）必须带
+     * `X-TGEngin-Publisher: <token>`，否则 403。没设 = 老行为：来源字段由调用方自报，
+     * 谁能打到 API 谁就能绑 —— 启动时会警告。环境变量 `TGENGIN_PUBLISHER_TOKEN` 优先。
+     * 这把钥匙不能让求解器的工具读到（环境变量、能读的文件、能连的端口），否则形同虚设。
+     */
+    publisherToken: string | null;
     allowQuery: boolean;
     allowWrite: boolean;
     maxRows: number;
@@ -127,6 +134,7 @@ export function readConfig(file = findConfig()): Config {
   if (!prefix.startsWith("/")) throw new Error("config.yaml: api.prefix must start with /");
 
   const token = at(doc, "api.token");
+  const publisher = process.env.TGENGIN_PUBLISHER_TOKEN ?? at(doc, "api.publisherToken");
   const origin = at(doc, "cors.origin");
   if (typeof origin !== "string" && !Array.isArray(origin)) {
     throw new Error('config.yaml: cors.origin must be "*" or a list of origins');
@@ -145,6 +153,7 @@ export function readConfig(file = findConfig()): Config {
     api: {
       prefix: prefix === "/" ? "" : prefix.replace(/\/$/, ""),
       token: typeof token === "string" && token !== "" ? token : null,
+      publisherToken: typeof publisher === "string" && publisher !== "" ? publisher : null,
       allowQuery: bool(doc, "api.allowQuery"),
       allowWrite: bool(doc, "api.allowWrite"),
       maxRows: num(doc, "api.maxRows"),

@@ -26,18 +26,22 @@ import { registerDuplex, Sessions } from "./llm/duplex.ts";
 import { Servers } from "./mcp/client.ts";
 import { attach } from "./mcp/register.ts";
 import { mcpServeRoutes } from "./mcp/serve.ts";
-import { evaluate } from "./objective/run.ts";
+import { candidateInput, evaluate } from "./objective/run.ts";
+import { finalCandidate } from "./objective/candidate.ts";
 import { openSealed } from "./objective/store.ts";
-import { deliverVerdict, seedKinds, seedRoles } from "./msg/deliver.ts";
-import { handedIn, registerTree, SUBMIT } from "./tree/dfs.ts";
+import { deliverVerdict, seedHows, seedKinds, seedParts, seedRoles } from "./msg/deliver.ts";
+import { registerPress } from "./msg/press.ts";
+import { registerTree } from "./tree/dfs.ts";
 import { registerVerifyTool } from "./objective/tool.ts";
 import { registerTreeView } from "./tree/view.ts";
 import { check } from "./trigger/check.ts";
 import { checkData } from "./trigger/data.ts";
-import { Places, registerTools } from "./tools/register.ts";
+import { Places, registerPlace } from "./place/index.ts";
+import { registerTools } from "./tools/register.ts";
 import { registerSearchTool } from "./tools/search.ts";
 import { closePython } from "./tools/python.ts";
 import { registerToolUnit } from "./tools/unit.ts";
+import { mountUi, UI_PATH } from "./ui/index.ts";
 
 const VERSION = pkg.version;
 
@@ -87,93 +91,18 @@ async function settled(db: Parameters<typeof all>[0], task: string, unit: number
 /**
  * 收尾那一刻，**这道题交上来的是什么**。
  *
- * 交卷是流转表上的一站（`tree/dfs.ts` 的 `SUBMIT`，随机制一起装上）。**交的就是
- * 那一站说的那段话** —— 不是内核回头去消息表里猜哪句像答案。
- *
- * | 先看 | 为什么 |
- * | --- | --- |
- * | 交卷站上最后那段有内容的话 | 那一站的意思就是「我交这个」，不用猜 |
- * | 别处最后一条有内容的 `prompt` | 没走到交卷站的兜底（超时、额度耗干） |
- *
- * 只认 `prompt`。`call` 那一行的 text 是**调工具前的开场白**，不是答复 ——
- * 实测拿它去判过，判卷台看到的是「let me look at the environment to understand
- * this task better.」。空话也跳过：一发什么都没生成出来不是答复。
- *
- * 全都没有就回 `undefined` —— **那是「没交卷」**，跟「交了但判错」是两回事，
- * 收尾那边据它给出不同的 `why`。
+ * 有交卷站的机制只认实际 submit 参数，包括空串；未交卷不采用 verify
+ * 参数或推理文本。没有交卷站的模式采用最后的正式 prompt。
+ * 在线收尾和离线评分使用同一个候选提取函数。
  */
-function lastSaid(db: Parameters<typeof all>[0], task: string): { body: string; how: string } | undefined {
-  const u = lastUnit(db, task);
-  if (!u) return undefined;
-  const t = all(db, `select mode from task where id = ?`, [task])[0] as { mode?: string } | undefined;
-  const sub = t?.mode ? tableNameOf("task_{}", String(t.mode)) : "";
-  const msg = tableNameOf("agent_{}_msg", u.agent);
-
-  const spoke = (units: number[]): string | undefined => {
-    if (units.length === 0) return undefined;
-    // `call` 行的 `body` 是 `{text, calls}` —— 它开口说的那半句在 `text` 里。
-    // 只认 `prompt` 的话，一个「说了两句然后去调工具」的交卷站会被读成「什么都没交」。
-    const rows = all(
-      db,
-      `select kind, body from "${msg}"
-        where instance = ? and kind in ('prompt', 'call') and unit in (${units.map(() => "?").join(",")})
-        order by unit desc, seq desc limit 20`,
-      [u.instance, ...units],
-    ) as { kind?: string; body?: string }[];
-    for (const r of rows) {
-      if (r.body === undefined) continue;
-      let text = r.body;
-      if (r.kind === "call") {
-        try {
-          const v = JSON.parse(r.body) as { text?: unknown; calls?: { input?: { answer?: unknown } }[] };
-          // 说了话就取话；一个字没说就取它想拿去问 G 的那一份（`verify` 的 `answer`）——
-          // 跟 `tree/dfs.ts` 在交卷站上的取法是同一条，两处不许各读各的。
-          text = String(v.text ?? "");
-          if (!text.trim()) {
-            for (const c of [...(v.calls ?? [])].reverse()) {
-              if (typeof c.input?.answer === "string" && c.input.answer.trim()) {
-                text = c.input.answer;
-                break;
-              }
-            }
-          }
-        } catch {
-          continue;
-        }
-      }
-      if (text.trim()) return text;
-    }
-    return undefined;
-  };
-
-  // **先看它交了什么，再看它说了什么 —— 而「交了什么」只有一个出处。**
-  //
-  // 交卷是调一次 `submit` 并把答案放进去（见 `tree/dfs.ts`）。收尾这一路要是自己
-  // 另读一遍「它在交卷站说的那段话」，同一份东西就有了两个答案：交卷站按调用里的
-  // 那份判，收尾按它随口说的那段判，两边判出不同的结果，而成绩以后者为准。
-  //
-  // 实测就这么丢过题：交卷站判 1、树正常收工（`status = reached`），收尾又判了
-  // 一次判 0，成绩单上是没过。**真的做对了的题被判成没做对。**
-  const answer = handedIn(db, u.agent, u.instance);
-  if (answer !== null && answer.trim()) return { body: answer, how: "submitted" };
-
-  // 没有交卷那一站的机制（不走树的那些）到这儿 —— 它们没有 `submit` 可调，
-  // 「交了什么」就只能是它最后说的那段话。
-  const anywhere = sub
-    ? (all(db, `select unit from "${sub}" where task = ? order by unit desc`, [task]) as { unit: number }[]).map(
-        (r) => Number(r.unit),
-      )
-    : [];
-  const last = spoke(anywhere);
-  return last ? { body: last, how: "last words" } : undefined;
-}
+const lastSaid = finalCandidate;
 
 const cfg = readConfig();
 
 // 写口打完喊一声，内核醒过来。内核还没造出来，先留个空的，造好再换 ——
 // 这一圈是组装层的事，H2H 不认得内核，内核也不认得 HTTP。
 let wake = () => {};
-const app = await build(cfg, { onWrite: () => wake() });
+const app = await build(cfg, { onWrite: () => wake(), public: [UI_PATH] });
 
 // 装表。幂等 —— 已经在且形状对的跳过；对不上当场炸，不自动改。
 const built = install(app.store.rw);
@@ -188,6 +117,9 @@ app.log.info(
 // 进程外的（http:// 开头）不用碰这儿：往库里 handle 表写一行，
 // 内核下一圈醒来自己给它合成调用器。
 const registry = new Registry();
+
+// 位置那条转发实现的连接池。**它是那条句柄的私产**，不是位置这个概念的性质 ——
+// 别的实现（一条 http:// 边车、一个插件）自己管自己的连接。
 const places = new Places(app.store.ro);
 
 // MCP server 池。声明一个 server 是**一条批量来源** —— 它自己报有哪些工具，
@@ -207,10 +139,10 @@ const sealed = openSealed(cfg.db.sealed);
 const kernel = new Kernel(app.store, app.log, registry, {
   onDone(task, expired) {
     if (!sealed.has(task)) return; // 没有 G 的任务，跑完就是跑完
-    void (async () => {
+    return (async () => {
       const g = sealed.open(task);
       if (!g) return;
-      const row = all(app.store.ro, `select id, description, place, workdir from task where id = ?`, [task])[0];
+      const row = all(app.store.ro, `select * from task where id = ?`, [task])[0];
       const at = lastUnit(app.store.ro, String(task));
       const said = lastSaid(app.store.ro, String(task));
 
@@ -218,8 +150,8 @@ const kernel = new Kernel(app.store, app.log, registry, {
       // `verify` 就是那个口。递空串进去的话，判卷台只会说「没找到答案」，
       // 日志上看像判据出了毛病，其实是它压根没交。这两件事得分得开。
       const v = said
-        ? await evaluate(g, registry, { task: row, result: said })
-        : { pass: 0 as const, why: "nothing submitted - it never reached the hand-in step, so there is nothing to grade", trace: [] };
+        ? await evaluate(g, registry, candidateInput(row ?? {}, said.body))
+        : { pass: 0 as const, valid: false, outcome: "no_candidate", why: "nothing submitted - it never reached the hand-in step, so there is nothing to grade", note: "", trace: [] };
 
       // **拿到判决就投回上下文** —— 跟树那一路一个规矩（`tree/dfs.ts`）：
       // 凡是问过 G 的，判决都以「一次带结果的工具调用」落在那一站上。
@@ -243,7 +175,7 @@ const kernel = new Kernel(app.store, app.log, registry, {
           unit: at.unit,
           name: "verify",
           input: { task, at: "wrap-up" },
-          value: { pass: v.pass, why: v.why },
+          value: { pass: v.pass, valid: v.valid, outcome: v.outcome, why: v.why, note: v.note },
         });
       }
 
@@ -253,7 +185,7 @@ const kernel = new Kernel(app.store, app.log, registry, {
       const why = v.pass === 1 ? v.why : [expired, v.why].filter(Boolean).join("; ");
       run(app.store.rw, `update task set state = ?, result = ? where id = ?`, [
         v.pass === 1 ? "done" : "failed",
-        JSON.stringify({ pass: v.pass, why }),
+        JSON.stringify({ pass: v.pass, valid: v.valid, outcome: v.outcome, why, note: v.note }),
         task,
       ]);
       app.log.info(
@@ -279,10 +211,18 @@ app.log.info(`grading tool: ${registerVerifyTool(app.store.rw, registry, sealed)
 // 为了让 check 和人都能查得到，不是让谁去填。
 app.log.info(`message kinds: ${seedKinds(app.store.rw).join(", ")}`);
 app.log.info(`message roles: ${seedRoles(app.store.rw).join(", ")}`);
+app.log.info(`message parts: ${seedParts(app.store.rw).join(", ")}`);
+// 内置的那几种压法。**一种一个句柄** —— `press_how` 那一行的 `identity` 指的就是
+// 它们。得先注册再灌种子：种子那句要引一个已经在的句柄名。
+app.log.info(`press: ${registerPress(app.store.rw, registry).join(", ")}`);
+app.log.info(`ways to press: ${seedHows(app.store.rw).join(", ")}`);
 
 // 基础工具：注册进内核（它才持有得住函数），同时把给模型看的那几样落进 tool 表。
 // 注册进去的函数只负责**转发** —— 按 workplace 决定这一次在哪儿跑。
-app.log.info(`tools: ${registerTools(app.store.rw, registry, places).join(", ")}`);
+// 「怎么到那个位置」先落成一条句柄，工具才转得出去 —— `workplace.identity` 指到
+// 哪儿，转发就由谁来办。这一条是内置的那个（`wsl` / `ssh` / `docker` 那套命令前缀）。
+app.log.info(`place: ${registerPlace(app.store.rw, registry, places)}`);
+app.log.info(`tools: ${registerTools(app.store.rw, registry).join(", ")}`);
 
 // 检索单独一件：它不转发到 workplace（要的是网络和钥匙，不是那台机器上的文件系统），
 // 而且**摆给谁看由 `trigger` 说了算** —— 只有 apis 里是「自己会搜」那几家的智能体
@@ -306,6 +246,8 @@ app.log.info(
     app.log,
     [
       ["deepseek", "deepseek-v4-flash", "chat,tools"],
+      ["openrouter", "deepseek/deepseek-v4-flash-0731", "chat,tools"],
+      ["openrouter", "deepseek/deepseek-v4.1-flash", "chat,tools"],
       ["deepseek", "deepseek-v4-pro", "chat,tools"],
       ["deepseek", "deepseek-chat", "chat,tools"],
       ["deepseek", "deepseek-reasoner", "chat"],
@@ -340,6 +282,10 @@ mount(app, cfg.api.prefix, kernelRoutes);
 // 客户端会以为那组不存在，然后回头去读表 —— 一读表两端就焊死了。
 mountHelp(app, cfg.api.prefix, [...app.routes, ...kernelRoutes]);
 app.log.info(`routes: ${app.routes.length + kernelRoutes.length}; GET ${cfg.api.prefix}/help for usage`);
+
+// 一张给人看的页，引擎自己 serve。**它只是又一个客户端** —— 看的全是上面那些口，
+// 一行表都不读；接口这边加一种状态、一种消息类型，它从 /about 里自己拿到。
+app.log.info(`ui: http://${cfg.server.host}:${cfg.server.port}${mountUi(app, cfg.api.prefix)}`);
 
 // 停机：先不收新请求，等在途的走完；超时就硬停 —— 不设上限的话，
 // 一个挂住的请求能把整个进程钉在那儿。

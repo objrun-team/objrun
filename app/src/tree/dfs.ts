@@ -56,7 +56,7 @@ import { all, run } from "../H2H/db.ts";
 import type { Registry } from "../engine/registry.ts";
 import { deliverVerdict } from "../msg/deliver.ts";
 import { tableNameOf } from "../install/index.ts";
-import { evaluate } from "../objective/run.ts";
+import { candidateInput, evaluate } from "../objective/run.ts";
 import { CANDIDATE, type Sealed } from "../objective/store.ts";
 
 type Row = Record<string, unknown>;
@@ -275,16 +275,16 @@ function verdictFor(
   db: Conn,
   inst: { agent: string; instance: string } | undefined,
   said: string,
-): { pass: 0 | 1; why: string } | null {
+): { pass: 0 | 1; why: string; note: string } | null {
   if (!inst || !said.trim()) return null;
   const t = tableNameOf("agent_{}_msg", inst.agent);
   const rows = all(db, `select unit, seq, kind, body from "${t}" where instance = ? order by unit, seq`, [
     inst.instance,
   ]) as { unit: number; seq: number; kind: string; body: string }[];
   const asked = new Map<string, string>(); // 调用 id → 问的是哪一份
-  let hit: { pass: 0 | 1; why: string } | null = null;
+  let hit: { pass: 0 | 1; why: string; note: string } | null = null;
   for (const r of rows) {
-    let v: { calls?: { id?: string; name?: string; input?: { answer?: unknown } }[]; id?: string; name?: string; value?: { pass?: unknown; why?: unknown } };
+    let v: { calls?: { id?: string; name?: string; input?: { answer?: unknown } }[]; id?: string; name?: string; value?: { pass?: unknown; valid?: unknown; outcome?: unknown; why?: unknown; note?: unknown } };
     try {
       v = JSON.parse(r.body) as typeof v;
     } catch {
@@ -295,8 +295,10 @@ function verdictFor(
         if (c.name === "verify" && typeof c.input?.answer === "string" && c.id) asked.set(c.id, c.input.answer);
       }
     } else if (r.kind === "tool" && v.name === "verify" && v.id && asked.get(v.id) === said) {
-      const pass = Number(v.value?.pass) === 1 ? 1 : 0;
-      hit = { pass, why: String(v.value?.why ?? "") };
+      if (v.value?.valid === false || v.value?.outcome === "grader_error") continue;
+      if (v.value?.pass !== 0 && v.value?.pass !== 1) continue;
+      const pass = v.value.pass;
+      hit = { pass, why: String(v.value?.why ?? ""), note: String(v.value?.note ?? "") };
     }
   }
   return hit;
@@ -365,9 +367,8 @@ function full(db: Conn, a: Ask, nodes: Node[], cycle: string, node: number): boo
 const SUBMIT_TOOL = {
   name: SUBMIT,
   does:
-    "Hand your work in: pass the answer here. This call is what gets graded, exactly as written - " +
-    "nothing you merely say is read as an answer. You will reach the hand-in step anyway once the " +
-    "working budget runs out; calling this only gets you there sooner.",
+    "Hand the work in: the answer passed here is what gets graded, exactly as written. Text that is not " +
+    "passed here is not read as an answer.",
   // **参数表跟 G 走**（`objective.params`）。内核把 G 包装成 `verify`，交卷这一步
   // 内部问的又是同一个 G —— 两处要的东西当然一模一样。抄成两份字面量的话，G 哪天
   // 多一个字段就只会改到一边，而那不报错：只表现为模型照着一边的说明填，另一边
@@ -375,10 +376,8 @@ const SUBMIT_TOOL = {
   params: CANDIDATE,
   output: { type: "object", properties: { handingIn: { type: "boolean" } } },
   prompt:
-    "At the hand-in step this is the only thing you can do, and you must do it: call submit with your " +
-    "answer. No other tool is attached there, and nothing you merely say is read as an answer. Call it " +
-    "earlier than that whenever the work is done - you reach the hand-in step on your own once the " +
-    "working budget runs out, and getting there sooner leaves room to be judged and try again.",
+    "At the hand-in step no other tool is attached. The hand-in step is reached on its own once the working " +
+    "budget runs out.",
   expectMs: 10_000,
 };
 
@@ -478,11 +477,11 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
       // **验过就不必再判一次。** `verify` 是干活途中的验证，交卷是这一刻的提交；
       // 两个时刻，但问的是同一个 G。它刚验过的正是这一份的话，那次判决就是这一次
       // 的答案 —— 再打一遍判卷台只是多花一次钱，还多一次抖动的机会。
-      const had = verdictFor(db, inst, said);
+      const had = g.reuse === "text" ? verdictFor(db, inst, said) : null;
       // **递出去的是挖出来的那一份，不是原始 result。** 原样递的话，G 那一侧
       // 拿到的是 `{text, calls}` 整坨 JSON —— 上面那几行把答案挖出来就白挖了。
       // 形状跟收尾那一路对齐（`main.ts`：`result: {body}`），一个 G 脚本两处都能用。
-      const v = had ?? (await evaluate(g, reg, { task: a.task, chain: a.chain, result: { kind: "prompt", body: said } }));
+      const v = had ?? (await evaluate(g, reg, candidateInput(a.task, said, a.chain)));
 
       // **判决要落进上下文**，不能只进日志。投成「一次带结果的工具调用」——
       // 它是外部的、这一次的观测，正好是 tool 结果的语义。
@@ -498,7 +497,7 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
           input: { task, at: `${here}#${a.unit}` },
           // **`why` 一起给。** 只给 0/1 的话，模型只知道错了，不知道错在哪 ——
           // 那跟不给差不多，它下一条分支多半原样再来一遍。
-          value: { pass: v.pass, why: v.why, ...(had ? { reused: true } : {}) },
+          value: { pass: v.pass, valid: "valid" in v ? v.valid : true, outcome: "outcome" in v ? v.outcome : (v.pass === 1 ? "passed" : "rejected"), why: v.why, note: v.note, ...(had ? { reused: true } : {}) },
         });
       }
 
@@ -555,8 +554,8 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
   reg.register(db, `fn:tool.${SUBMIT_TOOL.name}`, SUBMIT_TOOL.expectMs, async () => ({ handingIn: true }));
   run(
     db,
-    `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable)
-     values (?, ?, ?, ?, ?, ?, 0, 0, null, 1)
+    `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable, gives)
+     values (?, ?, ?, ?, ?, ?, 0, 0, null, 1, 'receipt')
      on conflict(name) do update set
        identity = excluded.identity, does = excluded.does, params = excluded.params,
        output = excluded.output, prompt = excluded.prompt, system = excluded.system`,

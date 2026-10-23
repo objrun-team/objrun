@@ -2,11 +2,9 @@
 
 [← 例子](../../) ｜ [tool](../../tool/) · [meet-join](../../meet-join/) · [meet-book](../../meet-book/) · [place](../../place/) · [rule](../../rule/) · [skill](../../skill/) · [mode](../../mode/) · **cmtbench**
 
-[CMT-Benchmark](https://arxiv.org/abs/2510.05228)：50 道凝聚态理论的研究级题目，专家出的。
-这个例子把它整批发进引擎，**判卷用官方那套**（LaTeX→Sympy），出一张成绩单。
-
-用得上引擎的这几样：`/bench` 一整批发、**验证函数 G**、verifier-guided 的树
-（判 0 就换条路重试）。
+[CMT-Benchmark](https://arxiv.org/abs/2510.05228)：50 道凝聚态理论的研究级题目。
+这个例子把它整批发进引擎，判卷用官方那套（LaTeX→Sympy），出一张成绩单。
+最后一节是我们跑出来的基线。
 
 ```
                          Windows                          WSL
@@ -17,13 +15,11 @@
    └──────────────────────────────────────┘   └────────────────────────┘
 ```
 
-**`place: local` 是引擎那台机器（Windows），不是 WSL。** 判卷台不是一个 place ——
-它是一条 `http://` 句柄。两根轴不一样：`place` 说的是执行单元在哪儿干活，
-句柄名前缀说的是那个句柄的实现在哪个进程。G 走的是句柄，不过位置转发那一层。
+判卷台在 WSL，只是因为官方评分代码要 Python ≥3.12。Windows 上有真 Python 的话原地
+就能跑，引擎一个字不用改 —— 它只认那两个 URL。
 
-判卷台之所以在 WSL，只是因为官方评分代码要 Python ≥3.12，而这台机器 Windows 上
-只有 Microsoft Store 那个空壳（`python --version` 一个字都不输出）。Windows 上有
-真 Python 的话原地就能跑，引擎一个字不用改 —— 它只认那两个 URL。
+**题库带标准答案，所以它只在判卷台那一侧**（WSL 家目录或容器里），不在这个目录、
+也不在仓库里。发题的脚本一样读不到，题走 HTTP 取。
 
 ---
 
@@ -33,119 +29,26 @@
 ssh wsl "bash /mnt/e/sgu-bzhc/EACN_EX/TgEngin/examples/benchmark/cmt/setup.sh"
 ```
 
-（`ssh wsl` 不通就换 `wsl.exe -d Ubuntu-24.04 -- bash -lc "..."`，等价。这台机器上
-WSL 重启之后 localhost 转发有时候回不来，sshd 明明听着 2222 也连不上。）
+`ssh wsl` 不通就换 `wsl.exe -d Ubuntu-24.04 -- bash -lc "..."`，等价。
 
-[`setup.sh`](./setup.sh) 干三件事，幂等。**三样全落在 `~/.cache/tgengin-cmt/`（WSL 家目录），
-一样都不落仓库**：
+[`setup.sh`](./setup.sh) 幂等，三样都落在 `~/.cache/tgengin-cmt/`：
 
 | 落在哪儿 | 从哪儿来 |
 | --- | --- |
-| `~/.cache/tgengin-cmt/cmt_data.jsonl` | HuggingFace `JVRoggeveen/cmt_benchmark`，50 行 |
-| `~/.cache/tgengin-cmt/vendor/cmt_benchmark_data/` | GitHub `JamesRoggeveen/cmt_benchmark_data`，官方评分代码 |
-| `~/.cache/tgengin-cmt/venv` | sympy 1.13.3 / numpy 2.2.5 / regex 2024.11.6 |
+| `cmt_data.jsonl` | HuggingFace `JVRoggeveen/cmt_benchmark`，50 行 |
+| `vendor/cmt_benchmark_data/` | GitHub `JamesRoggeveen/cmt_benchmark_data`，钉在 `c114183` |
+| `venv` | sympy 1.13.3 / numpy 2.2.5 / regex 2024.11.6 |
 
 ```
-── 1/3 题库 ──
-下好了 50 行
-── 2/3 官方评分代码 ──
-克隆到 c114183
-── 3/3 python 依赖 ──
-装 uv（不用 root）
-uv 0.12.7
-sympy 1.13.3｜numpy 2.2.5｜regex 2.5.148
-
 ── 自检：官方判据能不能加载、判得对不对 ──
-  √ cmt-0（HF）parsed=True equiv=True 
-  √ cmt-1（HF）parsed=True equiv=True 
-  √ cmt-2（HF）parsed=True equiv=True 
-  √ cmt-3（HF）parsed=True equiv=True 
-  √ cmt-4（HF）parsed=True equiv=True 
+  √ cmt-0（HF）parsed=True equiv=True
+  ...
   拿 GT 当回答：5 道里 5 道判等价
 ```
 
-自检是拿题库自己的 GT 当回答喂回去 —— 判据装对了就该 5/5。
-
-### 要藏的只有一样：答案
-
-先把界划清楚，不然很容易多藏东西、藏出反效果：
-
-| | 藏不藏 | |
-| --- | --- | --- |
-| **GT（`solution` 那一栏）** | **藏** | 拿到就直接抄，这道题就废了 |
-| 验收标准（G 长什么样） | **不藏** | 知道「什么样算做完了」是干活的一部分。藏着它，模型就在标准上翻车而不自知 |
-| 判决（过没过、为什么没过） | **不藏** | 判死之后本来就投进上下文；而且模型可以**主动**调 `verify` 去问（见下） |
-
-「能看目标、能问自己达标没有」不是作弊 —— **那就是 verifier-guided 本身**。
-真正要防的只有一条：别让它读到那份答案。
-
-题库带 GT，是 oracle。solver 手上有 `read` / `glob` / `bash`，而它干活的地方
-（`place: local`）**就是引擎那台机器** —— 题库放仓库里的话，它 glob 一下就找到。
-
-**实测发生过**：模型先 `read grader.py` 搞清楚判据怎么比，接着 `read` 官方 parser
-源码，然后 `glob` 到了 `cmt_data.jsonl`。那一跑它还没来得及读出 GT 就被判完了，
-但路已经摸到门口。所以题库和判据都搬出了仓库 —— 现在只在判卷台那一侧
-（WSL 家目录，或者容器里）。
-
-发批的脚本也因此**读不到题库**，题得走 HTTP 取：
-
-```bash
-curl -s 'http://127.0.0.1:7901/problems?n=1'
-```
-```json
-[{"index":0,"prompt":"Consider a spinful electron system…","parameters":"$U_0;U_1$",
-  "functions":"","type":"HF"}]
-```
-
-**没有 `solution` 这一栏** —— 答案不出判卷台那个进程。
-
-#### 但这**不是**隔离，别当成隔离
-
-换目录、装容器、关掉 HTTP 的执行口 —— 这些改的都是**路径**，没改**可达性**。
-只要 solver 的 `bash` 跑在宿主机上，**宿主机能到的一切它都能到**。实测走了一遍：
-
-```bash
-wsl.exe -d Ubuntu-24.04 -- docker ps
-#   cmt-grader  tgengin-cmt-grader  127.0.0.1:7901->7901/tcp
-wsl.exe -d Ubuntu-24.04 -- docker exec cmt-grader ls /oracle
-#   cmt_data.jsonl  vendor
-wsl.exe -d Ubuntu-24.04 -- docker exec cmt-grader python -c "…"
-#   cmt-0 的标准答案 = $\boxed{U_1/2}$
-```
-
-**一个漏洞都没用到** —— `wsl.exe` 就在 `C:\Windows\system32`，账号在 docker 组里，
-`docker exec` 不要密码。每一步都是授权内的正常命令。同一条路对 WSL 家目录那份也成立
-（`wsl.exe -- head ~/.cache/tgengin-cmt/cmt_data.jsonl`）。
-
-**这条是有意留着的**：一圈从「`glob` 一下就撞到」变成了三步（得先想到「宿主机有
-wsl.exe → WSL 里有 docker → 容器里有题库」）。门槛不等于边界，但对这个例子够用。
-真要堵死只有一条路：把 solver 自己关进沙箱 —— 见[最后那一节](#真要隔离-solver该动的是-place)。
-
-### 题库在互联网上
-
-上面那些管的是本机这份。CMT-Benchmark 本身是公开数据集，HuggingFace 上就有。
-
-`web_search` 开着的时候，发布时带一列 `noSearch`（[`send.ts`](./send.ts)）：
-
-```ts
-noSearch: ["cmt benchmark", "cmt dataset", "cmt jsonl"],
-```
-
-检索回来的整份内容 —— 答案、跑过的查询串、开过的页 —— 只要某一条项里的词全部
-出现过，结果整份丢掉，模型拿到的是一句 `Forbidden access`。一条项是**一组词**，
-不是连写的字面串：`"cmt benchmark"` 命中的是「`cmt` 和 `benchmark` 都出现过」。
-
-### 三个坑
-
-**版本要照抄官方 pin。** 自己搓一套 LaTeX 归一去比字符串的话，分数跟论文那张表就不可比，
-那这一趟白跑。
-
-**只装三个包。** 官方 `pyproject.toml` 还列着 openai / anthropic / google-genai /
-datasets / matplotlib —— 那是它「拿模型跑一遍」和「画图」那半边要的，判卷用不上。
-
-**绕开 `cmtbench/__init__.py`。** 它顶上 `from .query import ...`，而 `query.py` 要
-openai 那一堆。[`grader.py`](./grader.py) 手工塞一个同名命名空间包，只加载
-`evaluator` + `parser` + `parser_rules`，依赖因此收到三个。
+版本照抄官方 pin：自己搓一套 LaTeX 归一的话，分数跟论文那张表就不可比。只装那三个包
+—— 官方 `pyproject.toml` 里的 openai / anthropic / google-genai / datasets / matplotlib
+是它「拿模型跑一遍」和「画图」那半边要的，判卷用不上。
 
 ## 二、判卷台
 
@@ -157,30 +60,24 @@ ssh wsl "cd /mnt/e/sgu-bzhc/EACN_EX/TgEngin/examples/benchmark/cmt \
 [cmt] 判卷台起来了：http://0.0.0.0:7901/{parsed,equiv}｜题库 50 道
 ```
 
-[`grader.py`](./grader.py) **不实现任何判断**，只做三件事：接 HTTP、按官方
-`scripts/evaluate.py` 那套分支挑该用哪个 evaluator、把结果缓存住。
+[`grader.py`](./grader.py) 不实现任何判断：接 HTTP、按官方 `scripts/evaluate.py` 那套
+分支挑 evaluator、把结果缓存住。回的是官方那两栏 `success` / `is_equivalent`。
 
-```python
-if parameters == "" and functions == "":
-    if PARSER.parse_numeric_solution(solution).success:
-        r = EV.evaluate_numeric_solution(response, solution_string=solution)
-    else:
-        r = EV.evaluate_solution(response, solution_string=solution, parameter_string=parameters)
-elif parameters != "" and functions == "" and "NC" not in parameters:
-    r = EV.evaluate_solution(response, solution_string=solution, parameter_string=parameters)
-else:
-    r = EV.evaluate_functional_solution(response, solution_string=solution,
-                                        parameter_string=parameters, function_string=functions)
-```
-
-回的是官方那两栏：`success`（解析得出来吗）和 `is_equivalent`（跟 GT 等价吗）。
+**从 Windows 那侧验**（引擎走的就是这条路）：
 
 ```bash
 curl -s http://127.0.0.1:7901/health
+curl -s -X POST http://127.0.0.1:7901/equiv -H 'content-type: application/json' \
+  -d '{"input":{"task":{"id":"cmt-0","result":"So the answer is $\\boxed{\\frac{U_1}{2}}$"}}}'
+curl -s 'http://127.0.0.1:7901/problems?n=1'
 ```
-```json
+```
 {"ok": true, "items": 50}
+  U_1/2 → parsed=true equiv=true      （cmt-0 的 GT 就是 U_1/2）
+[{"index":0,"prompt":"Consider a spinful electron system…","parameters":"$U_0;U_1$","functions":"","type":"HF"}]
 ```
+
+`/problems` **没有 `solution` 这一栏** —— 答案不出这个进程。
 
 ### 换成容器（题库和判据一起打包进去）
 
@@ -188,81 +85,32 @@ curl -s http://127.0.0.1:7901/health
 docker compose -f examples/benchmark/cmt/compose.yaml up -d --build
 ```
 
-[`Dockerfile`](./Dockerfile) 把题库、官方判据（钉在 `c114183`）、三个 python 包和
-`grader.py` 全封进镜像，构建时跑一遍 `--selftest`（拿 GT 当回答喂回去，该 5/5）
-—— **装错了在 build 就炸，不会等到跑 bench 才发现**。
+[`Dockerfile`](./Dockerfile) 把题库、官方判据、三个 python 包和 `grader.py` 封进镜像，
+构建时跑一遍 `--selftest`（该 5/5）。引擎一个字不用改，它只认那两个 URL。
 
-**引擎一个字不用改。** 它只认 `http://127.0.0.1:7901/{parsed,equiv}` 这两个名字，
-后面是 WSL 里的一个 venv 还是一个容器，跟它无关 —— 这正是「句柄名就是地址」这条的用处。
+`compose.yaml` 里 `127.0.0.1:7901:7901` 的 `127.0.0.1:` 别去掉 —— 不写的话这个口会
+发布到所有网卡。
 
-`compose.yaml` 里 `127.0.0.1:7901:7901` 的 `127.0.0.1:` 别去掉：不写的话 Docker 会把
-这个口发布到所有网卡，判卷台就从「本机一个进程」变成「局域网里谁都能打」。
-
-验它，**从 Windows 那侧打**（引擎实际走的就是这条路）：
+在 WSL 的 snap docker 上有三条要注意：
 
 ```bash
-curl -s http://127.0.0.1:7901/health
-curl -s -X POST http://127.0.0.1:7901/equiv -H 'content-type: application/json' \
-  -d '{"input":{"task":{"id":"cmt-0","result":"So the answer is $\\boxed{\\frac{U_1}{2}}$"}}}'
-```
-```
-{"ok": true, "items": 50}
-                                     GT 是 U_1/2
-  U_1/2  → parsed=true  equiv=true
-  U_0/2  → parsed=true  equiv=false
-```
+# 一、snap 是严格 confinement，只读得到 $HOME：构建上下文得先拷进家目录
+mkdir -p ~/build && cp Dockerfile grader.py ~/build/ && cd ~/build && docker build .
 
-**它解决的是可移植和可复现，不是那个洞。** 见下。
-
-#### 在 WSL 里用 snap 的 docker，踩了三个坑
-
-都不是这个例子特有的，但不写下来下次还得再撞一遍。
-
-**一、snap 是严格 confinement，只读得到 `$HOME`。** 构建上下文在 `/mnt/e/...` 上，
-`docker build` 直接就 permission denied —— 得先把 `Dockerfile` / `grader.py` 拷进
-WSL 家目录再 build。（Docker Desktop 没这限制。）
-
-**二、`dockerd` 拿不到你 shell 里的代理。** 代理 `export` 在 `~/.bashrc` 里，那是
-**交互 shell** 才 source 的；`dockerd` 是个 systemd 服务，从来没经过任何 shell。
-拉基础镜像是 **daemon 自己**发的请求，所以 `--build-arg http_proxy=…` 白给
-（那个只管容器里的 `RUN`）。`snap set docker proxy.*` 也不接 —— 配了重启了，
-`docker info` 里还是没有 proxy 栏。管用的是给 systemd 单元加 drop-in：
-
-```bash
+# 二、dockerd 是 systemd 服务，拿不到 shell 里的代理（拉基础镜像是它自己发的请求）
 sudo mkdir -p /etc/systemd/system/snap.docker.dockerd.service.d
 printf '[Service]\nEnvironment="HTTP_PROXY=http://%s:7890"\nEnvironment="HTTPS_PROXY=http://%s:7890"\nEnvironment="NO_PROXY=localhost,127.0.0.1,::1"\n' \
   "$(ip route show default | awk '{print $3}')" "$(ip route show default | awk '{print $3}')" \
   | sudo tee /etc/systemd/system/snap.docker.dockerd.service.d/proxy.conf
 sudo systemctl daemon-reload && sudo snap restart docker
+docker info | grep -i proxy      # 出现 HTTP Proxy: 那行才算配上
 ```
 
-`docker info` 里出现 `HTTP Proxy:` 那行才算配上。地址是 **WSL 的默认网关**（不是
-`localhost` —— NAT 模式转不过去），而且 `wsl --shutdown` 之后会变，变了要重写。
+地址要用 **WSL 的默认网关**，不是 `localhost`；`wsl --shutdown` 之后会变。
 
-**三、`# syntax=` 那行会去 Docker Hub 拉 frontend 镜像。** 网络不稳的话它先炸在
-`auth.docker.io`。现在的内置 frontend 自己就认 heredoc，所以那行删了 —— 少一次
-网络往返，少一个失败点。
-
-同理，Dockerfile 里**一个 apt 包都不装**：`git` / `curl` 只是为了拉两个文件，
-python 自带的 `urllib` + `tarfile` 就够。`deb.debian.org` 走的是明文 HTTP，
-在代理后面实测 502（`Failed to fetch … 502 Bad Gateway`）—— 而且这是个放着答案的
-容器，能少一样是一样。建完的镜像里 `command -v git` / `curl` 都是空的，跑的是 uid 10001。
-
-### 容器堵不住什么
-
-**它堵不住 GT。** 上面那一节走过实测：`wsl.exe -- docker exec cmt-grader` 三步
-就把答案拿出来了，一个漏洞都没用到。装容器改的是路径，不是可达性。
-
-**`/equiv` 可达则根本不算洞。** 它回的是「你这份跟参考等不等价」—— 那正是判决，
-而判决本来就是给它的（`verify` 就是干这个的）。同一份信息，不能主动给的时候叫机制、
-它自己问的时候叫作弊。
-
-真正会被刷的是**次数**：无限问就成了完美 oracle 下的 best-of-N。但那是预算问题，
-闸在别处 —— `max_branches` / `max_dead_siblings` / `solve_seconds`。靠「它找不到判卷台」
-来限次数是幻觉。
-
-容器换来的是另一样东西，也值：**判据钉死在 `c114183`、build 时自检 5/5、不再依赖
-某台机器上那个 venv**。分数可复现，靠的是这个，不是隔离。
+三、`# syntax=` 那行会去 Docker Hub 拉 frontend，网络不稳先炸在 `auth.docker.io` ——
+不需要就别写。Dockerfile 里也一个 apt 包都不装（`deb.debian.org` 走明文 HTTP，
+代理后面实测 502），拉两个文件用 python 自带的 `urllib` + `tarfile` 就够。
 
 ## 三、引擎
 
@@ -271,511 +119,178 @@ cp config.yaml dist/
 dist/tgengin-win-x64.exe &
 ```
 ```
-模型：deepseek-v4-flash｜出 16384 token（续写最多 3 次）｜思考 high
+models: fn:api.deepseek, fn:api.dashscope | 16384 output tokens (up to 3 continuations) | reasoning medium
+db …\data\h2h.sqlite | write on | token none
 ```
 
-这三个旋钮在 `config.yaml` 的 `llm:` 底下，**这个例子对它们很敏感**：
+`config.yaml` 的 `llm:` 底下这几个旋钮，这个例子对它们敏感：
 
 | | |
 | --- | --- |
-| `maxTokens: 16384` | 开 `reasoning_effort: high` 之后思考本身就能吃掉整个额度。8192 那一跑 19 个执行单元里 12 个**一个字都没答出来** —— 不是不会做，是没写完就到顶了 |
-| `continueTimes: 3` | `finishReason === "length"` 时把已出的这段当 assistant 前缀续写，最多三次 |
-| `retryTimes: 3` | 一次调用炸了重打，第 n 次前多等 `5n` 秒。堵的是 SDK 的 `Failed to process successful response` ——「200 回来了但读不懂」，那一层的重试管不了，而内核按设计不重试，一次抖动就挂到 `expect_ms` 到点 |
+| `reasoningEffort` | 七档：`none` · `minimal` · `low` · `medium` · `high` · `xhigh` · `max`。**这一档得跟题目、模型、时限一样记进成绩单** —— 同一道题在不同档上耗时差着数量级。单个智能体可以用 `agent.knobs` 钉死自己那一档（`searcher` 钉的是 `none`） |
+| `maxTokens: 16384` | 思考本身就能吃掉整个额度。8192 那一跑 19 个执行单元里 12 个一个字都没答出来 |
+| `continueTimes: 3` | `finish_reason = length` 时把已经产出的（**包括思维链**）接回去续写，最多三次 |
+| `retryTimes: 3` | 一次调用炸了重打，第 n 次前多等 `5n` 秒。哪些错该重打由 `api.retry_on` 那一列说了算 |
+
+跑之前把 WSL 钉住 —— 判卷台在里面，而 WSL2 空闲时会回收整个虚拟机：
+
+```bash
+wsl.exe -d Ubuntu-24.04 -- sleep infinity &
+```
 
 ## 四、跑一趟
 
 ```bash
-bash examples/benchmark/cmt/run.sh 5 cmt-w
+TGENGIN_CMT_BARE=1 TGENGIN_CMT_AT_ONCE=20 bash examples/benchmark/cmt/run.sh 0 cmt-run
 ```
+
+| 参数 | |
+| --- | --- |
+| 第一个位置参数 | 几道题。`0` = 判卷台有多少发多少 |
+| 第二个位置参数 | 这一跑叫什么 |
+| `TGENGIN_CMT_BARE=1` | 不挂领域扩展（无扩展基线） |
+| `TGENGIN_CMT_AT_ONCE=20` | 同时做 20 道，做完一道补一道。留空 = 整批一次全发 |
+| `TGENGIN_CMT_ONLY=3,5,8` | 只发点名的那几道（按题库下标）。空 = 不挑 |
+| `TGENGIN_CMT_SECONDS=900` | 每道题多久。默认 3600 |
 
 [`run.sh`](./run.sh) 把下面这几步串起来。
 
-### 底子 + 判卷台那两条句柄
+### 底子
 
 ```bash
 curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
 { "places":[{"place":"local"}],
   "modes":[{"mode":"solve","cycles":[
-    {"cycle":"ask","apiMode":"chat","maxUnits":6,"from":[],      "next":["act"],"infer":"fn:infer.dfs"},
-    {"cycle":"act",                 "maxUnits":6,"from":["ask"], "next":["ask"],"infer":"fn:infer.dfs"}]}],
-  "agents":[{"name":"bot","apis":[["DEEPSEEK_API_KEY","deepseek-v4-flash"]],"unit":"fn:unit.tools"}],
+    {"cycle":"ask","apiMode":"chat","maxUnits":35,"from":[],      "next":["act"],"infer":"fn:infer.dfs"},
+    {"cycle":"act",                 "maxUnits":35,"from":["ask"], "next":["ask"],"infer":"fn:infer.dfs"}]}],
+  "agents":[
+    {"name":"bot","apis":[["DEEPSEEK_API_KEY","deepseek-v4-flash"]],"unit":"fn:unit.tools"},
+    {"name":"searcher","apis":[["DEEPSEEK_API_KEY","deepseek-v4-flash"]],"unit":"fn:unit.tools",
+     "knobs":{"reasoningEffort":"none"}}],
   "handles":[
     {"name":"http://127.0.0.1:7901/parsed","expectMs":60000},
     {"name":"http://127.0.0.1:7901/equiv", "expectMs":60000}] }
 JSON
 ```
-```json
-{"handles":["http://127.0.0.1:7901/parsed","http://127.0.0.1:7901/equiv"],
- "places":["local"],"modes":["solve"],"cycles":2,"agents":["bot"],
- "servers":{},"tools":[],"rules":[],"skills":[],
- "tables":["task_solve","agent_bot_ctx","agent_bot_msg"],"entries":{"solve":["ask"]}}
-```
 
-**句柄名就是地址**，没有别的注册动作。
+句柄名就是地址，没有别的注册动作。`ask` 让模型开口，`act` 把它请求的工具真跑掉；
+`infer: fn:infer.dfs` 决定了这是走树的机制 —— 判 0 就在同一个父底下开兄弟换条路。
 
-`ask` / `act` 两站的机制：`ask` 让模型开口，`act` 走 `fn:unit.tools` 把它请求的工具
-真跑掉。`infer` 是 `fn:infer.dfs` —— 这一条决定了这是**走树的机制**，判死会开兄弟，
-而且树自省那两个工具会挂上来（见下）。
-
-### 条件有没有毛病，发批之前先问
+一道纯推导题用不上文件系统，那几个 system 工具关掉（改的是 `usable` 那一列，纯数据）：
 
 ```bash
-curl -s $BASE/check
-```
-```json
-{"trigger":[],"data":[]}
+curl -s -X POST $BASE/exec -H 'content-type: application/json' -d @- <<'JSON'
+{ "sql": "update tool set usable = 0 where name in ('bash','read','write','edit','glob','grep')" }
+JSON
 ```
 
-空 = 全通。条件写错了**不报错**，只是那条永远不触发 —— 所以这一问得在发批之前，
-不能等跑起来才发现。
+条件写错了不报错，只是那条永远不触发，所以发批之前先问一次：
 
-（`run.sh` 在这两步之间还会挂一个从老仓库搬来的 skill，
-见[最后那一节](#从老仓库搬过来的那一个-skill)。）
+```bash
+curl -s $BASE/check          # {"trigger":[],"data":[]} = 全通
+```
 
 ### 每道题的 G
 
 ```json
-{
-  "nodes": [
+{ "nodes": [
     { "name":"parsed", "moment":"task_done", "domain":"bool", "handle":"http://127.0.0.1:7901/parsed" },
     { "name":"equiv",  "moment":"task_done", "domain":"bool", "handle":"http://127.0.0.1:7901/equiv"  }],
   "edges": [{ "src":"parsed", "out":0, "dst":"equiv" }],
-  "sink": "equiv"
-}
+  "sink": "equiv",
+  "checks": 10 }
 ```
 
-两个节点正好是原基准自己报的那两栏。**根必须有入边** —— 一个节点的 G 发布这一关就被拒：
+两个节点正好是原基准自己报的那两栏。根必须有入边，否则发布这一关就拒：
+`输出节点 … 没有任何入边 —— 它的值与候选无关，G 恒定，是无效目标`。
 
-```
-输出节点 graded 没有任何入边 —— 它的值与候选无关，G 恒定，是无效目标
-```
+`checks` 是**一轮里能主动问几次 G**（`verify` 工具），判死重来是新的一轮。
 
-### 发一批
+### 一道题的形状
 
-[`send.ts`](./send.ts) **从判卷台 `/problems` 取题**（它自己读不到题库，见上），拼请求体。
-**题面进 `description`，`solution` 不进** —— 智能体那一侧看不到答案。
-
-```bash
-bun examples/benchmark/cmt/send.ts 5 cmt-w
-```
-```
-cmt-w：5 道
-```
-
-一道题的完整形状（`POST /bench` 的 `tasks[]` 里一项）：
+[`send.ts`](./send.ts) 从 `/problems` 取题，拼 `POST /bench` 的请求体：
 
 ```json
 { "id":"cmt-0", "mode":"solve", "agent":"bot", "place":"local", "source":"user",
   "domain":"physics",
-  "solveSeconds": 900,
-  "description":"Consider a spinful electron system in a two-dimensional triangular lattice…\n\n符号：$U_0;U_1$\n\n把最终答案放进 \\boxed{} 里。",
-  "objective": { …上面那个… },
+  "solveSeconds": 3600,
+  "maxBranches": 4,
+  "maxDeadSiblings": 8,
+  "maxSearches": 5,
+  "noSearch": ["cmt benchmark", "cmt dataset", "cmt jsonl"],
+  "description":"Consider a spinful electron system in a two-dimensional triangular lattice…\n\nSymbols: $U_0;U_1$\n\nPut the final answer inside \\boxed{}.",
+  "objective": { "…上面那个…": null },
   "readable": true }
 ```
 
-`domain: "physics"` 是**扩展分发用的** —— 下面那个 skill 就靠它。它跟 `mode` 是两回事：
-`mode` 是推理机制（这儿是 ask/act 两站的树），`domain` 是这道题属于哪个领域。
+| | |
+| --- | --- |
+| `solveSeconds` | 每道题多久。要长过一次调用的死期（模型那条句柄 `expect_ms` 是 15 分钟），否则「一次调用卡住 → 判死这一站 → 换条路」永远走不到 |
+| `maxSearches: 5` | 一站准搜五次。判死重来是新的额度，被拦下的和超额被拒的不扣数 |
+| `noSearch` | 不许搜到这套题本身。一条项是**一组词**，全都出现才算命中；整份检索结果（答复、跑过的查询串、开过的页）只要命中就整份丢掉，模型拿到一句 `Forbidden access` |
+| `readable: true` | 带 G 就必须显式给（没有默认值）。给 `true` 会把 G 的定义并进任务描述 —— 要藏的只有 GT，不是尺子 |
+| `source: "user"` | 只有 `user` 能带 G，智能体自己派生的任务不许带 |
+| `domain: "physics"` | 扩展按它分发，跟 `mode`（推理机制）是两回事 |
 
-`readable: true` —— 带 G 就必须显式给（**没有默认值**）：这道题的智能体读不读得到
-G 的定义。给 `true` 的话引擎会**把 G 的定义并进任务描述**（`tasks/publish.ts`），
-因为验收标准本来就是需求的一部分。
+一道不过就整批不发 —— 发一半的话成绩单的分母是错的，而且没人看得出来少了哪几道。
 
-这儿给 `true` 是有教训的：藏着的那一跑，五道里两道死在 `parsed=False` —— 官方 parser
-读不出它写的东西。**不是不会做，是不知道尺子长什么样。** 要藏的只有 GT，不是尺子。
+### 成绩单
 
-`source` 只有 `user` 能带 G，智能体自己派生的任务不许带（那是自提权）。
+```bash
+curl -s $BASE/bench/cmt-run
+```
+```json
+{"run":"cmt-run","total":50,"passed":44,"failed":6,"running":0,"open":0,
+ "tasks":[{"id":"cmt-0","state":"done","result":"{\"pass\":1,\"why\":\"\"}"}]}
+```
 
-**一道不过就整批不发。** 发一半的话成绩单的分母是错的，而且没人看得出来少了哪几道。
+成绩是数出来的，不是存着的。`failed` 得看 `why`：`equiv evaluated to false` 是 G 真判了 0，
+`over solve_seconds=…` 是时间先没了。
 
 ---
 
-## 判卷台看到了什么
+## 我们的基线
 
-```
-[cmt] cmt-0（HF）parsed=True  equiv=False ｜答尾 …So energy per site = U0/2.  $$\boxed{\frac{U_0}{2}}$$
-[cmt] cmt-1（HF）parsed=True  equiv=False err=Number of expressions do not match: 4 vs 2
-[cmt] cmt-4（HF）parsed=True  equiv=False ｜答尾 …exactly what breaks TR. Yes.  So the answer is (g).  $\boxed{g}$
-[cmt] cmt-2（HF）parsed=False equiv=False err=Failed to parse model response: Unexpected error during pars…
-[cmt] cmt-3（HF）parsed=False equiv=False err=Failed to parse model response: Unexpected error during eval…
+`cmt-medium-s5b`，2026-09-01。**50 道全量、每道一小时、思考 `medium`、不挂扩展、
+检索每站 5 次、同时做 20 道。**
+
+```bash
+TGENGIN_CMT_BARE=1 TGENGIN_CMT_AT_ONCE=20 bash examples/benchmark/cmt/run.sh 0 cmt-medium-s5b
 ```
 
-**`parsed` 和 `equiv` 分开报是有用的**，两种失败要干的活完全不同：
+### 44 / 50
+
+失败的六道（`cmt-2` `cmt-11` `cmt-37` `cmt-44` `cmt-46` `cmt-49`）判词都一样：
+`over solve_seconds=3600s; equiv evaluated to false` —— **走满一小时、手上有答案、
+答案不对**，没有一道是交不出来的。
+
+44 道做对里，第一个交给 G 的答案就对的是 **19 道**，其余 25 道验了不止一次才对。
+后者两种混着：一种是「算错了、看到 false、回去改推导」，另一种是「把选项一个个报过去」
+—— 选择题的答案空间比一轮 10 次的额度还小。额度是给定的（`checks: 10`，判死重来才有新的一轮），
+额度内怎么用是它的事。两个数库里都记着：`export/csv/tasks.csv` 的 `pass` 和 `first_answer_pass`。
+
+### 一小时花在哪
 
 | | |
 | --- | --- |
-| `parsed=True equiv=False` | **答错了**。`cmt-0` 答 `U_0/2`，GT 是 `U_1/2`；`cmt-1` 多给了两个自旋翻转项，4 个表达式对不上 2 个 |
-| `parsed=False` | **格式没接住** —— 官方 parser 读不出来。可能物理上是对的，只是写法没合上口径 |
+| 问模型 | 762 次 × 62 秒 = **65%** |
+| 等检索 | 153 次 × 133 秒 = **28%** |
+| 跑别的工具 | 559 次 × 8 秒 = 6% |
 
-混成一个数的话，你分不清模型是不会做还是格式没对齐。论文里也是分开报的
-（`parser_stats_summary` 和 `eval_stats_summary` 是两个文件）。
+一共走了 1,474 站。检索 102 次：34 道题用过，最多的一道 8 次，7 次撞到每站 5 次的上限。
+每次调用输入 98,011 token（88% 命中缓存），输出 6,842，其中思考 6,398。
 
----
+### 数据
 
-## 判 0 之后：判决进上下文，然后换条路
-
-判 0 的题**不会收工**。`fn:infer.dfs` 拿到 G 的 0，做两件事：
-
-**一、把判决投进上下文** —— 投成「一次带结果的工具调用」：
-
-```bash
-curl -s -X POST $BASE/query -H 'content-type: application/json' -d @- <<'JSON'
-{ "sql": "select instance, unit, body from agent_bot_msg where kind='tool' and body like '%\"name\":\"verify\"%' limit 2" }
-JSON
-```
-```json
-{"instance":"cmt-0#1","unit":1,
- "body":"{\"id\":\"g-cmt-0#1-1-4\",\"name\":\"verify\",\"value\":{\"pass\":0,\"why\":\"equiv 判了 false\"}}"}
-```
-
-不当 `user`（模型会去接话辩解）、不当 `system`（instructions 每轮重发会糊在一起）
-—— 它是**外部的、这一次的观测**，正好是 tool 结果的语义。`why` 一起给：只给 0/1
-的话它只知道错了，不知道错在哪，下一条分支多半原样再来一遍。
-
-### 而 `verify` 是个真工具
-
-投进去的那一对里，`call` 那一半写的是 `role: assistant` —— 上下文里等于有一行
-「我调用了 `verify`」。**那句话得是真的**，否则模型照着自己的轨迹再调一次，
-只会拿到「tool 表里没有 verify」，那才叫伪造轨迹。
-
-所以 `verify` 注册成了真工具（[`app/src/objective/tool.ts`](../../../app/src/objective/tool.ts)）：
-
-```json
-{ "name": "verify",
-  "does": "把一份候选答复交给 G 复核，回「过没过」和「没过是因为什么」。它不会告诉你正确答案。",
-  "params": { "answer": "要复核的那份答复，原样给" },
-  "output": { "pass": "1 = 过了，0 = 没过", "why": "没过是因为什么" } }
-```
+`data/runs/cmt-medium-s5b/`（`data/` 不进仓库）：
 
 | | |
 | --- | --- |
-| **分发条件** | `task.objective = 'sealed'` —— **有 G 就该能问 G**。不按 mode 分（`task_tree` 那两个才是只有走树才有意义） |
-| **哪道题** | 从库里反查（`tasks/where.ts` 的 `whereAmI`），**不收调用方传的** —— 收的话模型改个参数就能拿别人那道题的 G 来问自己这一道 |
-| **回什么** | 只有 `pass` + `why`。`trace`（每个节点算出了什么）不出那一层，GT 更不出判卷台那个进程 |
-
-**这不是给它开后门。** 判决本来每轮就送到它面前，`verify` 只是让它能在交卷**之前**
-先问一次 —— 而这正是「知道验收标准」的自然结果。次数由树管（`max_branches` /
-`max_dead_siblings` / `solve_seconds`），不由保密管。
-
-**二、把这一站盖上 `dead_failed`，在同一个父底下开一个兄弟换条路。**
-
-```bash
-curl -s -X POST $BASE/query -H 'content-type: application/json' -d @- <<'JSON'
-{ "sql": "select task, count(*) as units, sum(case when status is not null then 1 else 0 end) as dead from task_solve group by task" }
-JSON
-```
-```json
-{"count":5,"rows":[
-  {"task":"cmt-0","units":8, "dead":4},
-  {"task":"cmt-1","units":9, "dead":4},
-  {"task":"cmt-2","units":9, "dead":4},
-  {"task":"cmt-3","units":10,"dead":3},
-  {"task":"cmt-4","units":8, "dead":4}]}
-```
-
-**不许节点自己说了算，这就是 verifier-guided 的全部意思。** 模型说「我做完了」只是自评；
-G 说 0，那就是「以为到了其实没到」。
-
-## 兄弟看得见什么
-
-新开的兄弟**默认只接单链**（直系祖先 root→父）。判死的那几条是别人的分支，
-**默认不接入** —— 开兄弟正是为了换条路走，把另一条分支的话直接塞进来，两次尝试就
-互相污染了。
-
-但「不默认接入」不等于「看不见」。走树的机制会额外挂上两个工具（条件
-`cycle.infer = fn:infer.dfs`，写在 `trigger` 里 —— 一条道走到黑的单链机制一个都拿不到）：
-
-| | |
-| --- | --- |
-| `task_tree` | 看全树：试过哪几条、谁被判死了 |
-| `node_load(unit)` | 读某一站说了什么，**连同它的判决** |
-
-这一跑里模型**自己**用了 11 次：
-
-```bash
-curl -s -X POST $BASE/query -H 'content-type: application/json' -d @- <<'JSON'
-{ "sql": "select count(*) as n from agent_bot_msg where kind='call' and (body like '%task_tree%' or body like '%node_load%')" }
-JSON
-```
-```json
-{"count":1,"rows":[{"n":11}]}
-```
-
-`cmt-0` 那条链看得最清楚 —— 被判死两次之后，它主动去读了前两条失败分支：
-
-```
-unit 1  答了 → G 判 0
-unit 2  兄弟：答了 → G 判 0
-unit 4  node_load(1)   ← 去读第 1 站说了什么
-unit 6  node_load(2)   ← 再读第 2 站
-unit 7  答了 → G 判 0
-```
-
-不是编排出来的：工具摆在那儿，它自己决定要看。
-
-## 成绩单
-
-```bash
-curl -s $BASE/bench/cmt-w
-```
-```json
-{"run":"cmt-w","total":5,"passed":0,"failed":5,"running":0,"open":0,
- "tasks":[
-  {"id":"cmt-0","state":"failed","result":"{\"pass\":0,\"why\":\"equiv 判了 false\"}"},
-  {"id":"cmt-1","state":"failed","result":"{\"pass\":0,\"why\":\"equiv 判了 false\"}"},
-  {"id":"cmt-2","state":"failed","result":"{\"pass\":0,\"why\":\"equiv 判了 false\"}"},
-  {"id":"cmt-3","state":"failed","result":"{\"pass\":0,\"why\":\"equiv 判了 false\"}"},
-  {"id":"cmt-4","state":"failed","result":"{\"pass\":0,\"why\":\"equiv 判了 false\"}"}]}
-```
-
-**成绩是数出来的，不是存着的。** 存一份会跟真相漂，而且漂了不报错。
-
-`failed` 得看 `why` 才知道是哪一种：
-
-| `why` | |
-| --- | --- |
-| `equiv 判了 false` | **G 真判了 0** —— 树把该走的路走完了，是被判不成 |
-| `超过 solve_seconds` | **耗光了** —— 一直没走到判决就没时间了 |
-
-这一跑五道全是前者，一道超时都没有。
-
-> 分数不是这个例子的重点。题是研究级的（论文里最好的 GPT-5 也只有 30%，
-> DeepSeek v3 是 4%），这儿只跑了 50 道里的前 5 道、全是 HF 型。要跟论文那张表对齐，
-> 得单轮问一次、跑满 50 道 —— 这儿是带工具的多轮 + 判 0 重试，本来就不是同一件事。
-
----
-
-## 从老仓库搬过来的那一个 skill
-
-老仓库（`OS_gui` 的 `mb/full`，`5128c075`）底下有 89 个 skill、74 个 tool、44 条 rule。
-**这边只搬 cmt 用得上的那个**：`cmt-pre-symmetry-projection` —— 一段群投影的通用方法，
-只投方法不投答案。
-
-原样放在 [`parmeras/`](./parmeras/)，来源记在 [`parmeras/SOURCE.txt`](./parmeras/SOURCE.txt)。
-
-### 怎么注册进去
-
-```bash
-bun examples/benchmark/cmt/parmeras/load.ts
-```
-```
-cmt-pre-symmetry-projection：解题机制的提问站上，面对涉及对称性的物理题时投。关键词取自它自己的名字和正文标记
-
-进去了：cmt-pre-symmetry-projection
-```
-
-一个 `.md` = frontmatter + 正文，这边一行 `skills[]` 要的正好是这三样：
-
-| `.md` | → | `skills[]` |
-| --- | --- | --- |
-| `name` | | `identity` |
-| `description` | | `does` |
-| frontmatter 之后那一整段 | | `body` |
-
-发出去的就是一条普通的 `/declare`，没有别的入口：
-
-```json
-{ "skills": [{
-    "identity": "cmt-pre-symmetry-projection",
-    "does": "边际处境标记——对称性投影（CMT）。注入通用群投影方法/定理：…只投方法不投答案。",
-    "params": {}, "role": "user",
-    "body": "=== 边际处境标记 + 通用方法(symmetry_projection)===\n…",
-    "when": [[ …六条，见下… ]] }] }
-```
-
-塞进上下文之后**它的 role 是 `skill`，不是 `user`**：
-
-```bash
-curl -s -X POST $BASE/query -H 'content-type: application/json' -d @- <<'JSON'
-{ "sql": "select role, kind, count(*) as n from agent_bot_msg group by role, kind order by n desc" }
-JSON
-```
-```json
-{"rows":[{"role":"system","kind":"inject","n":58},{"role":"tool","kind":"tool","n":41},
-         {"role":"assistant","kind":"call","n":30},{"role":"assistant","kind":"prompt","n":19},
-         {"role":"skill","kind":"skill","n":12},{"role":"user","kind":"user","n":5}]}
-```
-
-`role: user` 只剩真人发的那 5 条任务描述。**skill 有自己的身份**，走 `instructions`
-不进消息流 —— 借 `user` 的话等于告诉模型「有人在跟你说这段话」，它会去接话：实测
-过一版，模型回的是「请把本题的具体选项发出来，我会逐一代入该方法判断」，不再作答。
-
-### `trigger` 是一张关键词匹配表
-
-老系统的触发条件长这样：`constants: [[["coding"], ["fits","card"]]]` —— 三层：
-组间 or、组内 and、项内 or。这边一比一装得下，**不用加维、不用加列**：
-
-| 老的 | 这边 |
-| --- | --- |
-| 最外层（组间 or） | `trigger.group` |
-| 中间层（组内 and） | 同组多行 |
-| 最里层（同义词 or） | `op: "in"`，`value` 是一份 JSON 列表 |
-
-一个 `value` 一个关键词 —— 带空格会被 `check` 拦下来（「拆成同一组的两条，别让系统猜」）。
-
-### 一组条件就是一句话
-
-「**哪个智能体、在什么时候、做什么事、面对什么问题，该拿到什么**」，这句话本身就是
-一组条件。只写一两条等于没用这张表，所以这个 skill 的门写满了六条：
-
-```ts
-when: [[
-  { dim: "task",  key: "domain",      op: "eq",       value: "physics" },          // 面对什么问题
-  { dim: "task",  key: "description", op: "contains", value: "symmetry" },
-  { dim: "task",  key: "mode",        op: "eq",       value: "solve" },            // 在做什么事
-  { dim: "task",  key: "source",      op: "in",       value: '["user","eacn"]' },  // 谁发的
-  { dim: "cycle", key: "cycle",       op: "eq",       value: "ask" },              // 什么时候
-  { dim: "place", key: "",            op: "eq",       value: "local" },            // 在哪儿
-]]
-```
-
-`cycle = ask` 那条要紧：这是**模型开口那一站**，不是跑工具那一站，塞晚了没用。
-
-### 关键词从扩展自己身上来
-
-同样是 `description contains "symmetry"`，**词是哪儿来的**决定它是正经匹配还是作弊：
-
-| 词的来源 | |
-| --- | --- |
-| 扩展自己声明的 | ✔ 它在说「我是干这个的」，跟数据集里命中几道无关 |
-| 翻了 50 道题挑出来的 | ✘ 拿样本挑样本，给一部分题开小灶，分数虚高还查不出来 |
-
-这个 skill 自己声明得很清楚：名字 `cmt-pre-symmetry-projection`、描述「对称性投影（CMT）」、
-正文头一行 `=== 边际处境标记 + 通用方法(symmetry_projection)===`。词取自这儿。
-
-`domain` 是 `task` 上的一列（`physics` / `chem` / `coding`），发任务时给。它跟 `mode`
-是两回事：**`mode` 是推理机制**（cot / tot / 树），**`domain` 是问题属于哪个领域**。
-
-### 验这道门，不用发任务
-
-```bash
-for t in cmt-1 cmt-0 other-1; do
-  curl -s -X POST $BASE/trigger/explain -H 'content-type: application/json' \
-    -d "{\"kind\":\"skill\",\"owner\":\"cmt-pre-symmetry-projection\",
-         \"task\":\"$t\",\"mode\":\"solve\",\"cycle\":\"ask\",\"place\":\"local\"}"
-done
-```
-```
-cmt-1    fired=true    六条全中
-cmt-0    fired=false   symmetry 那条没中，其余五条中
-other-1  fired=false   domain 和 symmetry 都没中（那是道 coding 题）
-```
-
-`explain` 会把**实际取到的值**一起摆出来 —— 没命中最常见的两个原因（词根本不在那段
-文本里、维度上根本没那个属性）都得看着实际值才认得出来。
-
-塞进去之后在上下文里是一行 `kind: "skill"`（`GET /tasks/cmt-1/messages?kind=skill`）
-—— 跟人写的分得开。
-
-### 两个坑
-
-**skill 的条件不能写 `moment`。** skill 是在 `#advance` 里 fire 的，那份 facts 不带
-moment（只有规则走的 `#atMoment` 才设）—— 写了就永远不中，而且不报错。
-
-**词别贪多。** 一开始多写了一条 `description contains "wave"`（想着这方法是讲波函数的），
-结果 cmt-1 题面里没这个词，整组被卡掉。同组是 and，多一条就多一道门。
-
-### 剩下那些为什么没搬
-
-| | 数量 | |
-| --- | --- | --- |
-| skills | 89 | 47 个是降级实验自动生成的；其余是 SWE-bench / ResearchCodeBench / 化学那几套的专用纪律，这边没搭那些 benchmark |
-| tools | 74 | 能搬（`input_schema` 直接就是 `inputSchema`，`class.context` 正好对上 place 这一维），但要一个 Python MCP server 加载，而且化学那批依赖 rdkit |
-| rules | 44 | 时刻对不上：`pre_task`(25) 大致对应 `unit_start`，但 `pre_tool`(3) / `post_tool`(5) / `on_node_claim`(3) / `on_task_retry`(2) / `on_phase_enter`(1) 这边没有；`judge`(5) 在这边根本不是 rule，是 **G** |
-
----
-
-## 真要挡住 GT：该动的是 `place`
-
-**这一节还没做。** 要挡的只有一样 —— 那份答案（见[上面](#要藏的只有一样答案)）。
-
-现在 `place: local`，意思是 solver 跟引擎**共用一台机器**。所以宿主机上的一切它都有份：
-`wsl.exe`、docker，于是三步就摸到 `cmt_data.jsonl`。换目录、装容器都改不了这一条。
-
-而 `place` 这一维本来就是干这个的。[`app/src/place/index.ts`](../../../app/src/place/index.ts)
-开头写着：
-
-> 「远程」在这儿没有第二种含义：`wsl -d X --` / `ssh box-7` / `docker exec -i c`
-> 都只是**套在运行时那条命令外面的前缀**。
-
-位置串直接支持 `wsl/docker:cmt-solver`。送过去的是
-[`app/src/place/runtime.ts`](../../../app/src/place/runtime.ts)（`dist/tgengin-runtime-linux-x64`）——
-一个 MCP server，装的是 `../tools/` **同一份实现**，所以转发出去的行为跟 `local` 一样。
-
-```
- ┌─────────────────────────────┐
- │ 引擎（Windows）              │
- │   G 的句柄 ──────────┐       │
- └───────┬──────────────┼───────┘
-   stdin/stdout         ▼
- (docker exec -i)  127.0.0.1:7901 判卷台（判决照给，这条不用挡）
-         │
- ┌───────▼──────────────────────────┐
- │ solver 容器                       │
- │   runtime-linux-x64               │  ✗ 没有 wsl.exe
- │   read/write/edit/glob/grep/bash  │  ✗ 没有 docker socket
- │   工作区里只有题面                 │  → 摸不到 cmt_data.jsonl
- └───────────────────────────────────┘
-```
-
-**要挡的是那三步里的头两步** —— 容器里没有 `wsl.exe`、没有 docker socket，
-那条通往题库的路就断了。判卷台那个端口**不用挡**：判决本来就该给它。
-
-之所以能这样，是因为**转发走的是 stdio，不是网络**（`docker exec -i`）——
-所以要真想连网也一起断（`--network none`），引擎照样指挥得动它。这个例子里
-solver 的六个工具本来就只读写文件，模型是**引擎**去调的（API key 在引擎那边），
-所以断网没有代价；但那是加分项，不是这一节的目的。
-
-模型那一侧完全无感：还是那六个工具，参数一样、返回一样，只是 `bash` 变成了容器里
-的 `bash` ——[`runtime.ts`](../../../app/src/place/runtime.ts) 装的就是 `../tools/`
-同一份实现。
-
-要接的话得定三件事：每道题一个容器还是共用（共用的话并发的题互相看得见文件）、
-`workdir` 怎么给、`hops()` 那关走不走得通 `wsl/docker:` 这条。
-
----
-
-## 无扩展基线：怎么跑
-
-同一套机制、同一批题、同一个模型，不挂任何领域扩展。有扩展的那一跑跟它比。
-
-```bash
-TGENGIN_CMT_AT_ONCE=20 TGENGIN_CMT_BARE=1   bash examples/benchmark/cmt/run.sh 0 cmt-base
-```
-
-| | |
-| --- | --- |
-| `0` | 全部题目（判卷台有多少发多少） |
-| `TGENGIN_CMT_BARE=1` | 不挂扩展 |
-| `TGENGIN_CMT_AT_ONCE=20` | 同时做 20 道，做完一道补一道 |
-| `TGENGIN_CMT_ONLY=3,5,8` | 只发点名的那几道（按题库下标）。空 = 不挑 |
-| `TGENGIN_CMT_SECONDS=900` | 每道题多久。默认 3600 |
-
-`TGENGIN_CMT_ONLY` 是复现用的：要重跑「上一跑哪几道没做完」，那几道的下标是散的，
-按「前 N 道」取不到。
-
-### 思考强度也是这一跑的定义的一部分
-
-在 [`config.yaml`](../../../config.yaml) 的 `llm.reasoningEffort`，七档：
-`none` · `minimal` · `low` · `medium` · `high` · `xhigh` · `max`。
-
-两跑要比的话，这一档得跟题目、模型、时限一样记进成绩单 —— 它比看上去重要得多，
-同一道题在不同档上耗时差着数量级。
-
-单个智能体可以钉死自己那一档（`agent.knobs`），不受这一行影响。检索背后那个
-`searcher` 就是这么配的：它的活是去查、把查到的说清楚，不需要想。
-
-留空 `TGENGIN_CMT_AT_ONCE` 的话是整批一次全发：内核对没出站过的行来多少发多少，
-五十道就是五十个并发调用一起打出去。这个上限在发题这一侧管，内核不动。
-
-一道一道地发不会松掉准入检测：`POST /bench` 那道「一道不过就整批不发」是批级的，
-而 `POST /tasks` 本来就按题检 —— G 过不了就拒这一道。
-
-跑之前先把 WSL 钉住，判卷台在里面，而 WSL2 空闲时会回收整个虚拟机：
-
-```bash
-# 后台常驻一个会话。跑完再关
-wsl.exe -d Ubuntu-24.04 -- sleep infinity &
-```
+| `h2h.sqlite` | 这一跑的整个库 |
+| `engine.log` · `run.log` | 引擎日志、跑批日志 |
+| `RESULT.md` | 这一跑的完整结论 |
+| `export/csv/{tasks,stations,verify,searches}.csv` | 四种粒度的表 |
+| `export/FIELDS.md` | 每一列是什么意思 |
 
 ---
 
@@ -785,10 +300,9 @@ wsl.exe -d Ubuntu-24.04 -- sleep infinity &
 | --- | --- |
 | [`setup.sh`](./setup.sh) | 备料。题库 + 官方判据 + venv，幂等（不用容器那条路） |
 | [`Dockerfile`](./Dockerfile) · [`compose.yaml`](./compose.yaml) | 判卷台连题库一起打包（用容器那条路，二选一） |
-| [`grader.py`](./grader.py) | 判卷台。**判据是官方的，这个文件只接 HTTP**；另开一个 `/problems` 发题面 |
+| [`grader.py`](./grader.py) | 判卷台。判据是官方的，这个文件只接 HTTP；另开一个 `/problems` 发题面 |
 | [`send.ts`](./send.ts) | 从 `/problems` 取题，拼 `POST /bench` 的请求体 |
-| [`run.sh`](./run.sh) | 声明 → 挂扩展 → 发批 → 等 → 成绩单。`TGENGIN_CMT_BARE` 不挂扩展，`TGENGIN_CMT_AT_ONCE` 同时做几道 |
-| [`parmeras/`](./parmeras/) | 从老仓库搬来的 skill + 注册脚本 |
+| [`run.sh`](./run.sh) | 声明 → 关掉用不上的工具 → 挂扩展 → 发批 → 等 → 成绩单 |
+| [`parmeras/`](./parmeras/) | 从老仓库搬来的 skill + 注册脚本（`TGENGIN_CMT_BARE` 就是不挂它） |
 
-题库和官方判据**不在这个目录里**，在 `~/.cache/tgengin-cmt/`（WSL 家目录）——
-见[上面那一节](#oracle-放哪儿这是安全边界不是整理癖)。
+题库和官方判据不在这个目录里，在 `~/.cache/tgengin-cmt/`（WSL 家目录）或容器里。

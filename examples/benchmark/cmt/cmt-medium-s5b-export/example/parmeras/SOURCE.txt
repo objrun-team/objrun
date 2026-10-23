@@ -1,0 +1,8 @@
+﻿从老仓库搬过来的，原样没改。
+
+来源仓库 : E:/sgu-bzhc/EACN_EX/OS_gui
+分支     : origin/mb/full
+提交     : 5128c0754a608c67a8c2799c19e46ba6afef059f
+导出于   : 2026-08-30T16:54:03+08:00
+
+原路径   : skills/cmt-pre-symmetry-projection/SKILL.md

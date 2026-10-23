@@ -1,0 +1,10 @@
+{
+  "nodes": [
+    {"name": "parsed", "domain": "bool", "moment": "done", "handle": "<owned-loopback-bridge>/parsed"},
+    {"name": "correct", "domain": "bool", "moment": "done", "handle": "<owned-loopback-bridge>/correct"}
+  ],
+  "edges": [{"src": "parsed", "out": 0, "dst": "correct"}],
+  "sink": "correct",
+  "checks": 5,
+  "reuse": "text"
+}

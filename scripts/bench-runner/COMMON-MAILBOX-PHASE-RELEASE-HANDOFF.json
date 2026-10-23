@@ -1,0 +1,154 @@
+{
+  "protocol": "bench-common-mailbox-completion-nodeid-phase-release-handoff-v1",
+  "hostBundlePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\26402dec9177058b84cfec7122d7b04e5376952682be4f9d37b62b507545c3d8\\runner.js",
+    "bytes": 348710,
+    "sha256": "26402dec9177058b84cfec7122d7b04e5376952682be4f9d37b62b507545c3d8"
+  },
+  "driverBundlePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\4759a6090e8e3ecf9cde0f4cac47f01322af02f2ae1b80d8f5d7671a3a1a3721\\terminal-driver.js",
+    "bytes": 226962,
+    "sha256": "4759a6090e8e3ecf9cde0f4cac47f01322af02f2ae1b80d8f5d7671a3a1a3721"
+  },
+  "hostBuildAttestationPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\26402dec9177058b84cfec7122d7b04e5376952682be4f9d37b62b507545c3d8\\release-5586a09003741d0132b4e626b2ae3835913834ef92a86342d4a273810c5d2cc8.json",
+    "bytes": 12807,
+    "sha256": "5586a09003741d0132b4e626b2ae3835913834ef92a86342d4a273810c5d2cc8"
+  },
+  "driverBuildAttestationPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\4759a6090e8e3ecf9cde0f4cac47f01322af02f2ae1b80d8f5d7671a3a1a3721\\release-ca14051d46691e7881d83b0b75b98a66d28f15beac414994d251ad4ddd7f5f4d.json",
+    "bytes": 8503,
+    "sha256": "ca14051d46691e7881d83b0b75b98a66d28f15beac414994d251ad4ddd7f5f4d"
+  },
+  "explicitDynamicSourcePins": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\python-module-binding.ts",
+      "bytes": 4367,
+      "sha256": "7d4b738616ad94c68f4ac46357d5feb972fae88f6db435f09a1804b546f25e74"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\python-module-binding.test.ts",
+      "bytes": 2274,
+      "sha256": "6f1d422c7048ce72638f1567c43c963b24d72ba0fd3550fd9d8bf200db70e11e"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\build-python-binding-release.ts",
+      "bytes": 11396,
+      "sha256": "9e990a0b4aa8a53b4149ef03bfc66665ec7e9f63b2eb7ac4da9a3b4662fc9bca"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\python\\mailbox_completion.py",
+      "bytes": 3165,
+      "sha256": "3e592f2fe06fa9e50753a98a94e9c94b4a401de32a33b9fc7085105c8f05d05e"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\python\\nodeid_phase_reporter.py",
+      "bytes": 2165,
+      "sha256": "69618551289fcc7574b3bd8c42a17ff9d38811cd0fe58f0a4b1eea6aa3a8320d"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\python\\checker_phase_runner.py",
+      "bytes": 2565,
+      "sha256": "e8e03b07b464fae76a837634e7004eeebe803c85287487ffdd9257cfafb6066d"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\python\\grade_phase_contract.py",
+      "bytes": 2529,
+      "sha256": "e8a42b126aa7a1424a1233f04387fe986ec0703ed155e6794efe181c443ad6c5"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\python\\module_bindings.py",
+      "bytes": 4831,
+      "sha256": "b67c3ae446cdaccd3d196ba827e9bdf42744a391e835695ec8260ed42de081b5"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\python_regression_test.py",
+      "bytes": 9635,
+      "sha256": "ff075b79b5de627013a32d945c8b8e38aa0566e4fb6b7cf2671022782335d96c"
+    }
+  ],
+  "actualCapturedReplayPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\mailbox-phase-common-release\\actual-regression.json",
+    "bytes": 2769,
+    "sha256": "d5d9cbe26db794c62c02aaa2cfd4afe80163e618791880d39048cb1ec7f7c453"
+  },
+  "validation": {
+    "capturedOriginalRedReplayNowGreen": true,
+    "replayedCommand": 270,
+    "ownedCleanExitedInspect": 271,
+    "PythonTestsPassed": 6,
+    "localPytestDistinctCases": 4,
+    "localPytestPassed": 2,
+    "localPytestFailed": 2,
+    "BunBindingTestsPassed": 1,
+    "BunAssertions": 6,
+    "allTestMainExitCodes": 0,
+    "BenchNativeDockerModelGradeOracleCalls": 0
+  },
+  "mailboxRules": [
+    "Closed exact same-owned-CID Docker exec notrunning stderr only, complete hashed stderr/stdout and no timeout/overflow/capturefault/signal/unknown exit; fresh owned inspect must be exactCID clean exited0 Runningfalse OOMfalse/Error empty",
+    "Returns classification checker-completed with original command and owned state evidence, missing=false, gradePassed=null. No fabricated ENOENT or native receipt",
+    "Original caller still awaits PID1 future, original deadline and whole final frame; source bridge adds explicit no-overflow/no-capturefault/signal final command guards",
+    "All other failures remain exceptions; delivery/atomic response code delegates to original pinned module unchanged"
+  ],
+  "reporterRules": [
+    "Unique collected nodeids and complete exactly once setup/call/teardown for all original expected cases; duplicated/missing phases/xfail/skip/unknown cases fail closed",
+    "Original test source/arguments/package/plugin/rawCTRF remain. RawCTRF3 is retained without mutating it; authoritative case ledger must prove all4 original cases and match original pytest exit/reward",
+    "New checker frame adds separately hashed/base64 nodeid ledger; new shared validator checks original PID1/runtime/package/namespace/source/invocation metadata and rawCTRF hash, then exact expected4 phases from pinned original validator EXPECTED",
+    "Existing aa37 frame has no new nodeid phase ledger: this module does not retroactively grant validity or PASS. Candidate/submit recovery remains first; no paid retry authorized by this release"
+  ],
+  "bindingContract": {
+    "terminalDriver.qualifiedInterfaces.pythonBindings": {
+      "protocol": "bench-qualified-python-module-binding-contract-v1",
+      "bootstrapPin": "pin python/module_bindings.py",
+      "configPin": "root-reviewed immutable data pin"
+    },
+    "review": "q.reviewPin body must include pythonBindings identical; actual signed entry qualifiedInterfacesReviewPin unchanged strict join",
+    "config": {
+      "protocol": "bench-qualified-python-module-bindings-v1",
+      "originalStandEntryPin": "exact original q.stand.standEntryPin",
+      "checker": {
+        "runnerPin": "pin python/checker_phase_runner.py",
+        "reporterPin": "pin python/nodeid_phase_reporter.py",
+        "originalTestPath": "original private test path",
+        "pytestArgs": "exact original pytest argv array"
+      },
+      "modules": [
+        {
+          "name": "nodeid_phase_reporter",
+          "kind": "plain-module",
+          "sourcePin": "common reporter pin"
+        },
+        {
+          "name": "mailbox_transport",
+          "kind": "configured-module",
+          "sourcePin": "common mailbox completion pin",
+          "originalPin": "qualified original mailbox pin"
+        },
+        {
+          "name": "grade_contract",
+          "kind": "configured-module",
+          "sourcePin": "common phase validator pin",
+          "originalPin": "qualified original grade validator pin"
+        },
+        {
+          "name": "pipeline_grade",
+          "kind": "checker-phase-source-bridge",
+          "originalPin": "qualified original grade driver pin"
+        }
+      ]
+    },
+    "allPinsMustBeManifestBound": true,
+    "preResourceStaticChecks": "Unique original Python argv prefix/spawn plus four exact grade bridge anchors; unknown source shape refused before resource",
+    "runtime": "Common bootstrap exact-path importlib spec hook preserves original __file__, dynamic runpy/module graph, test source bytes. Only selected checker runner/upload/receipt classification/final command checks are transformed in memory; shared sources are fullhash-staged inside actual native owner directory, not uploaded from foreign roots."
+  },
+  "unchanged": [
+    "old69f9/9bbc/other frozen releases",
+    "qualified original campaign/Stand/grade/tests rawfiles",
+    "original costs/unknown/limits/provider/routing/single16pool/permanentlocks",
+    "no package downloads or installs"
+  ],
+  "productionStatus": "common source and local regression frozen; task config/root interface review/signed production preflight not created or executed; aa37 original candidate disposition remains blocked",
+  "admissionChanged": false,
+  "queueMutation": false
+}

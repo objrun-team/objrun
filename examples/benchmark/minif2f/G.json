@@ -1,0 +1,25 @@
+{
+  "slug": "minif2f",
+  "grader_port": 7915,
+  "handle_ms": 420000,
+  "nodes": [
+    { "name": "stated",   "moment": "task_done", "domain": "bool", "handle": "{GRADER}/stated" },
+    { "name": "compiles", "moment": "task_done", "domain": "bool", "handle": "{GRADER}/compiles" },
+    { "name": "sound",    "moment": "task_done", "domain": "bool", "handle": "{GRADER}/sound" }
+  ],
+  "edges": [
+    { "src": "stated",   "out": 0, "dst": "compiles" },
+    { "src": "compiles", "out": 0, "dst": "sound" }
+  ],
+  "sink": "sound",
+  "checks": 12,
+  "task": {
+    "domain": "math",
+    "solveSeconds": 3600,
+    "maxBranches": 4,
+    "maxDeadSiblings": 8,
+    "maxSearches": 3,
+    "noSearch": ["minif2f", "kimina", "deepseek-prover", "lean workbook", "goedel prover"]
+  },
+  "suffix": "\n\nWrite a complete Lean 4 proof (Mathlib is available). Hand in the whole file: the header, the theorem statement exactly as given, and after `:= by` an indented tactic proof. No `sorry`, no new axioms."
+}

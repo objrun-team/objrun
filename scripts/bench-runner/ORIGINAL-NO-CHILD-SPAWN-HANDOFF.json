@@ -1,0 +1,48 @@
+{
+  "protocol": "bench-common-original-no-child-spawn-release-handoff-v1",
+  "helperPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\original-no-child-spawn.ts",
+    "bytes": 3314,
+    "sha256": "29ab313c1cf183c0703d71edfdb5a785813cbd68d4fe4e86a8abd736b5bb98d2"
+  },
+  "builderPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\build-no-child-spawn-release.ts",
+    "bytes": 15336,
+    "sha256": "e33bdbc41b62d607463d98a9a577edf6a7a0101e1735c94fb8482ebfa1fc988e"
+  },
+  "hostPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\6f9457a45a99726681f351e06bfc4d2dd2837535f7b2fe386b3029ed75ab44bf\\runner.js",
+    "bytes": 367345,
+    "sha256": "6f9457a45a99726681f351e06bfc4d2dd2837535f7b2fe386b3029ed75ab44bf"
+  },
+  "hostAttestationPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\6f9457a45a99726681f351e06bfc4d2dd2837535f7b2fe386b3029ed75ab44bf\\release-b685002499bfe1855833870663010930b88a11c1169e8f815a8e6ceb2b612f8e.json",
+    "bytes": 13972,
+    "sha256": "b685002499bfe1855833870663010930b88a11c1169e8f815a8e6ceb2b612f8e"
+  },
+  "driverPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\c8782029f3725cc5d137706f62e535c39b38d8464fb0d31deae9935446fd517a\\terminal-driver.js",
+    "bytes": 243844,
+    "sha256": "c8782029f3725cc5d137706f62e535c39b38d8464fb0d31deae9935446fd517a"
+  },
+  "driverAttestationPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\c8782029f3725cc5d137706f62e535c39b38d8464fb0d31deae9935446fd517a\\release-9b4a5ae874f92003ad97d262a4eb1a4dac98f56c9c7d3e4714b7ea3bf64bbf64.json",
+    "bytes": 8970,
+    "sha256": "9b4a5ae874f92003ad97d262a4eb1a4dac98f56c9c7d3e4714b7ea3bf64bbf64"
+  },
+  "proofUnsignedPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\owner-data\\group-04\\build-pov-ray-no-child-proof.unsigned.json",
+    "bytes": 1197,
+    "sha256": "c9a77262525a7b7f306523aa9a7579e593f2a701e247ddc0955fe5d5b8fe1f61"
+  },
+  "actualValidationPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\owner-data\\group-04\\build-pov-ray-no-child-actual-validation.json",
+    "bytes": 944,
+    "sha256": "bf145fba4bc21b830c05d9e42beb18a993d36ee73496df3aac810ee74be049ec"
+  },
+  "scope": "Legacy identity branch only: exact root-reviewed original inspect CreateProcess1455 before nativePid assigned plus subsequent same-owner rm and no-such-object inspection. Null original fields remain unchanged; no normal child exit claimed.",
+  "pending": "Root WX reviewed proof copy; production JSON and actual sameHOST recover required. Validation-only roottrue fixture is never production.",
+  "changedFrozenSources": false,
+  "newBenchCommands": 0,
+  "models": 0
+}

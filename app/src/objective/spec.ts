@@ -106,6 +106,8 @@ export interface Objective {
    * **交卷那一次不算** —— 那是内核替它问的，不是它自己去试。
    */
   checks: number;
+  /** 只有不依赖可变工作区的纯文本候选允许复用。默认重新判分。 */
+  reuse?: "text" | "never";
 }
 
 /** 端口序：每个节点按值域宽度摊开。 */
@@ -224,7 +226,7 @@ export function validate(o: Objective): string[] {
 /** 解析一份 G。形状不对当场炸 —— 这跟结构校验是两回事，那个查的是图对不对。 */
 export function parseObjective(raw: unknown): Objective {
   if (raw === null || typeof raw !== "object") throw new Error("the grading function must be an object");
-  const o = raw as { nodes?: unknown; edges?: unknown; sink?: unknown; checks?: unknown };
+  const o = raw as { nodes?: unknown; edges?: unknown; sink?: unknown; checks?: unknown; reuse?: unknown };
   if (!Array.isArray(o.nodes)) throw new Error("the grading function needs nodes, and it must be an array");
   if (!Array.isArray(o.edges)) throw new Error("the grading function needs edges, and it must be an array");
   const nodes: Node[] = o.nodes.map((n, i) => {
@@ -246,5 +248,6 @@ export function parseObjective(raw: unknown): Objective {
   // 不给就用默认的五次：够「算出来 → 验一次 → 照着 why 改 → 再验」走上两三个来回，
   // 不够穷举。给 0 或者负数当成不给 —— 「随便问」不是这个字段能表达的意思。
   const asked = Number((o as { checks?: unknown }).checks);
-  return { nodes, edges, sink: String(o.sink ?? ""), checks: Number.isFinite(asked) && asked > 0 ? asked : 5 };
+  if (o.reuse !== undefined && o.reuse !== "text" && o.reuse !== "never") throw new Error("objective.reuse must be 'text' or 'never'");
+  return { nodes, edges, sink: String(o.sink ?? ""), checks: Number.isFinite(asked) && asked > 0 ? asked : 5, reuse: o.reuse === "text" ? "text" : "never" };
 }

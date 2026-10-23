@@ -1,0 +1,16 @@
+{
+  "allPassed": true,
+  "fixtureRoot": "F:\\git\\TgEngin-handoff-2026-10-07\\tmp\\scibench-infra-retry-fixtures\\merge-1792144812",
+  "realProviderCalls": 0,
+  "checks": [
+    "all1664 preserved",
+    "valid wrong answers never retried",
+    "no best-of replacement; repaired valid failure retained",
+    "native no-submit excluded",
+    "remaining repair anomaly retained without retry",
+    "all416 and valid-only denominators",
+    "original fees plus new fees exactly once",
+    "unknown fees retained",
+    "duplicate generation rejected"
+  ]
+}

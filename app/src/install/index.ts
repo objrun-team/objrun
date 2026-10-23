@@ -114,6 +114,8 @@ export function subTables(db: Conn): TableDecl[] {
 export interface Plan {
   create: string[];
   ok: string[];
+  /** 这一趟补上去的列，`表.列`。 */
+  added: string[];
   drift: { table: string; why: string[] }[];
   extra: string[];
 }
@@ -130,7 +132,11 @@ function compare(db: Conn, want: TableDecl[], plan: Plan, declared: Set<string>)
     for (const c of t.columns) {
       const hit = got.find((g) => g.name === c.name);
       if (!hit) {
-        why.push(`missing column ${c.name}`);
+        // **少一列是能补的**，跟「原来那列变了」不是一回事：补一列不动任何已有的
+        // 数据，而改一列的类型或者约束要重建整张表，那才是在猜你想要哪种改法。
+        // 带 not null 又没有默认值的除外 —— sqlite 加不上去，已有的行填什么都是编的。
+        if (c.notnull) why.push(`missing column ${c.name}, and it is not null - that cannot be added to rows that already exist`);
+        else plan.added.push(`${t.name}.${c.name}`);
         continue;
       }
       if (hit.type.toLowerCase() !== c.type.toLowerCase()) {
@@ -150,7 +156,7 @@ function compare(db: Conn, want: TableDecl[], plan: Plan, declared: Set<string>)
 
 /** 只看不动：声明跟库现在差在哪。 */
 export function plan(db: Conn): Plan {
-  const p: Plan = { create: [], ok: [], drift: [], extra: [] };
+  const p: Plan = { create: [], ok: [], added: [], drift: [], extra: [] };
   const declared = new Set<string>();
   compare(db, decl.tables as TableDecl[], p, declared);
   compare(db, subTables(db), p, declared);
@@ -174,25 +180,57 @@ export function plan(db: Conn): Plan {
  * 得等固定表里有行了才知道。
  */
 export function install(db: Conn): Plan {
-  const fixed: Plan = { create: [], ok: [], drift: [], extra: [] };
+  const all: TableDecl[] = [...(decl.tables as TableDecl[])];
+  const fixed: Plan = { create: [], ok: [], added: [], drift: [], extra: [] };
   compare(db, decl.tables as TableDecl[], fixed, new Set());
   bail(fixed);
   for (const name of fixed.create) {
     db.exec(ddl((decl.tables as TableDecl[]).find((t) => t.name === name)!));
   }
+  add(db, all, fixed.added);
 
   const grown = subTables(db);
-  const sub: Plan = { create: [], ok: [], drift: [], extra: [] };
+  all.push(...grown);
+  const sub: Plan = { create: [], ok: [], added: [], drift: [], extra: [] };
   compare(db, grown, sub, new Set());
   bail(sub);
   for (const name of sub.create) db.exec(ddl(grown.find((t) => t.name === name)!));
+  add(db, all, sub.added);
 
   // 报的是**这一趟真建了什么**，不是建完之后再看一眼的样子 ——
   // 后者永远是「一张没建，全都在」，等于什么都没说。
   const after = plan(db);
-  return { ...after, create: [...fixed.create, ...sub.create], ok: after.ok.filter((n) => !fixed.create.includes(n) && !sub.create.includes(n)) };
+  return {
+    ...after,
+    create: [...fixed.create, ...sub.create],
+    added: [...fixed.added, ...sub.added],
+    ok: after.ok.filter((n) => !fixed.create.includes(n) && !sub.create.includes(n)),
+  };
 }
 
+/**
+ * 把少掉的那几列补上去。**只加列，不动已有的数据。**
+ *
+ * 加完就是老库能接着用：原来那些行照旧，新列是空的。声明里改了某一列的类型或者
+ * 约束的话走不到这儿 —— 那种在 `bail` 那儿就停了。
+ */
+function add(db: Conn, want: TableDecl[], columns: string[]): void {
+  for (const one of columns) {
+    const cut = one.lastIndexOf(".");
+    const table = one.slice(0, cut);
+    const column = one.slice(cut + 1);
+    const c = want.find((t) => t.name === table)?.columns.find((x) => x.name === column);
+    if (!c) throw new Error(`cannot add ${one}: it is not in the declaration`);
+    db.exec(`alter table "${ident(table, "table name")}" add column "${ident(column, "column name")}" ${c.type}`);
+  }
+}
+
+/**
+ * 形状对不上就停。**这儿拦的只剩「原来那些列变了」** —— 类型变了、约束变了、
+ * 库里多出声明里没有的列。少一列那种在 `compare` 那儿已经归到「补一列」里了。
+ *
+ * 拦的这几种都要重建整张表，而重建就是在猜你想要哪种改法，猜错的代价是数据。
+ */
 function bail(p: Plan) {
   if (!p.drift.length) return;
   const lines = p.drift.map((d) => `  ${d.table}: ${d.why.join("; ")}`).join("\n");

@@ -1,0 +1,1 @@
+import{join}from'node:path';import{providerTaskRouteSource}from'./provider-task-route-source-v3.ts';import{nonblockingHistorySource}from'./nonblocking-history-source.ts';export function providerTaskWatchSource(path:string,raw:string,actualPath=path){return nonblockingHistorySource(path,providerTaskRouteSource(actualPath,raw),import.meta.dir)}

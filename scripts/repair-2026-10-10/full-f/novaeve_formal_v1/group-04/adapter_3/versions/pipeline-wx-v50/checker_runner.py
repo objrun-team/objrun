@@ -1,0 +1,11 @@
+"""Trusted Pipeline checker result frame; all process/package/CTRF fields read in guest."""
+import argparse,json,os,sys,time,hashlib,base64
+from pathlib import Path
+import importlib.metadata as metadata
+
+def main():
+ p=argparse.ArgumentParser();p.add_argument('--config',required=True);args=p.parse_args();config=json.loads(Path(args.config).read_bytes());assert config['taskId']=='torch-pipeline-parallelism';source=hashlib.sha256(Path(__file__).read_bytes()).hexdigest();assert source==config['checkerSourceSha256'];test=Path('/tests/test_outputs.py');assert hashlib.sha256(test.read_bytes()).hexdigest()==config['originalTestSha256'];sys.path.insert(0,'/opt/pipeline-checker/router');sys.path.insert(1,'/tests');import pytest
+ Path('/tmp/pipeline-mailbox').mkdir(exist_ok=True);start=time.time();mono=time.monotonic();exit_code=int(pytest.main(['-p','ctrf.main','--ctrf','/tmp/ctrf.json','/tests/test_outputs.py','-rA','-o','cache_dir=/tmp/pipeline-pytest-cache']));raw=Path('/tmp/ctrf.json').read_bytes();assert len(raw)<=2*1024**2;ctrf=json.loads(raw);assert exit_code in [0,1]
+ result={'protocol':'tb12-private-checker-result-v1','taskId':config['taskId'],'invocationId':config['invocationId'],'collectOnly':False,'exitCode':exit_code,'reward':int(exit_code==0),'ctrf':ctrf,'ctrfRawSha256':hashlib.sha256(raw).hexdigest(),'ctrfRawBase64':base64.b64encode(raw).decode('ascii'),'checkerSourceSha256':source,'numericGuestPid':os.getpid(),'numericParentPid':os.getppid(),'pythonVersion':sys.version,'pythonExecutable':sys.executable,'pythonExecutableSha256':hashlib.sha256(Path(sys.executable).read_bytes()).hexdigest(),'procStatus':Path('/proc/self/status').read_text(),'mountInfoSha256':hashlib.sha256(Path('/proc/self/mountinfo').read_bytes()).hexdigest(),'packages':{n:metadata.version(n) for n in config['packageNames']},'privateNamespaces':{n:os.readlink('/proc/self/ns/'+n) for n in ['pid','mnt','net']},'wallStart':start,'wallStop':time.time(),'monotonicSeconds':time.monotonic()-mono}
+ Path('/tmp/checker-result.json').write_text(json.dumps(result));print('TB12_RESULT:'+json.dumps(result,separators=(',',':')),flush=True)
+if __name__=='__main__':main()

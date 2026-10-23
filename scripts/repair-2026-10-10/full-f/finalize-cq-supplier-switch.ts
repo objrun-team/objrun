@@ -1,0 +1,16 @@
+import {readFileSync,writeFileSync,appendFileSync} from 'node:fs';
+import {join} from 'node:path';
+import {actualPin,verifyPin} from '../../repair-2026-10-08/paid-resource-proof-v2';
+import {atomicStateJson} from './shared/atomic-state';
+const root=process.cwd(),base=join(root,'docs/repair-2026-10-10/full-f-rerun'),path=join(base,'control.json'),c=JSON.parse(readFileSync(path,'utf8')),b=c.broker;
+if(b.pid!==4956||!b.sourcePins[0].path.endsWith('digitalocean-broker-cq-suppliers.ts')||c.paidReady!==false)throw Error('unexpected_new_broker');
+for(const p of b.sourcePins)verifyPin(p);
+const h=await(await fetch(b.endpoint+'/health')).json() as any;if(h.pid!==b.pid||!h.healthy||h.activeRequests||h.queuedRequests||h.canonicalOwner||h.resourceSlots.length)throw Error('new_not_idle_healthy');
+const cim=Bun.spawnSync(['powershell.exe','-NoProfile','-Command',"Get-CimInstance Win32_Process -Filter 'ProcessId=4956' | ForEach-Object { @{pid=$_.ProcessId;bornUtc=$_.CreationDate.ToUniversalTime().ToString('o');commandLine=$_.CommandLine} } | ConvertTo-Json -Compress"]);const actualProcess=JSON.parse(cim.stdout.toString());if(actualProcess.pid!==4956||!actualProcess.commandLine.includes('digitalocean-broker-cq-suppliers.ts --serve'))throw Error('new_actual_identity');
+if(c.dockerRecovery.graderHealthy!==true)throw Error('grader_not_healthy');
+const auth=JSON.parse(readFileSync(join(base,'chemiq/task39-supplier-human-authorization.json'),'utf8'));
+const proof={atUtc:new Date().toISOString(),newPid:4956,newBirthUtc:actualProcess.bornUtc,newRunId:b.runId,newEntry:b.sourcePins[0],sourcePins:b.sourcePins,localControlTests:6,localAssertions:82,buildPassed:true,oldPid:179628,oldHistory:c.chemiqSupplierSwitch.historyEntry,oldKnownUsd:.1886244757,oldUnknownCount:1,oldCashUnmodified:true,oldExactPidBirthRetired:true,actualNewModelCalls:0,soleCQ39AuthorizationPin:actualPin(join(base,'chemiq/task39-supplier-human-authorization.json')),otherProvidersUnchanged:true};
+writeFileSync(join(base,'chemiq-supplier-switch/switch-complete.json'),JSON.stringify(proof,null,2)+'\n',{flag:'wx'});
+atomicStateJson(path,{...c,paidReady:true,chemiqTask39SupplierAuthorization:{...auth,pin:proof.soleCQ39AuthorizationPin},chemiqSupplierSwitch:{...c.chemiqSupplierSwitch,phase:'installed_ready_sole39_supplier',newPid:4956,newBornUtc:actualProcess.bornUtc,newRunId:b.runId,proof:'chemiq-supplier-switch/switch-complete.json',actualModelCalls:0},updatedAtUtc:new Date().toISOString()});
+appendFileSync(join(base,'COORDINATION.md'),'\n'+proof.atUtc+' Human authorizes ONLY CQ39 Relace->DekaLLM->Wafer; retain815 and original900/high/16384/grader. Old179628 all4nativeclosed, 0queue/requests/resources, sources+history archived verified, exactbirth retired. New4956 sole-owner CQ supplier scoped entry,6localtests82assertions/buildpassed, paidReadytrue. SB resumes eligible only, CB500 remains paused; TB fresh physicalE gate unchanged.\n');
+console.log(JSON.stringify({newPid:4956,newBornUtc:actualProcess.bornUtc,newRunId:b.runId,sourceCount:b.sourcePins.length,paidReady:true,only39:true,modelCalls:0}));

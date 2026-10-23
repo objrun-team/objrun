@@ -1,0 +1,11 @@
+import {readFileSync,appendFileSync,writeFileSync} from 'node:fs';
+import {join} from 'node:path';
+import {atomicStateJson} from './shared/atomic-state';
+const base=join(process.cwd(),'docs/repair-2026-10-10/full-f-rerun');
+const path=join(base,'control.json'),c=JSON.parse(readFileSync(path,'utf8'));
+const atUtc=new Date().toISOString();
+const authorization={authorizedByUser:true,atUtc,indices:[204,243],order:['relace','dekallm','wafer'],selectedSupplier:'relace',retainValidCount:498,source:'Human explicitly authorized last two Relace then DekaLLM then Wafer; completed tasks must not rerun'};
+atomicStateJson(path,{...c,chembenchRemainingSupplierTrial:authorization,dockerRecovery:{...c.dockerRecovery,phase:'preserving_current_disk_before_repair',graderHealthy:false,spaceConfirmedAtUtc:atUtc,currentDiskBackupRequired:true},updatedAtUtc:atUtc});
+writeFileSync(join(base,'chembench/last2-supplier-human-authorization.json'),JSON.stringify(authorization,null,2)+'\n');
+appendFileSync(join(base,'COORDINATION.md'),'\n'+atUtc+' Human authorizes ONLY CB204/243 Relace->DekaLLM->Wafer; retain498 valid, do not re-run277. E space freshly expanded14.25GiB/F54.1GiB; Docker current49.24GB unmounted requires new verified local backup before repair. Three Docker owners remain held until root graderHealthy/resume; CB independent grader route to be enabled separately after hold confirmation. No frozen common34 changes.\n');
+console.log(JSON.stringify({authorization,paidReady:c.paidReady,dockerPhase:'preserving_current_disk_before_repair'}));

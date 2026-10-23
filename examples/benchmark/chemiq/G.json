@@ -1,0 +1,40 @@
+{
+  "slug": "chemiq",
+  "grader_port": 7914,
+  "nodes": [
+    {
+      "name": "parsed",
+      "moment": "task_done",
+      "domain": "bool",
+      "handle": "{GRADER}/parsed"
+    },
+    {
+      "name": "correct",
+      "moment": "task_done",
+      "domain": "bool",
+      "handle": "{GRADER}/correct"
+    }
+  ],
+  "edges": [
+    {
+      "src": "parsed",
+      "out": 0,
+      "dst": "correct"
+    }
+  ],
+  "sink": "correct",
+  "checks": 3,
+  "task": {
+    "domain": "chemistry",
+    "solveSeconds": 900,
+    "maxBranches": 4,
+    "maxDeadSiblings": 8,
+    "maxSearches": 3,
+    "noSearch": [
+      "chemiq",
+      "oxpig",
+      "runcie deane imrie"
+    ]
+  },
+  "suffix": "\n\nPut your final answer inside \\boxed{} in exactly the format the question asks for (an integer, a SMILES string, an IUPAC name, or a list of tuples), with nothing else inside the braces."
+}

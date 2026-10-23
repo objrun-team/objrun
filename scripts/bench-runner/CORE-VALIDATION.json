@@ -1,0 +1,63 @@
+{
+  "protocol": "universal-runner-core-local-validation-v1",
+  "atUtc": "2026-10-14T08:36:45.136003+00:00",
+  "sourcePins": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\manifest.ts",
+      "bytes": 4798,
+      "sha256": "c06fe889243b9775695574b7c4fbc7969c09a800c31036b67ad77063bb5a75f1"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\queue.ts",
+      "bytes": 17667,
+      "sha256": "c69270c983b26e0f8b63885a33afda3ba500c8404b2b66884630d564b477bde1"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\admission.ts",
+      "bytes": 3588,
+      "sha256": "a5f8e1e81c3ac03616d926092bc3a686417151073536612c1cf89ddf3ae522f8"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\runner.ts",
+      "bytes": 14549,
+      "sha256": "da5a858144f1223c90578478aa8cd2f7a39f566871c827ec07e0560405f6a006"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\cli.ts",
+      "bytes": 3099,
+      "sha256": "b519f46a04aed8c70f70378574ecd0e21c3c18dd32c4f91f33d43670476b57f8"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\core.test.ts",
+      "bytes": 19103,
+      "sha256": "55c6e778bc1dc4b7717caf7b0cf9ceb39b2f83726abf10da032d360cec5ad1da"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\CORE-HANDOFF.md",
+      "bytes": 4500,
+      "sha256": "882ccfe9d02b3f69fe481a0535e793c5d96d3f97db03744fd29a809d9e9fa834"
+    }
+  ],
+  "lastFullCommand": [
+    "bun",
+    "test",
+    "scripts/bench-runner"
+  ],
+  "lastFullExitCode": 0,
+  "passedTests": 39,
+  "failedTests": 0,
+  "expectCalls": 133,
+  "coreTests": 21,
+  "localFixtureOnly": true,
+  "fakeDriversAndTemporaryKeysOnly": true,
+  "benchActions": 0,
+  "modelCalls": 0,
+  "oracleRuns": 0,
+  "realGradeCalls": 0,
+  "brokerOrControlMutations": 0,
+  "productionAdmissionResumed": false,
+  "limitations": [
+    "No automatic paid retry of a stale static expense template; new reviewed data carry/signature required.",
+    "Actual solver count is not inferred from queue jobs or slots."
+  ]
+}

@@ -1,0 +1,25 @@
+// Captured evidence only: no model requests, owner acquisition, grader or Docker actions.
+import fs from 'node:fs';import path from 'node:path';import assert from 'node:assert/strict';import {gunzipSync} from 'node:zlib';
+import {actualPin,verifyPin,hash} from '../../../repair-2026-10-08/paid-resource-proof-v2.ts';
+const root=path.resolve(import.meta.dirname,'../../../..'),base=path.join(root,'docs/repair-2026-10-10/full-f-rerun/chemiq'),read=p=>JSON.parse(fs.readFileSync(p,'utf8'));
+const status=read(path.join(base,'status.json')),broker=path.dirname(status.brokerHealthPath),rows=[];
+for(const [supplier,stamp] of [['relace','05-07-04-653'],['dekallm','05-28-25-388'],['wafer','05-46-59-157']]){
+ const run='repair-2026-10-11T05-06-00-577Z-12-2026-10-11T'+stamp+'Z',out=path.join(base,'runs',run),journal=read(path.join(out,'journal/api-state.json')),thoughts=[],requests=[];
+ for(let seq=0;seq<journal.finishedRequestCount;seq++){
+  const dir=path.join(broker,'stream-evidence',run+'-'+seq),ev=read(path.join(dir,'capture.evidence.json'));verifyPin(ev.originalRequest);
+  const req=JSON.parse(gunzipSync(fs.readFileSync(ev.originalRequest.path)).toString()),assistant=req.messages.filter(m=>m.role==='assistant'),bindings=[];
+  for(const m of assistant){const text=m.reasoning_content??m.reasoning??'';if(!text)continue;let found=false;
+   for(let start=0;start<thoughts.length&&!found;start++){let joined='';for(let end=start;end<thoughts.length;end++){joined+=thoughts[end];if(joined===text){bindings.push({start,end,characters:text.length,originalResponsesConcatenatedSha256:hash(joined),nextRequestReasoningSha256:hash(text)});found=true;break;}if(joined.length>text.length)break;}}
+   assert(found,`${supplier} seq${seq}: reasoning must exactly match original earlier response text`);
+  }
+  const immediatelyPreviousReasoningPresent=seq===0?null:assistant.some(m=>(m.reasoning_content??m.reasoning??'').includes(thoughts.at(-1)??''));
+  const aggregatePath=path.join(dir,'capture.aggregate.json'),aggregate=fs.existsSync(aggregatePath)?read(aggregatePath):null;
+  if(aggregate)thoughts.push(aggregate.choices?.[0]?.message?.reasoning??'');
+  requests.push({seq,complete:!!aggregate,finishReason:aggregate?.choices?.[0]?.finish_reason??null,contentCharacters:aggregate?(aggregate.choices?.[0]?.message?.content??'').length:null,immediatelyPreviousReasoningPresent,responseReasoningSha256:aggregate?hash(aggregate.choices?.[0]?.message?.reasoning??''):null,responseContentSha256:aggregate?hash(aggregate.choices?.[0]?.message?.content??''):null,requestMessageHashes:req.messages.map(m=>({role:m.role,reasoningSha256:hash(m.reasoning??m.reasoning_content??''),contentSha256:hash(typeof m.content==='string'?m.content:JSON.stringify(m.content??''))})),toolCalls:aggregate?aggregate.choices?.[0]?.message?.tool_calls?.length??0:null,usage:aggregate?.usage??null,reasoningBindings:bindings,onlySubmitTool:req.tools?.length===1&&req.tools[0]?.function?.name==='submit',maxTokens:req.max_tokens,effort:req.reasoning?.effort,capturePin:actualPin(path.join(dir,'capture.evidence.json'))});
+ }
+ const boundary=read(path.join(base,'task39-supplier-boundary-'+supplier+'.json'));assert(boundary.nativeVerified&&boundary.laneClosed&&boundary.pending===0);
+ rows.push({supplier,run,requests,boundaryPin:actualPin(path.join(base,'task39-supplier-boundary-'+supplier+'.json')),billedUsd:boundary.billedUsd,unknown:boundary.unknown});
+}
+const report={atUtc:new Date().toISOString(),modelCalls:0,graderCalls:0,ownerAcquired:false,retained:815,denominator:816,rows,findings:{allCarriedReasoningMatchesOriginal:true,allCompleteResponsesPreserved:rows.every(r=>r.requests.every(q=>q.immediatelyPreviousReasoningPresent!==false)),missingImmediateResponses:rows.flatMap(r=>r.requests.filter(q=>q.immediatelyPreviousReasoningPresent===false).map(q=>({supplier:r.supplier,requestSeq:q.seq,previousResponseSeq:q.seq-1}))),allCompleteResponsesHaveEmptyContent:rows.every(r=>r.requests.filter(q=>q.complete).every(q=>q.contentCharacters===0)),allCompleteResponsesHaveNoToolCalls:rows.every(r=>r.requests.filter(q=>q.complete).every(q=>q.toolCalls===0)),allCompleteResponsesLength:rows.every(r=>r.requests.filter(q=>q.complete).every(q=>q.finishReason==='length')),submitOnlyStationReached:rows.some(r=>r.requests.some(q=>q.onlySubmitTool)),aliasHypothesis:'unsupported: official OpenRouter contract accepts reasoning_content identically to reasoning',encodingCandidate:'inactive; local lossless projection passed, no demonstrated paid outcome improvement',waferIncomplete:'last request timed out after partial SSE; usage.cost unknown retained separately'},officialReference:{url:'https://openrouter.ai/docs/guides/best-practices/reasoning-tokens',section:'Preserving Reasoning',checkedAtUtc:new Date().toISOString()},sourcePins:[actualPin(import.meta.filename),actualPin(path.join(root,'app/src/llm/index.ts'))]};
+fs.writeFileSync(path.join(base,'task39-reasoning-diagnosis.json'),JSON.stringify(report,null,2));console.log(JSON.stringify({suppliers:rows.length,requests:rows.reduce((n,r)=>n+r.requests.length,0),findings:report.findings,modelCalls:0}));
+

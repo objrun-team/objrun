@@ -1,0 +1,30 @@
+{
+  "protocol": "bench-no-cash-resource-denial-admin-handoff-v1",
+  "sourcePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\reconcile-no-cash-resource-denial.ts",
+    "bytes": 6185,
+    "sha256": "dd8bd0173fd1c38b30301321d2f05f7507d8de70be6e2f0715dec28422efe361"
+  },
+  "testPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\reconcile-no-cash-resource-denial.test.ts",
+    "bytes": 2134,
+    "sha256": "ad08719d28e30743da7d4cf8dd084a1546980d374b2a513600b34d56bbf191a6"
+  },
+  "tests": {
+    "passed": 2,
+    "failed": 0,
+    "expects": 9,
+    "exitCode": 0
+  },
+  "actualCheckPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\pipeline-833cfa04-resource-denial\\admin-readonly-check\\checked.json",
+    "bytes": 2842,
+    "sha256": "1e45025f97a669e7ffd0973c1b727a881f91888b219070e699e2409dd102f1e4"
+  },
+  "applied": false,
+  "models": 0,
+  "mutations": 0,
+  "scope": "Only signed exact current pre-resource denial; six historical cash unchanged; current attempt no candidate; historical candidate disposition unchanged",
+  "warning": "broker-health.actual.public.json contains original resource token; treat as PRIVATE; immutable root signed pins preserved",
+  "apply": "bun --smol scripts/bench-runner/reconcile-no-cash-resource-denial.ts --mode apply --database U/queue.sqlite --envelope U/pipeline-833cfa04-resource-denial/reconciliation-review.root-signed.json --python D:/ProgramData/anaconda3/python.exe --output U/pipeline-833cfa04-resource-denial/root-admin-apply"
+}

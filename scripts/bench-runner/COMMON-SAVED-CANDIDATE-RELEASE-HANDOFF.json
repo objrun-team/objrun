@@ -1,0 +1,87 @@
+{
+  "protocol": "bench-common-saved-candidate-disposition-final-handoff-v1",
+  "atUtc": "2026-10-14T12:24:33.652Z",
+  "frozen": true,
+  "scope": "shared content-addressed host+driver; no task runner clone",
+  "hostPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\d3616198e7ad1b2ada576a34df3bb9fe2b3ca91c91ae7550e0563031b6744e40\\runner.js",
+    "bytes": 360091,
+    "sha256": "d3616198e7ad1b2ada576a34df3bb9fe2b3ca91c91ae7550e0563031b6744e40"
+  },
+  "hostAttestationPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\d3616198e7ad1b2ada576a34df3bb9fe2b3ca91c91ae7550e0563031b6744e40\\release-5ee5f942b48101502dc8bc44b4c915bf2182de74864d0ff77ed58d724385290d.json",
+    "bytes": 13753,
+    "sha256": "5ee5f942b48101502dc8bc44b4c915bf2182de74864d0ff77ed58d724385290d"
+  },
+  "driverPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\266b686392b8492ff0d54b63abd169599d1fba638f7176951f1367a027cdda93\\terminal-driver.js",
+    "bytes": 236640,
+    "sha256": "266b686392b8492ff0d54b63abd169599d1fba638f7176951f1367a027cdda93"
+  },
+  "driverAttestationPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\266b686392b8492ff0d54b63abd169599d1fba638f7176951f1367a027cdda93\\release-3069d349e9cd205f38d87df9552f849d0467b8d0c2096b4a7379e5912216afe4.json",
+    "bytes": 8751,
+    "sha256": "3069d349e9cd205f38d87df9552f849d0467b8d0c2096b4a7379e5912216afe4"
+  },
+  "sourcePins": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\saved-candidate-disposition.ts",
+      "bytes": 10430,
+      "sha256": "fe7e72fec115174dd21553a3e2399e39133003124fadfd40da75c70b596a1de2"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\build-candidate-disposition-release.ts",
+      "bytes": 14680,
+      "sha256": "be40f23c5ace9b5065347e271d8544ee8e78de70fd485ea6d7e8151774dbbee8"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\saved-candidate-disposition.test.ts",
+      "bytes": 18247,
+      "sha256": "c372075216a7e56cdc1ae2a987565701fde49d963772e60641bfc98ec89891a1"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\SAVED-CANDIDATE-DISPOSITION-CONTRACT.md",
+      "bytes": 5289,
+      "sha256": "658e1fd1ed5237c50783bd1e7fc28bdf7c1e7da87c447038d5cdc7eac1724292"
+    }
+  ],
+  "testLogPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\SAVED-CANDIDATE-DISPOSITION-TESTS.log",
+    "bytes": 901,
+    "sha256": "2d25a8c69e4f8cfee63228d365ce7570bf37c940ac1c861854e7bde9176ce190"
+  },
+  "tests": {
+    "pass": 7,
+    "fail": 0,
+    "assertions": 37,
+    "mainExitCode": 0,
+    "actualCommonHostRecovery": true,
+    "actualDurableSQLiteQueue": true,
+    "localCashAndJournalReplay": true,
+    "originalSavedCandidateRemainsPresent": true,
+    "wrongAuthorityTaskAttemptPinCandidateMutationValidAndMissingClosureRejected": true
+  },
+  "pythonLauncherPreflight": {
+    "pureActualArgumentTransformBeforeResource": true,
+    "unknownArgvOrSpawnAcquires": 0,
+    "bundleEarlyTransformLine": 3873,
+    "bundleResourceAcquireLine": 3925
+  },
+  "production": {
+    "signedDisposition": false,
+    "actualProductionHistoryOrParentReplayedByThisDelivery": false,
+    "manifestOrAttemptCreated": false,
+    "queueApplied": false,
+    "resourcesAcquired": 0,
+    "models": 0,
+    "grades": 0,
+    "oracle": 0,
+    "nativeBench": 0,
+    "oldSourcesModified": false,
+    "requires": [
+      "root six-cash review",
+      "original-authority Ed disposition",
+      "successor signed entry binding manifest and disposition"
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+FROM python:3.11-slim
+LABEL org.objrun.owner="newbench-20261014" org.objrun.benchmark="classeval"
+RUN HTTP_PROXY=http://127.0.0.1:18189 HTTPS_PROXY=http://127.0.0.1:18189 python -m pip install --no-cache-dir numpy==1.24.4 scipy==1.10.1 pandas==1.5.3 gensim==4.3.2 beautifulsoup4==4.11.1 PyPDF2==3.0.1 reportlab==4.0.4 nltk==3.8.1 Pillow==9.5.0 openpyxl==3.0.10 python-docx==0.8.11 func_timeout==4.3.5
+RUN HTTP_PROXY=http://127.0.0.1:18189 HTTPS_PROXY=http://127.0.0.1:18189 python -m nltk.downloader -d /opt/nltk_data punkt averaged_perceptron_tagger wordnet omw-1.4
+ENV NLTK_DATA=/opt/nltk_data PYTHONDONTWRITEBYTECODE=1 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
+WORKDIR /work
+USER 65534:65534

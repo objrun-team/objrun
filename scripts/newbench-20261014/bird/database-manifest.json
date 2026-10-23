@@ -1,0 +1,13 @@
+{
+  "california_schools": "/mnt/aliyunsb/pingxingwang/tgengin-bench/newbench-20261014/bird/dev_databases/california_schools/california_schools.sqlite",
+  "card_games": "/mnt/aliyunsb/pingxingwang/tgengin-bench/newbench-20261014/bird/dev_databases/card_games/card_games.sqlite",
+  "codebase_community": "/mnt/aliyunsb/pingxingwang/tgengin-bench/newbench-20261014/bird/dev_databases/codebase_community/codebase_community.sqlite",
+  "debit_card_specializing": "/mnt/aliyunsb/pingxingwang/tgengin-bench/newbench-20261014/bird/dev_databases/debit_card_specializing/debit_card_specializing.sqlite",
+  "european_football_2": "/mnt/aliyunsb/pingxingwang/tgengin-bench/newbench-20261014/bird/dev_databases/european_football_2/european_football_2.sqlite",
+  "financial": "/mnt/aliyunsb/pingxingwang/tgengin-bench/newbench-20261014/bird/dev_databases/financial/financial.sqlite",
+  "formula_1": "/mnt/aliyunsb/pingxingwang/tgengin-bench/newbench-20261014/bird/dev_databases/formula_1/formula_1.sqlite",
+  "student_club": "/mnt/aliyunsb/pingxingwang/tgengin-bench/newbench-20261014/bird/dev_databases/student_club/student_club.sqlite",
+  "superhero": "/mnt/aliyunsb/pingxingwang/tgengin-bench/newbench-20261014/bird/dev_databases/superhero/superhero.sqlite",
+  "thrombosis_prediction": "/mnt/aliyunsb/pingxingwang/tgengin-bench/newbench-20261014/bird/dev_databases/thrombosis_prediction/thrombosis_prediction.sqlite",
+  "toxicology": "/mnt/aliyunsb/pingxingwang/tgengin-bench/newbench-20261014/bird/dev_databases/toxicology/toxicology.sqlite"
+}

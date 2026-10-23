@@ -1,0 +1,100 @@
+{
+  "protocol": "bench-common-relative-qualified-interfaces-handoff-v1",
+  "sourcePins": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\relative-qualified-source.ts",
+      "bytes": 3617,
+      "sha256": "a397552377bc65cad2af9a44e1d7d2c0ce8d6fda3057521ef4825bc72e033a98"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\qualified-relative-interfaces.ts",
+      "bytes": 12189,
+      "sha256": "d37a5078cff3d3804153c8aa02961d5f0dae7c938b7fbb069649b0807e0d381a"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\qualified-python-source-bootstrap.py",
+      "bytes": 2714,
+      "sha256": "f52586e5896e3c52a96f45b027711314b459a2001883de58a7af4f8cf392d448"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\build-relative-qualified-release.ts",
+      "bytes": 15972,
+      "sha256": "b441bf5550759cd2166fdf2702d8a43b08200500cd29803249cdb076a8f9461f"
+    }
+  ],
+  "testPins": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\relative-qualified-source.test.ts",
+      "bytes": 2817,
+      "sha256": "1361807e4ec1a4bf610ce962b341cbb7fb0db9de1d9477987ddab5f14b2cb095"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\qualified-python-source-bootstrap.test.py",
+      "bytes": 1866,
+      "sha256": "576bdf94c19fa933cd130583423045cd0fdad6649dde207fa649514d604a471d"
+    }
+  ],
+  "hostPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\1cbeb703c38a36097d09fe8fc20ae889cbe9b5bdb6b0be7772f6897089e177ea\\runner.js",
+    "bytes": 367508,
+    "sha256": "1cbeb703c38a36097d09fe8fc20ae889cbe9b5bdb6b0be7772f6897089e177ea"
+  },
+  "hostAttestationPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\1cbeb703c38a36097d09fe8fc20ae889cbe9b5bdb6b0be7772f6897089e177ea\\release-2efdbe12720748ccdfb9743e9b36a35ccdd09158bf69a85459efc579cda276c0.json",
+    "bytes": 15169,
+    "sha256": "2efdbe12720748ccdfb9743e9b36a35ccdd09158bf69a85459efc579cda276c0"
+  },
+  "driverPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\48d92464fdbff2568295877acad1b105f7fb106092da7901a107d051a5bb7271\\terminal-driver.js",
+    "bytes": 250002,
+    "sha256": "48d92464fdbff2568295877acad1b105f7fb106092da7901a107d051a5bb7271"
+  },
+  "driverAttestationPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\48d92464fdbff2568295877acad1b105f7fb106092da7901a107d051a5bb7271\\release-00dde7459ec78aa2a0f9122179798028bc1711d1200341dc5beb39aae9cbaf3c.json",
+    "bytes": 10167,
+    "sha256": "00dde7459ec78aa2a0f9122179798028bc1711d1200341dc5beb39aae9cbaf3c"
+  },
+  "tests": {
+    "typescript": {
+      "pass": 3,
+      "expect": 14,
+      "exitCode": 0
+    },
+    "python": {
+      "pass": 1,
+      "exitCode": 0
+    },
+    "benchCalls": 0,
+    "modelCalls": 0,
+    "resourceAcquires": 0
+  },
+  "dataContract": {
+    "stand": "Original qualifiedInterfaces.stand plus relativeImports {gateway:relative specifier,launcher:relative specifier}; expectedExpression script:join(import.meta.dir,\"original.py\"); pythonBootstrap {bootstrapPin,configPin}",
+    "gateway": {
+      "pin": "actual immutable original gateway",
+      "mode": "original-admit-prejournal-v1",
+      "expectedAdmitExpression": "admitted=journal.admit({route,rawRequest:wire});"
+    },
+    "pythonConfig": {
+      "protocol": "bench-qualified-python-source-mapping-v1",
+      "originalStandPin": "exact old stand pin",
+      "guardPin": "actual common81 pin",
+      "resource": "exact manifest aggregate {memoryMb,growthBytes,bench}",
+      "modules": "complete explicit name/pin list; OwnedDocker module guardOwnedCommand true; unique npipe literal replaced by os.environ[\"DOCKER_HOST\"]"
+    }
+  },
+  "scope": [
+    "Exact relative import resolved to pinned original target",
+    "Single Stand script expression mapped to verified original stand path",
+    "Original launcher receives actual signed root/owned lease environment and observedSpawn",
+    "Original async gateway awaits actual owned/host/fresh106 maximum BEFORE journal.admit; original reservation formula spent+reserved+next <= remaining",
+    "Pinned in-memory Python graph; common81 actual owner/capacity per OwnedDocker.command; no old PID spoof",
+    "Original source/campaign/tests and successful qualification bytes not modified"
+  ],
+  "pending": [
+    "PureJSON exact interface data and original full dependency pins by tb_first",
+    "Root reviewed interface sections and no-child proof; actual read-only source audit/recover",
+    "No production signed preflight or Bench prefix has been executed; not production-ready merely from local tests"
+  ],
+  "activeReleaseUntouched": true
+}

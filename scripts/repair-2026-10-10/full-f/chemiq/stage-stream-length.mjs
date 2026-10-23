@@ -1,0 +1,23 @@
+import fs from 'node:fs';import path from 'node:path';
+const dir=import.meta.dir;
+let source=fs.readFileSync(path.join(dir,'upstream-stream-staged.ts'),'utf8').replace("['stop','tool_calls'].includes(finish!)","['stop','tool_calls','length'].includes(finish!)").replace("content.length>0||tools.size>0,'CQStreamingMissingMessage'","content.length>0||tools.size>0||(finish==='length'&&(reasoning.length>0||reasoningDetails.size>0)),'CQStreamingMissingMessage'");
+fs.writeFileSync(path.join(dir,'upstream-stream-length-staged.ts'),source);
+let control=fs.readFileSync(path.join(dir,'upstream-stream-control.ts'),'utf8').replaceAll('upstream-stream-staged.ts','upstream-stream-length-staged.ts').replaceAll('stream-control.json','stream-length-control.json');
+control=control.replace(/\{name:'finish-reason-length-truncation',([^\n]+),fail:true\}/g,"{name:'finish-reason-length-preserved',$1}");
+fs.writeFileSync(path.join(dir,'upstream-stream-length-control.ts'),control);
+let sdk=fs.readFileSync(path.join(dir,'feedback-control-green.mjs'),'utf8');
+sdk=sdk.replace('const rows = [], token', 'const rows = [], token');
+sdk=sdk.replace('let misses = 0;', `let misses = 0;let lengthSent=false;
+const streamNative=await import('./stream-sdk-fixture.ts');
+const fixture=streamNative.openFixture(directory);`);
+const first=sdk.indexOf('  const required = body.tools?'),last=sdk.indexOf('\n} });',first);
+sdk=sdk.slice(0,first)+`  const required=body.tools?.length===1&&body.tools[0].function?.name==='submit';
+  const length=required&&!lengthSent;if(length){lengthSent=true;misses++;}
+  rows.push({required,length,body});
+  const response=await fixture.handle(body,length);
+  return new Response(response.rawResponse,{status:response.httpStatus,headers:{'content-type':'application/json'}});`+sdk.slice(last);
+sdk=sdk.replace('misses < 2','misses !== 1 || !rows.some(r=>r.required&&!r.length&&JSON.stringify(r.body.messages).includes("length-marker"))');
+sdk=sdk.replace('  proof.complete = true;','  proof.nativeCashJournal=await fixture.close();\n  proof.complete = true;');
+sdk=sdk.replace(/writeFileSync\("F:[\s\S]*?modelCalls: 0 \}\) \+ `\r?\n`\);/, `writeFileSync(join(root,'docs/repair-2026-10-10/full-f-rerun/chemiq/stream-sdk-control.json'),JSON.stringify({path:join(directory,'control.json'),complete:proof.complete,fault:proof.fault??null,modelCalls:0}));`);
+sdk=sdk.replace('chemiq-required-submit-native-control-v1','chemiq-length-sdk-native-control-v1');
+fs.writeFileSync(path.join(dir,'stream-sdk-control.mjs'),sdk);

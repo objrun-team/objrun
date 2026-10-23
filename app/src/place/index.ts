@@ -28,6 +28,17 @@
  * ssh://box-7/docker:build-01
  * ```
  *
+ * ## 「怎么到那个位置」是一条句柄，不是编译进来的
+ *
+ * 这个文件里的 `hops` / `launch` / `ship` 认得的是一个**封闭集合**：`wsl` /
+ * `ssh` / `docker`，命令怎么拼也写死在里头。那套在「一台机器一个样」面前不够用
+ * —— snap 装的 docker 只在登录 shell 的 PATH 上、送进去的路径它够不着、嵌套位置
+ * 得一跳一跳接力送，这些全是**那台机器的性质**，不是位置这个概念的性质。
+ *
+ * 所以它跟工具、跟 G 的节点、跟推断函数一样，落成一条句柄（`registerPlace`）：
+ * `workplace.identity` 指到哪儿，转发就由谁来办。这个文件提供的是**其中一条**
+ * （`fn:place.hops`），不是唯一一条。
+
  * ## 连上没连上，不进库
  *
  * `workplace.usable` 是**登记**，不是探活。远端断没断、容器还在不在，是活状态 ——
@@ -36,6 +47,9 @@
 
 import { spawn } from "node:child_process";
 
+import type { Conn } from "../H2H/db.ts";
+import { all } from "../H2H/db.ts";
+import type { Registry } from "../engine/registry.ts";
 import { McpClient } from "../mcp/client.ts";
 import { TOOLS } from "../tools/index.ts";
 
@@ -53,7 +67,7 @@ export interface Place {
 
 const local = new Map(TOOLS.map((t) => [t.name, t]));
 
-function openLocal(): Place {
+export function openLocal(): Place {
   return {
     place: "local",
     async call(tool, args) {
@@ -182,4 +196,108 @@ function hash(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
   return h;
+}
+
+// ── 位置也是一个句柄 ────────────────────────────────────────────────────────
+
+/**
+ * 开过的位置留着复用 —— 每次调用都重送一遍运行时的话，什么都别干了。
+ *
+ * **这个池子是内置那条实现的私产**，不是位置这个概念的性质。别的实现（一条
+ * `http://` 边车、一个插件）自己管自己的连接，跟这儿无关。
+ */
+export class Places {
+  #open = new Map<string, Promise<Place>>();
+  #db: Conn;
+
+  constructor(db: Conn) {
+    this.#db = db;
+  }
+
+  /** 送什么过去，登记在 `workplace.runtime` 里 —— 不在代码里写死。 */
+  #runtimeOf(place: string): string | undefined {
+    const row = all(this.#db, `select runtime from workplace where place = ?`, [place])[0] as
+      | { runtime: string | null }
+      | undefined;
+    return row?.runtime ?? undefined;
+  }
+
+  get(place: string): Promise<Place> {
+    let p = this.#open.get(place);
+    if (!p) {
+      p = openPlace(place, this.#runtimeOf(place));
+      this.#open.set(place, p);
+      // 连不上就把这次的坑清掉，下次还能重试 —— 留着的话这个位置就永久废了
+      p.catch(() => this.#open.delete(place));
+    }
+    return p;
+  }
+
+  closeAll(): void {
+    for (const p of this.#open.values()) void p.then((x) => x.close()).catch(() => {});
+    this.#open.clear();
+  }
+}
+
+/** 内置那条转发实现的句柄名。`workplace.identity` 写这个 = 要老行为。 */
+export const HOPS_HANDLE = "fn:place.hops";
+
+/** 转发一次调用要多久算死。**一次工具调用，不是一次求解。** */
+export const PLACE_EXPECT_MS = 120_000;
+
+/**
+ * 一次转发请求 —— **位置句柄收到的就是这个形状**。
+ *
+ * `op` 两个动作，都归同一个句柄：`call` 转发一次工具调用，`ping` 探一次活。
+ * 分成两个句柄的话，写自定义转发的人得实现两个契约，而这两件本来就是同一件事的
+ * 两面：**够得着才转得过去**。
+ */
+export interface PlaceCall {
+  /** 哪个位置。地址串怎么读，是这个句柄自己的事。 */
+  place: string;
+  op: "call" | "ping";
+  /** `op: "call"` 时：转发哪件工具。 */
+  tool?: string;
+  /** `op: "call"` 时：那件工具的参数。 */
+  args?: Record<string, unknown>;
+}
+
+/** `op: "ping"` 的回值。`call` 回的是那件工具自己的返回，这一层不解释。 */
+export interface Pong {
+  alive: boolean;
+  why?: string;
+}
+
+/**
+ * 把内置那条转发实现注册成句柄。
+ *
+ * **「怎么到那个位置」以前是编译进内核的**：`hops` 只认 `wsl` / `ssh` / `docker`
+ * 三种，`launch` 和 `ship` 照那三种拼 argv。于是「这台机器上的 docker 装在 snap 里、
+ * 只在登录 shell 的 PATH 上」这种**机器的性质**没地方安放，唯一的落点是改这三个函数。
+ *
+ * 现在它跟工具、跟 G 的节点、跟推断函数一样是一条句柄：`workplace.identity` 指到
+ * 哪儿，转发就由谁来办。写这个名字 = 要老行为，一个字没变；写 `http://…` 或者一条
+ * 带 `module` 的 `fn:` = 那台机器自己说了算，内核不用动。
+ */
+export function registerPlace(db: Conn, reg: Registry, places: Places): string {
+  reg.register(db, HOPS_HANDLE, PLACE_EXPECT_MS, async (arg) => {
+    const a = (arg ?? {}) as PlaceCall;
+    const place = String(a.place ?? "");
+    if (!place) throw new Error("a place call must say which place");
+
+    if (a.op === "ping") {
+      // **探活走池子里那条连接**，不另开一条：要问的就是「现在在用的这条还通不通」。
+      // 另开一条问的是「还能不能再开一条」，那是另一个问题，而且要重送一遍运行时。
+      try {
+        return { alive: await (await places.get(place)).alive() } satisfies Pong;
+      } catch (e) {
+        return { alive: false, why: e instanceof Error ? e.message : String(e) } satisfies Pong;
+      }
+    }
+
+    const tool = String(a.tool ?? "");
+    if (!tool) throw new Error("a forwarded call must say which tool");
+    return await (await places.get(place)).call(tool, a.args ?? {});
+  });
+  return HOPS_HANDLE;
 }

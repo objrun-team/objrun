@@ -1,0 +1,17 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {join,resolve} from 'node:path';
+import {verifyPin} from '../../repair-2026-10-08/paid-resource-proof-v2.ts';
+import {atomicStateJson} from './shared/atomic-state.ts';
+const root=resolve(import.meta.dir,'../../..'),base=join(root,'docs/repair-2026-10-10/full-f-rerun'),path=join(base,'control.json');
+const control=JSON.parse(readFileSync(path,'utf8')),b=control.broker;
+if(b.pid!==179628||!b.sourcePins[0].path.endsWith('digitalocean-broker-cq-stream.ts')||control.paidReady!==false)throw Error('unexpected_switch_state');
+for(const p of b.sourcePins)verifyPin(p);
+const processResult=Bun.spawnSync(['powershell.exe','-NoProfile','-NonInteractive','-Command',"Get-CimInstance Win32_Process -Filter 'ProcessId=179628' | ForEach-Object { @{pid=$_.ProcessId;bornUtc=$_.CreationDate.ToUniversalTime().ToString('o');commandLine=$_.CommandLine} } | ConvertTo-Json -Compress"]);
+const process=JSON.parse(processResult.stdout.toString());
+if(process.pid!==b.pid||!process.commandLine.includes('digitalocean-broker-cq-stream.ts --serve'))throw Error('new_pid_identity_failed');
+const health=await(await fetch(b.endpoint+'/health')).json() as any;
+if(health.pid!==b.pid||!health.healthy||health.activeRequests||health.queuedRequests||health.canonicalOwner||health.resourceSlots.length)throw Error('new_broker_not_idle_healthy');
+const proof={atUtc:new Date().toISOString(),newPid:b.pid,newBornUtc:process.bornUtc,newRunId:b.runId,newEntry:b.sourcePins[0],sourceCount:b.sourcePins.length,oldPid:142416,oldNormalNativeClosedLanes:32,oldKnownUsd:9.187754316000001,oldUnknownCosts:28,oldArchive:'chemiq-stream-switch/repair-2026-10-10T20-04-21-430Z',oldSourceAndCashUnmodified:true,actualNewModelRequests:0,paidReady:false,storageHold:'E disk full and native meta.db IO; awaiting local free space',dockerRestarted:false};
+writeFileSync(join(base,'chemiq-stream-switch/switch-complete-storage-held.json'),JSON.stringify(proof,null,2)+'\n',{flag:'wx'});
+atomicStateJson(path,{...control,chemiqStreamSwitch:{...control.chemiqStreamSwitch,phase:'installed_storage_recovery_required',newPid:b.pid,newBornUtc:process.bornUtc,newRunId:b.runId,installedProof:'chemiq-stream-switch/switch-complete-storage-held.json',actualModelCalls:0,storageHold:true},updatedAtUtc:new Date().toISOString()});
+console.log(JSON.stringify(proof));

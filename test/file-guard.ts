@@ -27,7 +27,7 @@ import { join } from "node:path";
 import { open } from "../app/src/H2H/db.ts";
 import { Registry } from "../app/src/engine/registry.ts";
 import { install, tableNameOf } from "../app/src/install/index.ts";
-import { Places, registerTools } from "../app/src/tools/register.ts";
+import { registerTools } from "../app/src/tools/register.ts";
 import { done, ok, part, show, step } from "./_lib.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "tgengin-guard-"));
@@ -44,7 +44,8 @@ db.exec(
 db.run(`insert into workplace (place, forward, usable, tools) values (?, 0, 1, ?)`, ["local", ""]);
 
 const reg = new Registry();
-registerTools(db, reg, new Places(store.ro));
+// 这道闸测的是本机那条路（`place: local`，不转发），所以不用挂位置句柄。
+registerTools(db, reg);
 const write = reg.get("fn:tool.write");
 
 /** 装一行「read 回来了」的结果 —— 形状照抄 `tools/unit.ts` 真写进去的那一份。 */

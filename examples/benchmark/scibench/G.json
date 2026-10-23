@@ -1,0 +1,14 @@
+{
+  "slug": "scibench",
+  "grader_port": 17930,
+  "nodes": [
+    {"name": "parsed", "moment": "task_done", "domain": "bool", "handle": "{GRADER}/parsed"},
+    {"name": "correct", "moment": "task_done", "domain": "bool", "handle": "{GRADER}/correct"}
+  ],
+  "edges": [{"src": "parsed", "out": 0, "dst": "correct"}],
+  "sink": "correct",
+  "checks": 5,
+  "reuse": "text",
+  "task": {"domain": "science", "solveSeconds": 600, "maxBranches": 4, "maxDeadSiblings": 100000, "maxSearches": 0},
+  "suffix": "\nSolve the problem. End with one finite numeric answer in the requested unit inside \\boxed{...}. For scientific notation use a\\times 10^{n}."
+}

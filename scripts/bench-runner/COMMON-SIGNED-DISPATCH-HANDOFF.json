@@ -1,0 +1,67 @@
+{
+  "protocol": "bench-common-signed-dispatch-release-handoff-v1",
+  "predecessorHandoffPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\COMMON-QUALIFIED-INTERFACES-HANDOFF.json",
+    "bytes": 5667,
+    "sha256": "ade61d836b0854fceadad66977bb76084ce0bfe45a54a5af2169fd5afdd54f41"
+  },
+  "actualControlFlowProofPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013\\coordinator\\universal-runner\\pipeline-fc5fd-control-flow-audit\\actual-control-flow-proof.json",
+    "bytes": 5375,
+    "sha256": "7f22b6c710cdb36457be289adfbcbf59d9bb09c51d19d645799bf47a44e1aa7f"
+  },
+  "hostBundlePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\141a8976ae0339e0f796b831b740eb8e5e8148ffe1ca125f4e3d1fee3ff12b94\\runner.js",
+    "bytes": 348361,
+    "sha256": "141a8976ae0339e0f796b831b740eb8e5e8148ffe1ca125f4e3d1fee3ff12b94"
+  },
+  "driverBundlePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\972264c4fdd299396dcc3c2ef0673d66549c2ab2633b99aa4bf08bbae3730053\\terminal-driver.js",
+    "bytes": 218994,
+    "sha256": "972264c4fdd299396dcc3c2ef0673d66549c2ab2633b99aa4bf08bbae3730053"
+  },
+  "hostReleasePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\141a8976ae0339e0f796b831b740eb8e5e8148ffe1ca125f4e3d1fee3ff12b94\\release-9a6a73a57b44810a6fa303e3523c1d9b9c8bce1c0e02e4638dabf54dd6e110cb.json",
+    "bytes": 12342,
+    "sha256": "9a6a73a57b44810a6fa303e3523c1d9b9c8bce1c0e02e4638dabf54dd6e110cb"
+  },
+  "driverReleasePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\972264c4fdd299396dcc3c2ef0673d66549c2ab2633b99aa4bf08bbae3730053\\release-8832d0c1dc7e32a74fc11342f33ddcec37920e26cd3cf910158710a0e43dff71.json",
+    "bytes": 8038,
+    "sha256": "8832d0c1dc7e32a74fc11342f33ddcec37920e26cd3cf910158710a0e43dff71"
+  },
+  "sourcePins": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\signed-dispatch-contract.ts",
+      "bytes": 2350,
+      "sha256": "382500075f0d7de1417aebcc4a49c83523708432d12f9738f981e08a4719707f"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\signed-dispatch-contract.test.ts",
+      "bytes": 4036,
+      "sha256": "40221a7eaef4a4c5d4cb082e0bb216eca50d061ab228238b3d9af46a6d19b83f"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\build-signed-dispatch-release.ts",
+      "bytes": 9466,
+      "sha256": "2f5ad011df1b77af7e86cd40d86a2c8afeef5a42ac81a53b4ed889c0beaf2185"
+    }
+  ],
+  "narrowChanges": [
+    "Before actual resource acquisition, loadPreparedContext verifies real Ed25519 signed manifest/nonce/argv/input/expiry binding then actual canonical/attempt lock pins and signed entry join; only then derives standard NOVAEVE_ROOT_ONLY_DISPATCH=1. No PID or signature is invented.",
+    "Qualified campaign result summary/financial pin join is written as driver-campaign-outcome.json; returned fatal/incomplete sets exitCode2 while preserving original verdict and normal lane cash closure/finally native hold behavior.",
+    "All prior task/provider/CPU/memory/seconds/unknown/resource/source guards unchanged; no original source edited."
+  ],
+  "localValidation": {
+    "tests": 2,
+    "assertions": 10,
+    "failed": 0,
+    "actualEd25519Binding": true,
+    "wrongSignatureRejectedBeforeEnv": true,
+    "wrongCanonicalTaskRejected": true,
+    "fatalOutcomeNotFakeNativeClosed": true,
+    "BenchModelGradeOracleResources": 0
+  },
+  "productionReadiness": "old attempt remains unknown until exact native/resource closure root-reviewed; no successor task entry or new attempt created by this package",
+  "rootNext": "Use new content-addressed host and driver in new data-only manifest/template after tb_first full closure and actual third/current cash chain review. Do not rerun old attempt or release held resources from exit code."
+}

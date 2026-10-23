@@ -12,6 +12,8 @@
  */
 
 const BASE = process.env.TGENGIN_BASE ?? "http://127.0.0.1:7801/api";
+/** 引擎设了 api.publisherToken 时，绑判据要带这把钥匙（X-TGEngin-Publisher）。从环境变量取；没设就是空对象，老行为不变。 */
+const PUBLISHER: Record<string, string> = process.env.TGENGIN_PUBLISHER_TOKEN ? { "x-tgengin-publisher": process.env.TGENGIN_PUBLISHER_TOKEN } : {};
 const GRADER = process.env.TGENGIN_CMT_GRADER ?? "http://127.0.0.1:7901";
 const HOW_MANY = Number(process.argv[2] ?? 0);
 const RUN = process.argv[3] ?? `cmt-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}`;
@@ -84,8 +86,20 @@ const objective = {
   // 有上限这件事本身才是要紧的：不设的话，最省事的策略是把答案空间枚举一遍
   // （实测过一道题被连着试了七十七个排列组合），而那样得来的分数量的是答案空间
   // 有多大，不是它会不会做。
-  checks: 10,
+  checks: Number(process.env.TGENGIN_CMT_CHECKS ?? 10),
 };
+
+/**
+ * **U 臂：不挂 G。** 报告一 §6 预注册的 unaided arm —— 同一批题、同一个求解器、同一份
+ * 描述，只是任务不带验证函数：交卷即收工，没有判决、没有判死重来，pass@1。
+ *
+ * 描述要**逐字节一样**（附录 A 的 B3）：带 G 的题 `readable: true` 时发布口会把
+ * `## Acceptance criteria` + G 的 JSON 拼到描述后面；不带 G 的题发布口不拼，所以这儿
+ * 由发题脚本拼同一段。判分在跑完之后由 `grade-unaided.ts` 拿交卷内容去问判卷台。
+ */
+const UNAIDED = process.env.TGENGIN_CMT_UNAIDED === "1";
+/** 哪把钥匙、哪个模型。默认跟基线一样；U 臂换到 OpenRouter 上的 0731 时从这儿改。 */
+const BOT_APIS = process.env.TGENGIN_CMT_BOT_APIS;
 
 const tasks = items.map((it) => ({
   id: `cmt-${it.index}`,
@@ -109,7 +123,26 @@ const tasks = items.map((it) => ({
   // 「时间到了」，不该是「格子用完了」。哪一样先撞上，成绩单说的就是哪一样，
   // 而我们想量的是前者。
   maxBranches: 4,
-  maxDeadSiblings: 8,
+  maxDeadSiblings: Number(process.env.TGENGIN_CMT_K ?? 8),
+  /**
+   * **一轮里准搜几次。** 一轮 = 一站，判死重来是新的额度；被拦下的、超额被拒的都不扣数。
+   *
+   * 这个数是量出来的，不是拍的。上一跑（同样 medium、同样一小时、**没设这一栏**）
+   * 一道题的一小时是这么花的：
+   *
+   * | | 占了多少 |
+   * | --- | --- |
+   * | 问模型 | 60%（462 次 × 107 秒） |
+   * | **等检索** | **39%**（230 次 × 138 秒） |
+   * | 跑别的工具 | 1%（198 次 × 5 秒） |
+   *
+   * 平均每道搜 16 次、最多 34 次 —— **一小时里有 23 分钟在等检索**，而那一跑没有一道题
+   * 撞到过格子上限：卡住它们的是钟。一次检索比一次思考还贵（138 秒 vs 107 秒），
+   * 所以省下来的每一次都直接换成一次能推导的调用。
+   *
+   * 给 5：够「查一篇文献 → 查它引的那篇 → 补个定义」这么一串，不够把一个方向来回翻。
+   */
+  maxSearches: 5,
   /**
    * **不许搜到这套题本身。**
    *
@@ -158,15 +191,18 @@ const tasks = items.map((it) => ({
     `${it.prompt}\n\n` +
     (it.parameters ? `Symbols: ${it.parameters}\n` : "") +
     (it.functions ? `Functions: ${it.functions}\n` : "") +
-    `\nPut the final answer inside \\boxed{}.`,
-  objective,
+    `\nPut the final answer inside \\boxed{}.` +
+    (UNAIDED ? `\n\n## Acceptance criteria\n${JSON.stringify(objective, null, 2)}` : ""),
+  ...(UNAIDED ? {} : { objective }),
   // 带 G 就必须显式给：这道题的智能体读不读得到 G 的定义。
   //
   // **给 true。** 要藏的只有 GT，不是验收标准 —— 「答案得在 \boxed{} 里、
   // 而且要被官方 parser 读得出来」本来就该让它知道。藏着的那一跑五道里两道
   // 死在 parsed=False：不是不会做，是不知道尺子长什么样。
-  readable: true,
+  ...(UNAIDED ? {} : { readable: true }),
 }));
+if (UNAIDED) console.log(`${RUN}: UNAIDED arm - no objective mounted, descriptions carry the same acceptance text`);
+void BOT_APIS;
 
 /**
  * **同时做几道。** 0 = 不管，整批一次全发出去（老行为）。
@@ -200,7 +236,7 @@ if (AT_ONCE > 0) {
     while ((await busy()) >= AT_ONCE) await Bun.sleep(5000);
     const r = await fetch(`${BASE}/tasks`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...PUBLISHER },
       body: JSON.stringify({ ...t, run: RUN }),
     });
     if (!r.ok) {
@@ -215,7 +251,7 @@ if (AT_ONCE > 0) {
 } else {
   const res = await fetch(`${BASE}/bench`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...PUBLISHER },
     body: JSON.stringify({ run: RUN, tasks }),
   });
   const got = (await res.json()) as { run?: string; ids?: string[]; error?: string };

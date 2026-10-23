@@ -1,0 +1,40 @@
+{
+  "slug": "gpqa",
+  "grader_port": 7912,
+  "nodes": [
+    {
+      "name": "parsed",
+      "moment": "task_done",
+      "domain": "bool",
+      "handle": "{GRADER}/parsed"
+    },
+    {
+      "name": "correct",
+      "moment": "task_done",
+      "domain": "bool",
+      "handle": "{GRADER}/correct"
+    }
+  ],
+  "edges": [
+    {
+      "src": "parsed",
+      "out": 0,
+      "dst": "correct"
+    }
+  ],
+  "sink": "correct",
+  "checks": 1,
+  "task": {
+    "domain": "science",
+    "solveSeconds": 900,
+    "maxBranches": 4,
+    "maxDeadSiblings": 0,
+    "maxSearches": 5,
+    "noSearch": [
+      "gpqa",
+      "graduate-level google-proof",
+      "idavidrein"
+    ]
+  },
+  "suffix": "\n\nThink step by step, then end your response with exactly this sentence: The correct answer is (X), where X is A, B, C or D."
+}

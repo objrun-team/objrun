@@ -1,0 +1,52 @@
+{
+  "benchmark": "LLM-SRBench-public-release240",
+  "run": "llm-srbench-20261019-v2",
+  "count": 240,
+  "model": "deepseek/deepseek-v4.1-flash",
+  "provider": "DigitalOcean",
+  "providerSlug": "digitalocean",
+  "maxTokens": 16384,
+  "temperature": 0,
+  "reasoning": "high",
+  "environmentTag": "public-f4101e20-numpy1.26.4-scipy1.11.4-expr-v1",
+  "sourceCommit": "6fdbe409b75ea749c0a93c69b6861637d804dec4",
+  "dataRevision": "f4101e201952bb35cab8332b6dcf337b6df02aa8",
+  "arms": [
+    "baseline",
+    "objrun",
+    "independent",
+    "binary"
+  ],
+  "maxCandidates": {
+    "baseline": 1,
+    "objrun": 5,
+    "independent": 5,
+    "binary": 5
+  },
+  "maxUsdPerTask": {
+    "baseline": 0.025,
+    "objrun": 0.1,
+    "independent": 0.1,
+    "binary": 0.1
+  },
+  "formalSolverMaximumUsd": 78.0,
+  "taskConcurrency": 4,
+  "graderConcurrency": 2,
+  "native": {
+    "checks": 5,
+    "solveSeconds": 600,
+    "maxBranches": 4,
+    "maxUnits": 12
+  },
+  "feedbackPredicate": "finite predictions on all training points and NMSE<=0.01",
+  "finalEvaluation": "ID/OOD only after all final candidates are frozen",
+  "symbolicAccuracyJudgeEnabled": false,
+  "accountTopUp": false,
+  "canaryCount": 10,
+  "canarySelection": "round robin over remaining subsets, first eligible catalog order with all four arms unstarted in v1",
+  "continueAutomaticallyAfterCanaryAudit": true,
+  "protocolVersion": "v2",
+  "expectedNewRecords": 483,
+  "priorUpperBoundUsd": 8.243998152,
+  "priorUnknownReserveUsd": 0.09758579999999917
+}

@@ -1,0 +1,4 @@
+import {dlopen,FFIType,ptr} from 'bun:ffi';
+if(process.platform!=='win32'||process.arch!=='x64')throw Error('exact_windows_x64_process_identity_required');
+const api=dlopen('C:/Windows/System32/kernel32.dll',{OpenProcess:{args:[FFIType.u32,FFIType.i32,FFIType.u32],returns:FFIType.u64},GetProcessTimes:{args:[FFIType.u64,FFIType.ptr,FFIType.ptr,FFIType.ptr,FFIType.ptr],returns:FFIType.i32},CloseHandle:{args:[FFIType.u64],returns:FFIType.i32}});
+export function processIncarnation(pid:number){const handle=api.symbols.OpenProcess(0x1000,0,pid);if(!handle)throw Error('exact_owned_pid_not_live');try{const values=[0,1,2,3].map(()=>new Uint8Array(8));if(!api.symbols.GetProcessTimes(handle,...values.map(ptr) as [number,number,number,number]))throw Error('exact_process_creation_unavailable');return new DataView(values[0].buffer).getBigUint64(0,true).toString();}finally{api.symbols.CloseHandle(handle);}}

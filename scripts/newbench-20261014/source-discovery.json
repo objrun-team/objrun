@@ -1,0 +1,18 @@
+{
+  "classeval_commit": "90825141e640418ae6dc8257397345ee3ac36cbc",
+  "bird_revision": "3c11fb193e5439b338e23677fa0aae11e8b85db9",
+  "bird_files": [
+    {
+      "rfilename": ".gitattributes"
+    },
+    {
+      "rfilename": "README.md"
+    },
+    {
+      "rfilename": "data/dev_20251106-00000-of-00001.json"
+    }
+  ],
+  "bird_links": [
+    "https://bird-bench.oss-cn-beijing.aliyuncs.com/dev.zip"
+  ]
+}

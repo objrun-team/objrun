@@ -32,7 +32,7 @@ import type { Servers } from "../mcp/client.ts";
 import { inspectServer, pull, type ServerDecl } from "../mcp/register.ts";
 import { install, tableNameOf } from "../install/index.ts";
 import { MODE_NAMES } from "../llm/index.ts";
-import { hops } from "../place/index.ts";
+import { HOPS_HANDLE, hops } from "../place/index.ts";
 import { withSubmit } from "../tree/dfs.ts";
 
 /** MCP 工具没说多久算死时给多少。一次工具调用，不是一次求解。 */
@@ -42,6 +42,14 @@ export const MCP_EXPECT_MS = 120_000;
 export interface PlaceDecl {
   /** 带层级的地址串：`local` / `wsl` / `ssh://box-7` / `wsl/docker:build-01` …… */
   place: string;
+  /**
+   * **谁把工具调用送到这个位置去** → `handle.name`。
+   *
+   * 转发的话必须给（下面那道闸）。内置那条是 `fn:place.hops`（`wsl` / `ssh` /
+   * `docker` 那套命令前缀）；写 `http://…` 或者一条带 `module` 的 `fn:`，
+   * 就是那台机器自己说了算 —— 「怎么到那个位置」是句柄的事，不是内核的事。
+   */
+  identity?: string | null;
   /** 要送过去的那个运行时（本机文件路径）。`local` 留空。 */
   runtime?: string | null;
   /** 工具调用转不转发过去。默认不转。 */
@@ -149,9 +157,33 @@ export interface ToolDecl {
   concurrent?: boolean;
   /** 系统工具：所有智能体一上来就有，**不看 `when`**。 */
   system?: boolean;
+  /**
+   * 它的返回是哪一类东西 → `msg_part.name`。压上下文的时候按这个决定丢得起什么。
+   *
+   * `look` 再看一眼就有、而且会过期；`event` 拿不回来了；`receipt` 一行账。
+   * 不填 = `event`：把拿不回来的当成能再拿一次，是唯一赔不起的那个方向。
+   */
+  gives?: string | null;
   access?: string | null;
   usable?: boolean;
   when?: WhenDecl;
+}
+
+/**
+ * 一种压法。**跟工具同一个形状** —— 名字、干这件事的句柄、收什么、回什么。
+ *
+ * 声明进来的和内置的那几种是同一种行（`press_how`），所以「需要一个模型才做得了的
+ * 压法」不用进内核：在外面实现，声明一下就是了。
+ */
+export interface HowDecl {
+  /** `msg_part` 的 l1/l2/l3 三列填的就是这个名字。 */
+  name: string;
+  identity: string;
+  /** 收什么，JSON schema。 */
+  params: unknown;
+  /** 回什么，JSON schema。 */
+  output: unknown;
+  note?: string | null;
 }
 
 /** 一条规则。挂在时刻上就是钩子（`dim: "moment"`）。 */
@@ -207,6 +239,7 @@ export interface Declare {
   modes?: ModeDecl[];
   agents?: AgentDecl[];
   tools?: ToolDecl[];
+  hows?: HowDecl[];
   rules?: RuleDecl[];
   skills?: SkillDecl[];
 }
@@ -318,17 +351,39 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
       }
     }
     if (p.forward) {
-      // **位置串只有要转发的时候才得是一串跳板**，因为那时候它要被拿去拼命令。
-      // 不转发的地方，名字就只是个名字：一个本机浏览器标签页、一个工位、一条产线。
-      // 它决定的是「这一站手上有哪些工具」（`dim: place`），不决定工具跑在哪台机器上。
-      // 认不得的话等到真去转发那一刻才炸 —— 那时候任务已经在半路上了。
-      try {
-        hops(p.place);
-      } catch (e) {
-        say(`${at}: ${e instanceof Error ? e.message : String(e)}`);
+      // **转发就必须说清由谁转。**
+      //
+      // 以前这儿没有这一问，因为「怎么到那个位置」是编译进内核的：`hops` 只认
+      // `wsl` / `ssh` / `docker` 三种，命令怎么拼也写死。于是「这台机器上的
+      // docker 装在 snap 里、只在登录 shell 的 PATH 上」这种**机器的性质**没地方
+      // 安放，唯一的落点是改内核那三个函数。
+      //
+      // 现在位置跟工具、跟 G 的节点一样由句柄接住。不给的话，任务会一路走到某件
+      // 工具真要转发的那一刻才炸 —— 那时候它已经在半路上了。
+      const identity = String(p.identity ?? "").trim();
+      if (!identity) {
+        say(`${at}: it forwards, but no handle was given to carry the calls there - name one in identity`);
+      } else if (!handleThere(identity)) {
+        say(`${at}: ${noHandle(identity)}`);
       }
-      // 转发是要把运行时送过去的。没登记送什么，`openPlace` 会在第一次调用时炸。
-      if (p.place !== "local" && !p.runtime) say(`${at}: it forwards, but no runtime was given - there is nothing to ship over`);
+      // ── 下面两条只问内置那条实现 ────────────────────────────────────
+      //
+      // **地址串怎么读，是那条句柄的事。** `fn:place.hops` 读的是一串跳板
+      // （`wsl` / `ssh` / `docker`），拿去拼命令前缀，所以认不得的写法当场就得炸
+      // —— 猜的话会连到别的地方去。换一条句柄，地址就该按它自己的写法读：
+      // `modal:sandbox-7` 在它那儿是合法的，在这儿不该被拦。
+      if (identity === HOPS_HANDLE) {
+        try {
+          hops(p.place);
+        } catch (e) {
+          say(`${at}: ${e instanceof Error ? e.message : String(e)}`);
+        }
+        // 它是要把运行时送过去的。没登记送什么，第一次调用才炸。
+        // **别的实现不问这一句** —— 送不送、送什么，一样是那条句柄自己的事。
+        if (p.place !== "local" && !p.runtime) {
+          say(`${at}: ${HOPS_HANDLE} ships a runtime over, but none was given - there is nothing to ship`);
+        }
+      }
       // 开了总闸而白名单是空的 = 一个工具都不会转发。**合法，但一定不是本意。**
       if ((p.tools ?? []).length === 0) say(`${at}: forwarding is on but the allow-list is empty - not a single tool would be forwarded`);
     }
@@ -522,6 +577,25 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
     }
   }
 
+  // ── 压法 ──────────────────────────────────────────────────────────────
+  const hows = new Set<string>();
+  for (const h of d.hows ?? []) {
+    const at = `press how ${h.name || "(unnamed)"}`;
+    if (!h.name || !h.name.trim()) {
+      say(`a way of pressing has no name`);
+      continue;
+    }
+    if (hows.has(h.name)) say(`${at}: appears twice in this declaration`);
+    hows.add(h.name);
+    if (!h.identity || !handleThere(h.identity)) {
+      say(`${at}: identity is ${h.identity ?? "(empty)"}, but ${noHandle(String(h.identity))}`);
+    }
+    // 两份 schema 都得给。**收什么、回什么说不清的话，压出来的东西没人验得了**，
+    // 而压错了的上下文照样发得出去 —— 那是最难查的一种错。
+    if (h.params === undefined || h.params === null) say(`${at}: params is missing - what the handle is given must be declared`);
+    if (h.output === undefined || h.output === null) say(`${at}: output is missing - what the handle answers must be declared`);
+  }
+
   // ── 规则 ──────────────────────────────────────────────────────────────
   const rules = new Set<string>();
   for (const r of d.rules ?? []) {
@@ -618,11 +692,12 @@ export async function apply(db: Conn, reg: Registry, pool: Servers, d: Declare):
     for (const p of d.places ?? []) {
       run(
         db,
-        `insert into workplace (place, runtime, forward, tools, usable) values (?, ?, ?, ?, ?)
-         on conflict(place) do update set runtime = excluded.runtime, forward = excluded.forward,
-           tools = excluded.tools, usable = excluded.usable`,
+        `insert into workplace (place, identity, runtime, forward, tools, usable) values (?, ?, ?, ?, ?, ?)
+         on conflict(place) do update set identity = excluded.identity, runtime = excluded.runtime,
+           forward = excluded.forward, tools = excluded.tools, usable = excluded.usable`,
         [
           p.place,
+          p.identity ?? null,
           p.runtime ?? null,
           p.forward ? 1 : 0,
           JSON.stringify(p.tools ?? []),
@@ -685,19 +760,29 @@ export async function apply(db: Conn, reg: Registry, pool: Servers, d: Declare):
       );
     }
 
+    for (const h of d.hows ?? []) {
+      run(
+        db,
+        `insert into press_how (name, note, identity, params, output) values (?, ?, ?, ?, ?)
+         on conflict(name) do update set note = excluded.note, identity = excluded.identity,
+           params = excluded.params, output = excluded.output`,
+        [h.name, h.note ?? null, h.identity, JSON.stringify(h.params), JSON.stringify(h.output)],
+      );
+    }
+
     for (const t of d.tools ?? []) {
       run(
         db,
-        `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable)
-         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `insert into tool (name, identity, does, params, output, prompt, concurrent, system, access, usable, gives)
+         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          on conflict(name) do update set identity = excluded.identity, does = excluded.does,
            params = excluded.params, output = excluded.output, prompt = excluded.prompt,
            concurrent = excluded.concurrent, system = excluded.system,
-           access = excluded.access, usable = excluded.usable`,
+           access = excluded.access, usable = excluded.usable, gives = excluded.gives`,
         [
           t.name, t.identity, t.does, JSON.stringify(t.params), JSON.stringify(t.output),
           t.prompt ?? null, t.concurrent ? 1 : 0, t.system ? 1 : 0, t.access ?? null,
-          t.usable === false ? 0 : 1,
+          t.usable === false ? 0 : 1, t.gives ?? null,
         ],
       );
       putWhen(db, "tool", t.name, t.when);
@@ -762,10 +847,11 @@ export async function apply(db: Conn, reg: Registry, pool: Servers, d: Declare):
  * 于是「导出这台机器的配置 / 在另一台上重建」就是两次调用，客户端不用自己拼。
  */
 export function dump(db: Conn): Declare {
-  const places = (all(db, `select place, runtime, forward, tools, usable from workplace order by place`) as {
-    place: string; runtime: string | null; forward: number; tools: string; usable: number;
+  const places = (all(db, `select place, identity, runtime, forward, tools, usable from workplace order by place`) as {
+    place: string; identity: string | null; runtime: string | null; forward: number; tools: string; usable: number;
   }[]).map((r) => ({
     place: r.place,
+    identity: r.identity,
     runtime: r.runtime,
     forward: Boolean(r.forward),
     tools: safeJson(r.tools, []) as { tool: string; policy: string }[],

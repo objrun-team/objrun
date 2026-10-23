@@ -1,0 +1,72 @@
+{
+  "protocol": "bench-relative-verified-resource-release-handoff-v1",
+  "supersedesOnlyCandidateRelease": "5704286562747a2a13a1d880f800f082ef8bc864d661c714aadeef31756383b6",
+  "sourcePins": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\relative-launcher-environment.ts",
+      "bytes": 1263,
+      "sha256": "d1e54675d9f0817f4f22edbeaa6692478f19d565514d3eb05b48054e26774155"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\original-owned-resource.ts",
+      "bytes": 2133,
+      "sha256": "70c547f414784baf2956b59af16a151aceec77e4179276fc1fd8f9a33917c12b"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\build-relative-verified-release.ts",
+      "bytes": 15943,
+      "sha256": "a47fe3b326dff51e29d1b34e72dd0aae11d6866ef0029d5562984240f4ceb7e4"
+    }
+  ],
+  "hostPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\76160f804518cdcdf20ce1517025f1d67003d96e26e264247cc912b24aaabb93\\runner.js",
+    "bytes": 367719,
+    "sha256": "76160f804518cdcdf20ce1517025f1d67003d96e26e264247cc912b24aaabb93"
+  },
+  "hostAttestationPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\76160f804518cdcdf20ce1517025f1d67003d96e26e264247cc912b24aaabb93\\release-890a340ba18570a6fe62a71afebaecefb704eb6ab83342849e1a9ce5ee259cd6.json",
+    "bytes": 15404,
+    "sha256": "890a340ba18570a6fe62a71afebaecefb704eb6ab83342849e1a9ce5ee259cd6"
+  },
+  "driverPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\bcd884a0779bc35b36c5a0eccdd985240ac1fc6d8ea3d8d37f908c10c453ad45\\terminal-driver.js",
+    "bytes": 251125,
+    "sha256": "bcd884a0779bc35b36c5a0eccdd985240ac1fc6d8ea3d8d37f908c10c453ad45"
+  },
+  "driverAttestationPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\release\\bcd884a0779bc35b36c5a0eccdd985240ac1fc6d8ea3d8d37f908c10c453ad45\\release-9255698085ec88acaf98a752b20847a88ba40b0df1312757cbef331956977904.json",
+    "bytes": 10402,
+    "sha256": "9255698085ec88acaf98a752b20847a88ba40b0df1312757cbef331956977904"
+  },
+  "testPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\relative-verified-release.test.ts",
+    "bytes": 1572,
+    "sha256": "0aaa2d802a7d90734bf11d67cfa14ac480dba4d62bd683608227f714bad4acbe"
+  },
+  "tests": {
+    "pass": 2,
+    "expects": 7,
+    "exitCode": 0,
+    "resources": 0,
+    "models": 0,
+    "nativeBench": 0
+  },
+  "changes": [
+    "Only relative launcher branch: generates exact same launcher text as install, parses unique literal full environment forwarding loop, asserts before actual spawn; no skipped source gate",
+    "Common resource API verifies actual76 connection and exact returned PID incarnation/token/nonorphan/slots/memory/growth; positive original2048 permitted without raising original resource; same existing resource pool"
+  ],
+  "dataChange": {
+    "resourceImport": {
+      "pin": {
+        "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\bench-runner\\original-owned-resource.ts",
+        "bytes": 2133,
+        "sha256": "70c547f414784baf2956b59af16a151aceec77e4179276fc1fd8f9a33917c12b"
+      },
+      "export": "resource"
+    },
+    "activationImport": "Original epoch activated export may remain; old resource export is not called",
+    "pythonOsImport": "Original docker_owned.py lacks os; exact data mapping import hashlib -> import hashlib, os before npipe-to-os.environ mapping"
+  },
+  "pending": "tb final production data and root-signed standard preflight; this handoff does not assert a Bench launch/prefix succeeded",
+  "oldFrozenSourcesModified": false
+}

@@ -18,6 +18,8 @@ import { BadName, NoSuchTable, open, type Store } from "./db.ts";
 /** 写口被打了之后喊一声。**只是喊一声，不带数据** —— 带了就成内存队列了。 */
 export interface Hooks {
   onWrite?: () => void;
+  /** 不校验令牌的路径（那张页本身）。**只放页，不放数据** —— 页里发的数据请求照样要令牌。 */
+  public?: string[];
 }
 
 /** 起好的那台。`routes` 带着已经装上的口 —— 上面那层要拿它去装 help。 */
@@ -56,11 +58,43 @@ export async function build(cfg: Config, hooks: Hooks = {}): Promise<App> {
   if (cfg.api.token) {
     app.addHook("onRequest", async (req, reply) => {
       if (req.url.startsWith(`${cfg.api.prefix}/health`)) return;
+      if ((hooks.public ?? []).includes(req.url.split("?")[0])) return;
       const got = req.headers.authorization ?? "";
       if (got !== `Bearer ${cfg.api.token}`) {
         return reply.code(401).send({ error: "bad token - send Authorization: Bearer <token>" });
       }
     });
+  }
+
+  // **封存域和绑判据这两道闸，在路由之前统一拦。**
+  //
+  // 1. 原始 SQL 不许 ATTACH / DETACH。只读连接挡得住写，挡不住把封存库挂进来读 ——
+  //    `/query` 一句 ATTACH 就能读出全部判据定义（10-01 审计实测过）。拦关键词是下策，
+  //    但够不到另一个库文件只有 ATTACH 这一个口，这里认这个词是准的。
+  // 2. 绑判据要发布者令牌（`api.publisherToken`）。来源字段是调用方自报的：容器里的
+  //    求解器能连到这个 API 时，报一个 `user` 就能给自己的任务绑判据。
+  const pub = cfg.api.publisherToken;
+  app.addHook("preHandler", async (req, reply) => {
+    if (req.method !== "POST") return;
+    const path = req.url.split("?")[0];
+    const p = cfg.api.prefix;
+    if (path === `${p}/query` || path === `${p}/exec`) {
+      const sql = (req.body as { sql?: unknown } | undefined)?.sql;
+      if (typeof sql === "string" && /\b(attach|detach)\b/i.test(sql)) {
+        return reply.code(403).send({ error: "ATTACH and DETACH are refused: the sealed store is a separate access domain and no route may open it" });
+      }
+    }
+    if (pub && (path === `${p}/tasks` || path === `${p}/bench`)) {
+      const b = req.body as { objective?: unknown; tasks?: Array<{ objective?: unknown } | null> } | undefined;
+      const binds = (b?.objective !== undefined && b?.objective !== null) ||
+        (Array.isArray(b?.tasks) && b.tasks.some((t) => t?.objective !== undefined && t?.objective !== null));
+      if (binds && req.headers["x-tgengin-publisher"] !== pub) {
+        return reply.code(403).send({ error: "binding an objective needs the publisher token: send X-TGEngin-Publisher: <token>" });
+      }
+    }
+  });
+  if (!pub) {
+    app.log.warn("api.publisherToken is not set: any caller that reaches /tasks or /bench can bind an objective by declaring a non-agent source. Set it (or TGENGIN_PUBLISHER_TOKEN) and keep it out of the solver's reach.");
   }
 
   const routes = h2hRoutes(cfg, store, () => hooks.onWrite?.());

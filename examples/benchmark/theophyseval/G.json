@@ -1,0 +1,13 @@
+{
+  "slug": "theophyseval-automatic49",
+  "nodes": [
+    {"name": "output_valid", "moment": "done", "domain": "bool", "handle": "{GRADER}/output_valid"},
+    {"name": "correct", "moment": "done", "domain": "bool", "handle": "{GRADER}/correct"}
+  ],
+  "edges": [{"src": "output_valid", "out": 0, "dst": "correct"}],
+  "sink": "correct",
+  "checks": 5,
+  "reuse": "never",
+  "task": {"solveSeconds": 600, "maxBranches": 4, "cyclesMaxUnits": 12},
+  "candidate": "immutable per-session snapshot of /output; submit the exact snapshot identifier"
+}
