@@ -10,6 +10,24 @@
 
 `records.py read --collection COLLECTION --path outer.zip --member inner.tar.gz --member run.sqlite --table events` 可读取嵌套压缩包内的表。`verify` 同时核对这些嵌套数据库的行数。回归检查运行 `python -B scripts/storage/test_records_export.py`，使用临时合成小样本核验真实 WAL 依赖、嵌套读取、脱敏和增量去重，不访问原档或网络。
 
+剩余来源的增量整理使用下列工具；每次输出均使用新目录，原档只读：
+
+- `recover_tar_records.py` 恢复损坏 TAR 中实际可读的成员。截断正文保留可用字节和声明长度，不能把恢复部分内容说成完整原件。
+- `repair_database_pairs.py` 根据已核对的原始封存清单配对改名后的 SQLite/WAL；先核对原始内容哈希，再导出一致性副本并登记配对依据。普通 `.sqlite-wal.snapshot` 命名由导出器直接识别。
+- `curate_embedded_payloads.py` 识别 JSON 中 Base64 编码的资源本体，保留大小、哈希和路径；文本工具证据不截断，嵌入文本中的凭证同样脱敏。转换清单明确区分原件哈希与导出哈希。
+- `redact_record_findings.py` 根据核验产生的对象哈希修正上传副本，报告不写匹配值；随后必须再次运行筛选打包与完整核验，确保旧分片中的未脱敏字节也不进入提交。
+- `resume_export.py` 在清单写入失败后按原始内容哈希复用已导出记录，再顺序读取原档补齐缺项。缓存输出只是中间目录，可能包含未引用片段，必须经过增量合并与筛选后才能发布。
+- `prepare_incremental.py` 比较来源路径和哈希，将新增及修复条目编入独立来源清单。`--resource-hashes` 接受经过内容核查的排除证据。此工具会登记未读条目，登记本身不代表已充分检索或恢复；应先完成内容检查。
+- `append_records.py` 合并准备清单及其 `entry_overrides`。旧路径可通过 `records.py` 定位到已修复条目，旧分片仍保留。
+- `finalize_incremental.py` 依据带证据的 JSON 路径规则排除资源，只重新打包尚未发布的片段；`--base` 指定的已发布分片字节不变。它会重建运行索引并登记排除项。
+- `verify_incremental.py` 复用基线分片证明，对新分片完整解压、核验哈希及重组，检查数据库行数并扫描新增正文、跨片边界和解码后的元数据。读取范围限制在候选记录目录内。
+- `verify_samples.py` 按选择清单恢复真实运行的数据库输入、输出、工具记录、状态以及独立请求/响应/结果；禁止读取记录目录以外的原档。样例成功只证明该样例，不证明所有运行完整。
+- `coverage_records.py` 从当前有效索引生成逐 Bench 覆盖表，分别统计外层文件、嵌套记录引用、数据库状态和来源运行范围；这些数字不能作为独立实验次数。
+- `shard_object_index.py --root RECORDS` 在最终验收前将对象索引拆成不超过 25 MiB 的独立 gzip 分片，逐片登记哈希并检查映射往返一致。`records.py` 同时兼容旧单文件索引和新 `manifests/object-index.json`；正文分片不变。
+- `compact_record_reports.py --root RECORDS` 将较大的逐项资源排除清单转为带哈希的压缩分片，摘要仍可直接阅读，排除项不会因报告压缩而丢失。
+
+`catalog.json` 的 `entry_overrides` 保存旧来源路径到修复条目的映射。`source_sha256` 始终描述原件，导出内容哈希描述转换后的记录。资源排除、凭证脱敏、归档展开、数据库导出和原始截断分别记录。
+
 下面的 Restic 工具仅维护本地核对原件及历史完整环境恢复；本轮保留原档，不将其作为发布资产。
 
 归档数据位于工作区根目录的 `_objrun-archive/`，不进入 Git。需 Python 3.12+ 和 Restic 0.19.1；本次 Windows 清理脚本使用 PowerShell 7。当前工具保留普通文件的完整字节、原路径与修改时间；不依赖 Windows ACL 来恢复实验记录。

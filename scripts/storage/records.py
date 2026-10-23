@@ -8,15 +8,29 @@ def read_json(path):return json.loads(path.read_text(encoding='utf-8'))
 class Records:
     def __init__(self,root):
         self.root=root.resolve(strict=True);self.catalog=read_json(self.root/'catalog.json');self.packs={x['path']:x for x in read_json(self.root/'manifests/packs.json')};self.objects={};self.cache_name=None;self.cache={};self.lru=collections.OrderedDict()
-        with gzip.open(self.root/'manifests/objects.jsonl.gz','rt',encoding='utf-8') as f:
-            for line in f:
-                row=json.loads(line);self.objects[row['sha256']]=row
-    def entries(self):
+        legacy=self.root/'manifests/objects.jsonl.gz'
+        if legacy.exists():
+            with gzip.open(legacy,'rt',encoding='utf-8') as f:
+                for line in f:
+                    row=json.loads(line);self.objects[row['sha256']]=row
+        else:
+            index=read_json(self.root/'manifests/object-index.json')
+            for shard in index['shards']:
+                packed=(self.root/shard['path']).read_bytes();assert len(packed)<=25*1024*1024 and digest(packed)==shard['sha256']
+                lines=gzip.decompress(packed).splitlines();assert len(lines)==shard['rows']
+                for line in lines:
+                    row=json.loads(line);assert row['sha256'] not in self.objects;self.objects[row['sha256']]=row
+            assert len(self.objects)==index['objects']
+    def entries(self,collection_name=None):
         for collection in self.catalog['collections']:
+            if collection_name is not None and collection['collection']!=collection_name:continue
             for shard in collection['manifest_shards']:
                 packed=(self.root/shard['path']).read_bytes();assert digest(packed)==shard['sha256']
                 raw=zstd.ZstdDecompressor().decompress(packed)
-                for line in raw.splitlines():yield json.loads(line)
+                for line in raw.splitlines():
+                    row=json.loads(line)
+                    key=json.dumps([row['collection'],row['path']],separators=(',',':'))
+                    if key not in self.catalog.get('entry_overrides',{}):yield row
     def load_pack(self,name):
         if name==self.cache_name:return
         if name in self.lru:
@@ -35,7 +49,11 @@ class Records:
             self.load_pack(self.objects[h]['pack']);data=self.cache[h];hasher.update(data);size+=len(data);yield data
         assert size==content['bytes'] and hasher.hexdigest()==content['sha256']
     def get(self,collection,path):
-        for row in self.entries():
+        seen=set()
+        while (key:=json.dumps([collection,path],separators=(',',':'))) in self.catalog.get('entry_overrides',{}):
+            if key in seen:raise ValueError('Cyclic record override')
+            seen.add(key);collection,path=self.catalog['entry_overrides'][key]
+        for row in self.entries(collection):
             if row['collection']==collection and row['path']==path:return row
         raise ValueError('Record not found')
 
@@ -71,10 +89,10 @@ def verify(records):
         for content in contents(entry):
             refs+=1
             assert sum(records.objects[h]['bytes'] for h in content['parts'])==content['bytes']
-            signature=content['sha256']
+            signature=(content['sha256'],content['bytes'],tuple(content['parts']))
             if signature not in seen:
-                if not content['parts']:assert signature==digest(b'')
-                elif len(content['parts'])==1:assert signature==content['parts'][0]
+                if not content['parts']:assert content['sha256']==digest(b'')
+                elif len(content['parts'])==1:assert content['sha256']==content['parts'][0]
                 else:
                     for part in records.parts(content):pass
                 seen.add(signature)

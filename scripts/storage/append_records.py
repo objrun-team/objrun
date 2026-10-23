@@ -38,10 +38,13 @@ def main():
         # A container archive is identified by its manifest contents, not extension.
         docker=False
         for m in e.get('members',[]):
+            if m['path'].lstrip('./')=='oci-layout' and m.get('format')=='text':
+                try:docker=json.loads(b''.join(supplement.parts(m['content']))).get('imageLayoutVersion')=='1.0.0'
+                except (ValueError,UnicodeDecodeError,AttributeError):pass
             if m['path'].lstrip('./')=='manifest.json' and m.get('format')=='text':
                 try:
                     value=json.loads(b''.join(supplement.parts(m['content'])))
-                    docker=isinstance(value,list) and bool(value) and all(isinstance(x,dict) and 'Config' in x and isinstance(x.get('Layers'),list) for x in value)
+                    docker=docker or (isinstance(value,list) and bool(value) and all(isinstance(x,dict) and 'Config' in x and isinstance(x.get('Layers'),list) for x in value))
                 except (ValueError,UnicodeDecodeError):pass
         if docker or (e.get('format')=='archive-members' and not e.get('members')):
             reason='docker-image-resource' if docker else 'resource-only-archive'
@@ -76,6 +79,22 @@ def main():
         for h,obj in store.objects.items():f.write(json.dumps(dict(sha256=h,**obj),separators=(',',':'))+'\n')
     packs=list(base.packs.values())+store.packs;(out/'manifests/packs.json').write_bytes(encoded(packs))
     catalog=copy.deepcopy(base.catalog)
+    preparation=supplement.root/'reports/incremental-preparation.json'
+    if preparation.exists():
+        prepared=json.loads(preparation.read_text(encoding='utf-8'))
+        catalog.setdefault('entry_overrides',{}).update(prepared.get('entry_overrides',{}))
+        shutil.copyfile(preparation,out/'reports'/('preparation-'+args.label+'.json'))
+    recovery=supplement.root/'reports/tar-recovery.json'
+    if recovery.exists():shutil.copyfile(recovery,out/'reports'/('tar-recovery-'+args.label+'.json'))
+    for report_name in ('database-pair-repair','embedded-payload-curation'):
+        p=supplement.root/'reports'/(report_name+'.json')
+        if not p.exists():continue
+        value=json.loads(p.read_text(encoding='utf-8'))
+        if isinstance(value,dict):
+            for shard in value.get('transformation_shards',[]):
+                source=supplement.root/shard['path'];target='manifests/'+args.label+'-'+source.name
+                shutil.copyfile(source,out/target);shard['path']=target
+        (out/'reports'/(report_name+'-'+args.label+'.json')).write_bytes(encoded(value))
     for c in supplement.catalog['collections']:
         name=c['collection'];entry=copy.deepcopy(c);entry['manifest_shards']=streams[name].finish() if name in streams else []
         entry['selection_counts']={'selected_entries':bycollection[name]};entry['selection_scope']='requested-bench-subset' if name in args.partial else 'requested-collection'

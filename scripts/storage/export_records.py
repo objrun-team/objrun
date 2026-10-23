@@ -5,10 +5,30 @@ Original archives and external sources are read-only. No Git mutation is perform
 import argparse,base64,codecs,collections,concurrent.futures,csv,gzip,hashlib,io,json,os,pathlib,re,shutil,sqlite3,subprocess,tarfile,threading,time,traceback,zipfile
 import zstandard as zstd
 
-def encoded(x): return json.dumps(x,ensure_ascii=False,separators=(',',':'),allow_nan=False).encode('utf-8')
+def encoded(x):
+    # TAR may expose undecodable filename bytes as surrogate escapes. JSON escapes
+    # preserve those identifiers without dropping a whole source collection.
+    try:return json.dumps(x,ensure_ascii=False,separators=(',',':'),allow_nan=False).encode('utf-8')
+    except UnicodeEncodeError:return json.dumps(x,ensure_ascii=True,separators=(',',':'),allow_nan=False).encode('ascii')
 def sha(x): return hashlib.sha256(x).hexdigest()
 def file_sha(p):
     with p.open('rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
+
+def database_sidecar(path, suffix):
+    return path[:-9]+suffix+'.snapshot' if path.endswith('.snapshot') else path+suffix
+
+def database_main(path):
+    for suffix in ('-wal','-shm'):
+        if path.endswith(suffix+'.snapshot'):return path[:-len(suffix+'.snapshot')]+'.snapshot'
+        if path.endswith(suffix):return path[:-len(suffix)]
+    return None
+
+def reviewed_resource_match(value, hashes):
+    # A main-file hash alone does not identify a SQLite state with WAL frames.
+    if value.get('format')=='sqlite-tables' and (value.get('wal_bytes',0)>0 or value.get('wal_sha256') not in (None,'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')):return False
+    if value.get('transformations',{}).get('sqlite_multiple_wal_states'):return False
+    if value.get('format')=='sqlite-review-required' and (value.get('wal') or {}).get('bytes',0)>0:return False
+    return value.get('source_sha256') in hashes
 
 ALIASES=[('humaneval-plus',r'human.?eval'),('mbpp-plus',r'mbpp'),('llm-srbench',r'llm.?srbench|lsr.?bench'),('terminal-bench',r'terminal.?bench|(?:^|[/_-])tb(?:[/_-]|$)'),('skillsbench',r'skillsbench|(?:^|[/_-])skb(?:[/_-]|$)|(?:^|/)sb_'),('deepswe',r'deepswe|(?:^|[/_-])dsw(?:[/_-]|$)')]+[(x,re.escape(x)) for x in ('aime','gpqa','cmt','minif2f','chembench','chemiq','bird','classeval','scibench','scicode','theophyseval','frontierscience','olympiadbench','labbench','scienceworld','biocoder','atmossci')]
 ALIASES=[(a,re.compile(b,re.I)) for a,b in ALIASES]
@@ -18,8 +38,11 @@ RESOURCE_NAME=re.compile(r'(?:docker(?:-archive|-save|-exported)?|official-image
 CODE_RE=re.compile(r'\.(?:py|ts|js|mjs|cjs|sh|ps1|patch|diff|toml|yaml|yml|md|tex|lock)$',re.I)
 STATUS_RE=re.compile(r'"(?:status|state|outcome|finish_reason)"\s*:\s*"(success|succeeded|passed|completed|failed|failure|error|interrupted|cancelled|canceled|aborted|timeout|timed_out|needs_attention)"',re.I)
 ID_RE=re.compile(r'"(run_id|runId|trial_id|trialId|attempt_id|task_id|taskId)"\s*:\s*"([^"\r\n]{1,200})"')
+COLLECTION_BENCH={'fullf-terminal-bench':'terminal-bench','fullf-skillsbench':'skillsbench','fullf-chemiq':'chemiq','fullf-chembench':'chembench','docs-labbench':'labbench','docs-gpqa':'gpqa','docs-minif2f':'minif2f','docs-frontierscience':'frontierscience','docs-llm-srbench':'llm-srbench','docs-olympiadbench':'olympiadbench','scibench':'scibench','scicode-external':'scicode','external-phase1-scicode-verified':'scicode'}
 
 def bench_of(collection,path):
+    # A dataset or dependency name inside a single-Bench run is not a new Bench.
+    if collection in COLLECTION_BENCH:return COLLECTION_BENCH[collection]
     for name,pattern in ALIASES:
         if pattern.search(path):return name
     for name,pattern in ALIASES:
@@ -98,14 +121,14 @@ class Scrubber:
                         key,value=line.split('=',1);value=value.strip().strip('\"\'')
                         if re.search('key|token|secret|password',key,re.I) and len(value)>=8:values.append(value)
         self.values=sorted(set(values),key=len,reverse=True)
-        self.patterns=[re.compile(r'\b(?:sk-(?:proj-|ant-)?[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[A-Z0-9]{16})\b'),re.compile(r'(?i)(?:Bearer\s+)[A-Za-z0-9_./+=-]{16,}'),re.compile(r'-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----')]
+        self.patterns=[re.compile(r'\b(?:sk-(?:proj-|ant-)?[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[A-Z0-9]{16})\b',re.ASCII),re.compile(r'(?i)(?:Bearer\s+)[A-Za-z0-9_./+=-]{16,}'),re.compile(r'-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----')]
         self.assignment=re.compile(r'(?i)(["\']?(?:api[_-]?key|access[_-]?token|secret[_-]?key|password|authorization)["\']?\s*[:=]\s*["\'])([^"\'\r\n]{8,})(["\'])')
         self.b64=re.compile(r'(?<![A-Za-z0-9+/])[A-Za-z0-9+/]{8192,}={0,2}(?![A-Za-z0-9+/])')
     def text(self,s):
         counts=collections.Counter()
         for value in self.values:
             if value in s:counts['credential_redaction']+=s.count(value);s=s.replace(value,'[REDACTED_CREDENTIAL]')
-        checks=(any(v in s for v in ('sk-','ghp_','gho_','ghu_','ghs_','ghr_','github_pat_','AKIA')), 'bearer ' in s.lower(), 'PRIVATE KEY' in s)
+        checks=(any(v in s for v in ('sk-','ghp_','gho_','ghu_','ghs_','ghr_','github_pat_','AKIA')), 'bearer' in s.lower(), 'PRIVATE KEY' in s)
         for active,pattern in zip(checks,self.patterns):
             if active:s,n=pattern.subn('[REDACTED_CREDENTIAL]',s);counts['credential_redaction']+=n
         lowered=s.lower()
@@ -200,13 +223,13 @@ class Exporter:
         for m in members:
             if m.get('disposition')!='pending-database':continue
             base=dict(sha256=m['source_blob_sha256'],bytes=m['source_bytes'])
-            side=by_path.get(m['path']+'-wal')
+            side=by_path.get(database_sidecar(m['path'],'-wal'))
             wal=dict(sha256=side['source_blob_sha256'],bytes=side['source_bytes']) if side and side.get('source_blob_sha256') else None
             result=self.database(collection,path+'!/'+m['path'],base,wal,bench)
             m.pop('source_blob_sha256',None);m.update(result)
         for m in members:
             if m.get('disposition')!='database-sidecar':continue
-            main=m['path'].removesuffix('-wal').removesuffix('-shm')
+            main=database_main(m['path'])
             if main in by_path and by_path[main].get('format') in ('sqlite-tables','sqlite-review-required'):
                 m.update(disposition='retained',format='sqlite-sidecar-reference',paired_with=main)
             else:
@@ -259,7 +282,7 @@ class Exporter:
                         if len(tail)==64*1024*1024:return dict(disposition='retained',format='compressed-text-review-required',content=self.store.put(data,bench),pending='decompressed text exceeds 64 MiB; complete original compressed payload preserved')
                         return self.process_payload(head+tail,collection,path+'!/decoded',bench,depth+1)|dict(container_kind=kind)
                 return self.finish_archive(members,collection,path,bench,kind,exclusions)
-            except (tarfile.TarError,zipfile.BadZipFile,EOFError,zstd.ZstdError,OSError) as e:
+            except (tarfile.TarError,zipfile.BadZipFile,EOFError,zstd.ZstdError,OSError,UnicodeError,ValueError,OverflowError,RuntimeError) as e:
                 return dict(disposition='retained',format='archive-review-required',content=self.store.put(data,bench),pending=type(e).__name__)
         if kind in ('executable','image','pdf','parquet','numpy','hdf','xz','bz2','compress','binary'):
             return dict(disposition='excluded',reason='binary-resource-'+kind,detected=kind)
@@ -313,7 +336,7 @@ class Exporter:
         shutil.copyfile(self.db_blobs/base['sha256'],db)
         if wal:shutil.copyfile(self.db_blobs/wal['sha256'],folder/'database.sqlite-wal')
         result=dict(disposition='retained',format='sqlite-tables',source_database_sha256=base['sha256'],wal_sha256=(wal or {}).get('sha256'),wal_bytes=(wal or {}).get('bytes',0),tables=[],transformations={'sqlite_consistent_export':True})
-        connection=None
+        connection=None;cursor=None
         try:
             connection=sqlite3.connect(db);connection.execute('PRAGMA busy_timeout=5000')
             # BEGIN pins the snapshot including valid committed WAL frames.
@@ -354,13 +377,21 @@ class Exporter:
             connection.rollback();connection.close();result['integrity']='ok';result['rows_verified']=True
         except Exception as e:
             result=dict(disposition='retained',format='sqlite-review-required',pending=type(e).__name__,database=self.store.put((self.db_blobs/base['sha256']).read_bytes(),bench),wal=self.store.put((self.db_blobs/wal['sha256']).read_bytes(),bench) if wal else None)
+        if cursor is not None:
+            try:cursor.close()
+            except Exception:pass
         if connection is not None:
             try:connection.close()
             except Exception:pass
         # Copies are temporary, scoped files; unique source archives remain untouched.
-        for p in folder.iterdir():
-            if p.is_file():p.unlink()
-        folder.rmdir()
+        try:
+            for p in folder.iterdir():
+                if p.is_file():p.unlink()
+            folder.rmdir()
+        except PermissionError:
+            # A Windows lock on a disposable copy must not discard an export or
+            # mislabel the immutable source as corrupt. Leave the copy for review.
+            result['temporary_copy_cleanup']='deferred-windows-file-lock'
         with self.lock:self.cache[key]=result
         return result
     def collection(self,item):
@@ -382,7 +413,7 @@ class Exporter:
             for line in f:
                 row=json.loads(line)
                 if row.get('sha256') in required:bodies[row['path']]=row
-        found={};db_hashes=set();sidecars={x['sha256'] for x in rows if x['path'].endswith(('-wal','-shm'))};manifest=JsonShards(self.root,name);scopes={};pending=[]
+        found={};db_hashes=set();sidecars={x['sha256'] for x in rows if database_main(x['path']) is not None};manifest=JsonShards(self.root,name);scopes={};pending=[]
         if required:
             base=[str(self.args.restic),'--repo',str(self.ws/'_objrun-archive/restic'),'--cache-dir',str(self.work/'restic-cache'),'--insecure-no-password']
             source=pathlib.Path(record['source']);prefix='/'+source.as_posix().replace(':','').strip('/')
@@ -438,10 +469,10 @@ class Exporter:
                 with self.lock:out=self.cache.get(h)
             if out is None:
                 pending.append(dict(path=path,reason='canonical-hardlink-body-not-read',source_sha256=h));counts[bench]['unverified_files']+=1;continue
-            if out['disposition']=='pending-database':out=self.database(name,path,row,by_path.get(path+'-wal'),bench)
-            elif path.endswith(('-wal','-shm')) or out['disposition']=='database-sidecar':
+            if out['disposition']=='pending-database':out=self.database(name,path,row,by_path.get(database_sidecar(path,'-wal')),bench)
+            elif database_main(path) is not None or out['disposition']=='database-sidecar':
                 # Sidecar ownership is represented with the main database export.
-                main=path.removesuffix('-wal').removesuffix('-shm')
+                main=database_main(path)
                 if main in by_path and by_path[main]['sha256'] in db_hashes:counts[bench]['database_sidecars']+=1;continue
                 out=dict(disposition='retained',format='orphan-database-sidecar',content=self.store.put((self.db_blobs/h).read_bytes(),bench),pending='no associated main database')
             if out['disposition']=='excluded':counts[bench]['excluded_files']+=1;excluded[out['reason']]+=1;excluded_bytes[out['reason']]+=row['bytes'];examples.setdefault(out['reason'],path);continue
