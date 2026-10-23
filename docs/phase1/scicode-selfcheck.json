@@ -1,0 +1,59 @@
+{
+  "variant": "SciCode-Verified v2",
+  "ids": [
+    "5"
+  ],
+  "records": [
+    {
+      "problem": "5",
+      "step": "5.1",
+      "kind": "reference",
+      "passed": true,
+      "valid": true,
+      "calls": 3
+    },
+    {
+      "problem": "5",
+      "kind": "wrong",
+      "passed": false,
+      "valid": true,
+      "errorType": "AssertionError",
+      "calls": 1,
+      "checkPassed": true
+    },
+    {
+      "problem": "5",
+      "kind": "syntax_error",
+      "passed": false,
+      "valid": true,
+      "errorType": "SyntaxError",
+      "checkPassed": true
+    },
+    {
+      "problem": "5",
+      "kind": "read_hidden_targets",
+      "passed": false,
+      "valid": true,
+      "errorType": "PermissionError",
+      "checkPassed": true
+    },
+    {
+      "problem": "5",
+      "kind": "read_reference_fixture",
+      "passed": false,
+      "valid": true,
+      "errorType": "FileNotFoundError",
+      "checkPassed": true
+    },
+    {
+      "problem": "5",
+      "kind": "exit_without_tests",
+      "passed": false,
+      "valid": true,
+      "errorType": "CandidateExited",
+      "calls": 0,
+      "checkPassed": true
+    }
+  ],
+  "allPassed": true
+}

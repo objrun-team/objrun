@@ -1,0 +1,225 @@
+{
+  "protocol": "financial-interruption-v1",
+  "runId": "repair-2026-10-08T18-32-57-118Z",
+  "observedAtUtc": "2026-10-09T03:28:45.768Z",
+  "auditSourcePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\audit-scientific-financial-interruption.ts",
+    "bytes": 24818,
+    "sha256": "58686eaecd47e1f86c89eef544ad72966afc2abf420b5fccca2706fb9c35d244"
+  },
+  "auditHostBun": {
+    "path": "C:\\Users\\y1252\\AppData\\Roaming\\npm\\node_modules\\bun\\bin\\bun.exe",
+    "bytes": 114769496,
+    "sha256": "f3b8ec8560eafce3bb0a458ab402c663bd5256ecc5419804df7d5c36b4de98f5"
+  },
+  "metadataInputPins": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\campaigns\\repair-2026-10-08T18-32-57-118Z\\manifest.json",
+      "bytes": 352543,
+      "sha256": "4e4cde3bdc879b2b1c721e7e6ae812807893fe9835e8bd2c45d943c93e9aa78d"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\campaigns\\repair-2026-10-08T18-32-57-118Z\\source.json",
+      "bytes": 13933,
+      "sha256": "9dbd344767810715284de45747207181ebe68c69f8897e7aab0935052f8e2491"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\campaigns\\repair-2026-10-08T18-32-57-118Z\\frozen-source.json",
+      "bytes": 776941,
+      "sha256": "702e092fbe4fa3275a6e8a049a382424bf919a07464a6c1c577e70eac9051b8d"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\campaigns\\repair-2026-10-08T18-32-57-118Z\\storage-layout.json",
+      "bytes": 2433,
+      "sha256": "fd6d2df5f1310f32b39fc7fa33559facf232b8675b2221aea763de4fcb426d6c"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\campaigns\\repair-2026-10-08T18-32-57-118Z\\progress.json",
+      "bytes": 8824,
+      "sha256": "74cda43381ec36705827b3c051a5a2cb24a1613f8262c611415d6cda09ba3327"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\campaigns\\repair-2026-10-08T18-32-57-118Z\\paid-resource-admission.json",
+      "bytes": 24186,
+      "sha256": "b6cc55dc4845195056d2227c55935c07fe319e59291e8df40e01b1ddf9d5a878"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\campaigns\\repair-2026-10-08T18-32-57-118Z\\paid-resource-v2-run.json",
+      "bytes": 393,
+      "sha256": "b635eef60fd169d6133c39f5bcfd4f0f50d3d46b00d26723f7f08e6ce8c47d8a"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\campaigns\\repair-2026-10-08T18-32-57-118Z\\paid-process-0.json",
+      "bytes": 302,
+      "sha256": "56b227cca499732c145e2e47369fd767581f573ac31f8d1d22a09dc2aa8de617"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\campaigns\\repair-2026-10-08T18-32-57-118Z\\paid-process-1.json",
+      "bytes": 301,
+      "sha256": "443ec74db245d77f2d37d172f9e3e0311abc9be9f90cfe9c16204b23b5d53ccb"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\campaigns\\repair-2026-10-08T18-32-57-118Z\\paid-process-2.json",
+      "bytes": 302,
+      "sha256": "4aa6ff34cc7d2bdc6fe7be77f774c1f30f303a3b2ba57cec498c573741c68cfc"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\campaigns\\repair-2026-10-08T18-32-57-118Z\\paid-process-3.json",
+      "bytes": 301,
+      "sha256": "e10d44252d7f070af9fbeb7cdcace98253ef885bed7f4d68cc2932c3de07f99e"
+    }
+  ],
+  "observations": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\scientific-interruption-repair-2026-10-08T18-32-57-118Z\\first-pass.json",
+      "sha256": "204cc6a0bfa793934b4abdfd78534a57ee606295feffe24a6878c76732652758"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\scientific-interruption-repair-2026-10-08T18-32-57-118Z\\cash-metadata-review.json",
+      "sha256": "796c3870bb7919ed6fa655272b8f955ed100eea38b170e6680fb587a8352107a"
+    }
+  ],
+  "sourceFileCount": 81,
+  "originalAdmissionSourceShape": {
+    "intrinsicCount": 3,
+    "executedCount": 81,
+    "totalCount": 84,
+    "exactMultiset": true
+  },
+  "currentDependencyFilesVerified": 4100,
+  "archivePin": {
+    "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\frozen-source.zip",
+    "bytes": 10657057,
+    "sha256": "3a50ddfe885fd2e61df2f7eb102b9c2c961c5d339cf2068e2d5ec8afbc6f8b11"
+  },
+  "sourceIdentity": "Current81 sources/dependency bytes verified against original frozen metadata; original archive whole bytes SHA bound. No source/runtime mutation.",
+  "plannedTaskRuns": 1220,
+  "recordedTaskRuns": 789,
+  "originalClosingArtifactsFabricated": false,
+  "originalSqliteOpened": false,
+  "providerRequestsByAudit": 0,
+  "originalRecordsModified": false,
+  "paidLockOperations": 0,
+  "ownerClosureCertified": false,
+  "interruptionTrigger": "cash_envelope_exhausted",
+  "proxyStopLabel": "provider_fault",
+  "processExitMechanism": "unknown",
+  "validated": true,
+  "fixtureIntegrityValid": false,
+  "financialOnly": true,
+  "scoreCertificate": false,
+  "plannedScoreCompletion": false,
+  "requests": 23504,
+  "actualForwarded": 23503,
+  "deniedBeforeForward": 1,
+  "knownEstimatedNanoCny": "247731051080",
+  "knownEstimatedCny": "247.731051080",
+  "newUnknownCount": 0,
+  "newPendingCount": 0,
+  "originalUnknownCarryNanoCny": "8392180000",
+  "oldUnknownSettled": false,
+  "remainingEnvelopeNanoCny": "2268948920",
+  "recordedUsageUpperBoundUsd": 74.31931532400054,
+  "cashPrefix": {
+    "bytes": 53577154,
+    "eventCount": 47012,
+    "lastSha256": "768463020f52c0fb75a15f4d9ab2d0dc88ae791ee1a00c2adcecffb3bfb0cd33"
+  },
+  "journalPrefix": {
+    "bytes": 62470452,
+    "eventCount": 47008,
+    "lastSha256": "44d120a4e5d1cc71dddd90535441415761ec7b4a979db11c0b17bcc4c7512fa8"
+  },
+  "inputPins": [
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\journal-config.json",
+      "bytes": 311,
+      "sha256": "4192043020d8c08f1161b6151d39796f214ffeb3d9c46a686047f16d5361c6cf"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\api-state.json",
+      "bytes": 545,
+      "sha256": "4e69684061a00e3a1e2c33cd12455d6a431fe9bec40351e6b90fd74c35142ac9"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\api-events.jsonl",
+      "bytes": 62470452,
+      "sha256": "ceee32f7aca6eba17c2942fa975365c0fac069c00eeaed438b3a0366a591591b"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\currency\\cash-config.json",
+      "bytes": 1912,
+      "sha256": "43ae49f448edd33d63cf66d9b4630b986538d04b65f708c028a61b47586e3378"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\currency\\cash-events.jsonl",
+      "bytes": 53577154,
+      "sha256": "b51d1e9eff4fedaaf92471c2b9ecb7598528bc599c9c52642b9c48b5455e91c3"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\journal-failures\\failure-0-receipt.json",
+      "bytes": 3036,
+      "sha256": "e15d7cd3ac8ad246bb8dbda115424ad0f0dbd6b57e1b4ce73867eeed8c66a1c0"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\journal-failures\\failure-1-receipt.json",
+      "bytes": 3333,
+      "sha256": "44a8b3c910ea222afe3dc6b2914adb22079d7201b22254134ac34ce94ffbbaea"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\journal-failures\\failure-2-receipt.json",
+      "bytes": 2921,
+      "sha256": "cf675464d59eeddab11f7a0ca9376fd487657e74737db596b1ea80deb68cbdf4"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\journal-failures\\failure-3-receipt.json",
+      "bytes": 2539,
+      "sha256": "657e8a5643fc3527908729ccf889d63b61796451005ea9bf36dde79f58be3791"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\deepseek-cny-price-readonly.json",
+      "bytes": 1313,
+      "sha256": "8c7942c86ac6a768aa8e4ee4944570df91cb2648f700464294cf73a0e521c832"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\campaigns\\repair-2026-10-08T18-32-57-118Z\\paid-resource-admission.json",
+      "bytes": 24186,
+      "sha256": "b6cc55dc4845195056d2227c55935c07fe319e59291e8df40e01b1ddf9d5a878"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\cny-cash-shadow-v2.ts",
+      "bytes": 24797,
+      "sha256": "6ad11d7b32b8aee895e620306107cd7864fd35c5413ab5aa3e13b8966338f334"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\paid-resource-proof-v2.ts",
+      "bytes": 10106,
+      "sha256": "b1bacd465d2a76ca166e8048ac8ee83f152f6b9f21600770b39ec6a9864813fe"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\campaign-journal.ts",
+      "bytes": 35534,
+      "sha256": "139a28eadf4fd570c04796430a419bfbba6ec0cc8d14eb28c2a4ef480cc90a56"
+    }
+  ],
+  "rawRequestAndResponseFilesDoubleVerified": 47010,
+  "verifiedFallbackCopies": 3,
+  "fallbackCopiesChargedAgain": false,
+  "compressedRequestEvidence": {
+    "pin": {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\scientific-financial-interruptions\\repair-2026-10-08T18-32-57-118Z-audit-v2\\request-evidence.jsonl.gz",
+      "bytes": 6693036,
+      "sha256": "cc1b832b6f59001de8bf3ba4a2d31e7a0dcdeb704f276e1f55bfb4ec9c4f956e"
+    },
+    "rows": 23504,
+    "lastRowSha256": "5c270ffe85caa3a8bf31f648aceb160ab14ca699c9398e331ed05b64688498c0",
+    "concatenatedGzipMembers": true
+  },
+  "reasons": [
+    "cash_envelope_exhausted",
+    "source_or_cash_post_finish_failure"
+  ],
+  "releasePermitted": false,
+  "invoice": false,
+  "foreignExchangeConversion": false
+}

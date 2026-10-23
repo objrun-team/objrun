@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-23",
+  "decision": "Preserve in place; do not change permissions or delete without content verification.",
+  "paths": [
+    {
+      "path": "objrun/tmp9gzvczck",
+      "status": "unreadable_preserved",
+      "contents_verified": false,
+      "size_bytes": null,
+      "archived": false
+    },
+    {
+      "path": "objrun/.phase1-data/scienceworld/tmp/tmpx1qfmmzv",
+      "status": "unreadable_preserved",
+      "contents_verified": false,
+      "size_bytes": null,
+      "archived": false
+    },
+    {
+      "path": "objrun/.phase1-data/scienceworld/tmp/tmphr0z7lzr",
+      "status": "unreadable_preserved",
+      "contents_verified": false,
+      "size_bytes": null,
+      "archived": false
+    },
+    {
+      "path": "objrun/.phase1-data/scienceworld/tmp/tmpgebd98gz",
+      "status": "unreadable_preserved",
+      "contents_verified": false,
+      "size_bytes": null,
+      "archived": false
+    },
+    {
+      "path": "objrun/.phase1-data/host-extras/share",
+      "status": "unreadable_preserved",
+      "contents_verified": false,
+      "size_bytes": null,
+      "archived": false
+    },
+    {
+      "path": "objrun/.phase1-data/host-extras/py4j-0.10.9.7.dist-info",
+      "status": "unreadable_preserved",
+      "contents_verified": false,
+      "size_bytes": null,
+      "archived": false
+    },
+    {
+      "path": "objrun/.phase1-data/host-extras/py4j",
+      "status": "unreadable_preserved",
+      "contents_verified": false,
+      "size_bytes": null,
+      "archived": false
+    }
+  ]
+}

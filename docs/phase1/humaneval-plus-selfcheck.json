@@ -1,0 +1,639 @@
+{
+  "benchmark": "HumanEval+",
+  "release": "v0.1.10",
+  "ids": [
+    "HumanEval/0",
+    "HumanEval/1",
+    "HumanEval/2",
+    "HumanEval/3",
+    "HumanEval/4",
+    "HumanEval/5",
+    "HumanEval/6",
+    "HumanEval/7",
+    "HumanEval/8",
+    "HumanEval/9"
+  ],
+  "allPassed": true,
+  "records": [
+    {
+      "id": "HumanEval/0",
+      "kind": "reference",
+      "checkPassed": true,
+      "valid": true,
+      "passed": true,
+      "groups": {
+        "base": {
+          "status": "pass",
+          "passed": true,
+          "cases": 7,
+          "checked": 7,
+          "correct": 7
+        },
+        "plus": {
+          "status": "pass",
+          "passed": true,
+          "cases": 999,
+          "checked": 999,
+          "correct": 999
+        }
+      }
+    },
+    {
+      "id": "HumanEval/0",
+      "kind": "wrong",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "groups": {
+        "base": {
+          "status": "fail",
+          "passed": false,
+          "cases": 7,
+          "checked": 7,
+          "correct": 0
+        },
+        "plus": {
+          "status": "fail",
+          "passed": false,
+          "cases": 999,
+          "checked": 999,
+          "correct": 0
+        }
+      }
+    },
+    {
+      "id": "HumanEval/0",
+      "kind": "read_hidden_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "PermissionError"
+    },
+    {
+      "id": "HumanEval/0",
+      "kind": "exit_without_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "CandidateExited"
+    },
+    {
+      "id": "HumanEval/1",
+      "kind": "reference",
+      "checkPassed": true,
+      "valid": true,
+      "passed": true,
+      "groups": {
+        "base": {
+          "status": "pass",
+          "passed": true,
+          "cases": 4,
+          "checked": 4,
+          "correct": 4
+        },
+        "plus": {
+          "status": "pass",
+          "passed": true,
+          "cases": 83,
+          "checked": 83,
+          "correct": 83
+        }
+      }
+    },
+    {
+      "id": "HumanEval/1",
+      "kind": "wrong",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "groups": {
+        "base": {
+          "status": "fail",
+          "passed": false,
+          "cases": 4,
+          "checked": 4,
+          "correct": 0
+        },
+        "plus": {
+          "status": "fail",
+          "passed": false,
+          "cases": 83,
+          "checked": 83,
+          "correct": 0
+        }
+      }
+    },
+    {
+      "id": "HumanEval/1",
+      "kind": "read_hidden_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "PermissionError"
+    },
+    {
+      "id": "HumanEval/1",
+      "kind": "exit_without_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "CandidateExited"
+    },
+    {
+      "id": "HumanEval/2",
+      "kind": "reference",
+      "checkPassed": true,
+      "valid": true,
+      "passed": true,
+      "groups": {
+        "base": {
+          "status": "pass",
+          "passed": true,
+          "cases": 3,
+          "checked": 3,
+          "correct": 3
+        },
+        "plus": {
+          "status": "pass",
+          "passed": true,
+          "cases": 971,
+          "checked": 971,
+          "correct": 971
+        }
+      }
+    },
+    {
+      "id": "HumanEval/2",
+      "kind": "wrong",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "groups": {
+        "base": {
+          "status": "fail",
+          "passed": false,
+          "cases": 3,
+          "checked": 3,
+          "correct": 0
+        },
+        "plus": {
+          "status": "fail",
+          "passed": false,
+          "cases": 971,
+          "checked": 971,
+          "correct": 0
+        }
+      }
+    },
+    {
+      "id": "HumanEval/2",
+      "kind": "read_hidden_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "PermissionError"
+    },
+    {
+      "id": "HumanEval/2",
+      "kind": "exit_without_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "CandidateExited"
+    },
+    {
+      "id": "HumanEval/3",
+      "kind": "reference",
+      "checkPassed": true,
+      "valid": true,
+      "passed": true,
+      "groups": {
+        "base": {
+          "status": "pass",
+          "passed": true,
+          "cases": 6,
+          "checked": 6,
+          "correct": 6
+        },
+        "plus": {
+          "status": "pass",
+          "passed": true,
+          "cases": 898,
+          "checked": 898,
+          "correct": 898
+        }
+      }
+    },
+    {
+      "id": "HumanEval/3",
+      "kind": "wrong",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "groups": {
+        "base": {
+          "status": "fail",
+          "passed": false,
+          "cases": 6,
+          "checked": 6,
+          "correct": 0
+        },
+        "plus": {
+          "status": "fail",
+          "passed": false,
+          "cases": 898,
+          "checked": 898,
+          "correct": 0
+        }
+      }
+    },
+    {
+      "id": "HumanEval/3",
+      "kind": "read_hidden_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "PermissionError"
+    },
+    {
+      "id": "HumanEval/3",
+      "kind": "exit_without_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "CandidateExited"
+    },
+    {
+      "id": "HumanEval/4",
+      "kind": "reference",
+      "checkPassed": true,
+      "valid": true,
+      "passed": true,
+      "groups": {
+        "base": {
+          "status": "pass",
+          "passed": true,
+          "cases": 3,
+          "checked": 3,
+          "correct": 3
+        },
+        "plus": {
+          "status": "pass",
+          "passed": true,
+          "cases": 785,
+          "checked": 785,
+          "correct": 785
+        }
+      }
+    },
+    {
+      "id": "HumanEval/4",
+      "kind": "wrong",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "groups": {
+        "base": {
+          "status": "fail",
+          "passed": false,
+          "cases": 3,
+          "checked": 3,
+          "correct": 0
+        },
+        "plus": {
+          "status": "fail",
+          "passed": false,
+          "cases": 785,
+          "checked": 785,
+          "correct": 0
+        }
+      }
+    },
+    {
+      "id": "HumanEval/4",
+      "kind": "read_hidden_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "PermissionError"
+    },
+    {
+      "id": "HumanEval/4",
+      "kind": "exit_without_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "CandidateExited"
+    },
+    {
+      "id": "HumanEval/5",
+      "kind": "reference",
+      "checkPassed": true,
+      "valid": true,
+      "passed": true,
+      "groups": {
+        "base": {
+          "status": "pass",
+          "passed": true,
+          "cases": 3,
+          "checked": 3,
+          "correct": 3
+        },
+        "plus": {
+          "status": "pass",
+          "passed": true,
+          "cases": 153,
+          "checked": 153,
+          "correct": 153
+        }
+      }
+    },
+    {
+      "id": "HumanEval/5",
+      "kind": "wrong",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "groups": {
+        "base": {
+          "status": "fail",
+          "passed": false,
+          "cases": 3,
+          "checked": 3,
+          "correct": 0
+        },
+        "plus": {
+          "status": "fail",
+          "passed": false,
+          "cases": 153,
+          "checked": 153,
+          "correct": 0
+        }
+      }
+    },
+    {
+      "id": "HumanEval/5",
+      "kind": "read_hidden_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "PermissionError"
+    },
+    {
+      "id": "HumanEval/5",
+      "kind": "exit_without_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "CandidateExited"
+    },
+    {
+      "id": "HumanEval/6",
+      "kind": "reference",
+      "checkPassed": true,
+      "valid": true,
+      "passed": true,
+      "groups": {
+        "base": {
+          "status": "pass",
+          "passed": true,
+          "cases": 3,
+          "checked": 3,
+          "correct": 3
+        },
+        "plus": {
+          "status": "pass",
+          "passed": true,
+          "cases": 66,
+          "checked": 66,
+          "correct": 66
+        }
+      }
+    },
+    {
+      "id": "HumanEval/6",
+      "kind": "wrong",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "groups": {
+        "base": {
+          "status": "fail",
+          "passed": false,
+          "cases": 3,
+          "checked": 3,
+          "correct": 0
+        },
+        "plus": {
+          "status": "fail",
+          "passed": false,
+          "cases": 66,
+          "checked": 66,
+          "correct": 0
+        }
+      }
+    },
+    {
+      "id": "HumanEval/6",
+      "kind": "read_hidden_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "PermissionError"
+    },
+    {
+      "id": "HumanEval/6",
+      "kind": "exit_without_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "CandidateExited"
+    },
+    {
+      "id": "HumanEval/7",
+      "kind": "reference",
+      "checkPassed": true,
+      "valid": true,
+      "passed": true,
+      "groups": {
+        "base": {
+          "status": "pass",
+          "passed": true,
+          "cases": 4,
+          "checked": 4,
+          "correct": 4
+        },
+        "plus": {
+          "status": "pass",
+          "passed": true,
+          "cases": 178,
+          "checked": 178,
+          "correct": 178
+        }
+      }
+    },
+    {
+      "id": "HumanEval/7",
+      "kind": "wrong",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "groups": {
+        "base": {
+          "status": "fail",
+          "passed": false,
+          "cases": 4,
+          "checked": 4,
+          "correct": 0
+        },
+        "plus": {
+          "status": "fail",
+          "passed": false,
+          "cases": 178,
+          "checked": 178,
+          "correct": 0
+        }
+      }
+    },
+    {
+      "id": "HumanEval/7",
+      "kind": "read_hidden_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "PermissionError"
+    },
+    {
+      "id": "HumanEval/7",
+      "kind": "exit_without_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "CandidateExited"
+    },
+    {
+      "id": "HumanEval/8",
+      "kind": "reference",
+      "checkPassed": true,
+      "valid": true,
+      "passed": true,
+      "groups": {
+        "base": {
+          "status": "pass",
+          "passed": true,
+          "cases": 5,
+          "checked": 5,
+          "correct": 5
+        },
+        "plus": {
+          "status": "pass",
+          "passed": true,
+          "cases": 1000,
+          "checked": 1000,
+          "correct": 1000
+        }
+      }
+    },
+    {
+      "id": "HumanEval/8",
+      "kind": "wrong",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "groups": {
+        "base": {
+          "status": "fail",
+          "passed": false,
+          "cases": 5,
+          "checked": 5,
+          "correct": 0
+        },
+        "plus": {
+          "status": "fail",
+          "passed": false,
+          "cases": 1000,
+          "checked": 1000,
+          "correct": 0
+        }
+      }
+    },
+    {
+      "id": "HumanEval/8",
+      "kind": "read_hidden_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "PermissionError"
+    },
+    {
+      "id": "HumanEval/8",
+      "kind": "exit_without_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "CandidateExited"
+    },
+    {
+      "id": "HumanEval/9",
+      "kind": "reference",
+      "checkPassed": true,
+      "valid": true,
+      "passed": true,
+      "groups": {
+        "base": {
+          "status": "pass",
+          "passed": true,
+          "cases": 4,
+          "checked": 4,
+          "correct": 4
+        },
+        "plus": {
+          "status": "pass",
+          "passed": true,
+          "cases": 959,
+          "checked": 959,
+          "correct": 959
+        }
+      }
+    },
+    {
+      "id": "HumanEval/9",
+      "kind": "wrong",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "groups": {
+        "base": {
+          "status": "fail",
+          "passed": false,
+          "cases": 4,
+          "checked": 4,
+          "correct": 0
+        },
+        "plus": {
+          "status": "fail",
+          "passed": false,
+          "cases": 959,
+          "checked": 959,
+          "correct": 0
+        }
+      }
+    },
+    {
+      "id": "HumanEval/9",
+      "kind": "read_hidden_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "PermissionError"
+    },
+    {
+      "id": "HumanEval/9",
+      "kind": "exit_without_tests",
+      "checkPassed": true,
+      "valid": true,
+      "passed": false,
+      "errorType": "CandidateExited"
+    }
+  ]
+}

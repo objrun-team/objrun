@@ -1,0 +1,197 @@
+{
+  "protocol": "science-worker-db-snapshot-review-v1",
+  "validated": true,
+  "sourcePin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\science-worker-db-snapshot-v1.py",
+    "bytes": 20986,
+    "sha256": "3d3c408fa18cc76569f841bf3af68366fb68d4adcb167781a7b030dd65573d32"
+  },
+  "launcherPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\science-worker-db-snapshot-v1.ps1",
+    "bytes": 1454,
+    "sha256": "c29d8a4dddf6379b6906e823728afbd6b0976061657fc72409b3b76cc87954e8"
+  },
+  "controlsPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\science-db-snapshot-native-controls-v1\\controls.json",
+    "bytes": 2732,
+    "sha256": "e55a400ad317d14a75fec7a4ad8fc12cb1df24ce0f1b1fa600fb888e242967ae"
+  },
+  "testPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\test\\science_worker_db_snapshot_test.py",
+    "bytes": 5223,
+    "sha256": "086e423f3089ff5bd43714a916dd2ff447e1a5fe7befbf6698d0095d0e8dfca2"
+  },
+  "freezerPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\freeze-science-worker-db-snapshot-v1.py",
+    "bytes": 7994,
+    "sha256": "6ff66266377b67ae7b939cba8a401a1448bf6448f5125ecbbab87b26020150ab"
+  },
+  "sourceSnapshots": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\science-db-snapshot-native-controls-v1\\source-snapshots\\science-worker-db-snapshot-v1.py",
+      "bytes": 20986,
+      "sha256": "3d3c408fa18cc76569f841bf3af68366fb68d4adcb167781a7b030dd65573d32"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\science-db-snapshot-native-controls-v1\\source-snapshots\\science-worker-db-snapshot-v1.ps1",
+      "bytes": 1454,
+      "sha256": "c29d8a4dddf6379b6906e823728afbd6b0976061657fc72409b3b76cc87954e8"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\science-db-snapshot-native-controls-v1\\source-snapshots\\science_worker_db_snapshot_test.py",
+      "bytes": 5223,
+      "sha256": "086e423f3089ff5bd43714a916dd2ff447e1a5fe7befbf6698d0095d0e8dfca2"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\science-db-snapshot-native-controls-v1\\source-snapshots\\freeze-science-worker-db-snapshot-v1.py",
+      "bytes": 7994,
+      "sha256": "6ff66266377b67ae7b939cba8a401a1448bf6448f5125ecbbab87b26020150ab"
+    }
+  ],
+  "nativeInterpreterPin": {
+    "path": "D:\\ProgramData\\anaconda3\\python.exe",
+    "bytes": 104208,
+    "sha256": "6965927a96b81d1717c1d2186de7feb9b29ebf8775464020ebc2f25de6ef8ee0"
+  },
+  "productionSnapshotPerformed": false,
+  "currentSourceMetadataOnly": [
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\worker-0\\data\\h2h.sqlite",
+      "bytes": 47968256,
+      "device": "2662894987640878744",
+      "fileId": "3377699720531550",
+      "mtimeNs": "1791502340207624200",
+      "sourceRelativePath": "worker-0\\data\\h2h.sqlite"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\worker-0\\data\\h2h.sqlite-wal",
+      "bytes": 4161232,
+      "device": "2662894987640878744",
+      "fileId": "3659174697242212",
+      "mtimeNs": "1791502478849961200",
+      "sourceRelativePath": "worker-0\\data\\h2h.sqlite-wal"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\worker-0\\data\\h2h.sqlite-shm",
+      "bytes": 32768,
+      "device": "2662894987640878744",
+      "fileId": "3659174697242214",
+      "mtimeNs": "1791484636492517000",
+      "sourceRelativePath": "worker-0\\data\\h2h.sqlite-shm"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\worker-1\\data\\h2h.sqlite",
+      "bytes": 52592640,
+      "device": "2662894987640878744",
+      "fileId": "3659174697242209",
+      "mtimeNs": "1791502328752367700",
+      "sourceRelativePath": "worker-1\\data\\h2h.sqlite"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\worker-1\\data\\h2h.sqlite-wal",
+      "bytes": 4165352,
+      "device": "2662894987640878744",
+      "fileId": "3377699720531564",
+      "mtimeNs": "1791502478955258000",
+      "sourceRelativePath": "worker-1\\data\\h2h.sqlite-wal"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\worker-1\\data\\h2h.sqlite-shm",
+      "bytes": 32768,
+      "device": "2662894987640878744",
+      "fileId": "3377699720531565",
+      "mtimeNs": "1791484636510864900",
+      "sourceRelativePath": "worker-1\\data\\h2h.sqlite-shm"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\worker-2\\data\\h2h.sqlite",
+      "bytes": 59465728,
+      "device": "2662894987640878744",
+      "fileId": "3377699720531555",
+      "mtimeNs": "1791502321282785800",
+      "sourceRelativePath": "worker-2\\data\\h2h.sqlite"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\worker-2\\data\\h2h.sqlite-wal",
+      "bytes": 4161232,
+      "device": "2662894987640878744",
+      "fileId": "3377699720531569",
+      "mtimeNs": "1791502509221536500",
+      "sourceRelativePath": "worker-2\\data\\h2h.sqlite-wal"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\worker-2\\data\\h2h.sqlite-shm",
+      "bytes": 32768,
+      "device": "2662894987640878744",
+      "fileId": "3377699720531570",
+      "mtimeNs": "1791484636520864600",
+      "sourceRelativePath": "worker-2\\data\\h2h.sqlite-shm"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\worker-3\\data\\h2h.sqlite",
+      "bytes": 55435264,
+      "device": "2662894987640878744",
+      "fileId": "3096224743820896",
+      "mtimeNs": "1791502350297308500",
+      "sourceRelativePath": "worker-3\\data\\h2h.sqlite"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\worker-3\\data\\h2h.sqlite-wal",
+      "bytes": 4169472,
+      "device": "2662894987640878744",
+      "fileId": "3377699720531561",
+      "mtimeNs": "1791502478908033400",
+      "sourceRelativePath": "worker-3\\data\\h2h.sqlite-wal"
+    },
+    {
+      "path": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z\\worker-3\\data\\h2h.sqlite-shm",
+      "bytes": 32768,
+      "device": "2662894987640878744",
+      "fileId": "3096224743820907",
+      "mtimeNs": "1791484636505518600",
+      "sourceRelativePath": "worker-3\\data\\h2h.sqlite-shm"
+    }
+  ],
+  "currentOriginalLogicalBytes": 232250248,
+  "projectedRawAndWorkingLogicalBytes": 464500496,
+  "maximumCopyLogicalBytes": 536870912,
+  "DReserveBytes": 1073741824,
+  "snapshotReceiptMaximumBytes": 307200,
+  "originalFirstPassPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\scientific-interruption-repair-2026-10-08T18-32-57-118Z\\first-pass.json",
+    "bytes": 35517,
+    "sha256": "204cc6a0bfa793934b4abdfd78534a57ee606295feffe24a6878c76732652758"
+  },
+  "originalCanonicalLockPin": {
+    "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.phase1-data\\owned-paid-campaign.lock.json",
+    "bytes": 432,
+    "sha256": "31fa74df0ee0d7c32d1832a4eec3fc2f89e61efe3c4cf54ebe862dd0d488dd53"
+  },
+  "DFreeAtReviewBytes": 9559007232,
+  "freshUUIDSiblingRequired": true,
+  "originalSQLDriverImports": 0,
+  "noPaidRestartAuthorization": true,
+  "noFinancialReleaseAuthorization": true,
+  "proxyProvenanceEstablished": false,
+  "missing": [
+    {
+      "index": 761,
+      "arm": "F",
+      "officialId": "chb-a1d98f28-8387-bcd5-e2f6-ac0aa9db4b9b"
+    },
+    {
+      "index": 771,
+      "arm": "F",
+      "officialId": "chb-c9533024-6de9-6165-26c2-f34546631d67"
+    },
+    {
+      "index": 775,
+      "arm": "F",
+      "officialId": "chb-227460ce-f5ca-01e7-f8a8-cbbee7158e2a"
+    }
+  ],
+  "missingWorkerMembership": "Unknown until exact taskId/unit/trace query on working copies; no worker0 guess.",
+  "sourceSHAProcedure": "All12 share-read/deny-write/delete handles, before SHA, 24 write+Flush+readback, source after SHA+identity, fresh actors again, finally close.",
+  "failureProcedure": "Save invalid F evidence, preserve owned partial sibling; no original rename/delete or automatic retry.",
+  "subsequentReader": "Only reviewed copied databases: raw immutable api.base_url unique origin, or working WAL-aware exact three tasks. No API-key columns or original SQLite."
+}

@@ -1,0 +1,477 @@
+{
+  "protocol": "public-cache-explicit-bulk-source-review-v1",
+  "validated": true,
+  "transport_protocol": "explicit-root-new-key-complete-bulk-v1",
+  "real_acquisition_executed": false,
+  "real_gate_executed": false,
+  "root_must_independently_review_and_launch": true,
+  "base_helper_sha256": "a02c3519b0ccba8a74e577991fedcf75f0c05fb181cfeb617b7e51b060384c2b",
+  "profile_sha256": "f23ebc252a02cf9a407db4fb2045f6c8dba064e1706e97d28fc6ff96ac2a5fd3",
+  "authorization_sha256": "4feb11d6dd27a9dde5c1f96e52040cd407b907fb60ace052e21b90b7490fca9b",
+  "new_sources": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_public_cache_bulk.py",
+      "bytes": 31573,
+      "sha256": "f98f23681f48aa2060b40fb0eaa45c829a6a51f50a252e2a69b8a09680847ac5"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_public_cache_bulk_stage.py",
+      "bytes": 20898,
+      "sha256": "c8fcde6c29d2831dbd7494ba1b0a6fb6702ad78a18059a4b847d62692c0073b0"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_public_cache_bulk_stage.ps1",
+      "bytes": 1533,
+      "sha256": "2a5cc42817ef67ee7043611650272320454f9b183bb16a3a3976ab9de89b6349"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\test\\minif2f_public_cache_bulk_test.py",
+      "bytes": 9505,
+      "sha256": "045e7c5a1cdadffacc608f7dcd879ba15c02fd56be94927c79de1f9942d93647"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-public-cache-bulk-authorization.json",
+      "bytes": 2859,
+      "sha256": "4feb11d6dd27a9dde5c1f96e52040cd407b907fb60ace052e21b90b7490fca9b"
+    }
+  ],
+  "protected_sources": [
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_public_cache_root_carry.py",
+      "bytes": 39181,
+      "sha256": "8e199889ef3eff84747383ce2196e9a46e439637c53d9a1471d2df6319236ba3"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_public_cache_root_carry.ps1",
+      "bytes": 1519,
+      "sha256": "6645db223d7ac60ac739251a7d026dcaed07a869e77a7ed28a54b7f83acadb6f"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\test\\minif2f_public_cache_root_carry_test.py",
+      "bytes": 15718,
+      "sha256": "c7f9c73b89cab3b2c798a2486e4fd2bf44c7d2fc3947a7660072105054d45bda"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-public-cache-root-carry-authorization.json",
+      "bytes": 5329,
+      "sha256": "754e410406ed2d310976435d70774a35bf6f85d462f4f492e1c2ffd84a480771"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_public_cache_v3.py",
+      "bytes": 48071,
+      "sha256": "23e760d9236037e8c5d14ef686b00fcbe9659d34cf28d7c03624a7775573af83"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_public_cache_v3.ps1",
+      "bytes": 2233,
+      "sha256": "c22970d99b57e4cdc2ee42cce7601209af6356db7b660672dd3f9ba58ca8b86f"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\test\\test_minif2f_public_cache_v3.py",
+      "bytes": 41831,
+      "sha256": "11ba1e98e5be849fed9ffdac69cab2287139515a96ee24b2fe0916b1e981a682"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_runtime_v2.py",
+      "bytes": 28688,
+      "sha256": "14a2587d4186d5f6be4fbd2fee8cb3292993162822dfb777d81797be34e403b0"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_native_v2_stage.py",
+      "bytes": 20636,
+      "sha256": "b91c9f54592bca12109ceb65ba54344ffdf30bc11d3cbf0b07c958483adea0ee"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_native_v2.ps1",
+      "bytes": 1510,
+      "sha256": "8222ffb5d2c909d2c140a901f7d5294cb081c4858c708f917bc789516fb0a9ef"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_native_v2_fixture_test.py",
+      "bytes": 6952,
+      "sha256": "43f21daf76cb4e1ae534cd2da62cd28cd894a9ff4c8cfc8bec048fe96d01a1da"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_restore.py",
+      "bytes": 25739,
+      "sha256": "8c8b77f6bf64ec6b07f82419dab8d0d5ee24bad3157cd51cfe2a942b8a28cd98"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_runtime.py",
+      "bytes": 17658,
+      "sha256": "46baef4522e00d5ecfaae7e88e9bc7c1eea68ff95a2c64f2a4f2f4a86bcab565"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_native_v2_probe.py",
+      "bytes": 9505,
+      "sha256": "1b455ba92d6c8af66508d9805bb011feaad55fcc5f12df7cfde455197081e58c"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_legacy_regrade.py",
+      "bytes": 13615,
+      "sha256": "a11c23b29b2480ab7972a7059e8ca761cdf5032002e99bb7a9c69a4fc44430a7"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_public_cache.py",
+      "bytes": 37474,
+      "sha256": "a02c3519b0ccba8a74e577991fedcf75f0c05fb181cfeb617b7e51b060384c2b"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\examples\\benchmark\\minif2f\\stand.py",
+      "bytes": 30992,
+      "sha256": "af0dbb9b6e0b926044f3fab441497931c7b115af06643160be7341cba29223c4"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.phase1-data\\minif2f-restoration-public\\public-lock.json",
+      "bytes": 25087,
+      "sha256": "ee033a2d51ef5f7dc51b573285df3c2d78689fc9edcaaf8781420525c1d8d857"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.phase1-data\\minif2f-restoration-private\\legacy-final-3.json",
+      "bytes": 20539,
+      "sha256": "16625492637d0971faa13b861a35b2a1c31324a509d4a3a9573e2fc5c1dd7bb8"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-native-v2-probe.json",
+      "bytes": 6164,
+      "sha256": "8fa3d1558c0904d1dca7197ae7f21de397f8b392938232e848e02e7c29437fcd"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-native-v2-probe-command.json",
+      "bytes": 4436,
+      "sha256": "70ff45d8f7e89e5ce66ab4fb446044748e7e59d3db2da5661686bf1de7150d7b"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-native-v2-probe-container.json",
+      "bytes": 18899,
+      "sha256": "3381d298fa52ddf9df55e881730736b01d9e6d03857fa6342e107e0692356802"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-native-v2-newworker.json",
+      "bytes": 3372,
+      "sha256": "98813320847aadb817010f871a364aa3f1ede4d17938efbf98fd5180fece1a2d"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-native-v2-newworker-command.json",
+      "bytes": 4502,
+      "sha256": "cb3c963962e3c1f0a3036ec8a7724090cd0b3b7fd931e4b8e67f34288aea9511"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-native-v2-schema-tests.json",
+      "bytes": 1327,
+      "sha256": "e25b101bd358f15f9a4f22fc2dce106bca4d555b239189b3862292cb418b547f"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_fast_unpack.py",
+      "bytes": 50950,
+      "sha256": "3e4d3f5ac688eca0e4b9b3a8afdcf710448d1816451f64dcaa1051a5750c44cb"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_fast_unpack.ps1",
+      "bytes": 1241,
+      "sha256": "b607a20b463e3a89c1e583d64199cd39d6566a9c3a33c79a9d714ddc5fd7f167"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\test\\test_minif2f_fast_unpack.py",
+      "bytes": 17114,
+      "sha256": "cc58573b125769b372ffbf9ce5a0129e3eb853387a7d35bc600b5165bf63c61e"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_public_cache.ps1",
+      "bytes": 2330,
+      "sha256": "ef4f68050dd8e7b47f27ee46481683caaebd6fb84499dcac4a976ea692f25b82"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-restoration-preflight.json",
+      "bytes": 50026,
+      "sha256": "f23ebc252a02cf9a407db4fb2045f6c8dba064e1706e97d28fc6ff96ac2a5fd3"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-native-v2-review.json",
+      "bytes": 9635,
+      "sha256": "c60a688ec4ab188b0b3f5ed5f4c716ee8bed92b571a0fa3beab374f087bb0881"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-fast-unpack-review.json",
+      "bytes": 7586,
+      "sha256": "860ef51df0f7be1e738c238d0c992982d6b3f15cb059a17be0c701ceedee0b69"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_public_cache_v2.py",
+      "bytes": 40270,
+      "sha256": "a6aab8d59837109c6c3ff0eb9bca56559f2f2b373d0e58e7b44153aace5b0bec"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_public_cache_v2.ps1",
+      "bytes": 2233,
+      "sha256": "8dd7c06c06a63f78ef83fdbcb4fba22f864f9c59f6991f73b122a3563278b4fe"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\test\\test_minif2f_public_cache_v2.py",
+      "bytes": 29700,
+      "sha256": "9a04103eef1b96af0b6ddc9b916e7b00623b8a6da0217bdb915cede1ee033ef2"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-public-cache-v2-review.json",
+      "bytes": 33889,
+      "sha256": "a7ca9e72f44a8d4419d5fe0d0d6b84fb42dd63f22083e0cb26319aa430f0d3c3"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-current-header-source-diagnostic.json",
+      "bytes": 767,
+      "sha256": "077066007644537541c6f81e62cf58ec509ce152baf86c4d33b55bd6edacf9c4"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v2-first-attempt\\failure-record.json",
+      "bytes": 2316,
+      "sha256": "8895dad23f57561dfeb354a89e74a76402e978bd735714cca6282407382415bc"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v2-first-attempt\\aborted-lease.json",
+      "bytes": 2062,
+      "sha256": "d9257eca8b221074afe8e4279dcf458b26f481b429d7474d647954c691dd2879"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v2-first-attempt\\original-2066-cache-downloads.jsonl",
+      "bytes": 1646928,
+      "sha256": "c3a01656d6a775af81fd2b7f96aac88ea4883652f3b7d79c9420f1d6d15cc3f0"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v2-first-attempt\\original-empty-body-journal.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v2-first-attempt\\executed-base-guard.py",
+      "bytes": 37474,
+      "sha256": "a02c3519b0ccba8a74e577991fedcf75f0c05fb181cfeb617b7e51b060384c2b"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v2-first-attempt\\executed-body-v2.py",
+      "bytes": 40270,
+      "sha256": "a6aab8d59837109c6c3ff0eb9bca56559f2f2b373d0e58e7b44153aace5b0bec"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v2-first-attempt\\executed-body-v2.ps1",
+      "bytes": 2233,
+      "sha256": "8dd7c06c06a63f78ef83fdbcb4fba22f864f9c59f6991f73b122a3563278b4fe"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v2-first-attempt\\executed-source-review.json",
+      "bytes": 33889,
+      "sha256": "a7ca9e72f44a8d4419d5fe0d0d6b84fb42dd63f22083e0cb26319aa430f0d3c3"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v2-first-attempt\\executed-profile.json",
+      "bytes": 50026,
+      "sha256": "f23ebc252a02cf9a407db4fb2045f6c8dba064e1706e97d28fc6ff96ac2a5fd3"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v2-first-attempt\\f00c6938dd5d3286.ltar.part",
+      "bytes": 65097,
+      "sha256": "b97e78e7c665be7e34f352d71d0565e470515865f288468e632bd560651c818f"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-public-cache-v3-review.json",
+      "bytes": 50780,
+      "sha256": "21ce70fcd2c9665f00981b9c2b2aa47a950a5130f02b866484e1f2ba41672815"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-v3-root-carry-archive-binding.json",
+      "bytes": 7002,
+      "sha256": "d311309b6bb9000e3f7a674d56900dc089317c45d3ec89f6acd840306dda8500"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-v3-closed-eof-diagnosis.json",
+      "bytes": 29859,
+      "sha256": "50d0497b7865ea309970b3c58a4f79fb023c71a4c9b1e8e77535991827aff520"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-v3-root-carry-design.json",
+      "bytes": 8875,
+      "sha256": "2c5e57491267c31f094480118aa3f7dc1399c1450d25eef1dcc64ae81d7e2b39"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v3-first-attempt-verified-v2\\failure-record.json",
+      "bytes": 12122,
+      "sha256": "0a36195c10a6371d1badd1c59f9e9f33210eb8bc7ced51260c8741bd25e9d596"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v3-first-attempt-verified-v2\\6bf7eeaf1784efec.ltar.part",
+      "bytes": 81481,
+      "sha256": "f15eaf9e0f5dc8945659b36931f9c70e9d9a56b5027d4d87f875614e74de9e05"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v3-first-attempt-verified-v2\\a054c375d3391ae4.ltar.part",
+      "bytes": 65097,
+      "sha256": "be71c86304f988330af90833ab7809ea98b1d8606b8ae75538c1ce8bf7ab3f66"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v3-first-attempt-verified-v2\\aborted-lease.json",
+      "bytes": 3001,
+      "sha256": "fa71a5bf32dc9f9e0fc721577baff3a4970c2b72d8376cdad940e542ae156e40"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v3-first-attempt-verified-v2\\original-3554-cache-downloads.jsonl",
+      "bytes": 3096930,
+      "sha256": "1914b27b4f76b164c85b7920b183a4bd8744114e2f4756e4430d014e1beb8796"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v3-first-attempt-verified-v2\\original-body-journal.jsonl",
+      "bytes": 6751,
+      "sha256": "87d966cdc2ea16755a267a9872cce06f7b26e3e618fbd4eba9d6d4fb78e2466a"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v3-first-attempt-verified-v2\\executed-base-guard.py",
+      "bytes": 37474,
+      "sha256": "a02c3519b0ccba8a74e577991fedcf75f0c05fb181cfeb617b7e51b060384c2b"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v3-first-attempt-verified-v2\\executed-body-v3.py",
+      "bytes": 48071,
+      "sha256": "23e760d9236037e8c5d14ef686b00fcbe9659d34cf28d7c03624a7775573af83"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v3-first-attempt-verified-v2\\executed-body-v3.ps1",
+      "bytes": 2233,
+      "sha256": "c22970d99b57e4cdc2ee42cce7601209af6356db7b660672dd3f9ba58ca8b86f"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v3-first-attempt-verified-v2\\executed-source-review.json",
+      "bytes": 50780,
+      "sha256": "21ce70fcd2c9665f00981b9c2b2aa47a950a5130f02b866484e1f2ba41672815"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v3-first-attempt-verified-v2\\executed-profile.json",
+      "bytes": 50026,
+      "sha256": "f23ebc252a02cf9a407db4fb2045f6c8dba064e1706e97d28fc6ff96ac2a5fd3"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v3-first-attempt-verified-v2\\readonly-eof-diagnosis.json",
+      "bytes": 29859,
+      "sha256": "50d0497b7865ea309970b3c58a4f79fb023c71a4c9b1e8e77535991827aff520"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v3-first-attempt-verified-v2\\bc9808c7-4940-48dd-bff8-dbb170cdabb6-167eb05edba284ba-g1.prefix",
+      "bytes": 48713,
+      "sha256": "5ee993d5f48049be3b6578b764482e7b39d1783aa413ea39c7745adb4c145903"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v3-first-attempt-verified-v2\\bc9808c7-4940-48dd-bff8-dbb170cdabb6-14cddd865b5a987e-g1.prefix",
+      "bytes": 48713,
+      "sha256": "25460908be428bb6d9aad390f40a72d07554ec0675e6d4cfa2b7db16afbc443f"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v3-first-attempt-verified-v2\\bc9808c7-4940-48dd-bff8-dbb170cdabb6-e07e8962719a4f40-g1.prefix",
+      "bytes": 32329,
+      "sha256": "63dddf949584ce67728ec5c8fe22605b3d62af26f5f9032a0d29d0de94e46884"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-body-v3-first-attempt-verified-v2\\bc9808c7-4940-48dd-bff8-dbb170cdabb6-6bf7eeaf1784efec-g1.prefix",
+      "bytes": 15945,
+      "sha256": "ad1ce53126e90eadc8c90228ba0685ac3437c66412c651357b7b425da4591638"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-public-cache-root-carry-controls\\run-1.stdout.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-public-cache-root-carry-controls\\run-1.stderr.txt",
+      "bytes": 2920,
+      "sha256": "478ee93bd292b87973d55578787f308f79fb41ce69b908dc55e3d71599fef616"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-public-cache-root-carry-review.json",
+      "bytes": 20643,
+      "sha256": "1a4ce79743fe80e89c673b79f934399d1663ae7a0066d52c4c5e5964cb168bc4"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-public-cache-bulk-controls\\run-1.stdout.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-public-cache-bulk-controls\\run-1.stderr.txt",
+      "bytes": 1780,
+      "sha256": "000f4f323face46149e6de4597b107fee32e179281dc3c3c2e620af4f7bdbf7b"
+    },
+    {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-public-cache-bulk-controls\\writer-probe-ast.ps1",
+      "bytes": 648,
+      "sha256": "cd2e80910abcad97fd6610659317fbba538ee03a3b82cee465c022b01035beba"
+    }
+  ],
+  "controls": {
+    "passed": 12,
+    "failed": 0,
+    "scope": "Synthetic binary streams and actual F-only fsync/readback; no official body tested",
+    "python_ast_passed": true,
+    "powershell_stage_ast_errors": 0,
+    "powershell_embedded_probe_ast_errors": 0,
+    "network_calls": 0,
+    "e_writes": 0,
+    "model_calls": 0,
+    "docker_calls": 0,
+    "candidate_or_lean_runs": 0,
+    "stderr_pin": {
+      "path": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-public-cache-bulk-controls\\run-1.stderr.txt",
+      "bytes": 1780,
+      "sha256": "000f4f323face46149e6de4597b107fee32e179281dc3c3c2e620af4f7bdbf7b"
+    }
+  },
+  "limits": {
+    "protocol": "explicit-root-new-key-complete-bulk-authorization-v1",
+    "recorded_at_utc": "2026-10-08T17:26:48.561988+00:00",
+    "scope": "Root authorized F-only preparation; root separately reviews and launches actual E/network stage",
+    "authorization_facts": "Root accepted bulk4 workers/new GET3/key/body retry1/key and4/stage; abort retain4; no changed frozen source, deadline, or historical attribution",
+    "prior_complete_objects": 3556,
+    "new_keys": 2270,
+    "maximum_final_objects": 5826,
+    "carry_phase_sha256": "6b1f63ad1f78331d60254dc2b48ec2da3e66f3ce645ab0fbbd27d43342265c2b",
+    "carry_receipts_sha256": "0a1341f62fd894701915886aec9e4f4258a686e73e54c644bab7a289a9b48713",
+    "carry_released_lease_sha256": "eae8be6693a60271d4378981b8f33422619a3005ef962afa0b0e5d2cff8b4c63",
+    "deadline_utc": "2026-10-08T18:16:26.118992+00:00",
+    "workers": 4,
+    "new_per_key_get_cap": 3,
+    "new_global_get_cap": 6810,
+    "new_body_retry_per_key_cap": 1,
+    "new_body_retry_stage_cap": 4,
+    "old_v3_key_interval": [
+      0,
+      3
+    ],
+    "v3_plus_bulk_key_interval_maximum": [
+      0,
+      6
+    ],
+    "old_v3_start_window_gets": 1505,
+    "carry_window_gets": 2,
+    "v3_window_maximum_gets": 8317,
+    "all_history_global_gets": null,
+    "all_history_per_key_gets": null,
+    "historical_boundary": "[0,3]+new and1505+2+6810 apply only from original V3 stage start; earlier public acquisition attempts exist and their all-history counts remain unknown",
+    "carried_preservation_operations": 6,
+    "new_body_retry_preservations_cap": 4,
+    "abort_retained_parts_cap": 4,
+    "preservation_operations_cap": 14,
+    "successful_preservation_operations_cap": 10,
+    "carried_failed_prefix_bytes": 292278,
+    "prefix_cap_bytes": 268435456,
+    "maximum_body_bytes": 67108864,
+    "audit_reserved_bytes": 67108864,
+    "directory_cap_bytes": 15032385536,
+    "minimum_e_free_bytes": 3221225472,
+    "minimum_f_free_bytes": 1073741824,
+    "body_policy": "Exact official fixed200 URL, known length and valid16-byte Content-MD5; complete fresh GET only; no Range or reuse. Known ETag/MD5/length drift, HTTP/TLS/content/MD5/prefix errors reject without retry.",
+    "allowance_policy": "Intentfsync/readback precedes opener; a failed/unknown intent consumes allowance; existing namespace rejects all automatic continuation/reset",
+    "completion_policy": "Full5826 actual blob SHA, new MD5/typed journal/dispatch, unchanged3556 raw prefix, source pins, final full tree/envelope, observed sole writer and durable released lease before final proof; completion receipt published last",
+    "failure_policy": "AllSettled before retain exact owned evidence and close lease; preserve all partial bytes; any unclosed namespace requires root archival/new authorization; never delete evidence to meet a counter",
+    "llm_called": false,
+    "candidate_run": false,
+    "network_executed": false,
+    "e_write_executed": false
+  },
+  "compatibility": "Original3556 raw receipts, V2/V3/carry sources and original journal remain immutable. New bulk rows have explicit namespace/window/unknown history fields and their own strict typed validator. Frozen fast-unpack required full5826 fields are retained.",
+  "source_review_note": "Only these new F files are editable before root acceptance; every imported guard/carry/source/archive control is pinned. New64MiB audit allowance stays inside14GiB and E3/F1 reserves; no new global settings."
+}

@@ -1,0 +1,3661 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-23T22:56:55+0800",
+  "archive_root": "../_objrun-archive",
+  "format": "restic-v2",
+  "password_policy": "empty password; filesystem/private-repository access controls only",
+  "uploaded": false,
+  "global_data_check": {
+    "command": "restic check --read-data",
+    "exit_code": 0,
+    "all_repository_data_read": true,
+    "collections": 66,
+    "started_utc": "2026-10-23T14:45:52.591662+00:00",
+    "finished_utc": "2026-10-23T14:50:55.211732+00:00",
+    "log": "verification/full-data-check.txt"
+  },
+  "collections": [
+    {
+      "id": "chembench-runtime",
+      "source_root": "objrun/scripts/repair-2026-10-10/full-f/chembench/runtime",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\scripts\\repair-2026-10-10\\full-f\\chembench\\runtime",
+      "snapshot": "f9ed803f7453267ef0fee1f5c347b0fa5272c6509a2cbe546df83287cf55ce2a",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 4283,
+      "source_logical_bytes": 212589340,
+      "source_links": 0,
+      "added_packed_bytes": 50116266,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/chembench-runtime/record.json",
+          "bytes": 1970,
+          "sha256": "499b9b2d31e1243c7a6ef3f18772b8cf1c8673fec955e73ea624bdc7b81867a2"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/chembench-runtime/source-before.jsonl.gz",
+          "bytes": 58283,
+          "sha256": "d4fd5cf8d802a186088d7d7889a06c810df3f9dc963542560cb29be8363e34c5"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/chembench-runtime/files-sha256.jsonl.gz",
+          "bytes": 210482,
+          "sha256": "8f0e05f3462c9937cc672ac08dba7b8c7b381c6ffa2968529b28e9b22c65f1e1"
+        }
+      }
+    },
+    {
+      "id": "docs-evalplus-20261012",
+      "source_root": "objrun/docs/evalplus-20261012",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\evalplus-20261012",
+      "snapshot": "cbcfc2ab2b62ddcc3cdd199ef4e57ca7d07f50b34620432dfe2ed174d8d11c7c",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 33114,
+      "source_logical_bytes": 2707486425,
+      "source_links": 0,
+      "added_packed_bytes": 98307745,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/docs-evalplus-20261012/record.json",
+          "bytes": 1929,
+          "sha256": "2c2a773776fbda3848685f3e783c3f85ecee3aad4d64c002a59ec5156925ac81"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/docs-evalplus-20261012/source-before.jsonl.gz",
+          "bytes": 785837,
+          "sha256": "c40c736e00f55fd45bc9823b964fb0b1a5968319a70cc373e0afa6d4cc4b7df4"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/docs-evalplus-20261012/files-sha256.jsonl.gz",
+          "bytes": 1568462,
+          "sha256": "a9bfcbe6c17a0c5c21ccf3f49286f99d81fd2208a17e913b915a6ff5751b179f"
+        }
+      }
+    },
+    {
+      "id": "docs-frontierscience",
+      "source_root": "objrun/docs/frontierscience",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\frontierscience",
+      "snapshot": "f5804b38022d3a37a06addcd81e13e0b9287b9d31c22e91b7d039a6753f5398a",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 21380,
+      "source_logical_bytes": 480374188,
+      "source_links": 0,
+      "added_packed_bytes": 186309186,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/docs-frontierscience/record.json",
+          "bytes": 1917,
+          "sha256": "e9665fdc7acf5a168713829aff2c1b156fd99ca8c039de686776776fd2d2f553"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/docs-frontierscience/source-before.jsonl.gz",
+          "bytes": 404372,
+          "sha256": "f84fd609f30d684c0cb7dcfad5b336f87cc61fac34762feb8fa60886d95ce25c"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/docs-frontierscience/files-sha256.jsonl.gz",
+          "bytes": 1078518,
+          "sha256": "818c9e0622f4e7837bf9d3e7fa355cb26859d3656f6247c6f9c04e3ebe197d7b"
+        }
+      }
+    },
+    {
+      "id": "docs-gpqa",
+      "source_root": "objrun/docs/gpqa",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\gpqa",
+      "snapshot": "3db83c6d46d3f67d60b7cd14fd96c50df3d2806e504a8e03c3f41a5234e174dd",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 23,
+      "source_logical_bytes": 7625186,
+      "source_links": 0,
+      "added_packed_bytes": 610237,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/docs-gpqa/record.json",
+          "bytes": 1854,
+          "sha256": "8e213d832a488d5c1062693e201de3fccbe05ee9972135f4363ad9972969dad5"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/docs-gpqa/source-before.jsonl.gz",
+          "bytes": 588,
+          "sha256": "57d86191b685d4cbf7810f84fc1605e4e9f52eba5759501975ab14978e9b842b"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/docs-gpqa/files-sha256.jsonl.gz",
+          "bytes": 1285,
+          "sha256": "cc8e3e8013adf76d4eb2cd15ebb284a47924c1b3ec62e4ba42192676f27f0ed0"
+        }
+      }
+    },
+    {
+      "id": "docs-labbench",
+      "source_root": "objrun/docs/labbench",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\labbench",
+      "snapshot": "3a011f3433c86431428efd3107323ad12e1ed5147bb608fde71c4c5bdf26efca",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 61029,
+      "source_logical_bytes": 2180684975,
+      "source_links": 0,
+      "added_packed_bytes": 606634203,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/docs-labbench/record.json",
+          "bytes": 1903,
+          "sha256": "114bf99ac10f16c82ddb0b1b3138fee4fc85901a5c9826bfb09a74e457035fa3"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/docs-labbench/source-before.jsonl.gz",
+          "bytes": 1028573,
+          "sha256": "3fb3ef18b5bea1128a354f896a9192385d619cb2daed6f9faff1f12495fb1ee8"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/docs-labbench/files-sha256.jsonl.gz",
+          "bytes": 2849262,
+          "sha256": "f38108fd6300a421eb7875957c0648d55783ab1600332f978c10fd716b24b6e2"
+        }
+      }
+    },
+    {
+      "id": "docs-llm-srbench",
+      "source_root": "objrun/docs/llm-srbench",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\llm-srbench",
+      "snapshot": "515a7cd3a31786d09eb04b1d22cae774ca9681cb2df68b2e5f56066317a09c3f",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 4,
+      "source_logical_bytes": 43402,
+      "source_links": 0,
+      "added_packed_bytes": 19917,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/docs-llm-srbench/record.json",
+          "bytes": 1858,
+          "sha256": "5b24d884df95499cb4682c9d1e9379353c1ae940b31405ad35c4bbe08b62a40a"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/docs-llm-srbench/source-before.jsonl.gz",
+          "bytes": 221,
+          "sha256": "3ddca5e1ba20aefa5ed7bc83891776bec6b30ada8df2d3fa28d42234bc413b5b"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/docs-llm-srbench/files-sha256.jsonl.gz",
+          "bytes": 331,
+          "sha256": "ee9f8f45b1e3a420419f4f90ac417787de40d916e2ae8fdbe73025e9ad81c14c"
+        }
+      }
+    },
+    {
+      "id": "docs-minif2f",
+      "source_root": "objrun/docs/minif2f",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\minif2f",
+      "snapshot": "6aebcbf4fd077b4dcce94e7fbc1d7ee8baa404544c6597c07e1ce0b40a15d146",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 33956,
+      "source_logical_bytes": 343430416,
+      "source_links": 0,
+      "added_packed_bytes": 53414748,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/docs-minif2f/record.json",
+          "bytes": 1891,
+          "sha256": "213aa7c3bbd1400c1046e29a4fc77a4f07060b4b2bf32a79a163dc1a61e0c745"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/docs-minif2f/source-before.jsonl.gz",
+          "bytes": 563721,
+          "sha256": "27db37e50413516e59f677bb20dcda09533fe842063cfc4e690cab8260cf88ed"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/docs-minif2f/files-sha256.jsonl.gz",
+          "bytes": 1431486,
+          "sha256": "053d1e09e42f86f4ce2acb97a86dff83f0628d2e608b1bbf38ae7bba1b202611"
+        }
+      }
+    },
+    {
+      "id": "docs-newbench-20261014",
+      "source_root": "objrun/docs/newbench-20261014",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\newbench-20261014",
+      "snapshot": "673d7cca39aa993254328ef826cb8a81839aebd293b1ee1b36bd26529e36b279",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 170680,
+      "source_logical_bytes": 8019498904,
+      "source_links": 0,
+      "added_packed_bytes": 558841886,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/docs-newbench-20261014/record.json",
+          "bytes": 1936,
+          "sha256": "f865ec8220788c5bfc360358a6bc222304cdcc14fe80086e1bf2ad686c0da87b"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/docs-newbench-20261014/source-before.jsonl.gz",
+          "bytes": 3463227,
+          "sha256": "d2040bcc8ea7dd87599ef730208cb14549c8c34441022c86caf2e49cfd82fb98"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/docs-newbench-20261014/files-sha256.jsonl.gz",
+          "bytes": 8124284,
+          "sha256": "c4f354588cae358e8ea99f7af16dfe2e690fd7610c253d420a796372c6c648de"
+        }
+      }
+    },
+    {
+      "id": "docs-olympiadbench",
+      "source_root": "objrun/docs/olympiadbench",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\olympiadbench",
+      "snapshot": "eba3fb2f8a657f8a2160a70df93e585cacc175ac5a94f324218263d3fb1abf86",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 36215,
+      "source_logical_bytes": 1661964637,
+      "source_links": 0,
+      "added_packed_bytes": 460531940,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/docs-olympiadbench/record.json",
+          "bytes": 1917,
+          "sha256": "76fe138fa7666b933757da7eb9b66e23bac12f44accad9b49b1cb57e76042bc0"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/docs-olympiadbench/source-before.jsonl.gz",
+          "bytes": 649090,
+          "sha256": "b94e8c318de9748c055efabc1db1460e6ec35f5292430789e4041a13e7189113"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/docs-olympiadbench/files-sha256.jsonl.gz",
+          "bytes": 1812573,
+          "sha256": "3483687c60f4809e58f7d403fd5b9af1736dcd228d19a82ae04c7a1fac176bb1"
+        }
+      }
+    },
+    {
+      "id": "docs-phase1",
+      "source_root": "objrun/docs/phase1",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\phase1",
+      "snapshot": "b4960caecf8366520d0ac7f44e9b2058ef33368b1298342a1a8e5dbb51084112",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 362,
+      "source_logical_bytes": 10198963,
+      "source_links": 0,
+      "added_packed_bytes": 870208,
+      "excluded_paths": [],
+      "kept_files": [
+        "biocoder-selfcheck.json",
+        "humaneval-plus-selfcheck.json",
+        "llm-srbench-selfcheck.json",
+        "scicode-selfcheck.json",
+        "source-baseline.json"
+      ],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [
+        "biocoder-selfcheck.json",
+        "humaneval-plus-selfcheck.json",
+        "llm-srbench-selfcheck.json",
+        "scicode-selfcheck.json",
+        "source-baseline.json"
+      ],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/docs-phase1/record.json",
+          "bytes": 2040,
+          "sha256": "690b20fc830b915ce40be79f7b6600da170a42c2c96c3b347f5b2d90374a5678"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/docs-phase1/source-before.jsonl.gz",
+          "bytes": 6185,
+          "sha256": "e534fed2f32836205070e9c00d8585ef0316a2bae707f21da9d582f95171eb65"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/docs-phase1/files-sha256.jsonl.gz",
+          "bytes": 18114,
+          "sha256": "471aa5c44206978ad04d90cb2a033972a0700a3c53f6089aa0163492a4ec6b27"
+        }
+      }
+    },
+    {
+      "id": "docs-repair-2026-10-08",
+      "source_root": "objrun/docs/repair-2026-10-08",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\repair-2026-10-08",
+      "snapshot": "ee0ad05145086f4df0c367be4908d049ef1ebd80f5bcc2f04e89780b63b65a6c",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 13594,
+      "source_logical_bytes": 1383790659,
+      "source_links": 0,
+      "added_packed_bytes": 252844022,
+      "excluded_paths": [],
+      "kept_files": [
+        "campaign-four-worker-local.json",
+        "campaigns/repair-2026-10-08T18-32-57-118Z/source.json",
+        "chemiq-f-journal-implementation-v2/observations/private-inspect-2026-10-09T08-28-01-515672+00-00.json",
+        "chemiq-f-journal-implementation-v2/observations/provider-2026-10-09T09-35-12-993Z-official-pricing.html",
+        "chemiq-nextwave-grader-provenance.json",
+        "deepseek-balance-readonly.json",
+        "deepseek-cny-price-readonly.json",
+        "jpg-D-journal-preparations/repair-2026-10-09T06-57-26-283Z/recipe.json",
+        "jpg-RAM-exact-missing-name-readonly/observation.json",
+        "jpg-journal-paid-readiness-plan.json",
+        "minif2f-dependency-failures/public-cache-bulk-v1-lease-cursor-failure/agent-readonly-copy-v1/failure-record.json",
+        "minif2f-fast-first-archive-diagnosis.json",
+        "minif2f-fast-unpack-fixture.json",
+        "minif2f-public-cache-bulk-review.json",
+        "minif2f-public-cache-bulk2-review.json",
+        "minif2f-public-cache-root-carry-authorization.json",
+        "minif2f-public-cache-root-carry-review.json",
+        "minif2f-public-cache-v2-controls.json",
+        "minif2f-public-cache-v2-startup-red.json",
+        "minif2f-public-cache-v3-controls.json",
+        "minif2f-public-cache-v3-startup-red.json",
+        "minif2f-restoration-preflight.json",
+        "science-db-snapshot-native-controls-v1/review.json",
+        "science-db-snapshots/root-proxy-identity-routed-v2/proxy-port-identity.json",
+        "science-db-snapshots/root-snapshot-2026-10-09T04-10-v1.json",
+        "science1220-oom-original-process-closure.json",
+        "scientific-campaign-deferred-fault.json",
+        "scientific-financial-interruptions/repair-2026-10-08T18-32-57-118Z-audit-v2/audit.json",
+        "software-jpg-build-copy-verified-v2/image-manifest.json",
+        "software-jpg-controls-copy-verified-v3/report.json",
+        "software-preflight.json"
+      ],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [
+        "campaign-four-worker-local.json",
+        "campaigns/repair-2026-10-08T18-32-57-118Z/source.json",
+        "chemiq-f-journal-implementation-v2/observations/private-inspect-2026-10-09T08-28-01-515672+00-00.json",
+        "chemiq-f-journal-implementation-v2/observations/provider-2026-10-09T09-35-12-993Z-official-pricing.html",
+        "chemiq-nextwave-grader-provenance.json",
+        "deepseek-balance-readonly.json",
+        "deepseek-cny-price-readonly.json",
+        "jpg-D-journal-preparations/repair-2026-10-09T06-57-26-283Z/recipe.json",
+        "jpg-RAM-exact-missing-name-readonly/observation.json",
+        "jpg-journal-paid-readiness-plan.json",
+        "minif2f-dependency-failures/public-cache-bulk-v1-lease-cursor-failure/agent-readonly-copy-v1/failure-record.json",
+        "minif2f-fast-first-archive-diagnosis.json",
+        "minif2f-fast-unpack-fixture.json",
+        "minif2f-public-cache-bulk-review.json",
+        "minif2f-public-cache-bulk2-review.json",
+        "minif2f-public-cache-root-carry-authorization.json",
+        "minif2f-public-cache-root-carry-review.json",
+        "minif2f-public-cache-v2-controls.json",
+        "minif2f-public-cache-v2-startup-red.json",
+        "minif2f-public-cache-v3-controls.json",
+        "minif2f-public-cache-v3-startup-red.json",
+        "minif2f-restoration-preflight.json",
+        "science-db-snapshot-native-controls-v1/review.json",
+        "science-db-snapshots/root-proxy-identity-routed-v2/proxy-port-identity.json",
+        "science-db-snapshots/root-snapshot-2026-10-09T04-10-v1.json",
+        "science1220-oom-original-process-closure.json",
+        "scientific-campaign-deferred-fault.json",
+        "scientific-financial-interruptions/repair-2026-10-08T18-32-57-118Z-audit-v2/audit.json",
+        "software-jpg-build-copy-verified-v2/image-manifest.json",
+        "software-jpg-controls-copy-verified-v3/report.json",
+        "software-preflight.json"
+      ],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/docs-repair-2026-10-08/record.json",
+          "bytes": 3780,
+          "sha256": "b6397657559de6903a7691d3383f44e3b6ab312c850e3f1c4d3d3dccae4d4a05"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/docs-repair-2026-10-08/source-before.jsonl.gz",
+          "bytes": 195192,
+          "sha256": "675054076a50331178044ab7be78e5b5b7b5fd88e1c8e057ba98761221203803"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/docs-repair-2026-10-08/files-sha256.jsonl.gz",
+          "bytes": 492062,
+          "sha256": "f7b3e264622976b5060ff1334e44d3f449b463c5b2ad53170e7312a91fb06172"
+        }
+      }
+    },
+    {
+      "id": "docs-repair-2026-10-09",
+      "source_root": "objrun/docs/repair-2026-10-09",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\repair-2026-10-09",
+      "snapshot": "6544ca6e73a8b1bbd0e4932762b3e4bce203f8b1b18f88407ab94ac6b17fb1c5",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 132590,
+      "source_logical_bytes": 4619871467,
+      "source_links": 0,
+      "added_packed_bytes": 492267518,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/docs-repair-2026-10-09/record.json",
+          "bytes": 1934,
+          "sha256": "396da08664f78fe6581c32de95a8508bb0c86c351fad08cd77c4abd0defe5924"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/docs-repair-2026-10-09/source-before.jsonl.gz",
+          "bytes": 1489778,
+          "sha256": "d9222ca1e0eee28b6bf7dc2cb1b45fe2bc2d1e48ccab1ec9465901ac77f12ae4"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/docs-repair-2026-10-09/files-sha256.jsonl.gz",
+          "bytes": 2117183,
+          "sha256": "6a312675bcf06b31469a114fd89d243f3ff170d49be14767626eb7bd46f97dd2"
+        }
+      }
+    },
+    {
+      "id": "docs-repair-2026-10-10-remainder",
+      "source_root": "objrun/docs/repair-2026-10-10",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\repair-2026-10-10",
+      "snapshot": "7380c452a8f3cd663ad59aa1a824f51c77df41559df9a7c044a5e376156e2474",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 6851,
+      "source_logical_bytes": 358277700,
+      "source_links": 0,
+      "added_packed_bytes": 134263729,
+      "excluded_paths": [],
+      "kept_files": [
+        "openrouter-deepseek-check/3d75fcaf756e44918dab4e7f5ea061ba/v41-endpoints.json"
+      ],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [
+        "openrouter-deepseek-check/3d75fcaf756e44918dab4e7f5ea061ba/v41-endpoints.json"
+      ],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/docs-repair-2026-10-10-remainder/record.json",
+          "bytes": 2058,
+          "sha256": "e400fb155c037979d86335477d96506e36f692c106ec02ad18e693f84fde4113"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/docs-repair-2026-10-10-remainder/source-before.jsonl.gz",
+          "bytes": 118751,
+          "sha256": "0817c066020bcf6753b11b7b0fdf28903c4f5992690b58b4fde76d40e08e1d2f"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/docs-repair-2026-10-10-remainder/files-sha256.jsonl.gz",
+          "bytes": 316006,
+          "sha256": "e7acc180c9c9a747d9d596fabc1a12362b70ee62a3ddd29e2fe3ac946d1d0464"
+        }
+      }
+    },
+    {
+      "id": "external-native-04e3ffc1",
+      "source_root": "D:\\TgEngin-local-runs\\20261018\\preserved-historical-native-logs\\native-04e3ffc1\\run",
+      "source_absolute": "D:\\TgEngin-local-runs\\20261018\\preserved-historical-native-logs\\native-04e3ffc1\\run",
+      "snapshot": "4d6ca423445cae561fb5800be7316cf50597f62058f8d743280e1e31dc7f66bf",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 813,
+      "source_logical_bytes": 467495270,
+      "source_links": 0,
+      "added_packed_bytes": 43558646,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-native-04e3ffc1/record.json",
+          "bytes": 1739,
+          "sha256": "ed484adaf2764d86fb8775b0bcbcfe641f8235580fb149d96a970c92cdd58af9"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-native-04e3ffc1/source-before.jsonl.gz",
+          "bytes": 10017,
+          "sha256": "a0f31b989d5a5d88eb4f9e27a6a6827b15a2a3143cbcf44368cf03894324c707"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-native-04e3ffc1/files-sha256.jsonl.gz",
+          "bytes": 27759,
+          "sha256": "53557047f6e40bb70c62fb0fad70553f2f8a80902cc30a5898baa9af279df044"
+        }
+      }
+    },
+    {
+      "id": "external-native-af21274a",
+      "source_root": "D:\\TgEngin-local-runs\\20261018\\preserved-historical-native-logs\\native-af21274a\\run",
+      "source_absolute": "D:\\TgEngin-local-runs\\20261018\\preserved-historical-native-logs\\native-af21274a\\run",
+      "snapshot": "44faa8b34f432fc7afbce964c662628a16b50a440b6ab298ee0bc7d68fb54f3e",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 612,
+      "source_logical_bytes": 413679051,
+      "source_links": 0,
+      "added_packed_bytes": 22813362,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-native-af21274a/record.json",
+          "bytes": 1738,
+          "sha256": "e3b0c3d7447b2f269dbf79d71d041e702f829cbe36c33d1d1613c68916e51d64"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-native-af21274a/source-before.jsonl.gz",
+          "bytes": 7842,
+          "sha256": "c31b29101a410273dedd70db1a4e3154edb916ae38412ab8847f2703adedad06"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-native-af21274a/files-sha256.jsonl.gz",
+          "bytes": 21094,
+          "sha256": "471c976a966934474d8a8e7061d21e3b995d9cf5c388b45704c2deabcc7c0e2e"
+        }
+      }
+    },
+    {
+      "id": "external-native-de1893c6",
+      "source_root": "D:\\TgEngin-local-runs\\20261018\\preserved-historical-native-logs\\native-de1893c6\\run",
+      "source_absolute": "D:\\TgEngin-local-runs\\20261018\\preserved-historical-native-logs\\native-de1893c6\\run",
+      "snapshot": "db677c02175660e71e27ed3f57de44f160ec36a5bd6df2edc7ecf170f6e8d5ef",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 807,
+      "source_logical_bytes": 780675462,
+      "source_links": 0,
+      "added_packed_bytes": 24152966,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-native-de1893c6/record.json",
+          "bytes": 1737,
+          "sha256": "bef4792f375bfedbb43f038635af5d7005430ec5791f3595215fffed6ea17a5f"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-native-de1893c6/source-before.jsonl.gz",
+          "bytes": 9963,
+          "sha256": "9ebdb45174d34665f4c2548b3e3a6d937429802b86593def8979533e3578f3e4"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-native-de1893c6/files-sha256.jsonl.gz",
+          "bytes": 27519,
+          "sha256": "5d5de16162e8ebbe6325b9919890471bc3f1147719b35b506a8d38203a12ae79"
+        }
+      }
+    },
+    {
+      "id": "external-phase1-repair-2026-10-08t06-06-06-739z",
+      "source_root": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-06-06-739Z",
+      "source_absolute": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-06-06-739Z",
+      "snapshot": "e713c6a2463867251509f175ea8c2de6ea88f17ba70ef561979f57fe65e773ee",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 15,
+      "source_logical_bytes": 13857459,
+      "source_links": 0,
+      "added_packed_bytes": 7499857,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-phase1-repair-2026-10-08t06-06-06-739z/record.json",
+          "bytes": 1808,
+          "sha256": "d31ee99cd2aa50c8a09a930e3cd788cb1e3bf49c7ab2a511a6e481bb3b142528"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-phase1-repair-2026-10-08t06-06-06-739z/source-before.jsonl.gz",
+          "bytes": 394,
+          "sha256": "aff25f76d9aeebd826e5f92469f24c70036d4d18d6dcf3b94838b433d69f3210"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-phase1-repair-2026-10-08t06-06-06-739z/files-sha256.jsonl.gz",
+          "bytes": 703,
+          "sha256": "f7007c307ace64dd90e8fb762d9ba7880587009e2bb728fb4456158d0dbc7d45"
+        }
+      }
+    },
+    {
+      "id": "external-phase1-repair-2026-10-08t06-06-41-201z",
+      "source_root": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-06-41-201Z",
+      "source_absolute": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-06-41-201Z",
+      "snapshot": "f7997201f3a5e168011b23bd095fb921ad3a76812021af2dc18d20bfdf54df57",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 15,
+      "source_logical_bytes": 29656178,
+      "source_links": 0,
+      "added_packed_bytes": 8688945,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-phase1-repair-2026-10-08t06-06-41-201z/record.json",
+          "bytes": 1808,
+          "sha256": "cd97aefe78b23aed1d4e01b3596af5dfff30316269fdd72e5d648b874a0b616a"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-phase1-repair-2026-10-08t06-06-41-201z/source-before.jsonl.gz",
+          "bytes": 410,
+          "sha256": "dbe1b1c141e363c3f4654e513eb16e286cfae193dd19f0b9e142e0a13dfed693"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-phase1-repair-2026-10-08t06-06-41-201z/files-sha256.jsonl.gz",
+          "bytes": 789,
+          "sha256": "b7fd1a0363efbfbd55bc4e8c874157ee354d9f29c2b656043bc0be847d68783e"
+        }
+      }
+    },
+    {
+      "id": "external-phase1-repair-2026-10-08t06-51-16-840z",
+      "source_root": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-51-16-840Z",
+      "source_absolute": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-51-16-840Z",
+      "snapshot": "01268c3cefe9c01c2fd0944bd732a654ef808b9585997db335221df38ef59f2f",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 31,
+      "source_logical_bytes": 14477703,
+      "source_links": 0,
+      "added_packed_bytes": 7541504,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-phase1-repair-2026-10-08t06-51-16-840z/record.json",
+          "bytes": 1807,
+          "sha256": "67e6f190f73af8c724143a564a2ed046b88cbd51dd4b996db9e63b5f2386590b"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-phase1-repair-2026-10-08t06-51-16-840z/source-before.jsonl.gz",
+          "bytes": 581,
+          "sha256": "d85327abc2891a12eba951a486ddfb9a6c0e17d57c36d84396e32a9cceba35da"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-phase1-repair-2026-10-08t06-51-16-840z/files-sha256.jsonl.gz",
+          "bytes": 1466,
+          "sha256": "09f398286a3e5abb53f7032dc1f48bc4bbf647d71c6bd77c8983c0e1832adc04"
+        }
+      }
+    },
+    {
+      "id": "external-phase1-repair-2026-10-08t06-54-55-267z",
+      "source_root": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-54-55-267Z",
+      "source_absolute": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-54-55-267Z",
+      "snapshot": "c57c3e002abed09a5bcca18f61da83ebb49af96cdc6b762cdc281a2604be1358",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 6423,
+      "source_logical_bytes": 116814972,
+      "source_links": 0,
+      "added_packed_bytes": 30519790,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-phase1-repair-2026-10-08t06-54-55-267z/record.json",
+          "bytes": 1820,
+          "sha256": "a26826241f4e04a29d50b4665ab07cfa33b5ad3d959a40cb07ba68c8b9d5a5d5"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-phase1-repair-2026-10-08t06-54-55-267z/source-before.jsonl.gz",
+          "bytes": 77315,
+          "sha256": "8d0ed693335d8438b62ab1176fa943ebff8b4cbbf2dcf30c13d97827eb525671"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-phase1-repair-2026-10-08t06-54-55-267z/files-sha256.jsonl.gz",
+          "bytes": 294467,
+          "sha256": "6d51fb9ced4fda7424fcc3a7fafc6c67ff459d41cf7d1aa934fca282aecede93"
+        }
+      }
+    },
+    {
+      "id": "external-phase1-repair-2026-10-08t10-25-57-408z",
+      "source_root": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T10-25-57-408Z",
+      "source_absolute": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T10-25-57-408Z",
+      "snapshot": "4daa80b89b3f24dc5670a625287711e30122282683fb07efc26222d2d971c889",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 2518,
+      "source_logical_bytes": 61860633,
+      "source_links": 0,
+      "added_packed_bytes": 20742058,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-phase1-repair-2026-10-08t10-25-57-408z/record.json",
+          "bytes": 1824,
+          "sha256": "0e5fffe6098134ec14410ac976e8ee597f950846abcc1312e6d52bc59de6ad59"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-phase1-repair-2026-10-08t10-25-57-408z/source-before.jsonl.gz",
+          "bytes": 29372,
+          "sha256": "c758722a13a7a76c874e28b0c3d44a113942042c39036e22560940a976d33353"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-phase1-repair-2026-10-08t10-25-57-408z/files-sha256.jsonl.gz",
+          "bytes": 114539,
+          "sha256": "8bfcb7bd0e484f2082eaafff2db9ce7b50ef48333234795c301cc3c5cc457178"
+        }
+      }
+    },
+    {
+      "id": "external-phase1-repair-2026-10-08t17-36-10-873z",
+      "source_root": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T17-36-10-873Z",
+      "source_absolute": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T17-36-10-873Z",
+      "snapshot": "3f831bb3ea81c4902962ceb8a814c6cc85eb2a4d8790583e6549257c00807585",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 1,
+      "source_logical_bytes": 1904,
+      "source_links": 0,
+      "added_packed_bytes": 1241,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-phase1-repair-2026-10-08t17-36-10-873z/record.json",
+          "bytes": 1759,
+          "sha256": "8d9a4e7356dff20bb0df29d13a2f0bc57aab67ff715acd74a1fd775a14a69b4a"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-phase1-repair-2026-10-08t17-36-10-873z/source-before.jsonl.gz",
+          "bytes": 129,
+          "sha256": "f864146d4727b1902498db787cba6e798db2d1eefbdf7a1bd25aca59f0949ab6"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-phase1-repair-2026-10-08t17-36-10-873z/files-sha256.jsonl.gz",
+          "bytes": 148,
+          "sha256": "4b111a6dd51c51bb7058c8f2d00baf8fb8e2b1ea945f62dc0ca47acd704087a6"
+        }
+      }
+    },
+    {
+      "id": "external-phase1-repair-2026-10-08t18-32-57-118z",
+      "source_root": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z",
+      "source_absolute": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z",
+      "snapshot": "dc0988cc00c06a1b744e18aeb7c444727acd64d3b952708df062a78933402cf9",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 47049,
+      "source_logical_bytes": 859113940,
+      "source_links": 0,
+      "added_packed_bytes": 349643735,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-phase1-repair-2026-10-08t18-32-57-118z/record.json",
+          "bytes": 1803,
+          "sha256": "5eedc5882548f2ecad45d810ce60a2bfdd56cc5e2cffa7fe0f8b472e9bcc205a"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-phase1-repair-2026-10-08t18-32-57-118z/source-before.jsonl.gz",
+          "bytes": 548341,
+          "sha256": "970dd66f34d09bdbf9353d64ea94365ecf8edae3aaaae8de786918b6f667b60b"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-phase1-repair-2026-10-08t18-32-57-118z/files-sha256.jsonl.gz",
+          "bytes": 2143276,
+          "sha256": "2999f2f30c8bff410e37843e4446cda66646519c932cdb438ebc975026ff7cd2"
+        }
+      }
+    },
+    {
+      "id": "external-phase1-scicode-verified",
+      "source_root": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\scicode-verified",
+      "source_absolute": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\scicode-verified",
+      "snapshot": "e119ebf649f10f744bbc0c723d197062b1c322fea085425410ea0b3f62128f1f",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 155,
+      "source_logical_bytes": 1113827547,
+      "source_links": 0,
+      "added_packed_bytes": 423975301,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-phase1-scicode-verified/record.json",
+          "bytes": 1776,
+          "sha256": "92630a253e6484195ccf635615b902244522ce4913612188108360183689e84f"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-phase1-scicode-verified/source-before.jsonl.gz",
+          "bytes": 2528,
+          "sha256": "89bc43cc00624d56ac1e179db0216d6da3d8e7177ccf0e67dd8357b9d6335eeb"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-phase1-scicode-verified/files-sha256.jsonl.gz",
+          "bytes": 8006,
+          "sha256": "bd432c8b1f195f412d47875ef91625d12c2107aaadef95bf286dca801c650fba"
+        }
+      }
+    },
+    {
+      "id": "external-phase1-skb-jpg-2026-10-08t09-46-34-645z",
+      "source_root": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-46-34-645Z",
+      "source_absolute": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-46-34-645Z",
+      "snapshot": "a29d4c50583c93915cbae2404e89525a9eeb7439772be2ea7bb4df7bbfe5f67d",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 1,
+      "source_logical_bytes": 62690018,
+      "source_links": 0,
+      "added_packed_bytes": 59314374,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-phase1-skb-jpg-2026-10-08t09-46-34-645z/record.json",
+          "bytes": 1813,
+          "sha256": "d0c045520ad70da87a0fcfd4d70b8de24aea375e73d8369720bf9bc736313e66"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-phase1-skb-jpg-2026-10-08t09-46-34-645z/source-before.jsonl.gz",
+          "bytes": 130,
+          "sha256": "460e1f31bdf27b411bcbb79a608da637bd094e45c65a1bdffd2536ea39b57093"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-phase1-skb-jpg-2026-10-08t09-46-34-645z/files-sha256.jsonl.gz",
+          "bytes": 149,
+          "sha256": "1fb19f672cd91a47ff0ac44b73328d59e677c4c9a44205c1526fe7f31187999b"
+        }
+      }
+    },
+    {
+      "id": "external-phase1-skb-jpg-2026-10-08t09-46-44-144z",
+      "source_root": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-46-44-144Z",
+      "source_absolute": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-46-44-144Z",
+      "snapshot": "89e1882f68d394ab66c93c3c3f96b972a88165c9f392a4d19255fd231fc854b3",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 79,
+      "source_logical_bytes": 68749821,
+      "source_links": 0,
+      "added_packed_bytes": 20755973,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-phase1-skb-jpg-2026-10-08t09-46-44-144z/record.json",
+          "bytes": 1826,
+          "sha256": "3dc9b43c2a937f46bf12ebf729148753faa262b90d750f58e60200a3b9b0439a"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-phase1-skb-jpg-2026-10-08t09-46-44-144z/source-before.jsonl.gz",
+          "bytes": 1166,
+          "sha256": "2558e7287ef2e0e7922223bd5aac3c2c46f8605f95a613f1e18c2f1e0a8f4f33"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-phase1-skb-jpg-2026-10-08t09-46-44-144z/files-sha256.jsonl.gz",
+          "bytes": 3305,
+          "sha256": "402ae28069544d2e642d2d43b970ec53709b4dfc34f90a1d6a70b0d52211a5f4"
+        }
+      }
+    },
+    {
+      "id": "external-phase1-skb-jpg-2026-10-08t09-48-07-694z",
+      "source_root": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-48-07-694Z",
+      "source_absolute": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-48-07-694Z",
+      "snapshot": "080a93260dd7dde894c6ce25dfac20cc4e02eeaed860be9df6621c20d982ad13",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 80,
+      "source_logical_bytes": 68750360,
+      "source_links": 0,
+      "added_packed_bytes": 20755314,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-phase1-skb-jpg-2026-10-08t09-48-07-694z/record.json",
+          "bytes": 1817,
+          "sha256": "57d5d8009da09db9d0bbc7d5577ce091a1ea23c04f096c106c2ed2d96eb64106"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-phase1-skb-jpg-2026-10-08t09-48-07-694z/source-before.jsonl.gz",
+          "bytes": 1213,
+          "sha256": "6af7a5eabaa5069925e0ff21d0fd40598b129f4c76bcbf18f5fcd8c829b67e6b"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-phase1-skb-jpg-2026-10-08t09-48-07-694z/files-sha256.jsonl.gz",
+          "bytes": 3372,
+          "sha256": "cf17002926cbe7ecee27ee7cd62f623915311b95f606b081632d50eddf03368c"
+        }
+      }
+    },
+    {
+      "id": "external-phase1-skb-jpg-2026-10-08t09-54-51-769z",
+      "source_root": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-54-51-769Z",
+      "source_absolute": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-54-51-769Z",
+      "snapshot": "8367c884a28955adbbe7a620a1d1306fa83634834cf54095dafefa559f555cfb",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 90,
+      "source_logical_bytes": 68756356,
+      "source_links": 0,
+      "added_packed_bytes": 20762914,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-phase1-skb-jpg-2026-10-08t09-54-51-769z/record.json",
+          "bytes": 1817,
+          "sha256": "15500f7363e6759e102dd0a056c2a0094c97a1f986fc5082aaa342fd80bdcc16"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-phase1-skb-jpg-2026-10-08t09-54-51-769z/source-before.jsonl.gz",
+          "bytes": 1320,
+          "sha256": "820de9c11803a97d0b312160d25b746327ba0b844a1f068d1532e83e6ee14320"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-phase1-skb-jpg-2026-10-08t09-54-51-769z/files-sha256.jsonl.gz",
+          "bytes": 3760,
+          "sha256": "14a032d80de1111b1b6cb7b7f4472c329b85064d32c9a66b21c9a987acc0e122"
+        }
+      }
+    },
+    {
+      "id": "external-phase1-tb-nginx-2026-10-08t07-48-23-195z",
+      "source_root": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\tb-nginx-2026-10-08T07-48-23-195Z",
+      "source_absolute": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\tb-nginx-2026-10-08T07-48-23-195Z",
+      "snapshot": "332835bc9d70e7abd3c4ab4ed417ca2fdc202887b7b89e4a1a7b4815dd6427ef",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 2,
+      "source_logical_bytes": 55217263,
+      "source_links": 0,
+      "added_packed_bytes": 13090717,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-phase1-tb-nginx-2026-10-08t07-48-23-195z/record.json",
+          "bytes": 1815,
+          "sha256": "2d5b93aa3265f307ee3b3024427e1ee3ec6929c324679df5d9b37619146db680"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-phase1-tb-nginx-2026-10-08t07-48-23-195z/source-before.jsonl.gz",
+          "bytes": 183,
+          "sha256": "9431b32026eb18a1d50ed5299cad07bdce32045515fad08573007c0c6529940a"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-phase1-tb-nginx-2026-10-08t07-48-23-195z/files-sha256.jsonl.gz",
+          "bytes": 209,
+          "sha256": "15553cca623ed9cb39b9a297fc7c7f25a7ae7fc0cf6e4a8c6970040e90a93639"
+        }
+      }
+    },
+    {
+      "id": "external-phase1-tb-nginx-2026-10-08t07-49-30-364z",
+      "source_root": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\tb-nginx-2026-10-08T07-49-30-364Z",
+      "source_absolute": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\tb-nginx-2026-10-08T07-49-30-364Z",
+      "snapshot": "6720a7746936d5d8bf5f110ad9d065570f224f05fcab5b44612afa3972a06eee",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 78,
+      "source_logical_bytes": 63003772,
+      "source_links": 0,
+      "added_packed_bytes": 13328503,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-phase1-tb-nginx-2026-10-08t07-49-30-364z/record.json",
+          "bytes": 1818,
+          "sha256": "fdb90fec159516e34faa8a4db26d880b4fb45faa0a780e941c90413c96621863"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-phase1-tb-nginx-2026-10-08t07-49-30-364z/source-before.jsonl.gz",
+          "bytes": 1346,
+          "sha256": "ee506400ba06dd8ac32bfd0db8cf3a6fdb444a0c2b4327f1063cbb01f0ab55a2"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-phase1-tb-nginx-2026-10-08t07-49-30-364z/files-sha256.jsonl.gz",
+          "bytes": 3422,
+          "sha256": "591d3c864a567e36d8e876de4e99213dd88c687fa351dc1effbb98fb3dbc3f30"
+        }
+      }
+    },
+    {
+      "id": "external-phase1-tb-nginx-2026-10-08t08-35-56-432z",
+      "source_root": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\tb-nginx-2026-10-08T08-35-56-432Z",
+      "source_absolute": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\tb-nginx-2026-10-08T08-35-56-432Z",
+      "snapshot": "d7350216b55ef86ad54e48ed1a15a35dc08731a1363c4596692f8547abf16183",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 116,
+      "source_logical_bytes": 107853111,
+      "source_links": 0,
+      "added_packed_bytes": 58167838,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-phase1-tb-nginx-2026-10-08t08-35-56-432z/record.json",
+          "bytes": 1826,
+          "sha256": "57233bc3a7190682fc1a798f130428e781c8551d56407b00033eb22d9c4bb808"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-phase1-tb-nginx-2026-10-08t08-35-56-432z/source-before.jsonl.gz",
+          "bytes": 1807,
+          "sha256": "0dac1e6da3c2a03c4f47535b63c63fbd6e69c49907d5cb12ee3022c9d4b18639"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-phase1-tb-nginx-2026-10-08t08-35-56-432z/files-sha256.jsonl.gz",
+          "bytes": 4765,
+          "sha256": "dc5e569e046bcd9acaebc07afe609dc5097ae115045823763d8de6e29ab72b65"
+        }
+      }
+    },
+    {
+      "id": "external-phase1-tb-nginx-2026-10-08t10-47-06-544z",
+      "source_root": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\tb-nginx-2026-10-08T10-47-06-544Z",
+      "source_absolute": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\tb-nginx-2026-10-08T10-47-06-544Z",
+      "snapshot": "a41a975d01f4bcfeee327bb7339bfe3882ddcd5c885455a6a7143da2be77ee7f",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 150,
+      "source_logical_bytes": 108069260,
+      "source_links": 0,
+      "added_packed_bytes": 19398955,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/external-phase1-tb-nginx-2026-10-08t10-47-06-544z/record.json",
+          "bytes": 1820,
+          "sha256": "8a90ccfbefbc65c824ec3d4969d4d031886d1aff1c4da4a6883415bbf8c29b0c"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/external-phase1-tb-nginx-2026-10-08t10-47-06-544z/source-before.jsonl.gz",
+          "bytes": 2266,
+          "sha256": "09db23969d72e6e7ea6a3572894a12bb0488b26c3e7fb3f432e64e1831a76d31"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/external-phase1-tb-nginx-2026-10-08t10-47-06-544z/files-sha256.jsonl.gz",
+          "bytes": 6893,
+          "sha256": "c6e0591df18bb83857717afde1f0b2536667a7655de54c6fc90a51e7276a3c81"
+        }
+      }
+    },
+    {
+      "id": "fullf-broker",
+      "source_root": "objrun/docs/repair-2026-10-10/full-f-rerun/broker",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\repair-2026-10-10\\full-f-rerun\\broker",
+      "snapshot": "8aeed4c08a44c15fc3b30432310f9e55e19ce523c2f9138f1e69cf9b2e5e57bf",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 66720,
+      "source_logical_bytes": 619275987,
+      "source_links": 0,
+      "added_packed_bytes": 96308831,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/fullf-broker/record.json",
+          "bytes": 1954,
+          "sha256": "1f3e299495a06ac2c8d411529031725123c831707140e73b215dc97ed81c877d"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/fullf-broker/source-before.jsonl.gz",
+          "bytes": 1140676,
+          "sha256": "10a600288c43196cd8dfbca98b3c0823c564a21f7987bcfb8f4673aa64e27eb5"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/fullf-broker/files-sha256.jsonl.gz",
+          "bytes": 3329877,
+          "sha256": "86f0f8bfaa3153024f697da4f6b7269e0f982b2871991da62707f6e347c93467"
+        }
+      }
+    },
+    {
+      "id": "fullf-chembench",
+      "source_root": "objrun/docs/repair-2026-10-10/full-f-rerun/chembench",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\repair-2026-10-10\\full-f-rerun\\chembench",
+      "snapshot": "d9127938983d381e8e76ccc5afa09f4f570692c6adab8bbf40b150de7ab06b87",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 16580,
+      "source_logical_bytes": 1607311900,
+      "source_links": 0,
+      "added_packed_bytes": 110004956,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/fullf-chembench/record.json",
+          "bytes": 1971,
+          "sha256": "cee6073cd702d5dfd9103d4ecfeb0736672d6c1e2f306722ae4822fe1036c95f"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/fullf-chembench/source-before.jsonl.gz",
+          "bytes": 234938,
+          "sha256": "b06138d273c41090d0919263e6186ba4ea86178122f81b69bef66590d0129bf9"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/fullf-chembench/files-sha256.jsonl.gz",
+          "bytes": 663392,
+          "sha256": "a3ea19e63410af7fd7e876c8eee519b75795a36205ea54802786a551419a68b5"
+        }
+      }
+    },
+    {
+      "id": "fullf-chemiq",
+      "source_root": "objrun/docs/repair-2026-10-10/full-f-rerun/chemiq",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\repair-2026-10-10\\full-f-rerun\\chemiq",
+      "snapshot": "a1ee70212542261f1344f06634c145dda89e1b05fed0c13c34bf51c1d2825bda",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 48516,
+      "source_logical_bytes": 3490496264,
+      "source_links": 0,
+      "added_packed_bytes": 310812548,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/fullf-chemiq/record.json",
+          "bytes": 1962,
+          "sha256": "78c21a90e9622b1f74ae0297df350976cccff0a8777c9f10d258f2306112492c"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/fullf-chemiq/source-before.jsonl.gz",
+          "bytes": 625263,
+          "sha256": "dda95e78c8f94ef11b4eb2d4efcde8b60c68f03363f0e66c02ba8eaa00bd7154"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/fullf-chemiq/files-sha256.jsonl.gz",
+          "bytes": 1776204,
+          "sha256": "66a86ade4bc0b145725aa630d4ed6d2d2c34c4c3da85d024e7656cd5b83259eb"
+        }
+      }
+    },
+    {
+      "id": "fullf-novaeve-formal-20261013",
+      "source_root": "objrun/docs/repair-2026-10-10/full-f-rerun/novaeve-formal-20261013",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\repair-2026-10-10\\full-f-rerun\\novaeve-formal-20261013",
+      "snapshot": "4ece0262e00e939338e785dd449e36b45741f81d04ad2994315051633a2137df",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 537803,
+      "source_logical_bytes": 139175133753,
+      "source_links": 2,
+      "added_packed_bytes": 37177888813,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/fullf-novaeve-formal-20261013/record.json",
+          "bytes": 2258,
+          "sha256": "f9fa58647d0c4b0240d6c92d44160b125b0063dcc1e04b9b47a767b750c220a1"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/fullf-novaeve-formal-20261013/source-before.jsonl.gz",
+          "bytes": 8917375,
+          "sha256": "8325ab43f1ba2d82ff76c75e5398ad0b7efc83dfae21c80fdfb2b73e0afb3025"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/fullf-novaeve-formal-20261013/files-sha256.jsonl.gz",
+          "bytes": 22082928,
+          "sha256": "805a5d642e92eaa7907e58dbbc3637e5e4c7efedf815ad933e6801d31068c500"
+        }
+      }
+    },
+    {
+      "id": "fullf-skillsbench",
+      "source_root": "objrun/docs/repair-2026-10-10/full-f-rerun/skillsbench",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\repair-2026-10-10\\full-f-rerun\\skillsbench",
+      "snapshot": "313edd9746fa15e0021ad28ef6729ab47e2ba742c4a0e93619e405b7177a7fa0",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 179310,
+      "source_logical_bytes": 31910711975,
+      "source_links": 0,
+      "added_packed_bytes": 1885877711,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/fullf-skillsbench/record.json",
+          "bytes": 1988,
+          "sha256": "3172b4d8b3c9d3c8cef49cc6785cb08ed2a26b73598c01663c4c80ef019fcf26"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/fullf-skillsbench/source-before.jsonl.gz",
+          "bytes": 3314773,
+          "sha256": "cf5203281275324f3a5524b3a4ed641761a48b9e9568909e822d1c96151ef0ef"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/fullf-skillsbench/files-sha256.jsonl.gz",
+          "bytes": 7491955,
+          "sha256": "bb032b5024949b538af24ed76c265ba62910361fbe6502e03e77e43afe8bfbdf"
+        }
+      }
+    },
+    {
+      "id": "fullf-terminal-bench",
+      "source_root": "objrun/docs/repair-2026-10-10/full-f-rerun/terminal-bench",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\repair-2026-10-10\\full-f-rerun\\terminal-bench",
+      "snapshot": "962e03d281668f520f01bfc55d0f92540e82763cbceb8938324ca6e2178c8e51",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 960214,
+      "source_logical_bytes": 286163170666,
+      "source_links": 0,
+      "added_packed_bytes": 40904083613,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/fullf-terminal-bench/record.json",
+          "bytes": 1934,
+          "sha256": "321d7fc9b96c9defcedb0925e28e6c2e846285b9e838a3e712a56bbf0c9d6489"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/fullf-terminal-bench/source-before.jsonl.gz",
+          "bytes": 20189197,
+          "sha256": "a68a67e4bfccdd93748f31fc54c28926db59d86d4ed07109df8cf707e041cc0e"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/fullf-terminal-bench/files-sha256.jsonl.gz",
+          "bytes": 33380352,
+          "sha256": "6e88c4df1ee442ef5e517ca1eba7efba0f43b2bdcb31a0e338321417a5b24b8c"
+        }
+      }
+    },
+    {
+      "id": "gpqa-runtime",
+      "source_root": "objrun/scripts/repair-2026-10-10/full-f/gpqa/.runtime",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\scripts\\repair-2026-10-10\\full-f\\gpqa\\.runtime",
+      "snapshot": "8340f9c52a67f793fc13a4216805b9c1103fa6361194b81cde04ca49ef94f90a",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 4101,
+      "source_logical_bytes": 105714600,
+      "source_links": 0,
+      "added_packed_bytes": 16143068,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/gpqa-runtime/record.json",
+          "bytes": 1956,
+          "sha256": "ea6deb9de8e723e26fd5b8316f2694db72bb506a0aa82c33d8efef87d59ecde7"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/gpqa-runtime/source-before.jsonl.gz",
+          "bytes": 55499,
+          "sha256": "82e7402cda465f8e072a825057adafad53517e77226af0a8a762e4713bc078ed"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/gpqa-runtime/files-sha256.jsonl.gz",
+          "bytes": 183938,
+          "sha256": "2baa7401de55407beccf14bc8917066b69f57198a4c98ba609c8e1209a38e6de"
+        }
+      }
+    },
+    {
+      "id": "historical-novaeve-sources",
+      "source_root": "objrun/scripts/repair-2026-10-10/full-f/novaeve_formal_v1",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\scripts\\repair-2026-10-10\\full-f\\novaeve_formal_v1",
+      "snapshot": "f03bfd58090f1adb0984529ae5cace09a5526dba4ee4a7c2c8601d8145ea79aa",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 9138,
+      "source_logical_bytes": 68569787,
+      "source_links": 0,
+      "added_packed_bytes": 10476627,
+      "excluded_paths": [],
+      "kept_files": [
+        "broker/adopted-consumer-guard-v46.ts",
+        "broker/adopted-consumer-guard-v48.ts",
+        "broker/adopted-consumer-guard-v70.ts",
+        "broker/adopted-consumer-guard-v72.ts",
+        "broker/adopted-consumer-guard-v76.ts",
+        "broker/adopted-consumer-price-renewal.ts",
+        "broker/adopted-parent-price-renewal.ts",
+        "broker/adopted-parent-v46.ts",
+        "broker/adopted-parent-v48.ts",
+        "broker/adopted-parent-v70.ts",
+        "broker/adopted-parent-v72.ts",
+        "broker/adopted-parent-v76.ts",
+        "broker/adopted-python-bridge-price-renewal.ts",
+        "broker/adopted-python-bridge-v50.ts",
+        "broker/adopted-python-bridge-v78.ts",
+        "broker/adopted-python-bridge-v81.ts",
+        "broker/adopted_owner_guard_observed.py",
+        "broker/adopted_owner_guard_persistent_readonly_9fd6c64e7b6aef279b6c8f19f7e105ff65a47757a0efd1168ff3594767ca62b2.py",
+        "broker/adopted_owner_guard_persistent_readonly_eb2892f9dcd2575851e924295d2015f91330ea9da9864ec629c5361faeaab0cc.py",
+        "broker/adopted_owner_guard_persistent_readonly_v1.py",
+        "broker/adopted_owner_guard_price_renewal.py",
+        "broker/adopted_owner_guard_provider_task_read_retry_v1.py",
+        "broker/adopted_owner_guard_provider_task_v1.py",
+        "broker/adopted_owner_guard_shared_read.py",
+        "broker/adopted_owner_guard_unlimited.py",
+        "broker/adopted_owner_guard_unlimited_read_retry.py",
+        "broker/adopted_owner_guard_v50.py",
+        "broker/adopted_owner_guard_v78.py",
+        "broker/adopted_owner_guard_v81.py",
+        "broker/broker-adoption-v46.ts",
+        "broker/broker-adoption-v48.ts",
+        "broker/broker-adoption-v70.ts",
+        "broker/broker-adoption-v72.ts",
+        "broker/broker-adoption-v76.ts",
+        "broker/broker-delegated-v19.ts",
+        "broker/broker-v1.ts",
+        "broker/build-adoption-v48.py",
+        "broker/build-broker-adoption-v46.py",
+        "broker/build-broker-v70.py",
+        "broker/build-consumer-v48.py",
+        "broker/build-http-fixture-v70.py",
+        "broker/capture-guard-failure-v76.ts",
+        "broker/capture-live-state-v70.ts",
+        "broker/capture-price-renewal.ts",
+        "broker/check-adoption-v46.ts",
+        "broker/check-claim-races-v72.ts",
+        "broker/check-claim-races-v76.ts",
+        "broker/check-consumer-v48.ts",
+        "broker/check-delegated-v19.ts",
+        "broker/check-durable-adoption-v48.ts",
+        "broker/check-durable-adoption-v70.ts",
+        "broker/check-durable-adoption-v72.ts",
+        "broker/check-durable-adoption-v76.ts",
+        "broker/check-final-negatives-v46.ts",
+        "broker/check-http-adoption-v46.ts",
+        "broker/check-http-adoption-v48.ts",
+        "broker/check-http-adoption-v70.ts",
+        "broker/check-http-adoption-v72.ts",
+        "broker/check-http-adoption-v76.ts",
+        "broker/check-python-bridge-v50.py",
+        "broker/check-python-bridge-v78.py",
+        "broker/check-python-bridge-v81.py",
+        "broker/check-state-guard-v76.ts",
+        "broker/delegated-parent-v19.ts",
+        "broker/derive-paused-plan-v72.ts",
+        "broker/epoch-price-renewal.ts",
+        "broker/finalize-orphan-gate-v46.py",
+        "broker/finish-build-v48.py",
+        "broker/finish-consumer-v48.py",
+        "broker/freeze-v70.py",
+        "broker/freeze-v72.py",
+        "broker/freeze-v76.py",
+        "broker/owned-forward-guard-price-renewal.ts",
+        "broker/pause-old-for-handoff-v70.ts",
+        "broker/pause-old-v1.compile.js",
+        "broker/pause-old-v1.ts",
+        "broker/port-absence-v48.py",
+        "broker/port-quiescence-v70.py",
+        "broker/port-quiescence-v76.py",
+        "broker/preflight-adoption-v46.ts",
+        "broker/preflight-adoption-v48.ts",
+        "broker/prepare-delegation-v19.ts",
+        "broker/prepare-http-check-v46.py",
+        "broker/price-renewal.test.ts",
+        "broker/process-incarnation-v70.ts",
+        "broker/publish-adoption-v46.ts",
+        "broker/publish-adoption-v48.ts",
+        "broker/publish-adoption-v70.ts",
+        "broker/publish-adoption-v72.ts",
+        "broker/publish-adoption-v76.ts",
+        "broker/publish-control-v1.compile.js",
+        "broker/publish-control-v1.ts",
+        "broker/publish-price-renewal.ts",
+        "broker/refresh-remote-disk-cadence-v86.ts",
+        "broker/refresh-remote-disk-reboot-v46.ts",
+        "broker/refresh-remote-disk-v1.ts",
+        "broker/rehydrate-v46.ts",
+        "broker/remote-disk-gate-v1.ts",
+        "broker/seal-adoption-v46.py",
+        "broker/seal-adoption-v48.py",
+        "broker/shared-admission-owned-price-renewal.ts",
+        "broker/shared-admission-owned-v70.ts",
+        "broker/shared-admission-owned-v72.ts",
+        "broker/shared-admission-owned-v76.ts",
+        "broker/sign-adoption-v46.ts",
+        "broker/sign-adoption-v48.ts",
+        "broker/sign-adoption-v70.ts",
+        "broker/sign-adoption-v72.ts",
+        "broker/sign-adoption-v76.ts",
+        "broker/sign-delegation-v19.ts",
+        "broker/sign-price-renewal.ts",
+        "broker/start-adoption-v46.ts",
+        "broker/start-adoption-v48.ts",
+        "broker/start-adoption-v70.ts",
+        "broker/start-adoption-v72.ts",
+        "broker/start-adoption-v76.ts",
+        "broker/start-delegated-v19.ts",
+        "broker/start-price-renewal.ts",
+        "broker/start-v1.ts",
+        "broker/zero-new-lane-state-v48.ts",
+        "coordinator/account-history-fresh-chain-consumer-v102.ts",
+        "coordinator/account-history-v7.ts",
+        "coordinator/failure-recovery-v6-final.ts",
+        "coordinator/fresh-live-increment-consumer-v106.ts",
+        "coordinator/grade-disposition-v8.ts",
+        "coordinator/pipeline-before-resource-v89.ts",
+        "coordinator/pipeline-disk-wait-v85.ts",
+        "coordinator/pipeline-forward-guard-v83.ts",
+        "coordinator/pipeline-owned-v83/activation_guard.py",
+        "coordinator/pipeline-owned-v83/bootstrap.py",
+        "coordinator/pipeline-owned-v83/owner_preflight.py",
+        "coordinator/pipeline-resource-owned-v83.ts",
+        "coordinator/pipeline-stand-process-v83.ts",
+        "coordinator/review-authority-pipeline-formal-v89.ts",
+        "coordinator/review-authority-v4.ts",
+        "coordinator/zero-call-pre-actor-recovery-v4.ts",
+        "group-04/adapter_1/activation_guard.py",
+        "group-04/adapter_1/bootstrap.py",
+        "group-04/adapter_1/route_guard_v1.py",
+        "group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe.py",
+        "group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_complete_import_graph.py",
+        "group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_docker_owned.py",
+        "group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_each_transport_owned_guard.py",
+        "group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_parent_helper_owned_closure.py",
+        "group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/root_probe_owner.ts",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/campaign.ts",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/checker_runner.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/mailbox_transport.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/pipeline_grade.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/pipeline_parallel.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/pipeline_worker.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/preview_chain.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_probe_disposition_root_only.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_root_only.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/recovery_policy.ts",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/runner.ts",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/stand_entry_runpy.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/successor_closure.ts",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/tensor_protocol.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/verify_probe_signature.ts",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/worker.ts",
+        "group-04/adapter_3/versions/pipeline-recovery-wx-v97/failure_classification.ts",
+        "group-04/adapter_3/versions/pipeline-recovery-wx-v97/provider_gateway.ts",
+        "group-04/adapter_3/versions/pipeline-recovery-wx-v97/recovery_lock.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/activation_guard.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/adopted_guard_bridge.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/bootstrap.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/callback_error_contract.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/campaign.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/checker_runner.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/contract_static_test.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/docker_owned.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/forward_guard.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/full_validation.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/grade_contract.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/local_preflight.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/owner_forward_gate.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/owner_forward_gate_test.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/owner_preflight.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/pipeline_grade.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/pipeline_parallel.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/pipeline_worker.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/portable_framework.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/provider_gateway_v50.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/resource_lease.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/route_guard_v1.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/runtime_cache/cache_client_v4.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/runtime_cache/server_copy_v4.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/runtime_transport.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/runtime_transport_circuit_drained_20261013_next.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/safe_framework_extract.mjs",
+        "group-04/adapter_3/versions/pipeline-wx-v50/stand_entry.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/stand_entry_runpy.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/stand_process.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/stand_v1.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/tensor_protocol.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/worker.local-build.js",
+        "group-04/adapter_3/versions/pipeline-wx-v50/worker.ts",
+        "group-04/mailbox-transport-v1/mailbox_transport.py",
+        "headless_budget_v7/gateway_budget_gate_v7.ts",
+        "headless_budget_v7/recovery_budget_v7.ts",
+        "http_transport_v5/fetch.ts",
+        "tb_v4/gateway_budget_gate_v4.ts"
+      ],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [
+        "broker/adopted-consumer-guard-v46.ts",
+        "broker/adopted-consumer-guard-v48.ts",
+        "broker/adopted-consumer-guard-v70.ts",
+        "broker/adopted-consumer-guard-v72.ts",
+        "broker/adopted-consumer-guard-v76.ts",
+        "broker/adopted-consumer-price-renewal.ts",
+        "broker/adopted-parent-price-renewal.ts",
+        "broker/adopted-parent-v46.ts",
+        "broker/adopted-parent-v48.ts",
+        "broker/adopted-parent-v70.ts",
+        "broker/adopted-parent-v72.ts",
+        "broker/adopted-parent-v76.ts",
+        "broker/adopted-python-bridge-price-renewal.ts",
+        "broker/adopted-python-bridge-v50.ts",
+        "broker/adopted-python-bridge-v78.ts",
+        "broker/adopted-python-bridge-v81.ts",
+        "broker/adopted_owner_guard_observed.py",
+        "broker/adopted_owner_guard_persistent_readonly_9fd6c64e7b6aef279b6c8f19f7e105ff65a47757a0efd1168ff3594767ca62b2.py",
+        "broker/adopted_owner_guard_persistent_readonly_eb2892f9dcd2575851e924295d2015f91330ea9da9864ec629c5361faeaab0cc.py",
+        "broker/adopted_owner_guard_persistent_readonly_v1.py",
+        "broker/adopted_owner_guard_price_renewal.py",
+        "broker/adopted_owner_guard_provider_task_read_retry_v1.py",
+        "broker/adopted_owner_guard_provider_task_v1.py",
+        "broker/adopted_owner_guard_shared_read.py",
+        "broker/adopted_owner_guard_unlimited.py",
+        "broker/adopted_owner_guard_unlimited_read_retry.py",
+        "broker/adopted_owner_guard_v50.py",
+        "broker/adopted_owner_guard_v78.py",
+        "broker/adopted_owner_guard_v81.py",
+        "broker/broker-adoption-v46.ts",
+        "broker/broker-adoption-v48.ts",
+        "broker/broker-adoption-v70.ts",
+        "broker/broker-adoption-v72.ts",
+        "broker/broker-adoption-v76.ts",
+        "broker/broker-delegated-v19.ts",
+        "broker/broker-v1.ts",
+        "broker/build-adoption-v48.py",
+        "broker/build-broker-adoption-v46.py",
+        "broker/build-broker-v70.py",
+        "broker/build-consumer-v48.py",
+        "broker/build-http-fixture-v70.py",
+        "broker/capture-guard-failure-v76.ts",
+        "broker/capture-live-state-v70.ts",
+        "broker/capture-price-renewal.ts",
+        "broker/check-adoption-v46.ts",
+        "broker/check-claim-races-v72.ts",
+        "broker/check-claim-races-v76.ts",
+        "broker/check-consumer-v48.ts",
+        "broker/check-delegated-v19.ts",
+        "broker/check-durable-adoption-v48.ts",
+        "broker/check-durable-adoption-v70.ts",
+        "broker/check-durable-adoption-v72.ts",
+        "broker/check-durable-adoption-v76.ts",
+        "broker/check-final-negatives-v46.ts",
+        "broker/check-http-adoption-v46.ts",
+        "broker/check-http-adoption-v48.ts",
+        "broker/check-http-adoption-v70.ts",
+        "broker/check-http-adoption-v72.ts",
+        "broker/check-http-adoption-v76.ts",
+        "broker/check-python-bridge-v50.py",
+        "broker/check-python-bridge-v78.py",
+        "broker/check-python-bridge-v81.py",
+        "broker/check-state-guard-v76.ts",
+        "broker/delegated-parent-v19.ts",
+        "broker/derive-paused-plan-v72.ts",
+        "broker/epoch-price-renewal.ts",
+        "broker/finalize-orphan-gate-v46.py",
+        "broker/finish-build-v48.py",
+        "broker/finish-consumer-v48.py",
+        "broker/freeze-v70.py",
+        "broker/freeze-v72.py",
+        "broker/freeze-v76.py",
+        "broker/owned-forward-guard-price-renewal.ts",
+        "broker/pause-old-for-handoff-v70.ts",
+        "broker/pause-old-v1.compile.js",
+        "broker/pause-old-v1.ts",
+        "broker/port-absence-v48.py",
+        "broker/port-quiescence-v70.py",
+        "broker/port-quiescence-v76.py",
+        "broker/preflight-adoption-v46.ts",
+        "broker/preflight-adoption-v48.ts",
+        "broker/prepare-delegation-v19.ts",
+        "broker/prepare-http-check-v46.py",
+        "broker/price-renewal.test.ts",
+        "broker/process-incarnation-v70.ts",
+        "broker/publish-adoption-v46.ts",
+        "broker/publish-adoption-v48.ts",
+        "broker/publish-adoption-v70.ts",
+        "broker/publish-adoption-v72.ts",
+        "broker/publish-adoption-v76.ts",
+        "broker/publish-control-v1.compile.js",
+        "broker/publish-control-v1.ts",
+        "broker/publish-price-renewal.ts",
+        "broker/refresh-remote-disk-cadence-v86.ts",
+        "broker/refresh-remote-disk-reboot-v46.ts",
+        "broker/refresh-remote-disk-v1.ts",
+        "broker/rehydrate-v46.ts",
+        "broker/remote-disk-gate-v1.ts",
+        "broker/seal-adoption-v46.py",
+        "broker/seal-adoption-v48.py",
+        "broker/shared-admission-owned-price-renewal.ts",
+        "broker/shared-admission-owned-v70.ts",
+        "broker/shared-admission-owned-v72.ts",
+        "broker/shared-admission-owned-v76.ts",
+        "broker/sign-adoption-v46.ts",
+        "broker/sign-adoption-v48.ts",
+        "broker/sign-adoption-v70.ts",
+        "broker/sign-adoption-v72.ts",
+        "broker/sign-adoption-v76.ts",
+        "broker/sign-delegation-v19.ts",
+        "broker/sign-price-renewal.ts",
+        "broker/start-adoption-v46.ts",
+        "broker/start-adoption-v48.ts",
+        "broker/start-adoption-v70.ts",
+        "broker/start-adoption-v72.ts",
+        "broker/start-adoption-v76.ts",
+        "broker/start-delegated-v19.ts",
+        "broker/start-price-renewal.ts",
+        "broker/start-v1.ts",
+        "broker/zero-new-lane-state-v48.ts",
+        "coordinator/account-history-fresh-chain-consumer-v102.ts",
+        "coordinator/account-history-v7.ts",
+        "coordinator/failure-recovery-v6-final.ts",
+        "coordinator/fresh-live-increment-consumer-v106.ts",
+        "coordinator/grade-disposition-v8.ts",
+        "coordinator/pipeline-before-resource-v89.ts",
+        "coordinator/pipeline-disk-wait-v85.ts",
+        "coordinator/pipeline-forward-guard-v83.ts",
+        "coordinator/pipeline-owned-v83/activation_guard.py",
+        "coordinator/pipeline-owned-v83/bootstrap.py",
+        "coordinator/pipeline-owned-v83/owner_preflight.py",
+        "coordinator/pipeline-resource-owned-v83.ts",
+        "coordinator/pipeline-stand-process-v83.ts",
+        "coordinator/review-authority-pipeline-formal-v89.ts",
+        "coordinator/review-authority-v4.ts",
+        "coordinator/zero-call-pre-actor-recovery-v4.ts",
+        "group-04/adapter_1/activation_guard.py",
+        "group-04/adapter_1/bootstrap.py",
+        "group-04/adapter_1/route_guard_v1.py",
+        "group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe.py",
+        "group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_complete_import_graph.py",
+        "group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_docker_owned.py",
+        "group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_each_transport_owned_guard.py",
+        "group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_parent_helper_owned_closure.py",
+        "group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/root_probe_owner.ts",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/campaign.ts",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/checker_runner.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/mailbox_transport.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/pipeline_grade.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/pipeline_parallel.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/pipeline_worker.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/preview_chain.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_probe_disposition_root_only.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_root_only.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/recovery_policy.ts",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/runner.ts",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/stand_entry_runpy.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/successor_closure.ts",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/tensor_protocol.py",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/verify_probe_signature.ts",
+        "group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/worker.ts",
+        "group-04/adapter_3/versions/pipeline-recovery-wx-v97/failure_classification.ts",
+        "group-04/adapter_3/versions/pipeline-recovery-wx-v97/provider_gateway.ts",
+        "group-04/adapter_3/versions/pipeline-recovery-wx-v97/recovery_lock.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/activation_guard.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/adopted_guard_bridge.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/bootstrap.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/callback_error_contract.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/campaign.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/checker_runner.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/contract_static_test.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/docker_owned.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/forward_guard.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/full_validation.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/grade_contract.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/local_preflight.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/owner_forward_gate.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/owner_forward_gate_test.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/owner_preflight.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/pipeline_grade.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/pipeline_parallel.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/pipeline_worker.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/portable_framework.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/provider_gateway_v50.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/resource_lease.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/route_guard_v1.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/runtime_cache/cache_client_v4.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/runtime_cache/server_copy_v4.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/runtime_transport.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/runtime_transport_circuit_drained_20261013_next.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/safe_framework_extract.mjs",
+        "group-04/adapter_3/versions/pipeline-wx-v50/stand_entry.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/stand_entry_runpy.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/stand_process.ts",
+        "group-04/adapter_3/versions/pipeline-wx-v50/stand_v1.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/tensor_protocol.py",
+        "group-04/adapter_3/versions/pipeline-wx-v50/worker.local-build.js",
+        "group-04/adapter_3/versions/pipeline-wx-v50/worker.ts",
+        "group-04/mailbox-transport-v1/mailbox_transport.py",
+        "headless_budget_v7/gateway_budget_gate_v7.ts",
+        "headless_budget_v7/recovery_budget_v7.ts",
+        "http_transport_v5/fetch.ts",
+        "tb_v4/gateway_budget_gate_v4.ts"
+      ],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/historical-novaeve-sources/record.json",
+          "bytes": 13078,
+          "sha256": "b4d649bbf15a4b0692577d2ee8509e3a2c4a0929b2b2d90a434d6658bbe9ddc3"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/historical-novaeve-sources/source-before.jsonl.gz",
+          "bytes": 118565,
+          "sha256": "353c565fc25ea39c0ab12cc42bc42a3e9374b8773b895a9eef205357626a24b1"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/historical-novaeve-sources/files-sha256.jsonl.gz",
+          "bytes": 276417,
+          "sha256": "c130d697e783f8fdc279d5ff666ecfd062fc157f07e5fa5199335d32f4378164"
+        }
+      }
+    },
+    {
+      "id": "historical-root-helpers",
+      "source_root": "objrun/scripts/historical-root",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\scripts\\historical-root",
+      "snapshot": "79f3771ec9bb4eee0e0a4b483af6454b50bd9feb0971f73ad47dc09614155959",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 12,
+      "source_logical_bytes": 42709,
+      "source_links": 0,
+      "added_packed_bytes": 12938,
+      "excluded_paths": [],
+      "kept_files": [
+        "README.md"
+      ],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [
+        "README.md"
+      ],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/historical-root-helpers/record.json",
+          "bytes": 1904,
+          "sha256": "87b4ff05244df8bab1e78e1b2ef05636be3e5985e6470bd738aa04166ad1ac42"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/historical-root-helpers/source-before.jsonl.gz",
+          "bytes": 365,
+          "sha256": "6a6018451247f27edf0bdcc35e5e09bada5f32bd62ec792faefe1af7b4cb7d25"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/historical-root-helpers/files-sha256.jsonl.gz",
+          "bytes": 722,
+          "sha256": "ce33313d22bd698f4d41049150dbdea3d499b600815cf3ffcd0f7aaba65459c8"
+        }
+      }
+    },
+    {
+      "id": "historical-runner-releases",
+      "source_root": "objrun/scripts/bench-runner/release",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\scripts\\bench-runner\\release",
+      "snapshot": "4278653a62672cf3f20beb8de4a823329cb2dee26a23f4507b7b641b58d68b7c",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 167,
+      "source_logical_bytes": 14191791,
+      "source_links": 0,
+      "added_packed_bytes": 2150491,
+      "excluded_paths": [],
+      "kept_files": [
+        "0d9d99c74b370791c54821a80eea6d24eb84601e35ea98189074fb98c1d5c2b7/release-1208f062d580ea0ac3f3c5b2b7ec99c85bd108268d44aca8524ddc8468a055f4.json",
+        "0d9d99c74b370791c54821a80eea6d24eb84601e35ea98189074fb98c1d5c2b7/runner.js",
+        "0fd8dd99f08860e004709b3cf62f2eb9ed657846c4d73cfa6cea7e2061da5f21/release-80fb4dc3704efacaaf3e3c3911692c7e5d3b4d247e6dedcfd1fb34fb289383eb.json",
+        "0fd8dd99f08860e004709b3cf62f2eb9ed657846c4d73cfa6cea7e2061da5f21/runner.js",
+        "141a8976ae0339e0f796b831b740eb8e5e8148ffe1ca125f4e3d1fee3ff12b94/release-9a6a73a57b44810a6fa303e3523c1d9b9c8bce1c0e02e4638dabf54dd6e110cb.json",
+        "141a8976ae0339e0f796b831b740eb8e5e8148ffe1ca125f4e3d1fee3ff12b94/runner.js",
+        "1cbeb703c38a36097d09fe8fc20ae889cbe9b5bdb6b0be7772f6897089e177ea/release-2efdbe12720748ccdfb9743e9b36a35ccdd09158bf69a85459efc579cda276c0.json",
+        "1cbeb703c38a36097d09fe8fc20ae889cbe9b5bdb6b0be7772f6897089e177ea/runner.js",
+        "24d38d26fe07c03e5d1204cde42ce48504fb0a455db634e4297a9c628a2e1255/runtime.js",
+        "26402dec9177058b84cfec7122d7b04e5376952682be4f9d37b62b507545c3d8/release-5586a09003741d0132b4e626b2ae3835913834ef92a86342d4a273810c5d2cc8.json",
+        "26402dec9177058b84cfec7122d7b04e5376952682be4f9d37b62b507545c3d8/runner.js",
+        "266b686392b8492ff0d54b63abd169599d1fba638f7176951f1367a027cdda93/release-3069d349e9cd205f38d87df9552f849d0467b8d0c2096b4a7379e5912216afe4.json",
+        "266b686392b8492ff0d54b63abd169599d1fba638f7176951f1367a027cdda93/terminal-driver.js",
+        "399afcb2e1fa638f9a355cd18e97518d8694ac06d5808bc79dabc8b20d194c81/release-7ae8d68cde017c67f615923b4801d43c1c1ab695c765f2506fa9783707776f94.json",
+        "399afcb2e1fa638f9a355cd18e97518d8694ac06d5808bc79dabc8b20d194c81/runner.js",
+        "41a277716f1e0749a3dc9e6f02673e8bdca63f96934593b7e883d06ce9e4bd4f/release-6dd5edbdc3f84eafdc14e4d82885e4ee83df9d4a251b872be5f7763202219548.json",
+        "41a277716f1e0749a3dc9e6f02673e8bdca63f96934593b7e883d06ce9e4bd4f/runner.js",
+        "43815b7668b5771d36e5dedbf0d4de23800487b7e13b629210b2263b258ada66/release-359012671ce1d20592a0341bb7ac2428f3d964b0cbd6ebc3f180d9a78653a4fb.json",
+        "43815b7668b5771d36e5dedbf0d4de23800487b7e13b629210b2263b258ada66/terminal-driver.js",
+        "4759a6090e8e3ecf9cde0f4cac47f01322af02f2ae1b80d8f5d7671a3a1a3721/release-ca14051d46691e7881d83b0b75b98a66d28f15beac414994d251ad4ddd7f5f4d.json",
+        "4759a6090e8e3ecf9cde0f4cac47f01322af02f2ae1b80d8f5d7671a3a1a3721/terminal-driver.js",
+        "48d92464fdbff2568295877acad1b105f7fb106092da7901a107d051a5bb7271/release-00dde7459ec78aa2a0f9122179798028bc1711d1200341dc5beb39aae9cbaf3c.json",
+        "48d92464fdbff2568295877acad1b105f7fb106092da7901a107d051a5bb7271/terminal-driver.js",
+        "5766a6dc1713a43ace89555d001b9cc705c8dd2eb7c354ec2183a4d8f5027dcc/runner.js",
+        "69f9b915f0a0e68af4b592bf75bd8d1e68cffa2a77ba36b1dfeb9bf371639091/release-b20273594d5bc3e5b7e064555356b5912391bcc05c1b8f42bc5b58fbe5228f4d.json",
+        "69f9b915f0a0e68af4b592bf75bd8d1e68cffa2a77ba36b1dfeb9bf371639091/runner.js",
+        "6f9457a45a99726681f351e06bfc4d2dd2837535f7b2fe386b3029ed75ab44bf/release-b685002499bfe1855833870663010930b88a11c1169e8f815a8e6ceb2b612f8e.json",
+        "6f9457a45a99726681f351e06bfc4d2dd2837535f7b2fe386b3029ed75ab44bf/runner.js",
+        "76160f804518cdcdf20ce1517025f1d67003d96e26e264247cc912b24aaabb93/release-890a340ba18570a6fe62a71afebaecefb704eb6ab83342849e1a9ce5ee259cd6.json",
+        "76160f804518cdcdf20ce1517025f1d67003d96e26e264247cc912b24aaabb93/runner.js",
+        "972264c4fdd299396dcc3c2ef0673d66549c2ab2633b99aa4bf08bbae3730053/release-8832d0c1dc7e32a74fc11342f33ddcec37920e26cd3cf910158710a0e43dff71.json",
+        "972264c4fdd299396dcc3c2ef0673d66549c2ab2633b99aa4bf08bbae3730053/terminal-driver.js",
+        "9bbc218058b7a94a791714914e957549ab34a620276a78ed2d2b8bf4a9e08c2b/release-229248437fb2de8e6a451fb356c5087889fc6cbda0716d2b6919209310253b44.json",
+        "9bbc218058b7a94a791714914e957549ab34a620276a78ed2d2b8bf4a9e08c2b/terminal-driver.js",
+        "a2de210c2abcca6ec55738ae8b57ce7becae3bda66167495a25ce9eda0020f9f/release-edf46a66a60657121be8d974d5eac24c0c5325fb79b8adaed2964b8461103a90.json",
+        "a2de210c2abcca6ec55738ae8b57ce7becae3bda66167495a25ce9eda0020f9f/terminal-driver.js",
+        "bcd884a0779bc35b36c5a0eccdd985240ac1fc6d8ea3d8d37f908c10c453ad45/release-9255698085ec88acaf98a752b20847a88ba40b0df1312757cbef331956977904.json",
+        "bcd884a0779bc35b36c5a0eccdd985240ac1fc6d8ea3d8d37f908c10c453ad45/terminal-driver.js",
+        "c67a55f354be2bdcf6f726a09b88395003db5a273094857ec47574cd419cae46/release-671d5482b656b6a61566f45fb6137a9a9c2455757191a4387e37491040780774.json",
+        "c67a55f354be2bdcf6f726a09b88395003db5a273094857ec47574cd419cae46/release-6dd5edbdc3f84eafdc14e4d82885e4ee83df9d4a251b872be5f7763202219548.json",
+        "c67a55f354be2bdcf6f726a09b88395003db5a273094857ec47574cd419cae46/terminal-driver.js",
+        "c8782029f3725cc5d137706f62e535c39b38d8464fb0d31deae9935446fd517a/release-9b4a5ae874f92003ad97d262a4eb1a4dac98f56c9c7d3e4714b7ea3bf64bbf64.json",
+        "c8782029f3725cc5d137706f62e535c39b38d8464fb0d31deae9935446fd517a/terminal-driver.js",
+        "cef234e3da545b9a50ea72af3d481a3873eb88cbc7580de695078cd5014c6652/release-671d5482b656b6a61566f45fb6137a9a9c2455757191a4387e37491040780774.json",
+        "cef234e3da545b9a50ea72af3d481a3873eb88cbc7580de695078cd5014c6652/runner.js",
+        "d3616198e7ad1b2ada576a34df3bb9fe2b3ca91c91ae7550e0563031b6744e40/release-5ee5f942b48101502dc8bc44b4c915bf2182de74864d0ff77ed58d724385290d.json",
+        "d3616198e7ad1b2ada576a34df3bb9fe2b3ca91c91ae7550e0563031b6744e40/runner.js"
+      ],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [
+        "0d9d99c74b370791c54821a80eea6d24eb84601e35ea98189074fb98c1d5c2b7/release-1208f062d580ea0ac3f3c5b2b7ec99c85bd108268d44aca8524ddc8468a055f4.json",
+        "0d9d99c74b370791c54821a80eea6d24eb84601e35ea98189074fb98c1d5c2b7/runner.js",
+        "0fd8dd99f08860e004709b3cf62f2eb9ed657846c4d73cfa6cea7e2061da5f21/release-80fb4dc3704efacaaf3e3c3911692c7e5d3b4d247e6dedcfd1fb34fb289383eb.json",
+        "0fd8dd99f08860e004709b3cf62f2eb9ed657846c4d73cfa6cea7e2061da5f21/runner.js",
+        "141a8976ae0339e0f796b831b740eb8e5e8148ffe1ca125f4e3d1fee3ff12b94/release-9a6a73a57b44810a6fa303e3523c1d9b9c8bce1c0e02e4638dabf54dd6e110cb.json",
+        "141a8976ae0339e0f796b831b740eb8e5e8148ffe1ca125f4e3d1fee3ff12b94/runner.js",
+        "1cbeb703c38a36097d09fe8fc20ae889cbe9b5bdb6b0be7772f6897089e177ea/release-2efdbe12720748ccdfb9743e9b36a35ccdd09158bf69a85459efc579cda276c0.json",
+        "1cbeb703c38a36097d09fe8fc20ae889cbe9b5bdb6b0be7772f6897089e177ea/runner.js",
+        "24d38d26fe07c03e5d1204cde42ce48504fb0a455db634e4297a9c628a2e1255/runtime.js",
+        "26402dec9177058b84cfec7122d7b04e5376952682be4f9d37b62b507545c3d8/release-5586a09003741d0132b4e626b2ae3835913834ef92a86342d4a273810c5d2cc8.json",
+        "26402dec9177058b84cfec7122d7b04e5376952682be4f9d37b62b507545c3d8/runner.js",
+        "266b686392b8492ff0d54b63abd169599d1fba638f7176951f1367a027cdda93/release-3069d349e9cd205f38d87df9552f849d0467b8d0c2096b4a7379e5912216afe4.json",
+        "266b686392b8492ff0d54b63abd169599d1fba638f7176951f1367a027cdda93/terminal-driver.js",
+        "399afcb2e1fa638f9a355cd18e97518d8694ac06d5808bc79dabc8b20d194c81/release-7ae8d68cde017c67f615923b4801d43c1c1ab695c765f2506fa9783707776f94.json",
+        "399afcb2e1fa638f9a355cd18e97518d8694ac06d5808bc79dabc8b20d194c81/runner.js",
+        "41a277716f1e0749a3dc9e6f02673e8bdca63f96934593b7e883d06ce9e4bd4f/release-6dd5edbdc3f84eafdc14e4d82885e4ee83df9d4a251b872be5f7763202219548.json",
+        "41a277716f1e0749a3dc9e6f02673e8bdca63f96934593b7e883d06ce9e4bd4f/runner.js",
+        "43815b7668b5771d36e5dedbf0d4de23800487b7e13b629210b2263b258ada66/release-359012671ce1d20592a0341bb7ac2428f3d964b0cbd6ebc3f180d9a78653a4fb.json",
+        "43815b7668b5771d36e5dedbf0d4de23800487b7e13b629210b2263b258ada66/terminal-driver.js",
+        "4759a6090e8e3ecf9cde0f4cac47f01322af02f2ae1b80d8f5d7671a3a1a3721/release-ca14051d46691e7881d83b0b75b98a66d28f15beac414994d251ad4ddd7f5f4d.json",
+        "4759a6090e8e3ecf9cde0f4cac47f01322af02f2ae1b80d8f5d7671a3a1a3721/terminal-driver.js",
+        "48d92464fdbff2568295877acad1b105f7fb106092da7901a107d051a5bb7271/release-00dde7459ec78aa2a0f9122179798028bc1711d1200341dc5beb39aae9cbaf3c.json",
+        "48d92464fdbff2568295877acad1b105f7fb106092da7901a107d051a5bb7271/terminal-driver.js",
+        "5766a6dc1713a43ace89555d001b9cc705c8dd2eb7c354ec2183a4d8f5027dcc/runner.js",
+        "69f9b915f0a0e68af4b592bf75bd8d1e68cffa2a77ba36b1dfeb9bf371639091/release-b20273594d5bc3e5b7e064555356b5912391bcc05c1b8f42bc5b58fbe5228f4d.json",
+        "69f9b915f0a0e68af4b592bf75bd8d1e68cffa2a77ba36b1dfeb9bf371639091/runner.js",
+        "6f9457a45a99726681f351e06bfc4d2dd2837535f7b2fe386b3029ed75ab44bf/release-b685002499bfe1855833870663010930b88a11c1169e8f815a8e6ceb2b612f8e.json",
+        "6f9457a45a99726681f351e06bfc4d2dd2837535f7b2fe386b3029ed75ab44bf/runner.js",
+        "76160f804518cdcdf20ce1517025f1d67003d96e26e264247cc912b24aaabb93/release-890a340ba18570a6fe62a71afebaecefb704eb6ab83342849e1a9ce5ee259cd6.json",
+        "76160f804518cdcdf20ce1517025f1d67003d96e26e264247cc912b24aaabb93/runner.js",
+        "972264c4fdd299396dcc3c2ef0673d66549c2ab2633b99aa4bf08bbae3730053/release-8832d0c1dc7e32a74fc11342f33ddcec37920e26cd3cf910158710a0e43dff71.json",
+        "972264c4fdd299396dcc3c2ef0673d66549c2ab2633b99aa4bf08bbae3730053/terminal-driver.js",
+        "9bbc218058b7a94a791714914e957549ab34a620276a78ed2d2b8bf4a9e08c2b/release-229248437fb2de8e6a451fb356c5087889fc6cbda0716d2b6919209310253b44.json",
+        "9bbc218058b7a94a791714914e957549ab34a620276a78ed2d2b8bf4a9e08c2b/terminal-driver.js",
+        "a2de210c2abcca6ec55738ae8b57ce7becae3bda66167495a25ce9eda0020f9f/release-edf46a66a60657121be8d974d5eac24c0c5325fb79b8adaed2964b8461103a90.json",
+        "a2de210c2abcca6ec55738ae8b57ce7becae3bda66167495a25ce9eda0020f9f/terminal-driver.js",
+        "bcd884a0779bc35b36c5a0eccdd985240ac1fc6d8ea3d8d37f908c10c453ad45/release-9255698085ec88acaf98a752b20847a88ba40b0df1312757cbef331956977904.json",
+        "bcd884a0779bc35b36c5a0eccdd985240ac1fc6d8ea3d8d37f908c10c453ad45/terminal-driver.js",
+        "c67a55f354be2bdcf6f726a09b88395003db5a273094857ec47574cd419cae46/release-671d5482b656b6a61566f45fb6137a9a9c2455757191a4387e37491040780774.json",
+        "c67a55f354be2bdcf6f726a09b88395003db5a273094857ec47574cd419cae46/release-6dd5edbdc3f84eafdc14e4d82885e4ee83df9d4a251b872be5f7763202219548.json",
+        "c67a55f354be2bdcf6f726a09b88395003db5a273094857ec47574cd419cae46/terminal-driver.js",
+        "c8782029f3725cc5d137706f62e535c39b38d8464fb0d31deae9935446fd517a/release-9b4a5ae874f92003ad97d262a4eb1a4dac98f56c9c7d3e4714b7ea3bf64bbf64.json",
+        "c8782029f3725cc5d137706f62e535c39b38d8464fb0d31deae9935446fd517a/terminal-driver.js",
+        "cef234e3da545b9a50ea72af3d481a3873eb88cbc7580de695078cd5014c6652/release-671d5482b656b6a61566f45fb6137a9a9c2455757191a4387e37491040780774.json",
+        "cef234e3da545b9a50ea72af3d481a3873eb88cbc7580de695078cd5014c6652/runner.js",
+        "d3616198e7ad1b2ada576a34df3bb9fe2b3ca91c91ae7550e0563031b6744e40/release-5ee5f942b48101502dc8bc44b4c915bf2182de74864d0ff77ed58d724385290d.json",
+        "d3616198e7ad1b2ada576a34df3bb9fe2b3ca91c91ae7550e0563031b6744e40/runner.js"
+      ],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/historical-runner-releases/record.json",
+          "bytes": 7481,
+          "sha256": "6a653e0896a5e5569452c5ebb9fc7a4235ad369214ce2f94e2ded0724cc01556"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/historical-runner-releases/source-before.jsonl.gz",
+          "bytes": 10355,
+          "sha256": "6b50b4f644dc473e61190f1b4158f6aa24da5321b359018a6d254539f7db931c"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/historical-runner-releases/files-sha256.jsonl.gz",
+          "bytes": 9131,
+          "sha256": "e23443cf66acd533c812b06933dae4ec8d729c7fdac5f59fefaac76cc0822801"
+        }
+      }
+    },
+    {
+      "id": "historical-skills-next-segment",
+      "source_root": "objrun/scripts/repair-2026-10-10/full-f/skillsbench/next-segment",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\scripts\\repair-2026-10-10\\full-f\\skillsbench\\next-segment",
+      "snapshot": "253f09fb0f6ec52a2582742e7c9aafec6e86330f0370be2f13eefdac6ed22ae0",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 1221,
+      "source_logical_bytes": 7972545,
+      "source_links": 0,
+      "added_packed_bytes": 1017233,
+      "excluded_paths": [],
+      "kept_files": [
+        "docker_disk_actual_floor_v2.next.ts",
+        "docker_disk_guard.next.ts",
+        "draft_publication_adapter2_20261013_v1.ts",
+        "energy_original_network_skip.next.py",
+        "finish_group02_defensive_v1/fuzzing_private_data_group_v2.next.py",
+        "group01-adapter1-v1/bridge.py",
+        "group01-adapter1-v1/opaque_artifacts.py",
+        "group01-adapter1-v1/private_runner.py",
+        "group01-adapter1-v1/snapshot_adapter.py",
+        "group01-adapter1-v1/stand_base.py",
+        "group01-adapter1-v1/worker.py",
+        "group01-adapter3-v1/react_service.sh",
+        "group01-adapter3-v1/snapshot_adapter.py",
+        "group01-adapter3-v1/stand.py",
+        "group02-adapter2-v1/private_eval_syzlang_adapter2_v1.py",
+        "group02-adapter2-v1/syzlang_owner_relay_adapter2_v1.py",
+        "group02-adapter2-v1/syzlang_private_bridge_adapter2_v1.py",
+        "group02_adapter3_v1/artifacts.py",
+        "group02_adapter3_v1/bridge.py",
+        "group02_adapter3_v1/policy.py",
+        "group02_adapter3_v1/private_eval.py",
+        "group02_nonsecurity_v1/artifacts.py",
+        "group02_nonsecurity_v1/bridge.py",
+        "group02_nonsecurity_v1/grpo_private.py",
+        "group02_nonsecurity_v1/policy.py",
+        "group02_nonsecurity_v1/private_eval.py",
+        "memory_observe_only_v2.next.ts",
+        "parallel-prep-20261013/private_eval_suricata_finish_group02_defensive_v1.py",
+        "parallel-prep-20261013/private_eval_suricata_group02_adapter1_v2.py",
+        "parallel-prep-20261013/private_eval_suricata_parallel_prep_20261013.py",
+        "parallel-prep-20261013/suricata_owner_relay_finish_group02_defensive_v1.py",
+        "parallel-prep-20261013/suricata_owner_relay_group02_adapter1_v2.py",
+        "parallel-prep-20261013/suricata_owner_relay_parallel_prep_20261013.py",
+        "parallel-prep-20261013/suricata_private_bridge_finish_group02_defensive_v1.py",
+        "parallel-prep-20261013/suricata_private_bridge_group02_adapter1_v2.py",
+        "parallel-prep-20261013/suricata_private_bridge_parallel_prep_20261013.py",
+        "prepare_adapter2_20261013_v1.ts",
+        "private_eval_codebook_wide_v1.next.py",
+        "private_task_worker_entry_adapter2_20261013_v1.ts",
+        "private_task_worker_entry_finish_group02_defensive_v1.ts",
+        "private_task_worker_entry_finish_group02_fuzzing_v1.next.ts",
+        "private_task_worker_entry_group02_adapter1_v2.ts",
+        "private_task_worker_entry_group02_adapter3_v1.next.ts",
+        "private_task_worker_entry_group02_nonsecurity_v1.next.ts",
+        "runtime_acc_readiness.next.ts",
+        "suricata_peak_finish_group02_defensive_v1.ts",
+        "suricata_stand_evidence_finish_group02_defensive_v1.ts",
+        "suricata_stand_evidence_group02_adapter1_v2.ts"
+      ],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [
+        "docker_disk_actual_floor_v2.next.ts",
+        "docker_disk_guard.next.ts",
+        "draft_publication_adapter2_20261013_v1.ts",
+        "energy_original_network_skip.next.py",
+        "finish_group02_defensive_v1/fuzzing_private_data_group_v2.next.py",
+        "group01-adapter1-v1/bridge.py",
+        "group01-adapter1-v1/opaque_artifacts.py",
+        "group01-adapter1-v1/private_runner.py",
+        "group01-adapter1-v1/snapshot_adapter.py",
+        "group01-adapter1-v1/stand_base.py",
+        "group01-adapter1-v1/worker.py",
+        "group01-adapter3-v1/react_service.sh",
+        "group01-adapter3-v1/snapshot_adapter.py",
+        "group01-adapter3-v1/stand.py",
+        "group02-adapter2-v1/private_eval_syzlang_adapter2_v1.py",
+        "group02-adapter2-v1/syzlang_owner_relay_adapter2_v1.py",
+        "group02-adapter2-v1/syzlang_private_bridge_adapter2_v1.py",
+        "group02_adapter3_v1/artifacts.py",
+        "group02_adapter3_v1/bridge.py",
+        "group02_adapter3_v1/policy.py",
+        "group02_adapter3_v1/private_eval.py",
+        "group02_nonsecurity_v1/artifacts.py",
+        "group02_nonsecurity_v1/bridge.py",
+        "group02_nonsecurity_v1/grpo_private.py",
+        "group02_nonsecurity_v1/policy.py",
+        "group02_nonsecurity_v1/private_eval.py",
+        "memory_observe_only_v2.next.ts",
+        "parallel-prep-20261013/private_eval_suricata_finish_group02_defensive_v1.py",
+        "parallel-prep-20261013/private_eval_suricata_group02_adapter1_v2.py",
+        "parallel-prep-20261013/private_eval_suricata_parallel_prep_20261013.py",
+        "parallel-prep-20261013/suricata_owner_relay_finish_group02_defensive_v1.py",
+        "parallel-prep-20261013/suricata_owner_relay_group02_adapter1_v2.py",
+        "parallel-prep-20261013/suricata_owner_relay_parallel_prep_20261013.py",
+        "parallel-prep-20261013/suricata_private_bridge_finish_group02_defensive_v1.py",
+        "parallel-prep-20261013/suricata_private_bridge_group02_adapter1_v2.py",
+        "parallel-prep-20261013/suricata_private_bridge_parallel_prep_20261013.py",
+        "prepare_adapter2_20261013_v1.ts",
+        "private_eval_codebook_wide_v1.next.py",
+        "private_task_worker_entry_adapter2_20261013_v1.ts",
+        "private_task_worker_entry_finish_group02_defensive_v1.ts",
+        "private_task_worker_entry_finish_group02_fuzzing_v1.next.ts",
+        "private_task_worker_entry_group02_adapter1_v2.ts",
+        "private_task_worker_entry_group02_adapter3_v1.next.ts",
+        "private_task_worker_entry_group02_nonsecurity_v1.next.ts",
+        "runtime_acc_readiness.next.ts",
+        "suricata_peak_finish_group02_defensive_v1.ts",
+        "suricata_stand_evidence_finish_group02_defensive_v1.ts",
+        "suricata_stand_evidence_group02_adapter1_v2.ts"
+      ],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/historical-skills-next-segment/record.json",
+          "bytes": 4630,
+          "sha256": "9f07f2ca6ac76fda7674fb056ccc67ba0e84d239d6bbcda7af9dfd975f8f1320"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/historical-skills-next-segment/source-before.jsonl.gz",
+          "bytes": 23318,
+          "sha256": "43a75b24dda1b34f7336169924c367be3a11d982c8a33957e0360e86f0229b46"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/historical-skills-next-segment/files-sha256.jsonl.gz",
+          "bytes": 58870,
+          "sha256": "e664c21563b8b6b92d7e3eae6f6eaf53d54346f014ddaa1501c06454ce8b12dd"
+        }
+      }
+    },
+    {
+      "id": "historical-terminal-sources",
+      "source_root": "objrun/scripts/repair-2026-10-10/full-f/terminal-bench",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\scripts\\repair-2026-10-10\\full-f\\terminal-bench",
+      "snapshot": "9f2e9cc9a76e33c415b234dfdfb7592e9dd7ee3d6bae3a350c884cdf1fe5d2bd",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 1916,
+      "source_logical_bytes": 19637388,
+      "source_links": 0,
+      "added_packed_bytes": 1800185,
+      "excluded_paths": [],
+      "kept_files": [
+        "artifacts.py",
+        "artifacts_sanitize_next.py",
+        "benchmark-usd-cash.ts",
+        "campaign-gzip-build-pov-ray-admitted.next.ts",
+        "command_worker.py",
+        "docker_owned.py",
+        "engine-task-id.ts",
+        "fixed_cli_worker.py",
+        "freeze_engine.ts",
+        "git_leak_worker.py",
+        "gpt2_worker.py",
+        "gzip-build-pov-ray-image-pool-custody.next.ts",
+        "gzip-train-fasttext-image-pool-custody.next.ts",
+        "heap_worker.py",
+        "isolated-run-directory.ts",
+        "isolated-task-plan-dynamic.next.ts",
+        "live_nginx.py",
+        "local-grader-http-20261013.next.ts",
+        "official_candidate.py",
+        "pending-interfaces/grader_transport_transform.ts",
+        "pending-interfaces/required_fault_transform.ts",
+        "pmars_worker.py",
+        "polyglot_python313_worker.py",
+        "polyglot_worker.py",
+        "povray_worker.py",
+        "prepare.py",
+        "private_checker.py",
+        "private_checker_sanitize_next.py",
+        "profiles.py",
+        "profiles_sanitize_next.py",
+        "provider_gateway.ts",
+        "runtime_transport.py",
+        "runtime_transport_active_rpc_next.py",
+        "runtime_transport_fasttext_stdout_drain_next.py",
+        "rust_polyglot_worker.py",
+        "sanitize_private_router_next.py",
+        "sanitize_untrusted_worker_next.py",
+        "segment-scope.ts",
+        "snapshot_grader.py",
+        "snapshot_grader_sanitize_next.py",
+        "stand_admitted_runtime_next.py",
+        "stand_sanitize_next.py",
+        "stand_v1.py",
+        "streaming_hash_next.py",
+        "task_environment.py",
+        "tool-unit-budget.next.ts",
+        "verifier_python313.py"
+      ],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [
+        "artifacts.py",
+        "artifacts_sanitize_next.py",
+        "benchmark-usd-cash.ts",
+        "campaign-gzip-build-pov-ray-admitted.next.ts",
+        "command_worker.py",
+        "docker_owned.py",
+        "engine-task-id.ts",
+        "fixed_cli_worker.py",
+        "freeze_engine.ts",
+        "git_leak_worker.py",
+        "gpt2_worker.py",
+        "gzip-build-pov-ray-image-pool-custody.next.ts",
+        "gzip-train-fasttext-image-pool-custody.next.ts",
+        "heap_worker.py",
+        "isolated-run-directory.ts",
+        "isolated-task-plan-dynamic.next.ts",
+        "live_nginx.py",
+        "local-grader-http-20261013.next.ts",
+        "official_candidate.py",
+        "pending-interfaces/grader_transport_transform.ts",
+        "pending-interfaces/required_fault_transform.ts",
+        "pmars_worker.py",
+        "polyglot_python313_worker.py",
+        "polyglot_worker.py",
+        "povray_worker.py",
+        "prepare.py",
+        "private_checker.py",
+        "private_checker_sanitize_next.py",
+        "profiles.py",
+        "profiles_sanitize_next.py",
+        "provider_gateway.ts",
+        "runtime_transport.py",
+        "runtime_transport_active_rpc_next.py",
+        "runtime_transport_fasttext_stdout_drain_next.py",
+        "rust_polyglot_worker.py",
+        "sanitize_private_router_next.py",
+        "sanitize_untrusted_worker_next.py",
+        "segment-scope.ts",
+        "snapshot_grader.py",
+        "snapshot_grader_sanitize_next.py",
+        "stand_admitted_runtime_next.py",
+        "stand_sanitize_next.py",
+        "stand_v1.py",
+        "streaming_hash_next.py",
+        "task_environment.py",
+        "tool-unit-budget.next.ts",
+        "verifier_python313.py"
+      ],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/historical-terminal-sources/record.json",
+          "bytes": 3535,
+          "sha256": "4532708ceb3a055b5b68109437a58a5ecbff22b7451e838827b450735caf7ab4"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/historical-terminal-sources/source-before.jsonl.gz",
+          "bytes": 35867,
+          "sha256": "f74349836b6ea4a971e9df96b365c6853111dbe632fe9b05e0f4c06b49e0bfab"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/historical-terminal-sources/files-sha256.jsonl.gz",
+          "bytes": 98341,
+          "sha256": "00e3a105b340e8b9488ce45c535b266803da6f05d80b697b53247b2239cdb146"
+        }
+      }
+    },
+    {
+      "id": "legacy-runs",
+      "source_root": "objrun/runs",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\runs",
+      "snapshot": "6c1b15c5a3bfa1dc056b57bfa3cb59183b57116cebcc1f4958cb811c3089e2fc",
+      "status": "archived",
+      "transport": "files",
+      "source_files": 33557,
+      "source_logical_bytes": 2958159990,
+      "source_links": 0,
+      "added_packed_bytes": 675875587,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/legacy-runs/record.json",
+          "bytes": 1803,
+          "sha256": "bf8c3e728fef0518104b56ddc612c0b45bf89bd134d88acf56be6300d91a5094"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/legacy-runs/source-before.jsonl.gz",
+          "bytes": 739596,
+          "sha256": "b6ad69e2ce8516a7a70b0c7114c380b0b1f4c4700f61797d0b180d2168b50be4"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/legacy-runs/files-sha256.jsonl.gz",
+          "bytes": 1563383,
+          "sha256": "ace3ddf5ba3e9d15064c376c86c702971efce827d8885b4eac4f526695643054"
+        }
+      }
+    },
+    {
+      "id": "local-tmp",
+      "source_root": "objrun/tmp",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\tmp",
+      "snapshot": "44c1f51c50152675f59b4bd63c09b5eb6f2a3136250ce3ae63da354917f09ab6",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 17,
+      "source_logical_bytes": 1087606,
+      "source_links": 0,
+      "added_packed_bytes": 140557,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/local-tmp/record.json",
+          "bytes": 1841,
+          "sha256": "cdef3be048040e3df5a04b39925603352b72b47ddf8984fef320138fbc847bc4"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/local-tmp/source-before.jsonl.gz",
+          "bytes": 648,
+          "sha256": "303e64c95d8fe86855d24e1da4faf89ac26d343fd01127488ed60b53aaed332f"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/local-tmp/files-sha256.jsonl.gz",
+          "bytes": 1184,
+          "sha256": "203b93ee3883676280447c8c0c9a120d6f3fcba4c4be9f796cf35b558507af7c"
+        }
+      }
+    },
+    {
+      "id": "newbench-runtime",
+      "source_root": "objrun/scripts/newbench-20261014/runtime-snapshot",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\scripts\\newbench-20261014\\runtime-snapshot",
+      "snapshot": "bc5e9a2f0716b4badfe233685dbe567de564b9adfa169020b4ad537ff46ab043",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 5621,
+      "source_logical_bytes": 76125534,
+      "source_links": 0,
+      "added_packed_bytes": 17495726,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/newbench-runtime/record.json",
+          "bytes": 1945,
+          "sha256": "91411046264c1812a609ce3e31e18c0dc305df2470e58820b856c2b19df937dc"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/newbench-runtime/source-before.jsonl.gz",
+          "bytes": 88763,
+          "sha256": "6222c34c2872fce436d680d50923e45bc723c1e3032c3fcae430c9fb9e0e767f"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/newbench-runtime/files-sha256.jsonl.gz",
+          "bytes": 274827,
+          "sha256": "30b30e3d1e909d7e3545490d864fbeaf0bd1ee85bfefcaa871f18ad51595af6f"
+        }
+      }
+    },
+    {
+      "id": "novaeve-docker-shims",
+      "source_root": "objrun/scripts/repair-2026-10-10/full-f/novaeve_formal_v1/sb",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\scripts\\repair-2026-10-10\\full-f\\novaeve_formal_v1\\sb",
+      "snapshot": "a01024c3a3fc976ba2fa11f5a3f97051367231951f49156a1ea39215058e438c",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 118,
+      "source_logical_bytes": 344940852,
+      "source_links": 0,
+      "added_packed_bytes": 723398,
+      "excluded_paths": [],
+      "kept_files": [
+        "build-fasttext-root-draft-v12.ts",
+        "build-financial-root-draft-v12.ts",
+        "debug-close-observation-v1.ts",
+        "debug-observer-launch-v1.py",
+        "debug-v4-draft-preflight.ts",
+        "dnf-cache-context-v1.py",
+        "dnf-cache-context-v2.py",
+        "dnf-cache-context-v3.py",
+        "dnf-cache-expand-v1.py",
+        "dnf-cache-expand-v2.py",
+        "dnf-cache-expand-v3.py",
+        "dnf-cache-expand-v4.py",
+        "dnf-cache-expand-v5.py",
+        "dnf-cache-expand-v6.py",
+        "dnf-cache-leased-expand-v1.ts",
+        "dnf-cache-leased-expand-v2.ts",
+        "dnf-cache-leased-expand-v3.ts",
+        "dnf-cache-leased-expand-v4.ts",
+        "dnf-cache-leased-expand-v5.ts",
+        "dnf-cache-leased-expand-v6.ts",
+        "dnf-cache-leased-prefetch-v1.ts",
+        "dnf-cache-leased-prefetch-v2.ts",
+        "dnf-cache-leased-prefetch-v3.ts",
+        "dnf-cache-prefetch-v1.py",
+        "dnf-cache-prefetch-v2.py",
+        "dnf-cache-prefetch-v3.py",
+        "dnf-native-leased-makecache-v1.ts",
+        "dnf-native-leased-makecache-v2.ts",
+        "dnf-native-makecache-v1.py",
+        "dnf-native-makecache-v2.py",
+        "docker-disk-v1.ts",
+        "docker-disk-v2.ts",
+        "docker-shim-v2.ts",
+        "docker-shim-v3.ts",
+        "docker-shim-v4.ts",
+        "http-entity-range-cache-v1.py",
+        "http-entity-range-cache-v2.py",
+        "http-entity-range-cache-v3.py",
+        "http-entity-range-cache-v4.py",
+        "http-entity-range-cache-v5.py",
+        "http-entity-range-cache-v6.py",
+        "materialize-runtime-v1.py",
+        "npm-native-cache-v1.py",
+        "npm-native-leased-cache-v1.ts",
+        "owner-bootstrap-v1.py",
+        "owner-bootstrap-v2.py",
+        "owner-bootstrap-v3.py",
+        "runtime-suricata-v1.ts",
+        "runtime-suricata-v2.ts",
+        "runtime-suricata-v3.ts",
+        "runtime-suricata-v4.ts",
+        "runtime-suricata-v5.ts",
+        "runtime-v1.ts",
+        "suricata-build-result-recovery-v1.py",
+        "suricata-cold-v1.py",
+        "suricata-cold-v2.py",
+        "suricata-cold-v3.py",
+        "suricata-cold-v4.py",
+        "suricata-cold-v5.py",
+        "suricata-cold-v6.py",
+        "suricata-cold-v7.py",
+        "suricata-cold-v8.py",
+        "suricata-cpu-topology-leased-overlay-v1.ts",
+        "suricata-cpu-topology-leased-preparation-v1.ts",
+        "suricata-cpu-topology-leased-preparation-v2.ts",
+        "suricata-cpu-topology-overlay-v1.py",
+        "suricata-cpu-topology-preparation-v1.py",
+        "suricata-cpu-topology-preparation-v2.py",
+        "suricata-cpu-topology-v1.c",
+        "suricata-filemode-leased-overlay-v1.ts",
+        "suricata-filemode-leased-overlay-v2.ts",
+        "suricata-filemode-overlay-v1.py",
+        "suricata-filemode-overlay-v2.py",
+        "suricata-formal-entry-preflight-v1.ts",
+        "suricata-http-idle-preflight-v1.ts",
+        "suricata-leased-prep-v1.ts",
+        "suricata-leased-prep-v10.ts",
+        "suricata-leased-prep-v11.ts",
+        "suricata-leased-prep-v2.ts",
+        "suricata-leased-prep-v3.ts",
+        "suricata-leased-prep-v4.ts",
+        "suricata-leased-prep-v5.ts",
+        "suricata-leased-prep-v6.ts",
+        "suricata-leased-prep-v7.ts",
+        "suricata-leased-prep-v8.ts",
+        "suricata-leased-prep-v9.ts",
+        "suricata-native-leased-start-diagnostic-v1.ts",
+        "suricata-native-leased-start-diagnostic-v2.ts",
+        "suricata-native-leased-start-diagnostic-v3.ts",
+        "suricata-native-node-stand-v1.py",
+        "suricata-native-start-diagnostic-v1.py",
+        "suricata-native-start-diagnostic-v2.py",
+        "suricata-native-start-diagnostic-v3.py",
+        "suricata-oracle-leased-metadata-replay-v1.ts",
+        "suricata-oracle-leased-metadata-replay-v2.ts",
+        "suricata-oracle-metadata-replay-v1.py",
+        "suricata-oracle-metadata-replay-v2.py",
+        "suricata-private-protocol-leased-overlay-v1.ts",
+        "suricata-private-protocol-overlay-v1.py",
+        "suricata-ready-draft-v1.ts",
+        "suricata-ready-draft-v2.ts",
+        "suricata-ready-draft-v3.ts",
+        "suricata-ready-draft-v4.ts",
+        "suricata-ready-draft-v5.ts",
+        "suricata-stand-controls-v1.py",
+        "suricata-stand-controls-v2.py",
+        "suricata-stand-controls-v3.py",
+        "suricata-stand-evidence-v2.ts",
+        "suricata-tool-gateway-v3.ts",
+        "worker-suricata-v1.ts",
+        "worker-suricata-v2.ts",
+        "worker-suricata-v3.ts",
+        "worker-suricata-v4.ts",
+        "worker-suricata-v5.ts",
+        "worker-v1.ts"
+      ],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/novaeve-docker-shims/record.json",
+          "bytes": 6210,
+          "sha256": "659f910a886d83d4b016de33d13a6c51b040100056daf418ddc3fee1cfef3631"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/novaeve-docker-shims/source-before.jsonl.gz",
+          "bytes": 2006,
+          "sha256": "a1b47363140b847f468c98948687ec11d7d705855954eeb0259010516b089747"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/novaeve-docker-shims/files-sha256.jsonl.gz",
+          "bytes": 5976,
+          "sha256": "fc7665f14afbea8d9e56ad09749c01197330fc4cd78448f9c15c994bf7292f24"
+        }
+      }
+    },
+    {
+      "id": "paper-history",
+      "source_root": "objrun/paper",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\paper",
+      "snapshot": "17706bfa1fb44cde8856720bc1711e83c3eebeb40a5ef8e71f2223080edd29d3",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 1638,
+      "source_logical_bytes": 382404923,
+      "source_links": 0,
+      "added_packed_bytes": 101797115,
+      "excluded_paths": [
+        "current",
+        "full-v6.25-short-abstract-20261021",
+        "README.md",
+        "versions.json",
+        "README-legacy-20260913.md"
+      ],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/paper-history/record.json",
+          "bytes": 2011,
+          "sha256": "80667f86e55f40a0122b003bc70f2f78baf04090e52bfa178f748206c119177c"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/paper-history/source-before.jsonl.gz",
+          "bytes": 24192,
+          "sha256": "2fcec576de6f0344226c99dcb1249fb338c7354ace88dd69b8dd19862a26d82d"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/paper-history/files-sha256.jsonl.gz",
+          "bytes": 82136,
+          "sha256": "be41291437bc1fc173eb1c80b241e8f77691fdb3f2b26671245491b343c9eb11"
+        }
+      }
+    },
+    {
+      "id": "paper-revisions",
+      "source_root": "notes/paper-revisions",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\notes\\paper-revisions",
+      "snapshot": "bb3acbd164db228c074d91920ac1593bbfdbd9770fdc1ac655616533c6b7ed49",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 22973,
+      "source_logical_bytes": 302183003,
+      "source_links": 0,
+      "added_packed_bytes": 91669782,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/paper-revisions/record.json",
+          "bytes": 1897,
+          "sha256": "56c224ab4029e5f7bc08979d667c15875d1b16d5feb87f16d97b7f5e3c07ca63"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/paper-revisions/source-before.jsonl.gz",
+          "bytes": 355609,
+          "sha256": "5bf45961e590a841934973b46cddd0464f3c2228bf2fb1d2efbf8eb9b4d4a9c7"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/paper-revisions/files-sha256.jsonl.gz",
+          "bytes": 926570,
+          "sha256": "3131ba078f26fa4b76664a5d67b254c0f3cb0ce0f59e59d22446869c4d02d1b1"
+        }
+      }
+    },
+    {
+      "id": "phase1",
+      "source_root": "objrun/.phase1-data",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\.phase1-data",
+      "snapshot": "a1c62b3e592d3c81aa213330d6b6ed888c05548829c4bc235eaf5de9c315d544",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 43509,
+      "source_logical_bytes": 3134591349,
+      "source_links": 19,
+      "added_packed_bytes": 1454506270,
+      "excluded_paths": [
+        "scienceworld/tmp/tmpx1qfmmzv",
+        "scienceworld/tmp/tmphr0z7lzr",
+        "scienceworld/tmp/tmpgebd98gz",
+        "host-extras/share",
+        "host-extras/py4j-0.10.9.7.dist-info",
+        "host-extras/py4j"
+      ],
+      "kept_files": [],
+      "retained_empty_directories": [
+        "scienceworld/tmp/hsperfdata_y1252"
+      ],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/phase1/record.json",
+          "bytes": 2329,
+          "sha256": "6c51872837dea05dfc72b5bdb9440e2a84039913a8c9e9643d6fd5c700f00408"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/phase1/source-before.jsonl.gz",
+          "bytes": 568791,
+          "sha256": "b31e2e890d31f510b5cc606baf7a9a62726e4372748c6bc661f53ffd5e78520f"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/phase1/files-sha256.jsonl.gz",
+          "bytes": 2081610,
+          "sha256": "181e26349c0cfa2c3656acbaa621e0a53348a1c14d9ca734976d3ba5e640ce85"
+        }
+      }
+    },
+    {
+      "id": "scibench",
+      "source_root": "objrun/docs/scibench",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\docs\\scibench",
+      "snapshot": "4e3fa261783983e828b1745d4c397a6ffc0dfe695a1b8d9bc7bf2f7646c7713e",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 64615,
+      "source_logical_bytes": 1456893731,
+      "source_links": 0,
+      "added_packed_bytes": 313866147,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/scibench/record.json",
+          "bytes": 1826,
+          "sha256": "bec96fec15c7b75abe1166c5b59d9da4d7bd22e9d3fc6e211318a42abd9e444e"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/scibench/source-before.jsonl.gz",
+          "bytes": 914853,
+          "sha256": "b9e4f9c39fe9369e31e6148c3ed8910d3a881e77d692d30cc36542a22992394f"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/scibench/files-sha256.jsonl.gz",
+          "bytes": 2820287,
+          "sha256": "ce6ed81ac81042f11d266d9d1e1d1cd049ef3b43fb9e81024fc1c1b5fa67e447"
+        }
+      }
+    },
+    {
+      "id": "scicode-external",
+      "source_root": "C:\\Users\\y1252\\Documents\\Codex\\2026-10-15\\s-c\\outputs\\scicode",
+      "source_absolute": "C:\\Users\\y1252\\Documents\\Codex\\2026-10-15\\s-c\\outputs\\scicode",
+      "snapshot": "1ff4af2a281c3ff50b92bfc6aa7f07640818a1bb0a99fa2457520d7d1ec379fd",
+      "status": "archived_external_preserved",
+      "transport": "tar",
+      "source_files": 57809,
+      "source_logical_bytes": 1587089630,
+      "source_links": 0,
+      "added_packed_bytes": 418020676,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": false,
+      "external_original_preserved": true,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/scicode-external/record.json",
+          "bytes": 1725,
+          "sha256": "df10961529d830aabb94161d81d0cded250456a942ed006b8f537144d21988d3"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/scicode-external/source-before.jsonl.gz",
+          "bytes": 1115000,
+          "sha256": "8512e63b10298babebff615265454fa585dedc62bafec86eb1e01c17b83c0d71"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/scicode-external/files-sha256.jsonl.gz",
+          "bytes": 2455336,
+          "sha256": "02e617aeb8c400e4a224558f8f9b851eea57067faada0272d3ed60bb0aca03e6"
+        }
+      }
+    },
+    {
+      "id": "scratch-diagnostics-remainder",
+      "source_root": "objrun/.scratch",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\.scratch",
+      "snapshot": "16774f9a4482c276973a020f3407ad6c85acc9595c9d6a0efbab967f7077ad0b",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 20921,
+      "source_logical_bytes": 384775288,
+      "source_links": 9,
+      "added_packed_bytes": 42515573,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/scratch-diagnostics-remainder/record.json",
+          "bytes": 1900,
+          "sha256": "d6c2e186822b58db62954774f83f07b78066259081e117fa9c1c4e14cafcd6d1"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/scratch-diagnostics-remainder/source-before.jsonl.gz",
+          "bytes": 306350,
+          "sha256": "8000f0dd68ac7e6bc8f3d8681a40adf6c584df7f28652c97b51bb4768c9a5177"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/scratch-diagnostics-remainder/files-sha256.jsonl.gz",
+          "bytes": 665809,
+          "sha256": "bad156518278e4d83e1d43574adcf1fbdb04e12825e41866d3a49df8636b0f9b"
+        }
+      }
+    },
+    {
+      "id": "work-price-lifetime-20261018",
+      "source_root": "objrun/work/price-lifetime-20261018",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\work\\price-lifetime-20261018",
+      "snapshot": "89864fd12e7b795c5d76c792c2308d84d7b8a4475af6f539e64d4b62584bb871",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 51,
+      "source_logical_bytes": 14872046,
+      "source_links": 0,
+      "added_packed_bytes": 842271,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/work-price-lifetime-20261018/record.json",
+          "bytes": 1846,
+          "sha256": "ae2ad4e5d838efa39e0e63867c98cd26201037bef8c1b980cf60fbaa9fe91594"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/work-price-lifetime-20261018/source-before.jsonl.gz",
+          "bytes": 1346,
+          "sha256": "fd71ebf26b59dd7fc8ced623ef230d1935772b372b6a160d3713de4d2693802e"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/work-price-lifetime-20261018/files-sha256.jsonl.gz",
+          "bytes": 2933,
+          "sha256": "6b1e1210e7a0dd0105986779bbcab49339ba3ad640121db1b5aee0287c88ceaf"
+        }
+      }
+    },
+    {
+      "id": "work-remainder",
+      "source_root": "objrun/work",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\work",
+      "snapshot": "e2b7ae34396cc5f69f448843066914330c33bb7aac1adf375b928976db60496a",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 701,
+      "source_logical_bytes": 30141378,
+      "source_links": 0,
+      "added_packed_bytes": 19967931,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/work-remainder/record.json",
+          "bytes": 1869,
+          "sha256": "0e01a8c07ef33ed69f147f46c3c44758cb63b8e11997e471150c2c65d5a589e4"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/work-remainder/source-before.jsonl.gz",
+          "bytes": 13961,
+          "sha256": "8351e655d8c89bbcd22af93c7e5bf8675d66806527299c89a583477cd4f339f3"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/work-remainder/files-sha256.jsonl.gz",
+          "bytes": 34933,
+          "sha256": "a8e27e615c7903d0e55eceb4d19f3c6ed98c520dec39ad4c7276ef1c6b8ec4c0"
+        }
+      }
+    },
+    {
+      "id": "work-remaining12-parallel-20261018",
+      "source_root": "objrun/work/remaining12-parallel-20261018",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\work\\remaining12-parallel-20261018",
+      "snapshot": "831c40b62541c7e042bd6c32223ab8cb0a13efdfbc5a2a53039ced974992dfbd",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 74675,
+      "source_logical_bytes": 18769099040,
+      "source_links": 3,
+      "added_packed_bytes": 3644801662,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/work-remaining12-parallel-20261018/record.json",
+          "bytes": 1904,
+          "sha256": "0f528df691bef94b8c59e1934e002f85ef77768350b34cfbb672058623a43e4b"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/work-remaining12-parallel-20261018/source-before.jsonl.gz",
+          "bytes": 1745184,
+          "sha256": "46403e7d23e7e75448f07eaf540239bde25adbd8ba98e393fe935a95e4e5f458"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/work-remaining12-parallel-20261018/files-sha256.jsonl.gz",
+          "bytes": 3248491,
+          "sha256": "5c18384cccfac1819a7925b34dd0ec6d9859ac9dac859a7849d3cc2083d08d5d"
+        }
+      }
+    },
+    {
+      "id": "work-skb-local-remaining-20261018",
+      "source_root": "objrun/work/skb-local-remaining-20261018",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\work\\skb-local-remaining-20261018",
+      "snapshot": "1606f16166f532a7ad5179b962710e67964dd75c984f6c1319ad1ba2ddfab243",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 1133,
+      "source_logical_bytes": 36340287503,
+      "source_links": 0,
+      "added_packed_bytes": 15222619868,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/work-skb-local-remaining-20261018/record.json",
+          "bytes": 1897,
+          "sha256": "cbed16e00d010f5a04564ba0db18d9e6c27fda13ef81b4a7b3f7a5bbe8781edc"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/work-skb-local-remaining-20261018/source-before.jsonl.gz",
+          "bytes": 27771,
+          "sha256": "079ce1d782a21d05ca49831a64391d90304e24ebac9ee34e7eee64fcefc93739"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/work-skb-local-remaining-20261018/files-sha256.jsonl.gz",
+          "bytes": 60422,
+          "sha256": "f59f14d5987b7b39cf7175cac0040410e3ce3b2e5363b3a4b5cbf4ea8bfd39e6"
+        }
+      }
+    },
+    {
+      "id": "work-skb-setup-recovery-20261018",
+      "source_root": "objrun/work/skb-setup-recovery-20261018",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\work\\skb-setup-recovery-20261018",
+      "snapshot": "beea69d6d37a0a9a9674931b8be4a607d68341301b7dd1a026866bf1c9c96314",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 465,
+      "source_logical_bytes": 104681626,
+      "source_links": 0,
+      "added_packed_bytes": 5159635,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/work-skb-setup-recovery-20261018/record.json",
+          "bytes": 1878,
+          "sha256": "5b86c67e74a6a7dfb4ba9ca0a04e5edb742ddcb2ec4aa3cd12602c30916d14c8"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/work-skb-setup-recovery-20261018/source-before.jsonl.gz",
+          "bytes": 7411,
+          "sha256": "be6e5cf2fe8fb9c15a2ceb315e0ea4205385ca15f6d1afa9beb05662b8adf607"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/work-skb-setup-recovery-20261018/files-sha256.jsonl.gz",
+          "bytes": 14733,
+          "sha256": "435052abdbc381dde5b6980db84306b915ee3330d839ffaaf64810925ba50273"
+        }
+      }
+    },
+    {
+      "id": "work-tb-break-local-20261018",
+      "source_root": "objrun/work/tb-break-local-20261018",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\work\\tb-break-local-20261018",
+      "snapshot": "bc400f9b5771693b95ad53c43ca6e949878c19f5e7681113a81b5657f3ddeffe",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 196,
+      "source_logical_bytes": 8389325382,
+      "source_links": 0,
+      "added_packed_bytes": 7100331272,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/work-tb-break-local-20261018/record.json",
+          "bytes": 1870,
+          "sha256": "e4dce711c81e518bcd77ffa5426255e28d104547243fc8b2dafbf6dc2b7507b2"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/work-tb-break-local-20261018/source-before.jsonl.gz",
+          "bytes": 4525,
+          "sha256": "e82aea259ad8eb83a5cd529a53d518008138c09520f5f8d5e747dd84d5d8d456"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/work-tb-break-local-20261018/files-sha256.jsonl.gz",
+          "bytes": 9158,
+          "sha256": "63926a4f3b355848e7ddd3c63d0107acc01e13d2de463f9aff8a22c2a0b390cf"
+        }
+      }
+    },
+    {
+      "id": "work-tb-c4-local-20261018",
+      "source_root": "objrun/work/tb-c4-local-20261018",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\work\\tb-c4-local-20261018",
+      "snapshot": "86e2592609e4702264f9293cde605f66ed4ac048002196176a0957152e228d2e",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 227,
+      "source_logical_bytes": 5741951731,
+      "source_links": 0,
+      "added_packed_bytes": 1103338107,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/work-tb-c4-local-20261018/record.json",
+          "bytes": 1861,
+          "sha256": "2367923654b2d4988ceff1daf2a9479c4759936f3f3110a6a78de61552cde805"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/work-tb-c4-local-20261018/source-before.jsonl.gz",
+          "bytes": 4707,
+          "sha256": "0832758f2dbaad1ed7c7a979d24ab6fa5d31b2d09a8862c80b1447e5a4586eb0"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/work-tb-c4-local-20261018/files-sha256.jsonl.gz",
+          "bytes": 10904,
+          "sha256": "b84e60a9eb879311b21c08737bd75e4011943b6f3f00081d815caca5c0db8c35"
+        }
+      }
+    },
+    {
+      "id": "work-tb-configure-local-20261018",
+      "source_root": "objrun/work/tb-configure-local-20261018",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\work\\tb-configure-local-20261018",
+      "snapshot": "c3d42689bdf2be393bb107e9353d59fe6366de96d00f591bfe75d00d2b63bb0f",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 140,
+      "source_logical_bytes": 233526115,
+      "source_links": 0,
+      "added_packed_bytes": 228966666,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/work-tb-configure-local-20261018/record.json",
+          "bytes": 1873,
+          "sha256": "7158f04c94c1f46ff57538876284921cc03b5933d2872cf06ef01a82cb390d54"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/work-tb-configure-local-20261018/source-before.jsonl.gz",
+          "bytes": 2964,
+          "sha256": "c81cf2c1ecfaadd85f1878d33717dfb673f794e9c51efb637cc517cf4ad5cd09"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/work-tb-configure-local-20261018/files-sha256.jsonl.gz",
+          "bytes": 7053,
+          "sha256": "67f7c56b9a87ccb1548d7d2f62684281f0f5122db561f2d6ebc6f117394984fb"
+        }
+      }
+    },
+    {
+      "id": "work-tb-feal-local-20261018",
+      "source_root": "objrun/work/tb-feal-local-20261018",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\work\\tb-feal-local-20261018",
+      "snapshot": "be756f60caff3e4173a05e82eddc0352929d5da94b2098018970bf6bb038ca23",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 137,
+      "source_logical_bytes": 27030007,
+      "source_links": 0,
+      "added_packed_bytes": 694592,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/work-tb-feal-local-20261018/record.json",
+          "bytes": 1848,
+          "sha256": "443898c6a6dcd1d41a11820e189eef1d84f3286f5aed8de89dce744ccf6ec23c"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/work-tb-feal-local-20261018/source-before.jsonl.gz",
+          "bytes": 2655,
+          "sha256": "6eafd0e3d94acdbe7b8529e533a5539eac583217e1aa2ba9ae8d09fd9d647ad6"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/work-tb-feal-local-20261018/files-sha256.jsonl.gz",
+          "bytes": 6817,
+          "sha256": "77f6889a1de817439f61ed097326d33077ffbbd79cf091032ac6f82a4259ed93"
+        }
+      }
+    },
+    {
+      "id": "work-tb-windows-local-20261018",
+      "source_root": "objrun/work/tb-windows-local-20261018",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\objrun\\work\\tb-windows-local-20261018",
+      "snapshot": "d8045e9ba20eea771e4bbc08b3082263d145320be659f6d45afab324af804e0d",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 103,
+      "source_logical_bytes": 13202606,
+      "source_links": 0,
+      "added_packed_bytes": 969231,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/work-tb-windows-local-20261018/record.json",
+          "bytes": 1855,
+          "sha256": "f249efff3ccbd351862c55c99ce5308a09a0374368f321a48edff5c46cdb2062"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/work-tb-windows-local-20261018/source-before.jsonl.gz",
+          "bytes": 2530,
+          "sha256": "5567eb79c7e8ee858f19d80fae6af6235bcaac5d2f4e341deaf6891624a3dbd8"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/work-tb-windows-local-20261018/files-sha256.jsonl.gz",
+          "bytes": 5867,
+          "sha256": "5581045bfc30d5fab5d60cbedbc514c4ed419950fa2182c8f3972076904039ea"
+        }
+      }
+    },
+    {
+      "id": "workspace-tmp",
+      "source_root": "tmp",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\tmp",
+      "snapshot": "e1fe90db41cc6b8525fba1b0d9e05bcf35f9ee8cc4574c734cee66d7eb0d7401",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 66364,
+      "source_logical_bytes": 5485003441,
+      "source_links": 5,
+      "added_packed_bytes": 3312015331,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/workspace-tmp/record.json",
+          "bytes": 1869,
+          "sha256": "950444be72cfe6750e3df6629d8bff29ef032d3b77e12e42615c6f80eec1e9d1"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/workspace-tmp/source-before.jsonl.gz",
+          "bytes": 1054351,
+          "sha256": "eef47b8b03c5493bfd8615de10ea582da7a59151dbab01f43cf1450d0a1a0246"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/workspace-tmp/files-sha256.jsonl.gz",
+          "bytes": 2612107,
+          "sha256": "5ad123b01f201b7285afcbc954cef2d220f108dbe0dcfd056414df17ca28d305"
+        }
+      }
+    },
+    {
+      "id": "workspace-work",
+      "source_root": "work/remaining12-parallel-20261018",
+      "source_absolute": "F:\\git\\TgEngin-handoff-2026-10-07\\work\\remaining12-parallel-20261018",
+      "snapshot": "3e898244369953ca40fedd22aac203cadb67de596c7494df0ef636457d27acab",
+      "status": "archived",
+      "transport": "tar",
+      "source_files": 4,
+      "source_logical_bytes": 47067,
+      "source_links": 0,
+      "added_packed_bytes": 15078,
+      "excluded_paths": [],
+      "kept_files": [],
+      "retained_empty_directories": [],
+      "expanded_kept_files": [],
+      "kept_files_note": "Files retained after this collection was compacted; later collections may archive some of them.",
+      "expanded_source_removed": true,
+      "external_original_preserved": false,
+      "coverage_verified": true,
+      "restored_sha256_verified": true,
+      "uploaded": false,
+      "proofs": {
+        "record.json": {
+          "path": "collections/workspace-work/record.json",
+          "bytes": 1877,
+          "sha256": "06c3e52c5e27b36aa03efe83c3a9adef72d9944ec7c7c1e606e36792d2a06fa2"
+        },
+        "source-before.jsonl.gz": {
+          "path": "collections/workspace-work/source-before.jsonl.gz",
+          "bytes": 486,
+          "sha256": "053f06647b3b7da3483a72358b8ed7164cbf2e6e71fe5d8e7fa7c6f65b3e4c8b"
+        },
+        "files-sha256.jsonl.gz": {
+          "path": "collections/workspace-work/files-sha256.jsonl.gz",
+          "bytes": 449,
+          "sha256": "4d2672bfba7999d1ffebc7cce009ee334e34cc0c336f6eeea4f145322b89b290"
+        }
+      }
+    }
+  ],
+  "external_link_targets": [
+    {
+      "link_path": "objrun/.phase1-data/scicode-verified",
+      "resolved_source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\scicode-verified",
+      "archive_id": "external-phase1-scicode-verified",
+      "source_preserved": true,
+      "files": 155,
+      "logical_bytes": 1113827547
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/repair-2026-10-08T06-06-06-739Z",
+      "resolved_source": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-06-06-739Z",
+      "archive_id": "external-phase1-repair-2026-10-08t06-06-06-739z",
+      "source_preserved": true,
+      "files": 15,
+      "logical_bytes": 13857459
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/repair-2026-10-08T06-06-41-201Z",
+      "resolved_source": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-06-41-201Z",
+      "archive_id": "external-phase1-repair-2026-10-08t06-06-41-201z",
+      "source_preserved": true,
+      "files": 15,
+      "logical_bytes": 29656178
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/repair-2026-10-08T06-51-16-840Z",
+      "resolved_source": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-51-16-840Z",
+      "archive_id": "external-phase1-repair-2026-10-08t06-51-16-840z",
+      "source_preserved": true,
+      "files": 31,
+      "logical_bytes": 14477703
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/repair-2026-10-08T06-54-55-267Z",
+      "resolved_source": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-54-55-267Z",
+      "archive_id": "external-phase1-repair-2026-10-08t06-54-55-267z",
+      "source_preserved": true,
+      "files": 6423,
+      "logical_bytes": 116814972
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/repair-2026-10-08T10-25-57-408Z",
+      "resolved_source": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T10-25-57-408Z",
+      "archive_id": "external-phase1-repair-2026-10-08t10-25-57-408z",
+      "source_preserved": true,
+      "files": 2518,
+      "logical_bytes": 61860633
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/repair-2026-10-08T17-36-10-873Z",
+      "resolved_source": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T17-36-10-873Z",
+      "archive_id": "external-phase1-repair-2026-10-08t17-36-10-873z",
+      "source_preserved": true,
+      "files": 1,
+      "logical_bytes": 1904
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/repair-2026-10-08T18-32-57-118Z",
+      "resolved_source": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z",
+      "archive_id": "external-phase1-repair-2026-10-08t18-32-57-118z",
+      "source_preserved": true,
+      "files": 47049,
+      "logical_bytes": 859113940
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/skb-jpg-2026-10-08T09-46-34-645Z",
+      "resolved_source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-46-34-645Z",
+      "archive_id": "external-phase1-skb-jpg-2026-10-08t09-46-34-645z",
+      "source_preserved": true,
+      "files": 1,
+      "logical_bytes": 62690018
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/skb-jpg-2026-10-08T09-46-44-144Z",
+      "resolved_source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-46-44-144Z",
+      "archive_id": "external-phase1-skb-jpg-2026-10-08t09-46-44-144z",
+      "source_preserved": true,
+      "files": 79,
+      "logical_bytes": 68749821
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/skb-jpg-2026-10-08T09-48-07-694Z",
+      "resolved_source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-48-07-694Z",
+      "archive_id": "external-phase1-skb-jpg-2026-10-08t09-48-07-694z",
+      "source_preserved": true,
+      "files": 80,
+      "logical_bytes": 68750360
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/skb-jpg-2026-10-08T09-54-51-769Z",
+      "resolved_source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-54-51-769Z",
+      "archive_id": "external-phase1-skb-jpg-2026-10-08t09-54-51-769z",
+      "source_preserved": true,
+      "files": 90,
+      "logical_bytes": 68756356
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/tb-nginx-2026-10-08T07-48-23-195Z",
+      "resolved_source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\tb-nginx-2026-10-08T07-48-23-195Z",
+      "archive_id": "external-phase1-tb-nginx-2026-10-08t07-48-23-195z",
+      "source_preserved": true,
+      "files": 2,
+      "logical_bytes": 55217263
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/tb-nginx-2026-10-08T07-49-30-364Z",
+      "resolved_source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\tb-nginx-2026-10-08T07-49-30-364Z",
+      "archive_id": "external-phase1-tb-nginx-2026-10-08t07-49-30-364z",
+      "source_preserved": true,
+      "files": 78,
+      "logical_bytes": 63003772
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/tb-nginx-2026-10-08T08-35-56-432Z",
+      "resolved_source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\tb-nginx-2026-10-08T08-35-56-432Z",
+      "archive_id": "external-phase1-tb-nginx-2026-10-08t08-35-56-432z",
+      "source_preserved": true,
+      "files": 116,
+      "logical_bytes": 107853111
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/tb-nginx-2026-10-08T10-47-06-544Z",
+      "resolved_source": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\tb-nginx-2026-10-08T10-47-06-544Z",
+      "archive_id": "external-phase1-tb-nginx-2026-10-08t10-47-06-544z",
+      "source_preserved": true,
+      "files": 150,
+      "logical_bytes": 108069260
+    },
+    {
+      "link_path": "objrun/work/remaining12-parallel-20261018/group-c/setup-fuzzing-py/native-04e3ffc1/run",
+      "resolved_source": "D:\\TgEngin-local-runs\\20261018\\preserved-historical-native-logs\\native-04e3ffc1\\run",
+      "archive_id": "external-native-04e3ffc1",
+      "source_preserved": true,
+      "files": 813,
+      "logical_bytes": 467495270
+    },
+    {
+      "link_path": "objrun/work/remaining12-parallel-20261018/group-c/setup-fuzzing-py/native-af21274a/run",
+      "resolved_source": "D:\\TgEngin-local-runs\\20261018\\preserved-historical-native-logs\\native-af21274a\\run",
+      "archive_id": "external-native-af21274a",
+      "source_preserved": true,
+      "files": 612,
+      "logical_bytes": 413679051
+    },
+    {
+      "link_path": "objrun/work/remaining12-parallel-20261018/group-c/setup-fuzzing-py/native-de1893c6/run",
+      "resolved_source": "D:\\TgEngin-local-runs\\20261018\\preserved-historical-native-logs\\native-de1893c6\\run",
+      "archive_id": "external-native-de1893c6",
+      "source_preserved": true,
+      "files": 807,
+      "logical_bytes": 780675462
+    }
+  ],
+  "coverage_note": "Byte coverage of the listed source collections only. This does not certify trial semantics, paper-score linkage, or unreadable excluded directories."
+}

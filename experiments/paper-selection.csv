@@ -1,0 +1,21 @@
+﻿benchmark,paper_version,paper_source,n,f_denominator,U_provenance,protocol,source_ids,raw_run_mapping_status
+AIME 2024--25,v6.25,paper/current/data/comparison-presentation-v6.17.json,60,60,local as described by frozen manuscript,No-search historical pair,,requires_archive_audit
+GPQA Diamond,v6.25,paper/current/data/comparison-presentation-v6.17.json,198,198,local as described by frozen manuscript,Formal 198-task U/R/F campaign; separate binary batch. Six-benchmark trajectory cohort remains the earlier configuration.,A01 | A26,requires_archive_audit
+CMT-Benchmark,v6.25,paper/current/data/comparison-presentation-v6.17.json,50,50,local as described by frozen manuscript,Historical objective-mounted run,,requires_archive_audit
+miniF2F (Lean 4),v6.25,paper/current/data/comparison-presentation-v6.17.json,244,244,local as described by frozen manuscript,Retained historical continuation protocol,,requires_archive_audit
+ChemBench (500),v6.25,paper/current/data/comparison-presentation-v6.17.json,500,500,local as described by frozen manuscript,Retained one-attempt U; current F cohort,,requires_archive_audit
+ChemIQ,v6.25,paper/current/data/comparison-presentation-v6.17.json,816,816,local as described by frozen manuscript,Retained one-attempt U; current F,,requires_archive_audit
+BIRD,v6.25,paper/current/data/comparison-presentation-v6.17.json,1534,1534,local as described by frozen manuscript,Oracle EX feedback; count-bounded controls,,requires_archive_audit
+HumanEval+,v6.25,paper/current/data/comparison-presentation-v6.17.json,164,164,local as described by frozen manuscript,"Cumulative recovery, four extra rounds",,requires_archive_audit
+MBPP+,v6.25,paper/current/data/comparison-presentation-v6.17.json,378,378,local as described by frozen manuscript,Base feedback; final base+plus,,requires_archive_audit
+ClassEval,v6.25,paper/current/data/comparison-presentation-v6.17.json,100,100,local as described by frozen manuscript,Fixed denominator; four terminal zeros,,requires_archive_audit
+DeepSWE,v6.25,paper/current/data/comparison-presentation-v6.17.json,112,112,external single-attempt reference,"Historical reported 91/112; 53.0% U reference, not a newly executed paired U run.",A02,requires_archive_audit
+Terminal-Bench 2.1,v6.25,paper/current/data/comparison-presentation-v6.17.json,89,68,external single-attempt reference,"Formal retained F snapshot only; official leaderboard references are external, not U arms.",,requires_archive_audit
+SkillsBench 1.1,v6.25,paper/current/data/comparison-presentation-v6.17.json,87,62,external single-attempt reference,"Formal retained F snapshot only; official leaderboard references are external, not U arms.",,requires_archive_audit
+SciBench,v6.25,paper/current/data/comparison-presentation-v6.17.json,416,416,local as described by frozen manuscript,"5/native, 10 min",A04,requires_archive_audit
+SciCode,v6.25,paper/current/data/comparison-presentation-v6.17.json,65,65,local as described by frozen manuscript,"5/native, 10 min/step",A06,requires_archive_audit
+TheoPhysEval,v6.25,paper/current/data/comparison-presentation-v6.17.json,49,49,local as described by frozen manuscript,"5/4, 300 min",A11,requires_archive_audit
+LLM-SRBench,v6.25,paper/current/data/comparison-presentation-v6.17.json,240,240,local as described by frozen manuscript,up to 5; cost caps,A13,requires_archive_audit
+FrontierScience-Olympiad,v6.25,paper/current/data/comparison-presentation-v6.17.json,100,100,local as described by frozen manuscript,"5/native, 10 min",A16,requires_archive_audit
+OlympiadBench,v6.25,paper/current/data/comparison-presentation-v6.17.json,236,236,local as described by frozen manuscript,"5/native, 10 min",A18,requires_archive_audit
+LAB-Bench,v6.25,paper/current/data/comparison-presentation-v6.17.json,708,708,local as described by frozen manuscript,"5/native, 10 min",A20,requires_archive_audit

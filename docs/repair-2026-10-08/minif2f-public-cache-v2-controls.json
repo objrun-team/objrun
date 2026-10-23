@@ -1,0 +1,167 @@
+{
+  "fixture_root": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1",
+  "e_write": false,
+  "c_write": false,
+  "d_write": false,
+  "network": false,
+  "docker": false,
+  "llm_called": false,
+  "candidate_run": false,
+  "controls": [
+    {
+      "label": "test_actual_archived_prefix_modified_rejected",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\43b7ff21299f4be7b9dc201b7a3ae4b8",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_actual_windows_share_deny_lease",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\b78c9b7b4d384d2eb6d85f4e98ba0fdb",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_body_http_tls_eof_and_guard_timeout_never_retry",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\83ab92d601be49a6b3b4b2f785ce6a5f",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_body_timeout_fresh_success_exact_prefix_durable",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\b8ca4c95e2cb496282a7d8c5d66fa08a",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_closed_data_contract_retains_original_receipt_prefix",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\95c57844f2944d0aa14fd54deb6333ba",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_commit_journal_fsync_fault_unclosed_and_no_fresh",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\d30c21753d9845008a0c13b50895e299",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_executing_worker_copy_changed_no_completion_proof",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\387b682190044c2ca51c125cc38d2ef4",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_four_workers_compete_and_all_failed_bytes_remain_accounted",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\13b806ea88874c658df47cfadeb36476",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_fresh_body_capacity_reserved_after_retained_prefix",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\e690143461e44aa483becca7e497ce47",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_fresh_prefix_etag_length_mismatch_reject",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\178235181fd74609b8bd48cc5a9a8f87",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_frozen_review_changed_during_run_no_completion_proof",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\1ece3390c49347ea9aaa4a95555ca151",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_http_tls_open_backoff_stop_and_long_headers_no_retry",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\c433140e3e7a4e5781f80683c1b13b8f",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_journal_wrong_key_path_hash_duplicate_unpaired_no_fsync_rejected",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\4d5300563a1f44328505d9af569fc3e1",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_opening_and_body_share_three_gets",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\a0761b42a3b24421be23417eb0379cab",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_original_fsync_fault_preserves_part_and_no_fresh_get",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\e0ce85a64f054d68af47a2fd5d8b5833",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_prepared_fsync_failure_and_rename_gap_rejected",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\b6d371829a6946c89b4930258cfe0fa3",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_protected_source_changed_during_run_no_completion_proof",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\b1a8ff454ef84aa4aab2a091b5a82517",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_real_write_then_writefault_no_retry",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\5193d291ea014e2aa233e9d9e0fcbef1",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_second_body_timeout_never_third_generation",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\d930cf46577948d89c174f50ce2300a7",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_stage_eight_and_prefix_cap",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\43e5e0146b0d47e28e0ba96f157ccdc7",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_three_open_attempts_leave_no_body_retry_budget",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\406b1e4e8a1546ce92ecf221cfbf5ad7",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_unknown_canonical_part_and_orphan_prefix_rejected",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\08d133a6953e4f20a6f146b09faeea44",
+      "real_F_file_io": true
+    },
+    {
+      "label": "test_weak_etag_or_unknown_length_no_recovery",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\d826aace6721478f85ed3108e87cac0d",
+      "real_F_file_io": true
+    }
+  ],
+  "synthetic_closed_stage": {
+    "root": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\826d51af41d7460a9ab1a93dd096cefc",
+    "objects": 2,
+    "real5826Complete": false,
+    "old_receipt_exact_bytes_unchanged": true
+  },
+  "source_final_check_controls": [
+    {
+      "kind": "worker",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\ddc45e1068e845fe8dfd084c8ace4d61",
+      "no_success_proof": true,
+      "start_worker_sha256": "a6aab8d59837109c6c3ff0eb9bca56559f2f2b373d0e58e7b44153aace5b0bec",
+      "start_review_sha256": "6e7318e4ac675cd3a1255b6872b9ae77873aa6a3e1d915b287e4476a4b880bf6",
+      "released_aborted": true,
+      "production_sources_modified": false
+    },
+    {
+      "kind": "review",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\f7ba0aaad0724e42a1cf7a8b9d80ef4c",
+      "no_success_proof": true,
+      "start_worker_sha256": "a6aab8d59837109c6c3ff0eb9bca56559f2f2b373d0e58e7b44153aace5b0bec",
+      "start_review_sha256": "3a323378cca8e189c816d3d7ee5ca32086a5515f245df31b4281ad2b4f94487b",
+      "released_aborted": true,
+      "production_sources_modified": false
+    },
+    {
+      "kind": "protected",
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v2-f15302fb43b1\\895eb70ed005424cb439ae4d12b0a755",
+      "no_success_proof": true,
+      "start_worker_sha256": "a6aab8d59837109c6c3ff0eb9bca56559f2f2b373d0e58e7b44153aace5b0bec",
+      "start_review_sha256": "f9e319748f7ed3e21d3c21433b16ada5c447d9f57c4a726d8df57fa6daae270c",
+      "released_aborted": true,
+      "production_sources_modified": false
+    }
+  ],
+  "passed": true,
+  "testsRun": 23,
+  "failures": 0,
+  "errors": 0,
+  "source_sha256": "a6aab8d59837109c6c3ff0eb9bca56559f2f2b373d0e58e7b44153aace5b0bec"
+}

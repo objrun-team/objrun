@@ -1,0 +1,44 @@
+{
+  "taskId": "jpg-ocr-stat",
+  "imageId": "sha256:92892771245d31d0b1af4a0c603effbdaf02bf62c1c055081f44a462f5261ced",
+  "baseImageId": "sha256:6232b38791000e3818b58d8847b5a8f5612d606929e01156dd8febc423e0f2ef",
+  "environmentSha256": "3f8c727f88febafc7e4849c40dbbfe438b5e3ff13813731faf5b2b681e055d00",
+  "completeOriginalTaskImage": true,
+  "sourceHashes": {
+    "task.md": "909d9ec531112404b5be041b24ba30b2b05df17ec5c0bd39a771c4b8da6fce47",
+    "environment/Dockerfile": "8eac22e4261d1d8b4bba9e1f2010e77a6eeeafd489ada9a3b38fb456f971b61a",
+    "oracle/solve.sh": "a32e364bcd8b0b214e3510c4855ee17be8e75b4490f7be19d0cf24ddd3677ce3",
+    "verifier/test.sh": "013e2ee5d258c992c360d5b0d48a39e3efece51d49fad9c84c66fd211905df77",
+    "verifier/test_outputs.py": "5956de9cf2d3f26d9b77ba17ae74b3987d6a802b6c6cfffc27fe307649d353a6",
+    "verifier/stat_oracle.xlsx": "6e49264c150733702db04181c8c805a7a84555da8b2661063f2c4d46aa1c0c0d"
+  },
+  "constructionProtocol": "original-instruction-replay-public-cache-v2-copy-verified",
+  "seededEnvironment": true,
+  "officialDockerfileInstructionsUnchanged": true,
+  "actualSystemPython": {
+    "python": "3.12.3",
+    "packages": {
+      "pytesseract": "0.3.13",
+      "Pillow": "12.0.0",
+      "openpyxl": "3.1.5",
+      "packaging": "26.3",
+      "et-xmlfile": "2.0.0"
+    }
+  },
+  "aptDependencyProfile": {
+    "kind": "actual-cached-original-ubuntu-apt-verified",
+    "sha256": "ca1f28344b201abc95920492a0479fdc9af9f3593e4364f8b926b28a3ba94f77",
+    "packageCount": 108,
+    "signedMetadataVerifiedByOriginalApt": true
+  },
+  "executorSourceHashes": {
+    "software-jpg-build.py": "615d78c49de32e0afb42fe6df9ad20a6b233dc531a4268e768c8d86a3d5487aa",
+    "software-jpg-private-grader.py": "2ea7d178cfcccc8b1cd7193da46f7ddeeabfd01a639c679f193a99bdd9d1fdf5"
+  },
+  "publicWorkspaceVerification": {
+    "path": "/app/workspace",
+    "verified": true,
+    "fileCount": 22,
+    "filesSha256": "8c24971cb259b208ab5c2db96cc3f51948c1a7f2be66a97eb2658b4dcb81cef9"
+  }
+}

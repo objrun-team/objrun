@@ -1,0 +1,25 @@
+{
+  "fixture_root": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v3-3504ca6e3b4c",
+  "e_write": false,
+  "c_write": false,
+  "d_write": false,
+  "network": false,
+  "docker": false,
+  "llm_called": false,
+  "candidate_run": false,
+  "controls": [
+    {
+      "label": "frozen_v2_opaque_etag_valid_md5_timeout_guard_red",
+      "exact_old_sha256": "a6aab8d59837109c6c3ff0eb9bca56559f2f2b373d0e58e7b44153aace5b0bec",
+      "symptom": "RuntimeError: Public body acquisition aborted: {\"objects\": [{\"key\": \"0000000000000001.ltar\", \"error\": \"RuntimeError: Body recovery requires known length and strong ETag\", \"transport_gets\": 1}], \"observer\": []}",
+      "get_count": 1,
+      "first_response_closed": true,
+      "partial_bytes": 3,
+      "new_body_read_count": 0,
+      "desired_recovery_success": false,
+      "fixture": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\.scratch\\minif-body-v3-3504ca6e3b4c\\5d40f9904f7c4c20867cd6d9db0634bd",
+      "actual_diagnostic_bytes_used": false,
+      "synthetic_body_md5": "qSVXaULpSy71egZhAbSIdg=="
+    }
+  ]
+}

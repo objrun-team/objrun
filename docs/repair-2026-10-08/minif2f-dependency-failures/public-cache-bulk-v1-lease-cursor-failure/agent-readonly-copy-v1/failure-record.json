@@ -1,0 +1,226 @@
+{
+  "protocol": "bulk-v1-released-cursor-failure-readonly-v1",
+  "recorded_at_utc": "2026-10-08T17:35:35.497549+00:00",
+  "originals_unchanged": true,
+  "copied_files": [
+    {
+      "source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\minif2f-v415\\audit\\public-cache-acquisition.lock",
+      "archive": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-bulk-v1-lease-cursor-failure\\agent-readonly-copy-v1\\00-public-cache-acquisition.lock",
+      "bytes": 3625,
+      "sha256": "9d0e32516a0655b91b73235e27d8d7f8caa8d475818d3d6ed7da2b805c986b74",
+      "initial_identity": [
+        8265393070708816309,
+        7318349395741074,
+        3625,
+        1791480766390405700
+      ],
+      "flush_fsync_returned": true,
+      "readback_sha_matches": true
+    },
+    {
+      "source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\minif2f-v415\\audit\\cache-downloads.jsonl",
+      "archive": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-bulk-v1-lease-cursor-failure\\agent-readonly-copy-v1\\01-cache-downloads.jsonl",
+      "bytes": 3205674,
+      "sha256": "67861ae61a708b7079e1d8504641924f75c0d4ff49886ee89913335c59d425db",
+      "initial_identity": [
+        8265393070708816309,
+        281474978070059,
+        3205674,
+        1791480757182761200
+      ],
+      "flush_fsync_returned": true,
+      "readback_sha_matches": true
+    },
+    {
+      "source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\minif2f-v415\\audit\\public-cache-bulk-body-attempts.jsonl",
+      "archive": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-bulk-v1-lease-cursor-failure\\agent-readonly-copy-v1\\02-public-cache-bulk-body-attempts.jsonl",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "initial_identity": [
+        8265393070708816309,
+        281474978075859,
+        0,
+        1791480722444561600
+      ],
+      "flush_fsync_returned": true,
+      "readback_sha_matches": true
+    },
+    {
+      "source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\minif2f-v415\\audit\\public-cache-bulk-get-intents.jsonl",
+      "archive": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-bulk-v1-lease-cursor-failure\\agent-readonly-copy-v1\\03-public-cache-bulk-get-intents.jsonl",
+      "bytes": 43959,
+      "sha256": "d636e98e626e0b32079b4c8f7c25b71e5955fd0fa484fcf4cdee0c695177aca7",
+      "initial_identity": [
+        8265393070708816309,
+        281474978075860,
+        43959,
+        1791480757224293300
+      ],
+      "flush_fsync_returned": true,
+      "readback_sha_matches": true
+    },
+    {
+      "source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\minif2f-v415\\audit\\public-cache-bulk-inputs.json",
+      "archive": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-bulk-v1-lease-cursor-failure\\agent-readonly-copy-v1\\04-public-cache-bulk-inputs.json",
+      "bytes": 1170,
+      "sha256": "3f3c1c08cc2f54f8a28bbc98d9d60521790e810ffc8860afc0f2e6a04d42b962",
+      "initial_identity": [
+        8265393070708816309,
+        562949954782333,
+        1170,
+        1791480722440552500
+      ],
+      "flush_fsync_returned": true,
+      "readback_sha_matches": true
+    },
+    {
+      "source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\minif2f-v415\\downloads\\mathlib-cache\\666a4f0d3041cf0a.ltar.part",
+      "archive": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-bulk-v1-lease-cursor-failure\\agent-readonly-copy-v1\\05-666a4f0d3041cf0a.ltar.part",
+      "bytes": 81480,
+      "sha256": "988f4ccf8defeed61922e70759a298cf5c390c610cff9a343c1744039c4a9734",
+      "initial_identity": [
+        8265393070708816309,
+        281474978075953,
+        81480,
+        1791480758379763500
+      ],
+      "flush_fsync_returned": true,
+      "readback_sha_matches": true
+    },
+    {
+      "source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\minif2f-v415\\downloads\\mathlib-cache\\1af54e4b8b5b5c5b.ltar.part",
+      "archive": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-bulk-v1-lease-cursor-failure\\agent-readonly-copy-v1\\06-1af54e4b8b5b5c5b.ltar.part",
+      "bytes": 15945,
+      "sha256": "82040b04f961c2c813192843eaa30f1f5f9ef1bf401b83675b364d87b009b5a0",
+      "initial_identity": [
+        8265393070708816309,
+        281474978075954,
+        15945,
+        1791480758527292000
+      ],
+      "flush_fsync_returned": true,
+      "readback_sha_matches": true
+    },
+    {
+      "source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\minif2f-v415\\downloads\\mathlib-cache\\ce2c570876ca1422.ltar.part",
+      "archive": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-bulk-v1-lease-cursor-failure\\agent-readonly-copy-v1\\07-ce2c570876ca1422.ltar.part",
+      "bytes": 32329,
+      "sha256": "ae1c84afc03a55842f7c69e7ef8c5462faa86b366f96beed59dc1436ef1a79ed",
+      "initial_identity": [
+        8265393070708816309,
+        281474978075955,
+        32329,
+        1791480758379244200
+      ],
+      "flush_fsync_returned": true,
+      "readback_sha_matches": true
+    },
+    {
+      "source": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_public_cache_bulk.py",
+      "archive": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-bulk-v1-lease-cursor-failure\\agent-readonly-copy-v1\\08-minif2f_public_cache_bulk.py",
+      "bytes": 31573,
+      "sha256": "f98f23681f48aa2060b40fb0eaa45c829a6a51f50a252e2a69b8a09680847ac5",
+      "initial_identity": [
+        10003167350618301157,
+        37154696927414397,
+        31573,
+        1791480135093480300
+      ],
+      "flush_fsync_returned": true,
+      "readback_sha_matches": true
+    },
+    {
+      "source": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_public_cache_bulk_stage.py",
+      "archive": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-bulk-v1-lease-cursor-failure\\agent-readonly-copy-v1\\09-minif2f_public_cache_bulk_stage.py",
+      "bytes": 20898,
+      "sha256": "c8fcde6c29d2831dbd7494ba1b0a6fb6702ad78a18059a4b847d62692c0073b0",
+      "initial_identity": [
+        10003167350618301157,
+        12666373953497216,
+        20898,
+        1791480332546986000
+      ],
+      "flush_fsync_returned": true,
+      "readback_sha_matches": true
+    },
+    {
+      "source": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\scripts\\repair-2026-10-08\\minif2f_public_cache_bulk_stage.ps1",
+      "archive": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-bulk-v1-lease-cursor-failure\\agent-readonly-copy-v1\\10-minif2f_public_cache_bulk_stage.ps1",
+      "bytes": 1533,
+      "sha256": "2a5cc42817ef67ee7043611650272320454f9b183bb16a3a3976ab9de89b6349",
+      "initial_identity": [
+        10003167350618301157,
+        18858823441131701,
+        1533,
+        1791480234354160200
+      ],
+      "flush_fsync_returned": true,
+      "readback_sha_matches": true
+    },
+    {
+      "source": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-public-cache-bulk-review.json",
+      "archive": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-bulk-v1-lease-cursor-failure\\agent-readonly-copy-v1\\11-minif2f-public-cache-bulk-review.json",
+      "bytes": 25215,
+      "sha256": "79e2871ed137ac9f291b206f98ef76d25108b6b73135539c69d401ce4f4c364a",
+      "initial_identity": [
+        10003167350618301157,
+        4785074605687573,
+        25215,
+        1791480408579990500
+      ],
+      "flush_fsync_returned": true,
+      "readback_sha_matches": true
+    },
+    {
+      "source": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-public-cache-bulk-authorization.json",
+      "archive": "F:\\git\\TgEngin-handoff-2026-10-07\\TgEngin\\docs\\repair-2026-10-08\\minif2f-dependency-failures\\public-cache-bulk-v1-lease-cursor-failure\\agent-readonly-copy-v1\\12-minif2f-public-cache-bulk-authorization.json",
+      "bytes": 2859,
+      "sha256": "4feb11d6dd27a9dde5c1f96e52040cd407b907fb60ace052e21b90b7490fca9b",
+      "initial_identity": [
+        10003167350618301157,
+        5348024559108821,
+        2859,
+        1791480408561988600
+      ],
+      "flush_fsync_returned": true,
+      "readback_sha_matches": true
+    }
+  ],
+  "lease_id": "2d6b158a-04bb-4c22-a823-c85be6bd05b1",
+  "actor_pid": 106836,
+  "actor_absence_independently_verified": false,
+  "released": true,
+  "complete_objects": 3648,
+  "original3556_plus_new_objects": 92,
+  "consumed_intents": 96,
+  "opener_calls": 96,
+  "unfinished_consumed_keys": {
+    "8f9628157ae0f313.ltar": 1,
+    "1af54e4b8b5b5c5b.ltar": 1,
+    "666a4f0d3041cf0a.ltar": 1,
+    "ce2c570876ca1422.ltar": 1
+  },
+  "completed_new_keys": 92,
+  "body_retry_count": 0,
+  "partial_count": 3,
+  "partial_bytes": 129754,
+  "preservation_operations_total": 9,
+  "cumulative_failed_prefix_bytes": 422032,
+  "observer": [],
+  "prefix_operations_closed": true,
+  "failure_post_scan_envelope_bytes": 2313539584,
+  "error": "RuntimeError: Explicit bulk aborted: {\"objects\": [{\"key\": \"ce2c570876ca1422.ltar\", \"error\": \"JSONDecodeError: Expecting value: line 1 column 1 (char 0)\"}], \"observer\": []}",
+  "observed_fact": "Recorded worker JSONDecodeError while concurrent guarded GETs; no worker stack/cursor-byte snapshot was saved. Released marker parses correctly. No evidence of held-marker rewrite during GET phase.",
+  "static_defect": "Frozen carry OwnedLease.assert_owned uses shared stream seek+read without a lock; bulk4 worker guards can interfere with the same file cursor even without writes.",
+  "attribution": "Static defect directly supports the failure mechanism but saved error does not identify its exact json.loads call; classify probable cursor race, not a reconstructed runtime trace.",
+  "remaining_keys": 2178,
+  "remaining_preservation_operations": 5,
+  "proposed_body_retry_cap": 1,
+  "proposed_abort_retention_cap": 4,
+  "new_network_calls": 0,
+  "new_e_writes": 0,
+  "original_parts_removed": false,
+  "models": 0,
+  "candidates": 0,
+  "paper_edits": 0
+}

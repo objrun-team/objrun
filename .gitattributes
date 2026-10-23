@@ -1,0 +1,17 @@
+# Preserve byte identity for execution sources and evidence pinned by SHA-256.
+app/** -text
+test/** -text
+examples/** -text
+config.yaml -text
+scripts/** -text
+docs/** -text
+paper/current/** -text
+experiments/** -text
+
+*.pdf binary
+*.png binary
+*.jpg binary
+*.zip binary
+*.gz binary
+*.zst binary
+*.sqlite* binary

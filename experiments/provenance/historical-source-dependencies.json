@@ -1,0 +1,3532 @@
+{
+  "review": {
+    "user_decision": "Frozen executed source versions archived in full; current entrypoints, runner, tests and dependencies remain expanded.",
+    "retained_files": 345,
+    "retained_bytes": 9238216,
+    "cli_build_modules": 31,
+    "cli_dependencies_preserved": true,
+    "manual_retention": [
+      "complete broker API source package",
+      "complete original Python bridge packages used by regression tests"
+    ],
+    "directory_reference_review": "Bare ancestor paths are base-directory declarations, not requests to retain every descendant; Python local and explicitly referenced search directories are checked for imported modules.",
+    "sha256_guard_verified": true
+  },
+  "kept_files": [
+    {
+      "path": "scripts/bench-runner/release/0d9d99c74b370791c54821a80eea6d24eb84601e35ea98189074fb98c1d5c2b7/release-1208f062d580ea0ac3f3c5b2b7ec99c85bd108268d44aca8524ddc8468a055f4.json",
+      "sha256": "1208f062d580ea0ac3f3c5b2b7ec99c85bd108268d44aca8524ddc8468a055f4",
+      "bytes": 12109,
+      "reasons": [
+        "scripts/bench-runner/COMMON-QUALIFIED-INTERFACES-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/0d9d99c74b370791c54821a80eea6d24eb84601e35ea98189074fb98c1d5c2b7/runner.js",
+      "sha256": "0d9d99c74b370791c54821a80eea6d24eb84601e35ea98189074fb98c1d5c2b7",
+      "bytes": 348182,
+      "reasons": [
+        "scripts/bench-runner/COMMON-QUALIFIED-INTERFACES-HANDOFF.json",
+        "scripts/bench-runner/release/0d9d99c74b370791c54821a80eea6d24eb84601e35ea98189074fb98c1d5c2b7/release-1208f062d580ea0ac3f3c5b2b7ec99c85bd108268d44aca8524ddc8468a055f4.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/0fd8dd99f08860e004709b3cf62f2eb9ed657846c4d73cfa6cea7e2061da5f21/release-80fb4dc3704efacaaf3e3c3911692c7e5d3b4d247e6dedcfd1fb34fb289383eb.json",
+      "sha256": "80fb4dc3704efacaaf3e3c3911692c7e5d3b4d247e6dedcfd1fb34fb289383eb",
+      "bytes": 15969,
+      "reasons": [
+        "scripts/bench-runner/.seal-exact-context.ts",
+        "scripts/bench-runner/EXACT-INTENT-CONTEXT-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/0fd8dd99f08860e004709b3cf62f2eb9ed657846c4d73cfa6cea7e2061da5f21/runner.js",
+      "sha256": "0fd8dd99f08860e004709b3cf62f2eb9ed657846c4d73cfa6cea7e2061da5f21",
+      "bytes": 368756,
+      "reasons": [
+        "scripts/bench-runner/.seal-exact-context.ts",
+        "scripts/bench-runner/EXACT-INTENT-CONTEXT-HANDOFF.json",
+        "scripts/bench-runner/release/0fd8dd99f08860e004709b3cf62f2eb9ed657846c4d73cfa6cea7e2061da5f21/release-80fb4dc3704efacaaf3e3c3911692c7e5d3b4d247e6dedcfd1fb34fb289383eb.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/141a8976ae0339e0f796b831b740eb8e5e8148ffe1ca125f4e3d1fee3ff12b94/release-9a6a73a57b44810a6fa303e3523c1d9b9c8bce1c0e02e4638dabf54dd6e110cb.json",
+      "sha256": "9a6a73a57b44810a6fa303e3523c1d9b9c8bce1c0e02e4638dabf54dd6e110cb",
+      "bytes": 12342,
+      "reasons": [
+        "scripts/bench-runner/COMMON-SIGNED-DISPATCH-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/141a8976ae0339e0f796b831b740eb8e5e8148ffe1ca125f4e3d1fee3ff12b94/runner.js",
+      "sha256": "141a8976ae0339e0f796b831b740eb8e5e8148ffe1ca125f4e3d1fee3ff12b94",
+      "bytes": 348361,
+      "reasons": [
+        "scripts/bench-runner/COMMON-SIGNED-DISPATCH-HANDOFF.json",
+        "scripts/bench-runner/release/141a8976ae0339e0f796b831b740eb8e5e8148ffe1ca125f4e3d1fee3ff12b94/release-9a6a73a57b44810a6fa303e3523c1d9b9c8bce1c0e02e4638dabf54dd6e110cb.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/1cbeb703c38a36097d09fe8fc20ae889cbe9b5bdb6b0be7772f6897089e177ea/release-2efdbe12720748ccdfb9743e9b36a35ccdd09158bf69a85459efc579cda276c0.json",
+      "sha256": "2efdbe12720748ccdfb9743e9b36a35ccdd09158bf69a85459efc579cda276c0",
+      "bytes": 15169,
+      "reasons": [
+        "scripts/bench-runner/.seal-relative-qualified.ts",
+        "scripts/bench-runner/RELATIVE-QUALIFIED-INTERFACES-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/1cbeb703c38a36097d09fe8fc20ae889cbe9b5bdb6b0be7772f6897089e177ea/runner.js",
+      "sha256": "1cbeb703c38a36097d09fe8fc20ae889cbe9b5bdb6b0be7772f6897089e177ea",
+      "bytes": 367508,
+      "reasons": [
+        "scripts/bench-runner/.seal-relative-qualified.ts",
+        "scripts/bench-runner/RELATIVE-QUALIFIED-INTERFACES-HANDOFF.json",
+        "scripts/bench-runner/release/1cbeb703c38a36097d09fe8fc20ae889cbe9b5bdb6b0be7772f6897089e177ea/release-2efdbe12720748ccdfb9743e9b36a35ccdd09158bf69a85459efc579cda276c0.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/24d38d26fe07c03e5d1204cde42ce48504fb0a455db634e4297a9c628a2e1255/runtime.js",
+      "sha256": "24d38d26fe07c03e5d1204cde42ce48504fb0a455db634e4297a9c628a2e1255",
+      "bytes": 23754,
+      "reasons": [
+        "scripts/bench-runner/STAGE-CUSTODY-RELEASE.json",
+        "scripts/bench-runner/stage-custody.test.ts"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/26402dec9177058b84cfec7122d7b04e5376952682be4f9d37b62b507545c3d8/release-5586a09003741d0132b4e626b2ae3835913834ef92a86342d4a273810c5d2cc8.json",
+      "sha256": "5586a09003741d0132b4e626b2ae3835913834ef92a86342d4a273810c5d2cc8",
+      "bytes": 12807,
+      "reasons": [
+        "scripts/bench-runner/COMMON-MAILBOX-PHASE-RELEASE-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/26402dec9177058b84cfec7122d7b04e5376952682be4f9d37b62b507545c3d8/runner.js",
+      "sha256": "26402dec9177058b84cfec7122d7b04e5376952682be4f9d37b62b507545c3d8",
+      "bytes": 348710,
+      "reasons": [
+        "scripts/bench-runner/COMMON-MAILBOX-PHASE-RELEASE-HANDOFF.json",
+        "scripts/bench-runner/release/26402dec9177058b84cfec7122d7b04e5376952682be4f9d37b62b507545c3d8/release-5586a09003741d0132b4e626b2ae3835913834ef92a86342d4a273810c5d2cc8.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/266b686392b8492ff0d54b63abd169599d1fba638f7176951f1367a027cdda93/release-3069d349e9cd205f38d87df9552f849d0467b8d0c2096b4a7379e5912216afe4.json",
+      "sha256": "3069d349e9cd205f38d87df9552f849d0467b8d0c2096b4a7379e5912216afe4",
+      "bytes": 8751,
+      "reasons": [
+        "scripts/bench-runner/.freeze-candidate-release.ts",
+        "scripts/bench-runner/COMMON-SAVED-CANDIDATE-RELEASE-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/266b686392b8492ff0d54b63abd169599d1fba638f7176951f1367a027cdda93/terminal-driver.js",
+      "sha256": "266b686392b8492ff0d54b63abd169599d1fba638f7176951f1367a027cdda93",
+      "bytes": 236640,
+      "reasons": [
+        "scripts/bench-runner/.freeze-candidate-release.ts",
+        "scripts/bench-runner/COMMON-SAVED-CANDIDATE-RELEASE-HANDOFF.json",
+        "scripts/bench-runner/release/266b686392b8492ff0d54b63abd169599d1fba638f7176951f1367a027cdda93/release-3069d349e9cd205f38d87df9552f849d0467b8d0c2096b4a7379e5912216afe4.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/399afcb2e1fa638f9a355cd18e97518d8694ac06d5808bc79dabc8b20d194c81/release-7ae8d68cde017c67f615923b4801d43c1c1ab695c765f2506fa9783707776f94.json",
+      "sha256": "7ae8d68cde017c67f615923b4801d43c1c1ab695c765f2506fa9783707776f94",
+      "bytes": 13747,
+      "reasons": [
+        "scripts/bench-runner/.freeze-candidate-inventory.ts",
+        "scripts/bench-runner/COMMON-SAVED-CANDIDATE-INVENTORY-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/399afcb2e1fa638f9a355cd18e97518d8694ac06d5808bc79dabc8b20d194c81/runner.js",
+      "sha256": "399afcb2e1fa638f9a355cd18e97518d8694ac06d5808bc79dabc8b20d194c81",
+      "bytes": 363514,
+      "reasons": [
+        "scripts/bench-runner/.freeze-candidate-inventory.ts",
+        "scripts/bench-runner/COMMON-SAVED-CANDIDATE-INVENTORY-HANDOFF.json",
+        "scripts/bench-runner/release/399afcb2e1fa638f9a355cd18e97518d8694ac06d5808bc79dabc8b20d194c81/release-7ae8d68cde017c67f615923b4801d43c1c1ab695c765f2506fa9783707776f94.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/41a277716f1e0749a3dc9e6f02673e8bdca63f96934593b7e883d06ce9e4bd4f/release-6dd5edbdc3f84eafdc14e4d82885e4ee83df9d4a251b872be5f7763202219548.json",
+      "sha256": "eac96ca17af3619ceae3658cf69702c31dc491b6db5caeeae8a18117dc55c278",
+      "bytes": 11512,
+      "reasons": [
+        "scripts/bench-runner/COMMON-NATIVE-RELEASE-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/41a277716f1e0749a3dc9e6f02673e8bdca63f96934593b7e883d06ce9e4bd4f/runner.js",
+      "sha256": "41a277716f1e0749a3dc9e6f02673e8bdca63f96934593b7e883d06ce9e4bd4f",
+      "bytes": 347538,
+      "reasons": [
+        "scripts/bench-runner/COMMON-NATIVE-RELEASE-HANDOFF.json",
+        "scripts/bench-runner/release/41a277716f1e0749a3dc9e6f02673e8bdca63f96934593b7e883d06ce9e4bd4f/release-6dd5edbdc3f84eafdc14e4d82885e4ee83df9d4a251b872be5f7763202219548.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/43815b7668b5771d36e5dedbf0d4de23800487b7e13b629210b2263b258ada66/release-359012671ce1d20592a0341bb7ac2428f3d964b0cbd6ebc3f180d9a78653a4fb.json",
+      "sha256": "359012671ce1d20592a0341bb7ac2428f3d964b0cbd6ebc3f180d9a78653a4fb",
+      "bytes": 7805,
+      "reasons": [
+        "scripts/bench-runner/COMMON-QUALIFIED-INTERFACES-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/43815b7668b5771d36e5dedbf0d4de23800487b7e13b629210b2263b258ada66/terminal-driver.js",
+      "sha256": "43815b7668b5771d36e5dedbf0d4de23800487b7e13b629210b2263b258ada66",
+      "bytes": 216640,
+      "reasons": [
+        "scripts/bench-runner/COMMON-QUALIFIED-INTERFACES-HANDOFF.json",
+        "scripts/bench-runner/release/43815b7668b5771d36e5dedbf0d4de23800487b7e13b629210b2263b258ada66/release-359012671ce1d20592a0341bb7ac2428f3d964b0cbd6ebc3f180d9a78653a4fb.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/4759a6090e8e3ecf9cde0f4cac47f01322af02f2ae1b80d8f5d7671a3a1a3721/release-ca14051d46691e7881d83b0b75b98a66d28f15beac414994d251ad4ddd7f5f4d.json",
+      "sha256": "ca14051d46691e7881d83b0b75b98a66d28f15beac414994d251ad4ddd7f5f4d",
+      "bytes": 8503,
+      "reasons": [
+        "scripts/bench-runner/COMMON-MAILBOX-PHASE-RELEASE-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/4759a6090e8e3ecf9cde0f4cac47f01322af02f2ae1b80d8f5d7671a3a1a3721/terminal-driver.js",
+      "sha256": "4759a6090e8e3ecf9cde0f4cac47f01322af02f2ae1b80d8f5d7671a3a1a3721",
+      "bytes": 226962,
+      "reasons": [
+        "scripts/bench-runner/COMMON-MAILBOX-PHASE-RELEASE-HANDOFF.json",
+        "scripts/bench-runner/release/4759a6090e8e3ecf9cde0f4cac47f01322af02f2ae1b80d8f5d7671a3a1a3721/release-ca14051d46691e7881d83b0b75b98a66d28f15beac414994d251ad4ddd7f5f4d.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/48d92464fdbff2568295877acad1b105f7fb106092da7901a107d051a5bb7271/release-00dde7459ec78aa2a0f9122179798028bc1711d1200341dc5beb39aae9cbaf3c.json",
+      "sha256": "00dde7459ec78aa2a0f9122179798028bc1711d1200341dc5beb39aae9cbaf3c",
+      "bytes": 10167,
+      "reasons": [
+        "scripts/bench-runner/.seal-relative-qualified.ts",
+        "scripts/bench-runner/RELATIVE-QUALIFIED-INTERFACES-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/48d92464fdbff2568295877acad1b105f7fb106092da7901a107d051a5bb7271/terminal-driver.js",
+      "sha256": "48d92464fdbff2568295877acad1b105f7fb106092da7901a107d051a5bb7271",
+      "bytes": 250002,
+      "reasons": [
+        "scripts/bench-runner/.seal-relative-qualified.ts",
+        "scripts/bench-runner/RELATIVE-QUALIFIED-INTERFACES-HANDOFF.json",
+        "scripts/bench-runner/release/48d92464fdbff2568295877acad1b105f7fb106092da7901a107d051a5bb7271/release-00dde7459ec78aa2a0f9122179798028bc1711d1200341dc5beb39aae9cbaf3c.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/5766a6dc1713a43ace89555d001b9cc705c8dd2eb7c354ec2183a4d8f5027dcc/runner.js",
+      "sha256": "5766a6dc1713a43ace89555d001b9cc705c8dd2eb7c354ec2183a4d8f5027dcc",
+      "bytes": 398990,
+      "reasons": [
+        "scripts/bench-runner/check-nonblocking-history-local.ts"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/69f9b915f0a0e68af4b592bf75bd8d1e68cffa2a77ba36b1dfeb9bf371639091/release-b20273594d5bc3e5b7e064555356b5912391bcc05c1b8f42bc5b58fbe5228f4d.json",
+      "sha256": "b20273594d5bc3e5b7e064555356b5912391bcc05c1b8f42bc5b58fbe5228f4d",
+      "bytes": 12578,
+      "reasons": [
+        "scripts/bench-runner/COMMON-COMPLETE-OWNED-ENVIRONMENT-HANDOFF.json",
+        "scripts/bench-runner/COMMON-OWNED-ENVIRONMENT-FINAL-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/69f9b915f0a0e68af4b592bf75bd8d1e68cffa2a77ba36b1dfeb9bf371639091/runner.js",
+      "sha256": "69f9b915f0a0e68af4b592bf75bd8d1e68cffa2a77ba36b1dfeb9bf371639091",
+      "bytes": 348521,
+      "reasons": [
+        "scripts/bench-runner/COMMON-COMPLETE-OWNED-ENVIRONMENT-HANDOFF.json",
+        "scripts/bench-runner/COMMON-OWNED-ENVIRONMENT-FINAL-HANDOFF.json",
+        "scripts/bench-runner/release/69f9b915f0a0e68af4b592bf75bd8d1e68cffa2a77ba36b1dfeb9bf371639091/release-b20273594d5bc3e5b7e064555356b5912391bcc05c1b8f42bc5b58fbe5228f4d.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/6f9457a45a99726681f351e06bfc4d2dd2837535f7b2fe386b3029ed75ab44bf/release-b685002499bfe1855833870663010930b88a11c1169e8f815a8e6ceb2b612f8e.json",
+      "sha256": "b685002499bfe1855833870663010930b88a11c1169e8f815a8e6ceb2b612f8e",
+      "bytes": 13972,
+      "reasons": [
+        "scripts/bench-runner/.seal-original-no-child.ts",
+        "scripts/bench-runner/ORIGINAL-NO-CHILD-SPAWN-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/6f9457a45a99726681f351e06bfc4d2dd2837535f7b2fe386b3029ed75ab44bf/runner.js",
+      "sha256": "6f9457a45a99726681f351e06bfc4d2dd2837535f7b2fe386b3029ed75ab44bf",
+      "bytes": 367345,
+      "reasons": [
+        "scripts/bench-runner/.seal-original-no-child.ts",
+        "scripts/bench-runner/ORIGINAL-NO-CHILD-SPAWN-HANDOFF.json",
+        "scripts/bench-runner/release/6f9457a45a99726681f351e06bfc4d2dd2837535f7b2fe386b3029ed75ab44bf/release-b685002499bfe1855833870663010930b88a11c1169e8f815a8e6ceb2b612f8e.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/76160f804518cdcdf20ce1517025f1d67003d96e26e264247cc912b24aaabb93/release-890a340ba18570a6fe62a71afebaecefb704eb6ab83342849e1a9ce5ee259cd6.json",
+      "sha256": "890a340ba18570a6fe62a71afebaecefb704eb6ab83342849e1a9ce5ee259cd6",
+      "bytes": 15404,
+      "reasons": [
+        "scripts/bench-runner/.seal-relative-verified.ts",
+        "scripts/bench-runner/RELATIVE-VERIFIED-RESOURCE-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/76160f804518cdcdf20ce1517025f1d67003d96e26e264247cc912b24aaabb93/runner.js",
+      "sha256": "76160f804518cdcdf20ce1517025f1d67003d96e26e264247cc912b24aaabb93",
+      "bytes": 367719,
+      "reasons": [
+        "scripts/bench-runner/.seal-relative-verified.ts",
+        "scripts/bench-runner/RELATIVE-VERIFIED-RESOURCE-HANDOFF.json",
+        "scripts/bench-runner/release/76160f804518cdcdf20ce1517025f1d67003d96e26e264247cc912b24aaabb93/release-890a340ba18570a6fe62a71afebaecefb704eb6ab83342849e1a9ce5ee259cd6.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/972264c4fdd299396dcc3c2ef0673d66549c2ab2633b99aa4bf08bbae3730053/release-8832d0c1dc7e32a74fc11342f33ddcec37920e26cd3cf910158710a0e43dff71.json",
+      "sha256": "8832d0c1dc7e32a74fc11342f33ddcec37920e26cd3cf910158710a0e43dff71",
+      "bytes": 8038,
+      "reasons": [
+        "scripts/bench-runner/COMMON-SIGNED-DISPATCH-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/972264c4fdd299396dcc3c2ef0673d66549c2ab2633b99aa4bf08bbae3730053/terminal-driver.js",
+      "sha256": "972264c4fdd299396dcc3c2ef0673d66549c2ab2633b99aa4bf08bbae3730053",
+      "bytes": 218994,
+      "reasons": [
+        "scripts/bench-runner/COMMON-SIGNED-DISPATCH-HANDOFF.json",
+        "scripts/bench-runner/release/972264c4fdd299396dcc3c2ef0673d66549c2ab2633b99aa4bf08bbae3730053/release-8832d0c1dc7e32a74fc11342f33ddcec37920e26cd3cf910158710a0e43dff71.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/9bbc218058b7a94a791714914e957549ab34a620276a78ed2d2b8bf4a9e08c2b/release-229248437fb2de8e6a451fb356c5087889fc6cbda0716d2b6919209310253b44.json",
+      "sha256": "229248437fb2de8e6a451fb356c5087889fc6cbda0716d2b6919209310253b44",
+      "bytes": 8274,
+      "reasons": [
+        "scripts/bench-runner/COMMON-COMPLETE-OWNED-ENVIRONMENT-HANDOFF.json",
+        "scripts/bench-runner/COMMON-OWNED-ENVIRONMENT-FINAL-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/9bbc218058b7a94a791714914e957549ab34a620276a78ed2d2b8bf4a9e08c2b/terminal-driver.js",
+      "sha256": "9bbc218058b7a94a791714914e957549ab34a620276a78ed2d2b8bf4a9e08c2b",
+      "bytes": 221983,
+      "reasons": [
+        "scripts/bench-runner/COMMON-COMPLETE-OWNED-ENVIRONMENT-HANDOFF.json",
+        "scripts/bench-runner/COMMON-OWNED-ENVIRONMENT-FINAL-HANDOFF.json",
+        "scripts/bench-runner/release/9bbc218058b7a94a791714914e957549ab34a620276a78ed2d2b8bf4a9e08c2b/release-229248437fb2de8e6a451fb356c5087889fc6cbda0716d2b6919209310253b44.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/a2de210c2abcca6ec55738ae8b57ce7becae3bda66167495a25ce9eda0020f9f/release-edf46a66a60657121be8d974d5eac24c0c5325fb79b8adaed2964b8461103a90.json",
+      "sha256": "edf46a66a60657121be8d974d5eac24c0c5325fb79b8adaed2964b8461103a90",
+      "bytes": 8745,
+      "reasons": [
+        "scripts/bench-runner/.freeze-candidate-inventory.ts",
+        "scripts/bench-runner/COMMON-SAVED-CANDIDATE-INVENTORY-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/a2de210c2abcca6ec55738ae8b57ce7becae3bda66167495a25ce9eda0020f9f/terminal-driver.js",
+      "sha256": "a2de210c2abcca6ec55738ae8b57ce7becae3bda66167495a25ce9eda0020f9f",
+      "bytes": 240071,
+      "reasons": [
+        "scripts/bench-runner/.freeze-candidate-inventory.ts",
+        "scripts/bench-runner/COMMON-SAVED-CANDIDATE-INVENTORY-HANDOFF.json",
+        "scripts/bench-runner/release/a2de210c2abcca6ec55738ae8b57ce7becae3bda66167495a25ce9eda0020f9f/release-edf46a66a60657121be8d974d5eac24c0c5325fb79b8adaed2964b8461103a90.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/bcd884a0779bc35b36c5a0eccdd985240ac1fc6d8ea3d8d37f908c10c453ad45/release-9255698085ec88acaf98a752b20847a88ba40b0df1312757cbef331956977904.json",
+      "sha256": "9255698085ec88acaf98a752b20847a88ba40b0df1312757cbef331956977904",
+      "bytes": 10402,
+      "reasons": [
+        "scripts/bench-runner/.seal-relative-verified.ts",
+        "scripts/bench-runner/RELATIVE-VERIFIED-RESOURCE-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/bcd884a0779bc35b36c5a0eccdd985240ac1fc6d8ea3d8d37f908c10c453ad45/terminal-driver.js",
+      "sha256": "bcd884a0779bc35b36c5a0eccdd985240ac1fc6d8ea3d8d37f908c10c453ad45",
+      "bytes": 251125,
+      "reasons": [
+        "scripts/bench-runner/.seal-relative-verified.ts",
+        "scripts/bench-runner/RELATIVE-VERIFIED-RESOURCE-HANDOFF.json",
+        "scripts/bench-runner/release/bcd884a0779bc35b36c5a0eccdd985240ac1fc6d8ea3d8d37f908c10c453ad45/release-9255698085ec88acaf98a752b20847a88ba40b0df1312757cbef331956977904.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/c67a55f354be2bdcf6f726a09b88395003db5a273094857ec47574cd419cae46/release-671d5482b656b6a61566f45fb6137a9a9c2455757191a4387e37491040780774.json",
+      "sha256": "7f722e15c2f42235d58108518a09792b2d5c69d5bebf6787702f1693b3a15a36",
+      "bytes": 7560,
+      "reasons": [
+        "scripts/bench-runner/COMMON-NATIVE-CANONICAL-RELEASE-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/c67a55f354be2bdcf6f726a09b88395003db5a273094857ec47574cd419cae46/release-6dd5edbdc3f84eafdc14e4d82885e4ee83df9d4a251b872be5f7763202219548.json",
+      "sha256": "251142ce1ef21c80c28fe5a4c4859b18d6c9e35e964efba12c27f07a67053630",
+      "bytes": 7560,
+      "reasons": [
+        "scripts/bench-runner/COMMON-NATIVE-RELEASE-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/c67a55f354be2bdcf6f726a09b88395003db5a273094857ec47574cd419cae46/terminal-driver.js",
+      "sha256": "c67a55f354be2bdcf6f726a09b88395003db5a273094857ec47574cd419cae46",
+      "bytes": 205656,
+      "reasons": [
+        "scripts/bench-runner/COMMON-NATIVE-CANONICAL-RELEASE-HANDOFF.json",
+        "scripts/bench-runner/COMMON-NATIVE-RELEASE-HANDOFF.json",
+        "scripts/bench-runner/release/c67a55f354be2bdcf6f726a09b88395003db5a273094857ec47574cd419cae46/release-671d5482b656b6a61566f45fb6137a9a9c2455757191a4387e37491040780774.json",
+        "scripts/bench-runner/release/c67a55f354be2bdcf6f726a09b88395003db5a273094857ec47574cd419cae46/release-6dd5edbdc3f84eafdc14e4d82885e4ee83df9d4a251b872be5f7763202219548.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/c8782029f3725cc5d137706f62e535c39b38d8464fb0d31deae9935446fd517a/release-9b4a5ae874f92003ad97d262a4eb1a4dac98f56c9c7d3e4714b7ea3bf64bbf64.json",
+      "sha256": "9b4a5ae874f92003ad97d262a4eb1a4dac98f56c9c7d3e4714b7ea3bf64bbf64",
+      "bytes": 8970,
+      "reasons": [
+        "scripts/bench-runner/.seal-original-no-child.ts",
+        "scripts/bench-runner/ORIGINAL-NO-CHILD-SPAWN-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/c8782029f3725cc5d137706f62e535c39b38d8464fb0d31deae9935446fd517a/terminal-driver.js",
+      "sha256": "c8782029f3725cc5d137706f62e535c39b38d8464fb0d31deae9935446fd517a",
+      "bytes": 243844,
+      "reasons": [
+        "scripts/bench-runner/.seal-original-no-child.ts",
+        "scripts/bench-runner/ORIGINAL-NO-CHILD-SPAWN-HANDOFF.json",
+        "scripts/bench-runner/release/c8782029f3725cc5d137706f62e535c39b38d8464fb0d31deae9935446fd517a/release-9b4a5ae874f92003ad97d262a4eb1a4dac98f56c9c7d3e4714b7ea3bf64bbf64.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/cef234e3da545b9a50ea72af3d481a3873eb88cbc7580de695078cd5014c6652/release-671d5482b656b6a61566f45fb6137a9a9c2455757191a4387e37491040780774.json",
+      "sha256": "8ead398d1252a70e5e115ebf5ef6cbbd2933c75dfe4a9731f04f6f56edfea98b",
+      "bytes": 11864,
+      "reasons": [
+        "scripts/bench-runner/COMMON-NATIVE-CANONICAL-RELEASE-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/cef234e3da545b9a50ea72af3d481a3873eb88cbc7580de695078cd5014c6652/runner.js",
+      "sha256": "cef234e3da545b9a50ea72af3d481a3873eb88cbc7580de695078cd5014c6652",
+      "bytes": 348013,
+      "reasons": [
+        "scripts/bench-runner/COMMON-NATIVE-CANONICAL-RELEASE-HANDOFF.json",
+        "scripts/bench-runner/release/cef234e3da545b9a50ea72af3d481a3873eb88cbc7580de695078cd5014c6652/release-671d5482b656b6a61566f45fb6137a9a9c2455757191a4387e37491040780774.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/d3616198e7ad1b2ada576a34df3bb9fe2b3ca91c91ae7550e0563031b6744e40/release-5ee5f942b48101502dc8bc44b4c915bf2182de74864d0ff77ed58d724385290d.json",
+      "sha256": "5ee5f942b48101502dc8bc44b4c915bf2182de74864d0ff77ed58d724385290d",
+      "bytes": 13753,
+      "reasons": [
+        "scripts/bench-runner/.freeze-candidate-release.ts",
+        "scripts/bench-runner/COMMON-SAVED-CANDIDATE-RELEASE-HANDOFF.json"
+      ]
+    },
+    {
+      "path": "scripts/bench-runner/release/d3616198e7ad1b2ada576a34df3bb9fe2b3ca91c91ae7550e0563031b6744e40/runner.js",
+      "sha256": "d3616198e7ad1b2ada576a34df3bb9fe2b3ca91c91ae7550e0563031b6744e40",
+      "bytes": 360091,
+      "reasons": [
+        "scripts/bench-runner/.freeze-candidate-release.ts",
+        "scripts/bench-runner/COMMON-SAVED-CANDIDATE-RELEASE-HANDOFF.json",
+        "scripts/bench-runner/release/d3616198e7ad1b2ada576a34df3bb9fe2b3ca91c91ae7550e0563031b6744e40/release-5ee5f942b48101502dc8bc44b4c915bf2182de74864d0ff77ed58d724385290d.json"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-guard-v46.ts",
+      "sha256": "844d56cf269996dd94778ad91ad3cb0adb641371b76ca2a6a21f1a94c44a3473",
+      "bytes": 3307,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-consumer-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-adoption-v46.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-guard-v48.ts",
+      "sha256": "b6ab28aa83c1e3243d52ccff4df7db1b9e0789da6b88de0bd22d106dfcc038dd",
+      "bytes": 3875,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-python-bridge-v50.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-consumer-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-consumer-v48.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/finish-consumer-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-adoption-v48.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/adopted_guard_bridge.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/resource_lease.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.local-build.js"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-guard-v70.ts",
+      "sha256": "cbf9fe00fb1e5605eaafefd594a9d68c724eb7d0aede3104805cdbfbb31da2e7",
+      "bytes": 2953,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-adoption-v70.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/shared-admission-owned-v70.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-guard-v72.ts",
+      "sha256": "e64bc940bc9aca7133073a29d97ad70720589b8407c63af740fa61f21a63d11b",
+      "bytes": 2957,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-adoption-v72.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/shared-admission-owned-v72.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-guard-v76.ts",
+      "sha256": "414df830e5dcf4fd2dd2f7c9a48d923195222548aa9ce8e589c6e5cae0b8f385",
+      "bytes": 2957,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/bench-runner/financial-loader-neutral.ts",
+        "scripts/bench-runner/load-reviewed-image-cache.ts",
+        "scripts/bench-runner/native-stage-result.ts",
+        "scripts/bench-runner/observe-lineage.ts",
+        "scripts/bench-runner/observer.ts",
+        "scripts/bench-runner/original-owned-resource.ts",
+        "scripts/bench-runner/reconcile-canonical.ts",
+        "scripts/bench-runner/reconcile-reviewed.ts",
+        "scripts/bench-runner/reconcile-signed-canonical.ts",
+        "scripts/bench-runner/release/0d9d99c74b370791c54821a80eea6d24eb84601e35ea98189074fb98c1d5c2b7/release-1208f062d580ea0ac3f3c5b2b7ec99c85bd108268d44aca8524ddc8468a055f4.json",
+        "scripts/bench-runner/release/0d9d99c74b370791c54821a80eea6d24eb84601e35ea98189074fb98c1d5c2b7/runner.js",
+        "scripts/bench-runner/release/0fd8dd99f08860e004709b3cf62f2eb9ed657846c4d73cfa6cea7e2061da5f21/release-80fb4dc3704efacaaf3e3c3911692c7e5d3b4d247e6dedcfd1fb34fb289383eb.json",
+        "scripts/bench-runner/release/0fd8dd99f08860e004709b3cf62f2eb9ed657846c4d73cfa6cea7e2061da5f21/runner.js",
+        "scripts/bench-runner/release/141a8976ae0339e0f796b831b740eb8e5e8148ffe1ca125f4e3d1fee3ff12b94/release-9a6a73a57b44810a6fa303e3523c1d9b9c8bce1c0e02e4638dabf54dd6e110cb.json",
+        "scripts/bench-runner/release/141a8976ae0339e0f796b831b740eb8e5e8148ffe1ca125f4e3d1fee3ff12b94/runner.js",
+        "scripts/bench-runner/release/1cbeb703c38a36097d09fe8fc20ae889cbe9b5bdb6b0be7772f6897089e177ea/release-2efdbe12720748ccdfb9743e9b36a35ccdd09158bf69a85459efc579cda276c0.json",
+        "scripts/bench-runner/release/1cbeb703c38a36097d09fe8fc20ae889cbe9b5bdb6b0be7772f6897089e177ea/runner.js",
+        "scripts/bench-runner/release/26402dec9177058b84cfec7122d7b04e5376952682be4f9d37b62b507545c3d8/release-5586a09003741d0132b4e626b2ae3835913834ef92a86342d4a273810c5d2cc8.json",
+        "scripts/bench-runner/release/26402dec9177058b84cfec7122d7b04e5376952682be4f9d37b62b507545c3d8/runner.js",
+        "scripts/bench-runner/release/399afcb2e1fa638f9a355cd18e97518d8694ac06d5808bc79dabc8b20d194c81/release-7ae8d68cde017c67f615923b4801d43c1c1ab695c765f2506fa9783707776f94.json",
+        "scripts/bench-runner/release/399afcb2e1fa638f9a355cd18e97518d8694ac06d5808bc79dabc8b20d194c81/runner.js",
+        "scripts/bench-runner/release/41a277716f1e0749a3dc9e6f02673e8bdca63f96934593b7e883d06ce9e4bd4f/release-6dd5edbdc3f84eafdc14e4d82885e4ee83df9d4a251b872be5f7763202219548.json",
+        "scripts/bench-runner/release/41a277716f1e0749a3dc9e6f02673e8bdca63f96934593b7e883d06ce9e4bd4f/runner.js",
+        "scripts/bench-runner/release/5766a6dc1713a43ace89555d001b9cc705c8dd2eb7c354ec2183a4d8f5027dcc/runner.js",
+        "scripts/bench-runner/release/69f9b915f0a0e68af4b592bf75bd8d1e68cffa2a77ba36b1dfeb9bf371639091/release-b20273594d5bc3e5b7e064555356b5912391bcc05c1b8f42bc5b58fbe5228f4d.json",
+        "scripts/bench-runner/release/69f9b915f0a0e68af4b592bf75bd8d1e68cffa2a77ba36b1dfeb9bf371639091/runner.js",
+        "scripts/bench-runner/release/6f9457a45a99726681f351e06bfc4d2dd2837535f7b2fe386b3029ed75ab44bf/release-b685002499bfe1855833870663010930b88a11c1169e8f815a8e6ceb2b612f8e.json",
+        "scripts/bench-runner/release/6f9457a45a99726681f351e06bfc4d2dd2837535f7b2fe386b3029ed75ab44bf/runner.js",
+        "scripts/bench-runner/release/76160f804518cdcdf20ce1517025f1d67003d96e26e264247cc912b24aaabb93/release-890a340ba18570a6fe62a71afebaecefb704eb6ab83342849e1a9ce5ee259cd6.json",
+        "scripts/bench-runner/release/76160f804518cdcdf20ce1517025f1d67003d96e26e264247cc912b24aaabb93/runner.js",
+        "scripts/bench-runner/release/cef234e3da545b9a50ea72af3d481a3873eb88cbc7580de695078cd5014c6652/release-671d5482b656b6a61566f45fb6137a9a9c2455757191a4387e37491040780774.json",
+        "scripts/bench-runner/release/cef234e3da545b9a50ea72af3d481a3873eb88cbc7580de695078cd5014c6652/runner.js",
+        "scripts/bench-runner/release/d3616198e7ad1b2ada576a34df3bb9fe2b3ca91c91ae7550e0563031b6744e40/release-5ee5f942b48101502dc8bc44b4c915bf2182de74864d0ff77ed58d724385290d.json",
+        "scripts/bench-runner/release/d3616198e7ad1b2ada576a34df3bb9fe2b3ca91c91ae7550e0563031b6744e40/runner.js",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-python-bridge-v78.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-python-bridge-v81.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-adoption-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/shared-admission-owned-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/account-history-fresh-chain-consumer-v102.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/fresh-live-increment-consumer-v106.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-resource-owned-v83.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/runner.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/worker.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-price-renewal.ts",
+      "sha256": "a85d9cb6fe24a28827c154b19f66ce57da65268f5383b7876decb553936405f7",
+      "bytes": 2986,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/bench-runner/load-reviewed-image-cache-price-renewal.ts",
+        "scripts/bench-runner/neutral_sb_session.ts",
+        "scripts/bench-runner/neutral_sb_single_task_runtime.ts",
+        "scripts/bench-runner/original-owned-resource-price-renewal.ts",
+        "scripts/bench-runner/owned-operation-resource.ts",
+        "scripts/bench-runner/reconcile-closed-before-main.ts",
+        "scripts/bench-runner/signed-absolute-launcher-acceptance.ts",
+        "scripts/bench-runner/signed-infrastructure-acceptance.ts",
+        "scripts/bench-runner/signed-native-collection.ts",
+        "scripts/bench-runner/signed-owned-asset.ts",
+        "scripts/bench-runner/signed-owned-operation.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-python-bridge-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/capture-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/epoch-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/shared-admission-owned-price-renewal.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-price-renewal.ts",
+      "sha256": "34bf85f0536fd491a3d5436a945ab9c8b7d8c29c02429109ab3d4f16b90c27b1",
+      "bytes": 12892,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/capture-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/price-renewal.test.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-price-renewal.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v46.ts",
+      "sha256": "02bfe06b9de947c770bb1f149ce55e3284f9b5d6f54f031ed584b7c2fceb4d9a",
+      "bytes": 9322,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-adoption-v46.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/preflight-adoption-v46.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-adoption-v46.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-adoption-v48.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-adoption-v70.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-adoption-v72.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-adoption-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v46.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v48.ts",
+      "sha256": "dab6d70a4ca8e94aecd390158e95b98d2ce5cb1435ea1a045ddc3afb9b2a8f2a",
+      "bytes": 9564,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v70.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v72.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-durable-adoption-v48.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-durable-adoption-v70.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-durable-adoption-v72.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-durable-adoption-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/preflight-adoption-v48.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v48.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v70.ts",
+      "sha256": "b23d9e092ab564d02f4784099faab45b7fcdea86c10c53bad2fd245a0ecedafb",
+      "bytes": 9885,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-durable-adoption-v70.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v70.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v72.ts",
+      "sha256": "cd3e5ca4068fff1efae8199a3e6776804cfb12800f119b8eb7f070ac8a2dba24",
+      "bytes": 10144,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/capture-guard-failure-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-durable-adoption-v72.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-state-guard-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v72.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v76.ts",
+      "sha256": "66ef7d0a6603aaf6464df8646da91505db2195589ba1acc2cb8374a4c3fc7dce",
+      "bytes": 10472,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/capture-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-durable-adoption-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-state-guard-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v76.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-python-bridge-price-renewal.ts",
+      "sha256": "0ff6de53d3c349c945693a66a260532e50114b63a9d9b918a0f2c10f606e9c2f",
+      "bytes": 2494,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_persistent_readonly_9fd6c64e7b6aef279b6c8f19f7e105ff65a47757a0efd1168ff3594767ca62b2.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_persistent_readonly_eb2892f9dcd2575851e924295d2015f91330ea9da9864ec629c5361faeaab0cc.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_persistent_readonly_v1.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_price_renewal.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_provider_task_read_retry_v1.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_provider_task_v1.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_shared_read.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_unlimited.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_unlimited_read_retry.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-python-bridge-v50.ts",
+      "sha256": "2347c04ec226281afdf3d27c24bfcb778d12948686b7fb0a082c25cce43adbb5",
+      "bytes": 1982,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_v50.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/activation_guard.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-python-bridge-v78.ts",
+      "sha256": "c50af358555a2bf548e4a0ff818ffe03f2b2922d6b6c4c0a0caec019dcea3b48",
+      "bytes": 2486,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_v78.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-python-bridge-v81.ts",
+      "sha256": "6cc0c0777e2d8874baee993b76253de40ac2e203fe2dc2d63abbb1e3b34fe253",
+      "bytes": 2486,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_v81.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-owned-v83/activation_guard.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_probe_disposition_root_only.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_observed.py",
+      "sha256": "a6edd05f371290356da17fbf3ca46e3556b8723164f1f5d184a5c1b923b55950",
+      "bytes": 1215,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_persistent_readonly_9fd6c64e7b6aef279b6c8f19f7e105ff65a47757a0efd1168ff3594767ca62b2.py",
+      "sha256": "9fd6c64e7b6aef279b6c8f19f7e105ff65a47757a0efd1168ff3594767ca62b2",
+      "bytes": 1984,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_persistent_readonly_eb2892f9dcd2575851e924295d2015f91330ea9da9864ec629c5361faeaab0cc.py",
+      "sha256": "eb2892f9dcd2575851e924295d2015f91330ea9da9864ec629c5361faeaab0cc",
+      "bytes": 1977,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_persistent_readonly_v1.py",
+      "sha256": "869023a27d71ba2a76dc52d066b9c39599fed8c53109942ea22b9a913c0dec2b",
+      "bytes": 1736,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_price_renewal.py",
+      "sha256": "ad8fd4ae497e654d993d1bbf18f0798bda71031ae44e1f8c1a56c149170b4ab2",
+      "bytes": 7841,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_provider_task_read_retry_v1.py",
+      "sha256": "39889570c327c1e2fcd7804d68369b3f164b985a263aed0915b36ab94aea7550",
+      "bytes": 1724,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_provider_task_v1.py",
+      "sha256": "4c75547d5fa4864cbb9319713c66d3890b53674472fca80a1d95268a5912b9c8",
+      "bytes": 1715,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_shared_read.py",
+      "sha256": "88bbf763cd9797ca136fa8c8c565eb77eb7eccbf906037b5efd064c016764ba1",
+      "bytes": 8194,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_observed.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_persistent_readonly_9fd6c64e7b6aef279b6c8f19f7e105ff65a47757a0efd1168ff3594767ca62b2.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_persistent_readonly_eb2892f9dcd2575851e924295d2015f91330ea9da9864ec629c5361faeaab0cc.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_persistent_readonly_v1.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_provider_task_read_retry_v1.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_provider_task_v1.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_unlimited.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_unlimited_read_retry.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_unlimited.py",
+      "sha256": "580e1c77328ffd47c9df4f2e83bba4ddf20661706259de6ba73369f52254bb2a",
+      "bytes": 1708,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/bench-runner/prepare-unlimited-broker-adoption.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_unlimited_read_retry.py",
+      "sha256": "95d845948174c7baa193c4ec332cdb1fae4ecef5807b8fbd61077e55b074fa34",
+      "bytes": 1743,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_v50.py",
+      "sha256": "8f3a35ef9e20074dcd3175fb6d30be7f48de383086a3c598b6208b82a05325b1",
+      "bytes": 6172,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-python-bridge-v50.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/activation_guard.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_v78.py",
+      "sha256": "816006fc01bf1cf6eb61431f03d227af7dae62c35e402ffe57c1336bd4803bd4",
+      "bytes": 7765,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-python-bridge-v78.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted_owner_guard_v81.py",
+      "sha256": "be5636f27dd719f1b21dde754f8186805622d2de2bfc06958823a47214c72d7d",
+      "bytes": 7827,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-python-bridge-v81.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-before-resource-v89.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-owned-v83/activation_guard.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_complete_import_graph.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_each_transport_owned_guard.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_parent_helper_owned_closure.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_probe_disposition_root_only.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/broker-adoption-v46.ts",
+      "sha256": "adecf7113467acf1235f222c4f652c6d500bfb6b4015f66301e17204cb403715",
+      "bytes": 35654,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-broker-adoption-v46.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-http-adoption-v46.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/finalize-orphan-gate-v46.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/finish-build-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/prepare-http-check-v46.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v46.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/broker-adoption-v48.ts",
+      "sha256": "d61c70409a20fc17aadc130305b6332c3b11dbb82e10bddba923e795a50a21bc",
+      "bytes": 35654,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-broker-v70.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-http-fixture-v70.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-http-adoption-v48.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/finish-build-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v48.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/broker-adoption-v70.ts",
+      "sha256": "b46f48bb394c8c9210bcb7febc8073d588790737dffd524a3ef46d20eaf1bd95",
+      "bytes": 37008,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-broker-v70.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-http-fixture-v70.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-http-adoption-v70.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v70.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/broker-adoption-v72.ts",
+      "sha256": "fc447a0d14da53c2060bf6cbfa810b7b9f54d7b2841b0e2400de15f4c1b29469",
+      "bytes": 37849,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-claim-races-v72.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-http-adoption-v72.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v72.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/broker-adoption-v76.ts",
+      "sha256": "3e642a54e0559a211dd965e8ed44abf38c2a963c9e9210cdb7deb410a88f9712",
+      "bytes": 37849,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/bench-runner/financial-source-neutral.ts",
+        "scripts/bench-runner/prepare-unlimited-broker-adoption.ts",
+        "scripts/bench-runner/prepare-unlimited-financial-loader.ts",
+        "scripts/bench-runner/request-scoped-source-proof-v1.test.ts",
+        "scripts/bench-runner/request-scoped-source-proof-v2.test.ts",
+        "scripts/bench-runner/request-scoped-source-proof-v3.test.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-claim-races-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-http-adoption-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-price-renewal.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/broker-delegated-v19.ts",
+      "sha256": "943272f20471099d7d29f0fab0194168c367db9cd22ba69533e7a7358f57fe2d",
+      "bytes": 34345,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-broker-adoption-v46.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-delegated-v19.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/prepare-delegation-v19.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/prepare-http-check-v46.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-delegated-v19.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/broker-v1.ts",
+      "sha256": "fd993bf29c2aec6b61f407a7301b1652209099540eca756840ed9c7e497fe16c",
+      "bytes": 33274,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-v1.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-adoption-v48.py",
+      "sha256": "deb62d6f98b7ec6cc299f4574e81aaed76a3aa711df87efb6d38d56d44f2c952",
+      "bytes": 2720,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-broker-adoption-v46.py",
+      "sha256": "f767af5948779f8b38a358c77b3e705935c44429406eedcb41033e435f77bd8b",
+      "bytes": 3171,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v46.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-broker-v70.py",
+      "sha256": "3ad82a4403923694866061f3e681c7c1191c9b276c6d1c46341c890f1b16fc0f",
+      "bytes": 2368,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-consumer-v48.py",
+      "sha256": "421ae55a92d34eb0d0aee02589fda3b3568e6c53b5fac51a671a44c0f3857a86",
+      "bytes": 1856,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-http-fixture-v70.py",
+      "sha256": "0ab9bf49eae685ad8a418214629c3ed10c3295376995f59cd25faf1855a1941b",
+      "bytes": 2475,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/capture-guard-failure-v76.ts",
+      "sha256": "83611ad4b5ac88cc710063cb0cb78c24339714abcc9985de80b3ecdc2f8d11cd",
+      "bytes": 6483,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v76.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/capture-live-state-v70.ts",
+      "sha256": "fe1b26f1f5a3e2c30dbd489e5b42fb643d0fcbc7ed608feeb59422913c5edaa4",
+      "bytes": 7143,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v70.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/capture-price-renewal.ts",
+      "sha256": "fe5e12cca1a53ff4638afec589fc263e4f1fa35b392a2bdb63f6e043f05e50cd",
+      "bytes": 5359,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/capture-price-renewal.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-adoption-v46.ts",
+      "sha256": "50d3447a3d2f68bc7ad3737f4ab8d473b0dd24d628a8c8fb15ae49dbcb1ad706",
+      "bytes": 2104,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v46.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-claim-races-v72.ts",
+      "sha256": "be1ec990a453108eb643713bfa4b7fbd4356d7a69718095abb033a0f64605bb7",
+      "bytes": 3915,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v72.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-claim-races-v76.ts",
+      "sha256": "60a0a29c0e952bdf85723bc86f3f0f010ea043ed58b9cb36735699a5244b3aed",
+      "bytes": 3922,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v76.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-consumer-v48.ts",
+      "sha256": "024230489dd3e78c4b8715145017987e9378584bd063b7fd1904a4dd0f35bfdf",
+      "bytes": 1950,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-delegated-v19.ts",
+      "sha256": "59bf84e950cbaeeb310a62f469d74f1e9c399d9a2a2bf7173154c6c41ce66901",
+      "bytes": 9995,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/prepare-http-check-v46.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-durable-adoption-v48.ts",
+      "sha256": "b9515a9a478144dd0ba22b8133f94563e5e5065d49f2e91b67c6e3910c6a24a2",
+      "bytes": 2452,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-durable-adoption-v70.ts",
+      "sha256": "81df275f32dcedd7be89d872a54d00b3cde817858a48690fad10f6228403d4b3",
+      "bytes": 2071,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v70.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-durable-adoption-v72.ts",
+      "sha256": "dc23fba36ab299d4028408887b35275f8e0bd25eebde64fc46838c8f88b4d586",
+      "bytes": 2090,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v72.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-durable-adoption-v76.ts",
+      "sha256": "f73387ca70abb2c2afcd0452dda02bface7ac5126ff0b62248a7b8888e0b5935",
+      "bytes": 2090,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v76.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-final-negatives-v46.ts",
+      "sha256": "3c5c100c1a81124b58e40d3e07bd27618494aff0adb72129d5ffb476337e788a",
+      "bytes": 1236,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-http-adoption-v46.ts",
+      "sha256": "866caa9b9c5835b3dbc401456509db2099571a1d80901af84cb59cf63baaf3ec",
+      "bytes": 10858,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/finalize-orphan-gate-v46.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/finish-build-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/prepare-http-check-v46.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v46.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-http-adoption-v48.ts",
+      "sha256": "5ac8130733d45418f56caad1f02976640f1bd62d809f4fddd0887a06bc012432",
+      "bytes": 10858,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-http-fixture-v70.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/finish-build-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-http-adoption-v70.ts",
+      "sha256": "27395db63c197357efa76c2c587ddb619d16d6b6ab465276291736decd28fee3",
+      "bytes": 12432,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-http-fixture-v70.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v70.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-http-adoption-v72.ts",
+      "sha256": "fdd34f3d914b99ae109664a4425f31bb89f6ae6255eb82e602292d0b85c7aee1",
+      "bytes": 12432,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v72.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-http-adoption-v76.ts",
+      "sha256": "e36e10c7e0f2252c55d8e34c74f546020804f299807294dc872a5333f5572090",
+      "bytes": 12432,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v76.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-python-bridge-v50.py",
+      "sha256": "700b3226e48ce503c82d73a31bcf256be07a491226430c921db8201f0edf22f6",
+      "bytes": 4070,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-python-bridge-v78.py",
+      "sha256": "7e128f509b34d37f6b5d7e674f1d8fc11afab82a378a4ac278cdaea96b9412e7",
+      "bytes": 4734,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-python-bridge-v81.py",
+      "sha256": "a1b99064323b6eb491fd8ee6473609140f22300c8a031af4611938d920b5d884",
+      "bytes": 5000,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-state-guard-v76.ts",
+      "sha256": "671590c61f766aa6531db1c37c35eb5305e234de6b9db77b43e7f445fa931905",
+      "bytes": 3008,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v76.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/delegated-parent-v19.ts",
+      "sha256": "ac909db7264e219f14d80300f953533289c6b95383268278b6f7a1e5607a219d",
+      "bytes": 10102,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-delegated-v19.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-http-adoption-v46.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-http-adoption-v48.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-http-adoption-v70.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-http-adoption-v72.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-http-adoption-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/prepare-delegation-v19.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-delegated-v19.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/derive-paused-plan-v72.ts",
+      "sha256": "43cde1049afb2e7cf3f26fa04ea16054582b845cab00fe3c4a9a7fc4f6cf1ed2",
+      "bytes": 1566,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v72.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/epoch-price-renewal.ts",
+      "sha256": "94713ec0d1f7811a7a11f23cb94362a151ed7e31b8e0df8902fb0c623c557a42",
+      "bytes": 2786,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/finalize-orphan-gate-v46.py",
+      "sha256": "f3edf19d56e3fdaa973c1f40e13db3716ba4418bac512d9b9438d5984443e95e",
+      "bytes": 1145,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/finish-build-v48.py",
+      "sha256": "468f6071b2265b620e52574961d137b930f4b14e7bd1ede0a241c500e0e5db27",
+      "bytes": 1343,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/finish-consumer-v48.py",
+      "sha256": "c73cc8981a1175d10a312478488955057e0510e1b25deebfb94576e641885545",
+      "bytes": 585,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v70.py",
+      "sha256": "2e491cdef08dde2ede30f9c7891e11d8cbe5ac517e5ee4e39a27be2ecf628c56",
+      "bytes": 1401,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v70.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v72.py",
+      "sha256": "88572cef782eef55d31e93cda133ad9b2949d18b2fa1d568329d394db29f8977",
+      "bytes": 1422,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v72.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v76.py",
+      "sha256": "5446fbe57882587995d72c25631a7e4a3cd569346a1ff101dcccd648ceddad31",
+      "bytes": 1460,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v76.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/owned-forward-guard-price-renewal.ts",
+      "sha256": "89679d52dc062ed4e3ee54fb7b331ae01284325d5563ca6cec8f53f6fec6e8fb",
+      "bytes": 1090,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/pause-old-for-handoff-v70.ts",
+      "sha256": "bf46059ab0b0d699b2cec03d7949addcab5b248b33e6d00f0cc3608a599921ab",
+      "bytes": 1008,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v70.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/pause-old-v1.compile.js",
+      "sha256": "240727cfb295d7dfa24547f72a49d1fad799f9630669cb8eb083f76c81dadaa2",
+      "bytes": 2667,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/pause-old-v1.ts",
+      "sha256": "7a2bff848022ab9ebfb812fbff386c9a75480c221eb1dade347d91e2a16a45cd",
+      "bytes": 1390,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/pause-old-v1.compile.js"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/port-absence-v48.py",
+      "sha256": "cfb9ab9168e30cacf986ec2d289277207783c06429901689eda0287964ad783e",
+      "bytes": 1475,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/finish-build-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/preflight-adoption-v48.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/port-quiescence-v70.py",
+      "sha256": "2088f0ce26e7bf80ca4f66c3e19d615c9a9c3c75d755a55b6f06cd9b6aa8432e",
+      "bytes": 569,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v70.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v72.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v70.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v72.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/port-quiescence-v76.py",
+      "sha256": "7879ccad3398ef1d7a06bc6541efa75377502a872eb24d70cc901ca8290f6bf7",
+      "bytes": 577,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v76.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/preflight-adoption-v46.ts",
+      "sha256": "ae7fc3fd8307ff57363552b219c335e881516509124effdc0d478f10175db0a7",
+      "bytes": 2729,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v46.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/preflight-adoption-v48.ts",
+      "sha256": "cf0a7301dde96371cb59c01a784d71a42c4eb2e72033594136f189b334b1edbd",
+      "bytes": 3477,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/finish-build-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v48.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/prepare-delegation-v19.ts",
+      "sha256": "c07e0fca9741bec448b280d991581ef8a15ce98316312dc5a87729fdb989281f",
+      "bytes": 6026,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/prepare-delegation-v19.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/prepare-http-check-v46.py",
+      "sha256": "d643b48b08feb56e36e4034e09e64d4d222cf3780753d570589fa66780796b09",
+      "bytes": 1417,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v46.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/price-renewal.test.ts",
+      "sha256": "044fc850a4f3c1dc2f3abca4b83df53f98f5d30388dd013ca570f0b2704a5841",
+      "bytes": 1796,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/process-incarnation-v70.ts",
+      "sha256": "429b548c767ba74b15af76ecec03bd150b43bf336043da63d1fde79878956eeb",
+      "bytes": 906,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/bench-runner/persistent-readonly-guard-bridge-v1.ts",
+        "scripts/bench-runner/persistent-readonly-guard-bridge-v2.ts",
+        "scripts/bench-runner/provider-task-python-bridge-readonly-v1.ts",
+        "scripts/bench-runner/provider-task-python-bridge-v1.ts",
+        "scripts/bench-runner/unlimited-owned-forward-guard.ts",
+        "scripts/bench-runner/unlimited-python-bridge-readonly-retry.ts",
+        "scripts/bench-runner/unlimited-python-bridge.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-python-bridge-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-python-bridge-v78.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-python-bridge-v81.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/broker-adoption-v70.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/broker-adoption-v72.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/broker-adoption-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/owned-forward-guard-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/shared-admission-owned-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/shared-admission-owned-v70.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/shared-admission-owned-v72.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/shared-admission-owned-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-resource-owned-v83.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-adoption-v46.ts",
+      "sha256": "d0c897947be8a9b9aeb4c21a3a950c407031fa6a3a083f031ea06b5740dd3da4",
+      "bytes": 2743,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-consumer-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-adoption-v48.ts",
+      "sha256": "1a2ce6727f872991d8f956f226891683b45ca32ae3cfcbc2ea6e1d1c0923e5ac",
+      "bytes": 2762,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-consumer-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-adoption-v70.ts",
+      "sha256": "500cfefb65db90a68a25666c1fb5b7b9d7e3a421f3acb0273260bf12730f55c3",
+      "bytes": 2920,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v70.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-adoption-v72.ts",
+      "sha256": "e9b1726cd6da337023eabb0a4ce36fe1634cb1f32aa7871c45b3800ee928b305",
+      "bytes": 2920,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v72.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-adoption-v76.ts",
+      "sha256": "fbbfef6d278ea4258685f2b983dcb72e745fd6c19fdc8d9d40b6c2d4370d0d51",
+      "bytes": 2920,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v76.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-control-v1.compile.js",
+      "sha256": "95567e3675f11b63fde972645904fb40ee9a0d041c928dad944327d4993f4d08",
+      "bytes": 5672,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-control-v1.ts",
+      "sha256": "67c3f87831fc403a7c24b3427651c84acb64cce8f6f432f064afc56b20d81f8a",
+      "bytes": 2159,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-control-v1.compile.js"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-price-renewal.ts",
+      "sha256": "9398cd488c7ccc378d9a6a77a121c3399b4e81067aaf2be32f35aa81b1f8ea78",
+      "bytes": 2949,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/capture-price-renewal.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/refresh-remote-disk-cadence-v86.ts",
+      "sha256": "4a14805f434d4cd3759f586244d618c4540132c82abb09089c654b290b5b462e",
+      "bytes": 2573,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/refresh-remote-disk-reboot-v46.ts",
+      "sha256": "d3783151e2155f19a07098f60e8e88e0e7a6355ae35579bb0987332882eb96c3",
+      "bytes": 2574,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/refresh-remote-disk-v1.ts",
+      "sha256": "114cf16a83c93245f4b8091bff165bf8a9ed1f0345b487e24b323f502c588c71",
+      "bytes": 2506,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/rehydrate-v46.ts",
+      "sha256": "96b8a52d3f67d45c0c5133f4f44c59be3ffcfe46b4ad3b90798886d153cacb84",
+      "bytes": 9241,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-final-negatives-v46.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v46.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/remote-disk-gate-v1.ts",
+      "sha256": "fe0607895a9165e8641b56b8f08af1fe2b601edac571aa932bcbcc84905682c0",
+      "bytes": 724,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-control-v1.compile.js",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/publish-control-v1.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-v1.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v46.py",
+      "sha256": "fc5dcf1a254c679c9ac8795603880ed8f323bf399f86f89a35d3e0e37f00b0be",
+      "bytes": 2025,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v46.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py",
+      "sha256": "76e2b9799900fc054f318655f32a8f84e4aec4e9446082bdf093c2f7554bb918",
+      "bytes": 2990,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/shared-admission-owned-price-renewal.ts",
+      "sha256": "637ba01b7b8bfecabfd4fd878bf26510f19898204c170cc5e77fd360f2cd9739",
+      "bytes": 945,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/bench-runner/financial-neutral-lane.ts",
+        "scripts/bench-runner/provider-probe-caffe-current-prices-original-v4.ts",
+        "scripts/bench-runner/provider-probe-continuation-original-v1.ts",
+        "scripts/bench-runner/provider-probe-original.ts",
+        "scripts/bench-runner/provider-probe-scoped-transport-original-v2.ts",
+        "scripts/bench-runner/provider-probe-scoped-transport-original-v3.ts",
+        "scripts/bench-runner/skillsbench-single-task-session.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/shared-admission-owned-v70.ts",
+      "sha256": "baff9bbca034acf43d0e97ab4d62a7232db9ae48b2a05eff4e67a1182b539232",
+      "bytes": 941,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v70.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/shared-admission-owned-v72.ts",
+      "sha256": "2dc4805b9356f79f11e3a39e297809b658471c5a23c69044c6c418db5a833742",
+      "bytes": 941,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v72.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/shared-admission-owned-v76.ts",
+      "sha256": "9c6148f26ed70b846cb499bcbc0c4458fb34dac6b72ef13d3a92dbe9bd4f3f50",
+      "bytes": 941,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v76.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/worker.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/sign-adoption-v46.ts",
+      "sha256": "732634f728448041239f008a970b8da82585cc00338ae9b2cae84da875646ddc",
+      "bytes": 1630,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-guard-v46.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v46.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-consumer-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-final-negatives-v46.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v46.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v46.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/zero-new-lane-state-v48.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/sign-adoption-v48.ts",
+      "sha256": "47d6835d9d86419ccb4ad003c7bcc5320100a25d0dbebbc99a534ae829bb3f80",
+      "bytes": 1637,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-guard-v48.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v48.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v70.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v72.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-consumer-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v48.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.local-build.js"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/sign-adoption-v70.ts",
+      "sha256": "6bb3eaa72d48970fab42eb615f11d9498f542ece29df069f6bae78f287d083c4",
+      "bytes": 1260,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-guard-v70.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v70.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v70.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v70.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/sign-adoption-v72.ts",
+      "sha256": "f104d2bed7c40a3852364d6bb79fe94a10b16970a07910f209b7a8387470e196",
+      "bytes": 1264,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-guard-v72.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v72.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/capture-guard-failure-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-state-guard-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v72.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v72.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/sign-adoption-v76.ts",
+      "sha256": "9b3abdb0ab4c2ce1f3bec1cbbb03963d153f53a3bf6f60014b0492f15a208046",
+      "bytes": 1264,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/bench-runner/release/0d9d99c74b370791c54821a80eea6d24eb84601e35ea98189074fb98c1d5c2b7/release-1208f062d580ea0ac3f3c5b2b7ec99c85bd108268d44aca8524ddc8468a055f4.json",
+        "scripts/bench-runner/release/0d9d99c74b370791c54821a80eea6d24eb84601e35ea98189074fb98c1d5c2b7/runner.js",
+        "scripts/bench-runner/release/0fd8dd99f08860e004709b3cf62f2eb9ed657846c4d73cfa6cea7e2061da5f21/release-80fb4dc3704efacaaf3e3c3911692c7e5d3b4d247e6dedcfd1fb34fb289383eb.json",
+        "scripts/bench-runner/release/0fd8dd99f08860e004709b3cf62f2eb9ed657846c4d73cfa6cea7e2061da5f21/runner.js",
+        "scripts/bench-runner/release/141a8976ae0339e0f796b831b740eb8e5e8148ffe1ca125f4e3d1fee3ff12b94/release-9a6a73a57b44810a6fa303e3523c1d9b9c8bce1c0e02e4638dabf54dd6e110cb.json",
+        "scripts/bench-runner/release/141a8976ae0339e0f796b831b740eb8e5e8148ffe1ca125f4e3d1fee3ff12b94/runner.js",
+        "scripts/bench-runner/release/1cbeb703c38a36097d09fe8fc20ae889cbe9b5bdb6b0be7772f6897089e177ea/release-2efdbe12720748ccdfb9743e9b36a35ccdd09158bf69a85459efc579cda276c0.json",
+        "scripts/bench-runner/release/1cbeb703c38a36097d09fe8fc20ae889cbe9b5bdb6b0be7772f6897089e177ea/runner.js",
+        "scripts/bench-runner/release/26402dec9177058b84cfec7122d7b04e5376952682be4f9d37b62b507545c3d8/release-5586a09003741d0132b4e626b2ae3835913834ef92a86342d4a273810c5d2cc8.json",
+        "scripts/bench-runner/release/26402dec9177058b84cfec7122d7b04e5376952682be4f9d37b62b507545c3d8/runner.js",
+        "scripts/bench-runner/release/399afcb2e1fa638f9a355cd18e97518d8694ac06d5808bc79dabc8b20d194c81/release-7ae8d68cde017c67f615923b4801d43c1c1ab695c765f2506fa9783707776f94.json",
+        "scripts/bench-runner/release/399afcb2e1fa638f9a355cd18e97518d8694ac06d5808bc79dabc8b20d194c81/runner.js",
+        "scripts/bench-runner/release/41a277716f1e0749a3dc9e6f02673e8bdca63f96934593b7e883d06ce9e4bd4f/release-6dd5edbdc3f84eafdc14e4d82885e4ee83df9d4a251b872be5f7763202219548.json",
+        "scripts/bench-runner/release/41a277716f1e0749a3dc9e6f02673e8bdca63f96934593b7e883d06ce9e4bd4f/runner.js",
+        "scripts/bench-runner/release/5766a6dc1713a43ace89555d001b9cc705c8dd2eb7c354ec2183a4d8f5027dcc/runner.js",
+        "scripts/bench-runner/release/69f9b915f0a0e68af4b592bf75bd8d1e68cffa2a77ba36b1dfeb9bf371639091/release-b20273594d5bc3e5b7e064555356b5912391bcc05c1b8f42bc5b58fbe5228f4d.json",
+        "scripts/bench-runner/release/69f9b915f0a0e68af4b592bf75bd8d1e68cffa2a77ba36b1dfeb9bf371639091/runner.js",
+        "scripts/bench-runner/release/6f9457a45a99726681f351e06bfc4d2dd2837535f7b2fe386b3029ed75ab44bf/release-b685002499bfe1855833870663010930b88a11c1169e8f815a8e6ceb2b612f8e.json",
+        "scripts/bench-runner/release/6f9457a45a99726681f351e06bfc4d2dd2837535f7b2fe386b3029ed75ab44bf/runner.js",
+        "scripts/bench-runner/release/76160f804518cdcdf20ce1517025f1d67003d96e26e264247cc912b24aaabb93/release-890a340ba18570a6fe62a71afebaecefb704eb6ab83342849e1a9ce5ee259cd6.json",
+        "scripts/bench-runner/release/76160f804518cdcdf20ce1517025f1d67003d96e26e264247cc912b24aaabb93/runner.js",
+        "scripts/bench-runner/release/cef234e3da545b9a50ea72af3d481a3873eb88cbc7580de695078cd5014c6652/release-671d5482b656b6a61566f45fb6137a9a9c2455757191a4387e37491040780774.json",
+        "scripts/bench-runner/release/cef234e3da545b9a50ea72af3d481a3873eb88cbc7580de695078cd5014c6652/runner.js",
+        "scripts/bench-runner/release/d3616198e7ad1b2ada576a34df3bb9fe2b3ca91c91ae7550e0563031b6744e40/release-5ee5f942b48101502dc8bc44b4c915bf2182de74864d0ff77ed58d724385290d.json",
+        "scripts/bench-runner/release/d3616198e7ad1b2ada576a34df3bb9fe2b3ca91c91ae7550e0563031b6744e40/runner.js",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-guard-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/capture-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v76.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v76.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/sign-delegation-v19.ts",
+      "sha256": "165626ddb3c8d55023f9ff92b36692a86fe830f19cd3f66d412552ac4b03b4ae",
+      "bytes": 1339,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/prepare-delegation-v19.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/sign-price-renewal.ts",
+      "sha256": "685eb6046c3d97589402941cf9b08fead364dd3ab21304649a62fc8095c2de27",
+      "bytes": 1263,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-consumer-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/capture-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-price-renewal.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v46.ts",
+      "sha256": "60352783774de0a649473d80e1459bb93a6fdd0386f6acf2d1189521f8af5dfb",
+      "bytes": 1953,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v46.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v48.ts",
+      "sha256": "89b1108d290687a8085f558437e8e23e0a8efac95a7cfc9cb0a384ab4a504a31",
+      "bytes": 1964,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/capture-live-state-v70.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/seal-adoption-v48.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v70.ts",
+      "sha256": "96982b0981b3d1079003938dedc8f033ec89708d4dfdff9c7ba559554ba7af26",
+      "bytes": 1784,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v70.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v72.ts",
+      "sha256": "14cb637e2c75e7da18124bd4424f0ba1a69186da749ae591cf62fe810baf3d45",
+      "bytes": 1784,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/capture-guard-failure-v76.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v72.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-adoption-v76.ts",
+      "sha256": "246f32432ec46ceac1e87be7f6dbb3ceee9a89a2a6375877efa3ce6d0979dd71",
+      "bytes": 2053,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/capture-price-renewal.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/freeze-v76.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-delegated-v19.ts",
+      "sha256": "588123d535508956f8e4be8879bcf09ba8ecaa213ad1f3573b7a8e6e17ca8f2c",
+      "bytes": 3131,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/prepare-delegation-v19.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-price-renewal.ts",
+      "sha256": "73f716c1ecc717340e4eafd5b9ad8e3ebeafbe74b14b13e536f3c28a951d2fb0",
+      "bytes": 2102,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/capture-price-renewal.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/start-v1.ts",
+      "sha256": "8228a7d1079f9487c35aefad011d1878056cc1cf2f82dc0224ea5ca1560129bd",
+      "bytes": 1891,
+      "reasons": [
+        "scripts/bench-runner/cli.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/zero-new-lane-state-v48.ts",
+      "sha256": "003fd8b1d941e2adfe66a35e4f8feece64802bfad87e15beb4b73e1950ea13e5",
+      "bytes": 3637,
+      "reasons": [
+        "scripts/bench-runner/cli.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/adopted-parent-v48.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/build-adoption-v48.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/check-durable-adoption-v48.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/preflight-adoption-v48.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/account-history-fresh-chain-consumer-v102.ts",
+      "sha256": "3084987ffd2acb4d856bba6fd16998eec19e6f8072d43c8b46fa6446e7785bd7",
+      "bytes": 7141,
+      "reasons": [
+        "scripts/bench-runner/prepare-unlimited-financial-loader.ts",
+        "scripts/bench-runner/unlimited-terminal-history.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/fresh-live-increment-consumer-v106.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/account-history-v7.ts",
+      "sha256": "d44c8160cb40fdf1ea1a463c931cbe56aba1222d8f894ed738de3eacb86ded07",
+      "bytes": 3515,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/prepare-delegation-v19.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/failure-recovery-v6-final.ts",
+      "sha256": "d0351307e6c9f0665941d254b4c35eb75c6298f31305e94350c7d3e30099ba10",
+      "bytes": 16394,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/delegated-parent-v19.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/prepare-delegation-v19.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/fresh-live-increment-consumer-v106.ts",
+      "sha256": "ea162f776e116b23732d3e9f68e745725b80b5778e8d1c8394bfff473308031e",
+      "bytes": 6051,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/root_probe_owner.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_probe_disposition_root_only.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/recovery_policy.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/runner.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/worker.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/grade-disposition-v8.ts",
+      "sha256": "6c504a03413595fbcd9d0ae260070eef34ef4765cb67799022c2b7a6d14f8d16",
+      "bytes": 3815,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/runner.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/worker.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-before-resource-v89.ts",
+      "sha256": "2e16a341a513dbfe132cb956aec07ce74274034bd2ffff3351b0bd06883b5a85",
+      "bytes": 1407,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/runner.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/worker.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-disk-wait-v85.ts",
+      "sha256": "6e889221430435d0457496f79d72667e0b771ff8940f1c61990544b5b97b6805",
+      "bytes": 1373,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/worker.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-forward-guard-v83.ts",
+      "sha256": "1219a77ca3d0ca450dabcb6ca889dfd7fc319c3cd690eb8170c0fbddc433fd25",
+      "bytes": 1555,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/worker.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-owned-v83/activation_guard.py",
+      "sha256": "e74f76197368f349a92d8449884e760f7423add0e8e3fafdaeb8261095ee99f9",
+      "bytes": 2801,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-forward-guard-v83.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-owned-v83/owner_preflight.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-owned-v83/bootstrap.py",
+      "sha256": "95e9497c6c04d762a721d5d1c19c6d56a14f9e09156f482e64162046709bc64e",
+      "bytes": 539,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-owned-v83/activation_guard.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-owned-v83/owner_preflight.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/stand_entry_runpy.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-owned-v83/owner_preflight.py",
+      "sha256": "399c19f39fb86d1845d37129a2f993bb5813f64beabd9ea58e613764f76eda99",
+      "bytes": 1497,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-forward-guard-v83.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-resource-owned-v83.ts",
+      "sha256": "873bcf8b07ca136bbd81064223406a0deff3b19013ada45382be1dd05e944753",
+      "bytes": 2736,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/root_probe_owner.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_probe_disposition_root_only.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/worker.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-stand-process-v83.ts",
+      "sha256": "cf4de2b9274c7c9f43b9d8e85d0b19d051a61bf2786fefd86755798a163d716f",
+      "bytes": 5753,
+      "reasons": [
+        "scripts/bench-runner/signed-owned-environment.test.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/campaign.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/review-authority-pipeline-formal-v89.ts",
+      "sha256": "37a203468066d51a143d5b4e34ca279a1d7ccdbae782a35628f61a103dbf4085",
+      "bytes": 2459,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/root_probe_owner.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_probe_disposition_root_only.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_root_only.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/runner.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/review-authority-v4.ts",
+      "sha256": "c84eb9c2df529eab0a4adae9ab8cc944a3f595a809c30f9f557b53f39f40c21d",
+      "bytes": 2414,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/delegated-parent-v19.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/broker/sign-delegation-v19.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/account-history-v7.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/grade-disposition-v8.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/zero-call-pre-actor-recovery-v4.ts",
+      "sha256": "eea29e83c7c8e9c447deab7606bf07c8546cd1432bc9ab043b6e991fb029eac5",
+      "bytes": 6777,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/failure-recovery-v6-final.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/activation_guard.py",
+      "sha256": "7f1f455ea396aef1a737f464c0cd0d4a27a952592f582fae8b352f2799657641",
+      "bytes": 1996,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_docker_owned.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/bootstrap.py",
+      "sha256": "ebc583e204a615e5cb0bb3956c8fafa2e0af83416a5eaad48033b2d8e07dd3fb",
+      "bytes": 398,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/activation_guard.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/route_guard_v1.py",
+      "sha256": "340cf89eaf02cc111ecbe573426362c442065570c8426eba3b723fed9464b98d",
+      "bytes": 836,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_docker_owned.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_probe_disposition_root_only.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe.py",
+      "sha256": "90902a4037f36bd502380c0a5a2e3a808384066cd5c83cbf35842ee77954fb3a",
+      "bytes": 4011,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_probe_disposition_root_only.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_complete_import_graph.py",
+      "sha256": "fe20840bc8c133502240f15a0884a846fe403eb328f011904f83204364dd983b",
+      "bytes": 3961,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_probe_disposition_root_only.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_docker_owned.py",
+      "sha256": "005c65fa44c828525d3c3253878920d0e5a2c56d4c947eadf186da7210fc5be9",
+      "bytes": 18559,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_complete_import_graph.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_each_transport_owned_guard.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_parent_helper_owned_closure.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_probe_disposition_root_only.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_each_transport_owned_guard.py",
+      "sha256": "c83f6a3b179f228cd42e9767364419942ae7487a31665262a8dda71f0f849990",
+      "bytes": 3883,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_probe_disposition_root_only.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_parent_helper_owned_closure.py",
+      "sha256": "cecf2f837cb42cee2321ac03c0cb896c374aa7dadbb2fa243aef0644f280d852",
+      "bytes": 3817,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_probe_disposition_root_only.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/root_probe_owner.ts",
+      "sha256": "4f2db7d29fc4ae59aa130e040d28acd915e0c18ef08d392e1009e4d300e99cdf",
+      "bytes": 4190,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_probe_disposition_root_only.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/campaign.ts",
+      "sha256": "83cbc3333a455e951fe7f6f858c6fed4020972254f9ec824d7a9b29a9c3fe41a",
+      "bytes": 19732,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/worker.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/checker_runner.py",
+      "sha256": "08ed930b397305d63f4eb4f81f13fc1ea8bdee98e2e6a0f39437df41bdbe379d",
+      "bytes": 2225,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/pipeline_grade.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/stand_entry_runpy.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/mailbox_transport.py",
+      "sha256": "0825d79eee9536fd7150f4c014e8fb8094fdda9c226e49fefb7fc2aa8c4b3129",
+      "bytes": 4900,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/pipeline_grade.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/pipeline_grade.py",
+      "sha256": "78bf3e30ea19eb8eab530ee01175ed21f44edff0bad489f88694552d8a7f9843",
+      "bytes": 11157,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/stand_entry_runpy.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/pipeline_parallel.py",
+      "sha256": "0858bb04430f64e6d3b43cf06c1b66fe3a54363434f851b96e377e13099d51f1",
+      "bytes": 1428,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/pipeline_grade.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/pipeline_worker.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/stand_entry_runpy.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/pipeline_worker.py",
+      "sha256": "160ac37faaf813e0b276c6d2942d61acf9bcc5dc7d792d761675d2a3fcda7d88",
+      "bytes": 2814,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/pipeline_grade.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/preview_chain.py",
+      "sha256": "4baff6023caacc9cd5751d001b68cf954dc75fd5e555e76e7003a683897b4b21",
+      "bytes": 3313,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_probe_disposition_root_only.py",
+      "sha256": "32d23a9b1d8368855bce8e7bc34987e6016068d024cd1d274075dc49c3c009da",
+      "bytes": 13713,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/preview_chain.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_root_only.py",
+      "sha256": "8dfe4ab481886cbc7ab4328d3d3ca9060f8d212d7d1a265bd5cd70a6cf30cc8d",
+      "bytes": 8768,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/preview_chain.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/recovery_policy.ts",
+      "sha256": "8ab9b02adda785996fbe9d381a7c0b351464f08b5a549ff37d24effa7adbefa6",
+      "bytes": 2060,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/runner.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/worker.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/runner.ts",
+      "sha256": "48c4ea80576c8abced119c17d826a7ab20bae9fa602b4785c4601f2ef238a9a4",
+      "bytes": 7289,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/stand_entry_runpy.py",
+      "sha256": "fa14839d138416f4270d1827066ff9efc9d924065fbf98beb3528c832e61d86a",
+      "bytes": 2888,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/campaign.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/successor_closure.ts",
+      "sha256": "add6918467941d6ff3ec38b78ec84d335ea8b85b25de99bc14304679f383b1bb",
+      "bytes": 2198,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/runner.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/worker.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/tensor_protocol.py",
+      "sha256": "02803869eb910936e69b40aad5460e1956cbe95388f176c482d32facb2f923fa",
+      "bytes": 1985,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/pipeline_grade.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/pipeline_parallel.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/pipeline_worker.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/stand_entry_runpy.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/verify_probe_signature.ts",
+      "sha256": "ccab3b6e79ff79eb835ea08530f7bb35193b5454c15ac41db8d01d07e393ad11",
+      "bytes": 661,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_probe_disposition_root_only.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/worker.ts",
+      "sha256": "00581c973adcb9bfa84b8de3b65ad23f20ff6164d587feadf27b0e92b73b026e",
+      "bytes": 11082,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-recovery-wx-v97/failure_classification.ts",
+      "sha256": "ac28605f5a8b6b5eba89689a90fe7f9616a9c451af5ad43d63f4168f579c35cc",
+      "bytes": 813,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-recovery-wx-v97/provider_gateway.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-recovery-wx-v97/provider_gateway.ts",
+      "sha256": "7ecb0f45376f948d106c460ac52395d0746d1ed0e663d21424d1772b9cb1fb76",
+      "bytes": 15140,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/campaign.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-recovery-wx-v97/recovery_lock.ts",
+      "sha256": "b7d1fb388eb457945ab3d12afb23c217a44cb16ab9a8e5370a77742f964dbdd1",
+      "bytes": 340,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/runner.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/activation_guard.py",
+      "sha256": "4f33512ad1a09c55a40c27dae03ad304c72aee725531138467a392871c53bc8f",
+      "bytes": 2837,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/docker_owned.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/forward_guard.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/local_preflight.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/owner_preflight.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/runtime_cache/cache_client_v4.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/stand_entry.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/stand_v1.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.local-build.js"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/adopted_guard_bridge.ts",
+      "sha256": "62d915b5af9130d97cbc07779365155270b880d467b9626343c503f081779a7f",
+      "bytes": 1147,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/bootstrap.py",
+      "sha256": "ebc583e204a615e5cb0bb3956c8fafa2e0af83416a5eaad48033b2d8e07dd3fb",
+      "bytes": 398,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/activation_guard.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/local_preflight.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/owner_preflight.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/pipeline_grade.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/portable_framework.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/stand_entry.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/callback_error_contract.py",
+      "sha256": "669092194836a119972d1d604a514c7c94c5c1d685118f4930f0b7ac585726ff",
+      "bytes": 336,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/contract_static_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/pipeline_grade.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/campaign.ts",
+      "sha256": "795198a2bf747ac192fe4d93ca30b592bdae768d1e998063ac1cbefb6326417c",
+      "bytes": 19274,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.local-build.js",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/checker_runner.py",
+      "sha256": "e8046381b0320398adcfca35930faeddfcf9557b5c557e9150bf7a05c119e0ab",
+      "bytes": 2176,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/contract_static_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/pipeline_grade.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/contract_static_test.py",
+      "sha256": "27f8656280ceee97b44474100191c78f45549d2170e176a6c7655428b34aa2a9",
+      "bytes": 2559,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/docker_owned.py",
+      "sha256": "316531a15b7173667f5031901b51cd1f0d7a02a3ffb81b150dce14983d89628a",
+      "bytes": 18896,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/pipeline_grade.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/runtime_transport_circuit_drained_20261013_next.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/stand_v1.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/forward_guard.ts",
+      "sha256": "824b2a422bda1fda175cd76a3b685e368987e52d0acbaf73405e24b68d9cbef3",
+      "bytes": 1428,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.local-build.js",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/full_validation.ts",
+      "sha256": "07f7c52bd4172e5e7d06101bad53d41f4380289f22748c4ebb2c54285951fbfb",
+      "bytes": 2230,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/grade_contract.py",
+      "sha256": "9a4184106bac25f4d555a8e889b6e74b98aaaf93d91348fa0645e8ce8ecda905",
+      "bytes": 1564,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/contract_static_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/pipeline_grade.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/local_preflight.py",
+      "sha256": "b5469fe4df03fc5afe3491fdc511a112767771b7752385d13fec35803988d67f",
+      "bytes": 704,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/owner_forward_gate.ts",
+      "sha256": "b1fe6fe14adb4ab9d9b80dff9d47a7d13b48323a1f2d85e978cf2360f9ea1d20",
+      "bytes": 536,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-recovery-wx-v97/provider_gateway.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/owner_forward_gate_test.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/provider_gateway_v50.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.local-build.js"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/owner_forward_gate_test.ts",
+      "sha256": "002522db823c089631899028d8fea4b4d51ac0aa6084331cae612e5aae33f958",
+      "bytes": 1840,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/full_validation.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/owner_preflight.py",
+      "sha256": "c032e95886713b157ed3b2463d9d06c312313f793d58d457e4f8af9f8fb2d52e",
+      "bytes": 1445,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/forward_guard.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/full_validation.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.local-build.js"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/pipeline_grade.py",
+      "sha256": "66e608dc57db67108ce9acf6d2d989a6c6fb399b20c37311dff45faed3c42564",
+      "bytes": 10746,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/contract_static_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/stand_entry.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/pipeline_parallel.py",
+      "sha256": "0858bb04430f64e6d3b43cf06c1b66fe3a54363434f851b96e377e13099d51f1",
+      "bytes": 1428,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/pipeline_grade.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/pipeline_worker.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/pipeline_worker.py",
+      "sha256": "160ac37faaf813e0b276c6d2942d61acf9bcc5dc7d792d761675d2a3fcda7d88",
+      "bytes": 2814,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/pipeline_grade.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/portable_framework.py",
+      "sha256": "3748ef8f29ddaa14113e670c98563689ab48d4daa9e3573f865dc68149907c2a",
+      "bytes": 3001,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/pipeline_grade.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/stand_entry.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/provider_gateway_v50.ts",
+      "sha256": "ab5199fbf98dd25a6747c961e05a821187e2db1151df33ff567e296b24136a84",
+      "bytes": 13599,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/campaign.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/owner_forward_gate_test.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.local-build.js"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/resource_lease.ts",
+      "sha256": "7fb21ab0a0e5301228120785a2f5b2c46acc54de3a77362fb5e890159e3c2d24",
+      "bytes": 2374,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/full_validation.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.local-build.js",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/route_guard_v1.py",
+      "sha256": "f8e7a59cb664e6df1ba994725d75640a209d0dc576c97b4603da2e3aa5be6c64",
+      "bytes": 851,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/docker_owned.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/runtime_transport_circuit_drained_20261013_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/runtime_cache/cache_client_v4.py",
+      "sha256": "5fbbc3769e28ba18c9199341d2c0896411e23ed1a4e7dc44627cab28213caaad",
+      "bytes": 4731,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/runtime_cache/server_copy_v4.py",
+      "sha256": "f9fb847a8bb9e57555ee659198301fb2f349fd187901433e71c0a0e95a22f041",
+      "bytes": 3549,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/runtime_cache/cache_client_v4.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/runtime_transport.py",
+      "sha256": "565862da1f10224b5b1e9a8f7e6482e1a763dcf8ae5a9f0abae21a09acc93896",
+      "bytes": 846,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/pipeline_grade.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/portable_framework.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/stand_v1.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/runtime_transport_circuit_drained_20261013_next.py",
+      "sha256": "ae8772493f617afc3e35ac1fdd15072ce1f7ac182bb9dc1e03974ff15af48b16",
+      "bytes": 7729,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/runtime_transport.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/safe_framework_extract.mjs",
+      "sha256": "b7d2277c6daa691d9acceceb5cd62204050163aa32edab938526def4e906e030",
+      "bytes": 3571,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/portable_framework.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/stand_entry.py",
+      "sha256": "6536a78ecfee92038894496464179e425549e94d878897cba0d9f786f3384dd7",
+      "bytes": 2474,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/stand_entry_runpy.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/stand_entry_runpy.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/stand_entry_runpy.py",
+      "sha256": "13f8a9d480b542b2a97a5bfd4ebf6f695c777d3b23ea11b4c7540c78af15ee27",
+      "bytes": 306,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/campaign.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.local-build.js"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/stand_process.ts",
+      "sha256": "2aabe009ff8d1fc46c4d9866f92a711a34c7a3bc64f01323e1b246d0f25cbadf",
+      "bytes": 5802,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/campaign.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.local-build.js"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/stand_v1.py",
+      "sha256": "de8a8dd6a5aff890a84eb13f8589baa45e37a2967c8088ae86e74400de359644",
+      "bytes": 19378,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/stand_entry.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/tensor_protocol.py",
+      "sha256": "02803869eb910936e69b40aad5460e1956cbe95388f176c482d32facb2f923fa",
+      "bytes": 1985,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/pipeline_grade.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/pipeline_parallel.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/pipeline_worker.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/portable_framework.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.local-build.js",
+      "sha256": "df421454020a23e7d6f35dd91a8a65468d3b702c43764e40e4a21b618fd6370f",
+      "bytes": 342722,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.ts",
+      "sha256": "126afb23fea9ab075b8e71d70621023c33be01a6a72cabb49e9ad15e74ec45f5",
+      "bytes": 7313,
+      "reasons": [
+        "scripts/bench-runner/python_regression_test.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.local-build.js"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/mailbox-transport-v1/mailbox_transport.py",
+      "sha256": "d285ee1a1223f4a4abc80a9ff9d123dec7f21808413b1d67629be4d1a952b3ea",
+      "bytes": 4825,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_complete_import_graph.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_each_transport_owned_guard.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_1/versions/pipeline-mailbox-root-transport-probe-20261014/probe_parent_helper_owned_closure.py",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_probe_disposition_root_only.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/headless_budget_v7/gateway_budget_gate_v7.ts",
+      "sha256": "aec11d3b436b14e76f15a74683e96c55e1d9549019fda7a64002b8ee895c555a",
+      "bytes": 1261,
+      "reasons": [
+        "scripts/bench-runner/skillsbench-single-task-fee.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-recovery-wx-v97/provider_gateway.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/headless_budget_v7/recovery_budget_v7.ts",
+      "sha256": "bb132c928350fdc8ea4be8c8fc5b3e5d1ef991fb0292a1747c86a043b0cf8c40",
+      "bytes": 2264,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/runner.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-recovery-wx-v97/provider_gateway.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/http_transport_v5/fetch.ts",
+      "sha256": "f8fbd18dc2c9f1fb851b3aad63ab17ea6e3f87e44d9b763c403f262d4bb8b013",
+      "bytes": 414,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/coordinator/pipeline-stand-process-v83.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/stand_process.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.local-build.js"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/tb_v4/gateway_budget_gate_v4.ts",
+      "sha256": "df51259fa6002e2d242ced33c84b8b7bc6f52a6fab87f93ea19edfdb74b0017b",
+      "bytes": 1249,
+      "reasons": [
+        "scripts/bench-runner/prepare-unlimited-financial-loader.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/docker_disk_actual_floor_v2.next.ts",
+      "sha256": "ee780b9b753e42a2ccf06ab1e37934d0d45aa2dd314941518c349fb158dfafe2",
+      "bytes": 2391,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_group01_adapter3_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_adapter2_20261013_v1.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_energy_v5.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_energy_v6.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_v4.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_v5.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_v6.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_v7.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_energy_cached_20261013.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_finish_group02_fuzzing_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_group01_adapter1_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_group02_adapter3_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_group02_nonsecurity_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_finish_group02_defensive_v1.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_group02_adapter1_v2.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_parallel_prep_20261013.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_syzlang_adapter2_v1.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/docker_disk_guard.next.ts",
+      "sha256": "b82f4cec0f5d2aef0fbf9d766933db49ddc83d8d2c8d95a2f9969d94ccce88e2",
+      "bytes": 2073,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_v2.staged.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_v3.staged.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/draft_publication_adapter2_20261013_v1.ts",
+      "sha256": "30e0ccd3a2ca09e2af2d651240c452b992cf59a3b2bc74b65eeae47dedd8f6a5",
+      "bytes": 5585,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/check_adapter2_20261013_v1.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/prepare_adapter2_20261013_v1.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/energy_original_network_skip.next.py",
+      "sha256": "eaf575d466363efe14f97ea2e46ee41b4ae6a89f0e04b0079aea5c7d35a4869d",
+      "bytes": 3320,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_energy_v6.next.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_energy_v5.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_energy_v6.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_energy_cached_20261013.next.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/finish_group02_defensive_v1/fuzzing_private_data_group_v2.next.py",
+      "sha256": "6117213751d3a6de6e0227889a25e029e0eacaff61772cc2a2067ac3d5e8fe52",
+      "bytes": 6644,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_finish_group02_fuzzing_v1.next.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_finish_group02_fuzzing_v1.next.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter1-v1/bridge.py",
+      "sha256": "9389fdd00250ae834e871e182d35752f3663baf3e548677d7faf80d7f673a05c",
+      "bytes": 4758,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter1-v1/private_runner.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter1-v1/snapshot_adapter.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter1-v1/opaque_artifacts.py",
+      "sha256": "4a71190b8c1c6b16060ea941275dd05719db713a980b2f38e20a290c8daeb71a",
+      "bytes": 1395,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter1-v1/snapshot_adapter.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter1-v1/private_runner.py",
+      "sha256": "897c219070e497eb12064c43cd1087ab5453d8e8d70ce3f40ca2095df760e8de",
+      "bytes": 5736,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter1-v1/worker.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_group01_adapter1_v1.next.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter1-v1/snapshot_adapter.py",
+      "sha256": "3efadbeb9f238cb4376933496ca0ebb251d68ac36a27563a806cca5eda26b019",
+      "bytes": 11736,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter1-v1/worker.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter1-v1/stand_base.py",
+      "sha256": "24dde8b0ec1aea0b5b5c367eb0ad5fce09433d04aa69904bbb7f6d770595924f",
+      "bytes": 23619,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter1-v1/worker.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter1-v1/worker.py",
+      "sha256": "da9eaa8be686054dbe7f7abda7e54e39b998d60c2fb6d365368ed4f1d5ee21fa",
+      "bytes": 2777,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_group01_adapter1_v1.next.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter3-v1/react_service.sh",
+      "sha256": "bf99a2804f0bead7a7fde41d2fe3e191fce0879c5d55210a2a325aee2c1e07d8",
+      "bytes": 553,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter3-v1/snapshot_adapter.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter3-v1/snapshot_adapter.py",
+      "sha256": "4d1105f439776a2dcb69da0bdffd86a807849c52eedff12148d531ac75f54b9c",
+      "bytes": 11936,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter3-v1/stand.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter3-v1/stand.py",
+      "sha256": "15e8c3804ce643f5ed9df4a768dbd760035a012955b95c52764b0bf982c33597",
+      "bytes": 25967,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_group01_adapter3_v1.next.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02-adapter2-v1/private_eval_syzlang_adapter2_v1.py",
+      "sha256": "c338b277a0c598dc94ddd6bb8048587a439d7fdc0ef379d6f1675ed3871c2e2f",
+      "bytes": 8956,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_syzlang_adapter2_v1.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_syzlang_adapter2_v1.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02-adapter2-v1/syzlang_owner_relay_adapter2_v1.py",
+      "sha256": "dd459492ee7490386e90485b75b4b4112913682cbf71a6649fbca5f08e2ad8e2",
+      "bytes": 6654,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_syzlang_adapter2_v1.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02-adapter2-v1/syzlang_private_bridge_adapter2_v1.py",
+      "sha256": "76f2b34a5bf7b3c6475da53f3dfbd18a02bf9e7e579775ac22e1ccd3e6e8f7f4",
+      "bytes": 2410,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02-adapter2-v1/private_eval_syzlang_adapter2_v1.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_adapter3_v1/artifacts.py",
+      "sha256": "953b9776bbd855182de0e127ef0574f2434406b891a7adf3cf6e45d76610c7d8",
+      "bytes": 3119,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_adapter3_v1/private_eval.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_adapter3_v1/bridge.py",
+      "sha256": "f77fcd81775f91084193fe2b9420d2805643e5538d421134247d2e5557bb8429",
+      "bytes": 3427,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_adapter3_v1/private_eval.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_adapter3_v1/policy.py",
+      "sha256": "88ef57632378c495f4846d3500b09ac5f3394f0f2775977610f05f6575c662d5",
+      "bytes": 2198,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_adapter3_v1/artifacts.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_adapter3_v1/bridge.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_adapter3_v1/private_eval.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_adapter3_v1/private_eval.py",
+      "sha256": "cea6c246df379aa327987d992428554ceb33dd561393e1601797858b5f9c18f7",
+      "bytes": 4930,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_group02_adapter3_v1.next.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_group02_adapter3_v1.next.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_nonsecurity_v1/artifacts.py",
+      "sha256": "2a74e2dd7125b57887871ed7a3ef7e8483bf888f07a7a786550e9b7c457609c0",
+      "bytes": 3050,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_nonsecurity_v1/private_eval.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_nonsecurity_v1/bridge.py",
+      "sha256": "83fe207c7a0581ed54c220b03e87ac5452b1cf6c9de196ffa24587d2652ecbed",
+      "bytes": 3984,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_nonsecurity_v1/grpo_private.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_nonsecurity_v1/private_eval.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_nonsecurity_v1/grpo_private.py",
+      "sha256": "0558793064463ea9d499da5851e4b408e482de95e35614b56b9c66c6845f6fef",
+      "bytes": 4009,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_nonsecurity_v1/private_eval.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_nonsecurity_v1/policy.py",
+      "sha256": "ac4cd3ee626536dbbe66a4002038be9b0ef3c095a30be96c0d840b2e89accee7",
+      "bytes": 1370,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_nonsecurity_v1/artifacts.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_nonsecurity_v1/bridge.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_nonsecurity_v1/private_eval.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group02_nonsecurity_v1/private_eval.py",
+      "sha256": "ae3c2c532be745d2e5cdefd2ac7f7675ce83cf8a52ba7777eaffa97251dc01f3",
+      "bytes": 5133,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_group02_nonsecurity_v1.next.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_group02_nonsecurity_v1.next.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/memory_observe_only_v2.next.ts",
+      "sha256": "ca1ad11d96f7299906941c4f1a71059a0fb8358be88f7f7eca67ad2e5c8cc8b2",
+      "bytes": 619,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_group01_adapter3_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_adapter2_20261013_v1.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_energy_v5.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_energy_v6.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_v4.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_v5.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_v6.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_v7.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_energy_cached_20261013.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_finish_group02_fuzzing_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_group01_adapter1_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_group02_adapter3_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_group02_nonsecurity_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_finish_group02_defensive_v1.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_group02_adapter1_v2.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_parallel_prep_20261013.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_syzlang_adapter2_v1.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_v2.staged.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_v3.staged.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/parallel-prep-20261013/private_eval_suricata_finish_group02_defensive_v1.py",
+      "sha256": "e7a0a210d4c0cbdc17bbad49c12ab97b37f2a37a55494e1ee597e9a88f35dd19",
+      "bytes": 8973,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_suricata_finish_group02_defensive_v1.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_finish_group02_defensive_v1.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/parallel-prep-20261013/private_eval_suricata_group02_adapter1_v2.py",
+      "sha256": "9d3b842766a57ad7011e03b1dde8fa41b33ed5fb9a7b51ff82992e1c23f31e39",
+      "bytes": 8965,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_suricata_group02_adapter1_v2.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_group02_adapter1_v2.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/parallel-prep-20261013/private_eval_suricata_parallel_prep_20261013.py",
+      "sha256": "ee678dd52f14bb9ae2ae0e321dad9a4d1add5ec026682bb648b522ec15e5c023",
+      "bytes": 8968,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_suricata_parallel_prep_20261013.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_adapter2_20261013_v1.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_parallel_prep_20261013.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/parallel-prep-20261013/suricata_owner_relay_finish_group02_defensive_v1.py",
+      "sha256": "1d9eee8c2d267b3ef14604b051b845c244506c8f937e0658f687f72bae13a57c",
+      "bytes": 9488,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_suricata_finish_group02_defensive_v1.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/parallel-prep-20261013/suricata_owner_relay_group02_adapter1_v2.py",
+      "sha256": "191e27c0a14a2c23ff020704dcf3f9b5ae072fb18f995a8cf85cf855aef399e9",
+      "bytes": 8712,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_suricata_group02_adapter1_v2.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/parallel-prep-20261013/suricata_owner_relay_parallel_prep_20261013.py",
+      "sha256": "f3935e8c4627e0e5679964d380ca2255f5e452f69a5a40c0e638dc3b29522681",
+      "bytes": 6446,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_suricata_parallel_prep_20261013.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/parallel-prep-20261013/suricata_private_bridge_finish_group02_defensive_v1.py",
+      "sha256": "a47ba5885744cd62656e1c248d1ee89190ef260b94600f674ceec81aebd62dd9",
+      "bytes": 3326,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/parallel-prep-20261013/private_eval_suricata_finish_group02_defensive_v1.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/parallel-prep-20261013/suricata_private_bridge_group02_adapter1_v2.py",
+      "sha256": "a47ba5885744cd62656e1c248d1ee89190ef260b94600f674ceec81aebd62dd9",
+      "bytes": 3326,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/parallel-prep-20261013/private_eval_suricata_group02_adapter1_v2.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/parallel-prep-20261013/suricata_private_bridge_parallel_prep_20261013.py",
+      "sha256": "3a4791e9a79ef7635d55ec20eac0f546a9e21a421359a495777bf5801391f5d2",
+      "bytes": 2903,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/parallel-prep-20261013/private_eval_suricata_parallel_prep_20261013.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/prepare_adapter2_20261013_v1.ts",
+      "sha256": "20c905152211f54d4df0001db421076c1700d0183167af5682dc831d374780d1",
+      "bytes": 3837,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/check_adapter2_20261013_v1.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/private_eval_codebook_wide_v1.next.py",
+      "sha256": "1feff554c899969d5c620d39d2eedd8a0db29ca6fc781bd52b767f0181f55730",
+      "bytes": 6232,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_adapter2_20261013_v1.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_environment_boot_v5.next.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_environment_boot_v6.next.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_finish_group02_fuzzing_v1.next.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_group02_adapter3_v1.next.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_group02_nonsecurity_v1.next.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_suricata_finish_group02_defensive_v1.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_suricata_group02_adapter1_v2.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_suricata_parallel_prep_20261013.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/data_stand_syzlang_adapter2_v1.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter1-v1/stand_base.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/group01-adapter3-v1/stand.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_group01_adapter3_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_adapter2_20261013_v1.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_v4.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_v5.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_v6.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_v7.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_finish_group02_fuzzing_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_group01_adapter1_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_group02_adapter3_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_group02_nonsecurity_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_finish_group02_defensive_v1.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_group02_adapter1_v2.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_parallel_prep_20261013.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_syzlang_adapter2_v1.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/private_task_worker_entry_adapter2_20261013_v1.ts",
+      "sha256": "d963f1a39ab3bac43fdce0e0b236265ae62d37add9d162c610640a3a68859ed1",
+      "bytes": 792,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/check_adapter2_20261013_v1.py",
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/draft_publication_adapter2_20261013_v1.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/prepare_adapter2_20261013_v1.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_adapter2_20261013_v1.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/stand_contract_adapter2_20261013_v1.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/private_task_worker_entry_finish_group02_defensive_v1.ts",
+      "sha256": "81e898e9174d4ed5569a7e1ce3c4540976955fe991334c182d370f74190ab04a",
+      "bytes": 679,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_finish_group02_defensive_v1.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/private_task_worker_entry_finish_group02_fuzzing_v1.next.ts",
+      "sha256": "47f70afcf538179842e65a264c78ea89de46c96579ce8a685aef14de692a2506",
+      "bytes": 639,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_finish_group02_fuzzing_v1.next.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/private_task_worker_entry_group02_adapter1_v2.ts",
+      "sha256": "6f9cbefb5c0b08ac371a0637f7d05e561e94e65d07d64f175ce7478e8ea8410e",
+      "bytes": 671,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_group02_adapter1_v2.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/private_task_worker_entry_group02_adapter3_v1.next.ts",
+      "sha256": "9fa6858f6d0bd5b5942808d400591fed8676c7bfed4c528466e0f324321f0e23",
+      "bytes": 633,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_group02_adapter3_v1.next.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/private_task_worker_entry_group02_nonsecurity_v1.next.ts",
+      "sha256": "84887aac1ec69ef932eef929c18947bcebab4a178983aa8a121b0e77e7113336",
+      "bytes": 636,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_group02_nonsecurity_v1.next.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/runtime_acc_readiness.next.ts",
+      "sha256": "74f710305e9c055e2fac230ff3aaa6ad97b75f08c6fb2f84bdc3c0ab9650ce06",
+      "bytes": 3865,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_group01_adapter3_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_adapter2_20261013_v1.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_energy_v5.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_energy_v6.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_v4.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_v5.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_v6.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_dynamic_v7.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_energy_cached_20261013.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_finish_group02_fuzzing_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_group01_adapter1_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_group02_adapter3_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_group02_nonsecurity_v1.next.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_finish_group02_defensive_v1.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_group02_adapter1_v2.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_parallel_prep_20261013.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_syzlang_adapter2_v1.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_v2.staged.ts",
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_v3.staged.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/suricata_peak_finish_group02_defensive_v1.ts",
+      "sha256": "83e6ae2f5fb9e48166eeee57d4d817326160e19f5165fdc5a8a573dc78049e4e",
+      "bytes": 263,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_finish_group02_defensive_v1.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/suricata_stand_evidence_finish_group02_defensive_v1.ts",
+      "sha256": "763051028996008a69a51ddb25264f76312d3f760355283555ac664c87edf4bf",
+      "bytes": 2991,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_finish_group02_defensive_v1.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/skillsbench/next-segment/suricata_stand_evidence_group02_adapter1_v2.ts",
+      "sha256": "763051028996008a69a51ddb25264f76312d3f760355283555ac664c87edf4bf",
+      "bytes": 2991,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/skillsbench/runtime_private_task_suricata_group02_adapter1_v2.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/artifacts.py",
+      "sha256": "c193485ddcf558240776cf25508803b829cb89748e50b35a3b4ab68d66b68393",
+      "bytes": 15750,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/heap_worker.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/live_nginx.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/povray_worker.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/sanitize_untrusted_worker_next.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/stand_admitted_runtime_next.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/stand_sanitize_next.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/stand_v1.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/artifacts_sanitize_next.py",
+      "sha256": "d426eb718053495a29907474835239d024f26cfcecb2f6e1bca97bddf90f58fa",
+      "bytes": 16143,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader_sanitize_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/benchmark-usd-cash.ts",
+      "sha256": "3c4117f89ebb676a0d33add9fed8d12c7dfef37cb978a3566d1f9187a8b711fe",
+      "bytes": 18770,
+      "reasons": [
+        "scripts/bench-runner/neutral-original-benchmark-cash.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-recovery-wx-v97/provider_gateway.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/provider_gateway_v50.ts",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/provider_gateway.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/campaign-gzip-build-pov-ray-admitted.next.ts",
+      "sha256": "9a20cf013a5c271f8a33833bfb69f6d5ce60fe4518148b01f788c012843b7141",
+      "bytes": 18399,
+      "reasons": [
+        "scripts/bench-runner/relative-qualified-source.test.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/command_worker.py",
+      "sha256": "d7d0caf563bf040872cd29809af46871cd7d31842ff728324a5be802ab8b5a2e",
+      "bytes": 2562,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader_sanitize_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/docker_owned.py",
+      "sha256": "9ccc1655d3dfadbf47164e4011681218dec03615a3fa2d80a5b8c8b604d33ee6",
+      "bytes": 16703,
+      "reasons": [
+        "scripts/bench-runner/.prove-no-child.ts",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/artifacts.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/artifacts_sanitize_next.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/fixed_cli_worker.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/gpt2_worker.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/heap_worker.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/live_nginx.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/runtime_transport.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/runtime_transport_active_rpc_next.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/runtime_transport_fasttext_stdout_drain_next.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/stand_admitted_runtime_next.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/stand_sanitize_next.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/stand_v1.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/task_environment.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/engine-task-id.ts",
+      "sha256": "be583074caea850d0e9ef724f83f8b9893a461711a0b0fbee210e7554386b84a",
+      "bytes": 411,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/campaign.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/campaign.ts",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/campaign-gzip-build-pov-ray-admitted.next.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/fixed_cli_worker.py",
+      "sha256": "601688a77dc6183d7519708627c5cffbdeefb36601bc9c992dc58b43accc59d5",
+      "bytes": 3394,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader_sanitize_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/freeze_engine.ts",
+      "sha256": "c3e81b75224cbee24539c0189ca4a90519501f2559ccd30cc738f41c197a071f",
+      "bytes": 4793,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/campaign.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/campaign.ts",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/campaign-gzip-build-pov-ray-admitted.next.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/git_leak_worker.py",
+      "sha256": "4eaaaf96059f08e616d4bc3ff5b8f4f41e4a42f63f4ec78e4d6ce7c53021afc5",
+      "bytes": 3075,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader_sanitize_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/gpt2_worker.py",
+      "sha256": "4943e8b6259c00bd6adfc7063296e622854fa7fe4203b68d671ba4b467c12524",
+      "bytes": 3676,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader_sanitize_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/gzip-build-pov-ray-image-pool-custody.next.ts",
+      "sha256": "202c509a8a2cf8b72c552451f928ae3f545e83bc019699998389673fae79b9ef",
+      "bytes": 3834,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/campaign-gzip-build-pov-ray-admitted.next.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/gzip-train-fasttext-image-pool-custody.next.ts",
+      "sha256": "2ab04c33c2c121e25671555ddd6068d359197694fbddf39de6fb168ec6333087",
+      "bytes": 3835,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/campaign.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/campaign.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/heap_worker.py",
+      "sha256": "58e311363ebfb853e01be1fce3014ef7b5a831206afcf8f1d7a45baaab00ec2c",
+      "bytes": 4187,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader_sanitize_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/isolated-run-directory.ts",
+      "sha256": "e5ed4be13a9bf20e63af136036b9a5e167beef3ef37a6b3f346145b983722754",
+      "bytes": 510,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/worker.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/isolated-task-plan-dynamic.next.ts",
+      "sha256": "521fffe5845095507210145a686cfb4a58464e77bc422c0cd00206656f075d27",
+      "bytes": 1197,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/worker.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/worker.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/live_nginx.py",
+      "sha256": "8b69a275275b3790bc3b20edece9d88900e8b16d1313ed7bc384491dce3ea5a8",
+      "bytes": 9001,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/stand_admitted_runtime_next.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/stand_sanitize_next.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/stand_v1.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/local-grader-http-20261013.next.ts",
+      "sha256": "e34a8d0bce6f910d9b389091680fdc685e0b66cb3a6cb1679e22a091d1d9bfad",
+      "bytes": 2067,
+      "reasons": [
+        "scripts/repair-2026-10-08/campaign-contract-local-grader-20261013.next.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/official_candidate.py",
+      "sha256": "1e11776f7a5003585e0af38d3655cec7450e597bdfdfcf89741d57d39735b1a9",
+      "bytes": 1432,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/docker_owned.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/pending-interfaces/grader_transport_transform.ts",
+      "sha256": "d282fcfb5525a95085c56c158d22675ab01da0527b5276a082c7c5c1f1efd990",
+      "bytes": 827,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/freeze_engine.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/pending-interfaces/required_fault_transform.ts",
+      "sha256": "343b66ad54c66c73bb0ce824bb1a1021779d72040186163d116905c3bab3abc8",
+      "bytes": 1438,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/freeze_engine.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/pmars_worker.py",
+      "sha256": "5aa80e273aa9df95df60fd723fc8b59bb90cec8865372aae48895a104957b79b",
+      "bytes": 1912,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader_sanitize_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/polyglot_python313_worker.py",
+      "sha256": "bf6e15593fa2eb99dd343f3f2a24367f080ffb7a2f48f3e82214dd9c0dc9ba4e",
+      "bytes": 4876,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/polyglot_worker.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/polyglot_worker.py",
+      "sha256": "3c15c5d05223fce9431d4aaf1f0d66c19a4408d80ec0c26c686e31613c326fe0",
+      "bytes": 3267,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/polyglot_python313_worker.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader_sanitize_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/povray_worker.py",
+      "sha256": "0a56508282385bb0cd17a96e921a0f48294b003cc77350fdf7e8ca20cfd9db55",
+      "bytes": 2940,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader_sanitize_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/prepare.py",
+      "sha256": "a858ac860e6efe7fe46c45b443acd1187b021e8c4174c67d8080162c768324c7",
+      "bytes": 4298,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/official_candidate.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/private_checker.py",
+      "sha256": "1755617ec1638fa0657d7a99b4dceed79703ca9d6d326db4a796a00008d46001",
+      "bytes": 27677,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/artifacts.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/artifacts_sanitize_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/private_checker_sanitize_next.py",
+      "sha256": "2b2cdb1744c34b019db6e7fe92315c2960d43d18dc14825b7e97d81f6fdb9d75",
+      "bytes": 26606,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/artifacts_sanitize_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/profiles.py",
+      "sha256": "1ee7636a9b81f0406087b53b7d2ad0ddd69165f0778ff915c3bd329f755acfde",
+      "bytes": 6092,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/publish_probe_disposition_root_only.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/artifacts.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/docker_owned.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/profiles_sanitize_next.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/runtime_transport.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/runtime_transport_active_rpc_next.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/runtime_transport_fasttext_stdout_drain_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/profiles_sanitize_next.py",
+      "sha256": "89e24b9c06137fc3a06aee9263d90217296328050ac525ee56dc2d3f40d6a5a7",
+      "bytes": 329,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/artifacts_sanitize_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/provider_gateway.ts",
+      "sha256": "873840ec59f67e0be9c3c80a0dde0077dc9f617db2c76cb1e023929d2adc7975",
+      "bytes": 12805,
+      "reasons": [
+        "scripts/bench-runner/neutral-original-benchmark-cash.ts",
+        "scripts/bench-runner/relative-qualified-source.test.ts",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/campaign-gzip-build-pov-ray-admitted.next.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/runtime_transport.py",
+      "sha256": "9ab7ba911f96a34ea0f12c827f0740c96912d1dfddef3383a7569e47f145941b",
+      "bytes": 6326,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/stand_v1.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/runtime_transport_active_rpc_next.py",
+      "sha256": "3a5becbf1084e6c7b332f6de36f1793fcf7449f082acd4e426a54989249619d2",
+      "bytes": 7076,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/stand_admitted_runtime_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/runtime_transport_fasttext_stdout_drain_next.py",
+      "sha256": "eb22a867278dd358ed887a0d3f399582ea3b625b85407bbc1b09f010dfd4b29b",
+      "bytes": 7780,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/stand_sanitize_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/rust_polyglot_worker.py",
+      "sha256": "c02d07ad45b3aca288848c0a0a80263021bf5d052877b0b94de43ba0db695a6b",
+      "bytes": 2977,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader_sanitize_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/sanitize_private_router_next.py",
+      "sha256": "d6b319bf2c309b6739cc11dc953b4465830f1076b1721d3d53fada548bc2040d",
+      "bytes": 741,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/artifacts_sanitize_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/sanitize_untrusted_worker_next.py",
+      "sha256": "a624b62d8623a020e3a5fc336b71964ab51ba1c1ad444f7aaedde5bc7bec10ea",
+      "bytes": 2299,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader_sanitize_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/segment-scope.ts",
+      "sha256": "0708ea85b69f4622cd2d296b154da44a3b775304b4d2f0286efafe05031d4c89",
+      "bytes": 585,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/campaign.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/campaign.ts",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/campaign-gzip-build-pov-ray-admitted.next.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader.py",
+      "sha256": "6ede39262b18566453d988cf9301090a6d650b2e14d3ba25092149e6d937b6f3",
+      "bytes": 10516,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/stand_admitted_runtime_next.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/stand_v1.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader_sanitize_next.py",
+      "sha256": "eb57301d9c9a32a7e85c51bdc6cbc5c79d3b4c44a477db7e013931165f995ac0",
+      "bytes": 11237,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/stand_sanitize_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/stand_admitted_runtime_next.py",
+      "sha256": "02b7b86917df11c959cd1cbc68fe5f236cd82ee210753b68f8d4b20eccc180a6",
+      "bytes": 18832,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/campaign-gzip-build-pov-ray-admitted.next.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/stand_sanitize_next.py",
+      "sha256": "27c3d64a79831fc40d164b5ad2f5d511f432083cda019433dfdee60f982ec30f",
+      "bytes": 18878,
+      "reasons": [
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-127480-1792261910594-512f383966f9f.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/stand_v1.py",
+      "sha256": "a82a07b563868920ef46e60ba5163b201cec3950e37c260f7e5c8ac4b4f641ac",
+      "bytes": 18814,
+      "reasons": [
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-103096-1792242292645-38275f6da5c68.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-103796-1792282144947-fb3fb8c895c64.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-105344-1792301913481-6001ac5490185.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-106452-1792245771890-fa913463f1ddf.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-106768-1792302553924-04e8a605bcf13.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-107448-1792285754974-d18106ef96f01.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-108332-1792295664852-171c8b0ec11b58.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-108468-1792241600286-1f42f66a937c98.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-111964-1792264034116-05e9dc4f147b78.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-113932-1792237227514-48015172765ea8.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-114336-1792308109884-6b4d80bb2d782.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-114700-1792237360489-f1642fecfc31a8.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-114844-1792263987982-6a1396a873a7.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-115608-1792265650185-77b7067e602f7.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-117896-1792271800233-049f215b2946a.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-120884-1792245965672-e9195330d6cee.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-126552-1792263437891-c40ee314bcd02.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-127704-1792263139748-e17a57447d8f2.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-128052-1792257915474-726c942697ef1.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-129696-1792273920752-663d7a60579f9.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-16332-1792266622852-17d2b347ae4af8.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-18660-1792241532918-1a5e9965b65178.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-27852-1792261610922-064df8c7460208.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-28200-1792294953530-43756f50df88d8.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-32520-1792296452386-60b52ae74e70b8.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-36348-1792241324323-29a0f4bd9a701.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-37980-1792242080850-03d48e71a40068.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-4308-1792242809730-5af2e205129248.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-48024-1792246069243-7fa1ba3d6e9d08.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-54084-1792262464929-5e761f468a732.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-59628-1792271991126-3167e30e933458.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-62720-1792267738820-dbd1b2edf7a7e.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-65504-1792261919052-08960aa28eaf98.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-66436-1792298721161-bf195ede761278.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-71288-1792271386393-58001e4e5c5548.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-80492-1792241820112-8981bace61bc58.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-82620-1792246137341-be79c893bb8b3.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-83424-1792261615928-6e0b72cd05fcb8.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-85160-1792237532923-32aa711bf81e78.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-87976-1792277529545-f68c029638ce28.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-88912-1792294677814-4a0841fac54ac.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-91436-1792285679868-6424b1ec0fb65.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-93648-1792294337038-e40aa1c68d8898.ts",
+        "scripts/repair-2026-10-09/tb12-v2/.injected-launcher-98564-1792264334168-56fe39c0100858.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/streaming_hash_next.py",
+      "sha256": "67a6af0c8d65f27c10ec013e6e1df5e391cde063a571a5738a83b37b93c07a04",
+      "bytes": 289,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/sanitize_untrusted_worker_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/task_environment.py",
+      "sha256": "cbc4cadd25659fd47489e8f0b15e225b62412ff19d3b840279ea0f76e14d1f2d",
+      "bytes": 1035,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/live_nginx.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader.py",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/snapshot_grader_sanitize_next.py"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/tool-unit-budget.next.ts",
+      "sha256": "d5f66108badabaf99a2efffe83936d86692ae4e5961fe6e56ff924f3bfa6d6b2",
+      "bytes": 1315,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-formal-successor-wx-v142/campaign.ts",
+        "scripts/repair-2026-10-10/full-f/novaeve_formal_v1/group-04/adapter_3/versions/pipeline-wx-v50/campaign.ts",
+        "scripts/repair-2026-10-10/full-f/terminal-bench/campaign-gzip-build-pov-ray-admitted.next.ts"
+      ]
+    },
+    {
+      "path": "scripts/repair-2026-10-10/full-f/terminal-bench/verifier_python313.py",
+      "sha256": "ef047f00af5b6f7c81831ed3e6a76a9c1fdab069464f197f9b2048dcc094cfde",
+      "bytes": 3560,
+      "reasons": [
+        "scripts/repair-2026-10-10/full-f/terminal-bench/polyglot_python313_worker.py"
+      ]
+    }
+  ]
+}

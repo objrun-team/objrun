@@ -1,0 +1,157 @@
+{
+  "scope": "Exact external targets referenced by historical experiment directory links; archived read-only, originals unchanged.",
+  "sources": [
+    {
+      "link_path": "objrun/.phase1-data/scicode-verified",
+      "resolved_source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\scicode-verified",
+      "archive_id": "external-phase1-scicode-verified",
+      "source_preserved": true,
+      "files": 155,
+      "logical_bytes": 1113827547
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/repair-2026-10-08T06-06-06-739Z",
+      "resolved_source": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-06-06-739Z",
+      "archive_id": "external-phase1-repair-2026-10-08t06-06-06-739z",
+      "source_preserved": true,
+      "files": 15,
+      "logical_bytes": 13857459
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/repair-2026-10-08T06-06-41-201Z",
+      "resolved_source": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-06-41-201Z",
+      "archive_id": "external-phase1-repair-2026-10-08t06-06-41-201z",
+      "source_preserved": true,
+      "files": 15,
+      "logical_bytes": 29656178
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/repair-2026-10-08T06-51-16-840Z",
+      "resolved_source": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-51-16-840Z",
+      "archive_id": "external-phase1-repair-2026-10-08t06-51-16-840z",
+      "source_preserved": true,
+      "files": 31,
+      "logical_bytes": 14477703
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/repair-2026-10-08T06-54-55-267Z",
+      "resolved_source": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T06-54-55-267Z",
+      "archive_id": "external-phase1-repair-2026-10-08t06-54-55-267z",
+      "source_preserved": true,
+      "files": 6423,
+      "logical_bytes": 116814972
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/repair-2026-10-08T10-25-57-408Z",
+      "resolved_source": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\repair-2026-10-08T10-25-57-408Z",
+      "archive_id": "external-phase1-repair-2026-10-08t10-25-57-408z",
+      "source_preserved": true,
+      "files": 2518,
+      "logical_bytes": 61860633
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/repair-2026-10-08T17-36-10-873Z",
+      "resolved_source": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T17-36-10-873Z",
+      "archive_id": "external-phase1-repair-2026-10-08t17-36-10-873z",
+      "source_preserved": true,
+      "files": 1,
+      "logical_bytes": 1904
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/repair-2026-10-08T18-32-57-118Z",
+      "resolved_source": "D:\\objrun-experiment-stores\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\scientific-journal-v2-repair-2026-10-08T18-32-57-118Z",
+      "archive_id": "external-phase1-repair-2026-10-08t18-32-57-118z",
+      "source_preserved": true,
+      "files": 47049,
+      "logical_bytes": 859113940
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/skb-jpg-2026-10-08T09-46-34-645Z",
+      "resolved_source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-46-34-645Z",
+      "archive_id": "external-phase1-skb-jpg-2026-10-08t09-46-34-645z",
+      "source_preserved": true,
+      "files": 1,
+      "logical_bytes": 62690018
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/skb-jpg-2026-10-08T09-46-44-144Z",
+      "resolved_source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-46-44-144Z",
+      "archive_id": "external-phase1-skb-jpg-2026-10-08t09-46-44-144z",
+      "source_preserved": true,
+      "files": 79,
+      "logical_bytes": 68749821
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/skb-jpg-2026-10-08T09-48-07-694Z",
+      "resolved_source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-48-07-694Z",
+      "archive_id": "external-phase1-skb-jpg-2026-10-08t09-48-07-694z",
+      "source_preserved": true,
+      "files": 80,
+      "logical_bytes": 68750360
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/skb-jpg-2026-10-08T09-54-51-769Z",
+      "resolved_source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\skb-jpg-2026-10-08T09-54-51-769Z",
+      "archive_id": "external-phase1-skb-jpg-2026-10-08t09-54-51-769z",
+      "source_preserved": true,
+      "files": 90,
+      "logical_bytes": 68756356
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/tb-nginx-2026-10-08T07-48-23-195Z",
+      "resolved_source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\tb-nginx-2026-10-08T07-48-23-195Z",
+      "archive_id": "external-phase1-tb-nginx-2026-10-08t07-48-23-195z",
+      "source_preserved": true,
+      "files": 2,
+      "logical_bytes": 55217263
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/tb-nginx-2026-10-08T07-49-30-364Z",
+      "resolved_source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\tb-nginx-2026-10-08T07-49-30-364Z",
+      "archive_id": "external-phase1-tb-nginx-2026-10-08t07-49-30-364z",
+      "source_preserved": true,
+      "files": 78,
+      "logical_bytes": 63003772
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/tb-nginx-2026-10-08T08-35-56-432Z",
+      "resolved_source": "E:\\objrun-experiment-cache\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\inactive-benchmark-archives\\closed-zero-llm-mocks\\tb-nginx-2026-10-08T08-35-56-432Z",
+      "archive_id": "external-phase1-tb-nginx-2026-10-08t08-35-56-432z",
+      "source_preserved": true,
+      "files": 116,
+      "logical_bytes": 107853111
+    },
+    {
+      "link_path": "objrun/.phase1-data/repair/tb-nginx-2026-10-08T10-47-06-544Z",
+      "resolved_source": "C:\\Users\\y1252\\.codex\\visualizations\\2026\\10\\08\\01a119ed-fdf7-7c32-b323-de9bab1290b6\\evidence-archives\\tb-nginx-2026-10-08T10-47-06-544Z",
+      "archive_id": "external-phase1-tb-nginx-2026-10-08t10-47-06-544z",
+      "source_preserved": true,
+      "files": 150,
+      "logical_bytes": 108069260
+    },
+    {
+      "link_path": "objrun/work/remaining12-parallel-20261018/group-c/setup-fuzzing-py/native-04e3ffc1/run",
+      "resolved_source": "D:\\TgEngin-local-runs\\20261018\\preserved-historical-native-logs\\native-04e3ffc1\\run",
+      "archive_id": "external-native-04e3ffc1",
+      "source_preserved": true,
+      "files": 813,
+      "logical_bytes": 467495270
+    },
+    {
+      "link_path": "objrun/work/remaining12-parallel-20261018/group-c/setup-fuzzing-py/native-af21274a/run",
+      "resolved_source": "D:\\TgEngin-local-runs\\20261018\\preserved-historical-native-logs\\native-af21274a\\run",
+      "archive_id": "external-native-af21274a",
+      "source_preserved": true,
+      "files": 612,
+      "logical_bytes": 413679051
+    },
+    {
+      "link_path": "objrun/work/remaining12-parallel-20261018/group-c/setup-fuzzing-py/native-de1893c6/run",
+      "resolved_source": "D:\\TgEngin-local-runs\\20261018\\preserved-historical-native-logs\\native-de1893c6\\run",
+      "archive_id": "external-native-de1893c6",
+      "source_preserved": true,
+      "files": 807,
+      "logical_bytes": 780675462
+    }
+  ]
+}
