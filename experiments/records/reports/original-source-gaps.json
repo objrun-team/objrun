@@ -1,0 +1,11 @@
+[
+  {
+    "bench": "terminal-bench",
+    "collection": "fullf-novaeve-formal-20261013",
+    "path": "coordinator/broker-outage-v46/native-custody-sbfirst-v47/windows-reference-surviving-evidence.json",
+    "source_sha256": "1bc673ed8dc20b4226015a51a9983fa9e4f3142a69dca16fdd11785875254295",
+    "reason": "Original native qualification stdout/stderr were not fully spooled before reboot; source report explicitly says complete streams cannot be recovered. Available 65,536-byte stdout and 131,072-byte stderr snapshots retained. Exit-127 cause and success are not inferred.",
+    "evidence_role": "native-qualification",
+    "source_report_field": "fullReferenceStdoutStderrNotRecoverableFromOriginalHostPipesAfterReboot"
+  }
+]

@@ -1,25 +1,27 @@
-bench,discovered_files,retained_files,excluded_files,database_sidecars,archived_candidate_entries,run_scopes_retained,attributed_pack_bytes,deferred_sources,partial_sources
-aime,1568,1541,27,0,0,19,1444911,legacy-runs | phase1,
-atmossci,29,28,1,0,0,3,29600,,
-biocoder,17,15,2,0,0,2,15409,,
-bird,163431,157184,27,6220,0,18,146798588,,
-chembench,23761,13948,6968,2844,1,299,30158618,legacy-runs,
-chemiq,4006,2803,214,60,929,112,7950610,fullf-chemiq | legacy-runs,
-classeval,7306,6764,30,512,0,8,10432821,,
-cmt,3121,51,3070,0,0,18,59731,legacy-runs,
-deepswe,70,19,51,0,0,6,64475,legacy-runs,
-frontierscience,21451,11399,9754,298,0,326,12104780,workspace-tmp,
-gpqa,4192,65,4127,0,0,14,1777067,legacy-runs | phase1,
-humaneval-plus,18831,16799,384,1648,0,12,7941016,,
-labbench,246,0,246,0,0,0,0,docs-labbench | workspace-tmp,
-llm-srbench,210,200,10,0,0,12,166665,legacy-runs,
-mbpp-plus,14347,11904,783,1660,0,6,3914627,,
-minif2f,34067,33292,558,0,217,71,16315996,legacy-runs | workspace-tmp,
-olympiadbench,37098,26125,10061,912,0,2228,44483321,,workspace-tmp (requested Bench records selected)
-scibench,68517,66415,14,2088,0,48,48140379,,workspace-tmp (requested Bench records selected)
-scicode,128,103,25,0,0,6,241921,scicode-external,
-scienceworld,29,26,3,0,0,3,152841,,
-shared-or-unassigned,144108,88450,24799,188,30671,779,112827852,,
-skillsbench,6345,4380,1777,26,162,289,2998721,fullf-skillsbench | legacy-runs | work-skb-local-remaining-20261018,
-terminal-bench,3842,1523,2052,24,243,108,4233352,docs-repair-2026-10-09 | fullf-terminal-bench | legacy-runs | work-tb-c4-local-20261018,
-theophyseval,59492,47842,11574,76,11,614,54621228,,workspace-tmp (requested Bench records selected)
+bench,classification,discovered_outer_files,retained_outer_files,retained_source_run_scopes,inventory_excluded_files,reviewed_excluded_outer_files,reviewed_excluded_member_references,known_affected_source_run_scopes,unreadable_directories,unverified_file_count,message_row_references,unique_database_table_states,attributed_compressed_pack_bytes,verified_sample,issue_references
+aime,all-found-readable-records,113,1607,38,4,0,0,0,0,0,5320,10,3460746,True,0
+astrovisbench,no-usable-detail-found,0,1,1,0,0,0,0,0,0,0,0,24,False,0
+atmossci,all-found-readable-records,232,35,6,217,0,0,0,0,0,384,4,83347,True,0
+atomworld,all-found-readable-records,0,7,3,0,0,0,0,0,0,192,2,492032,True,0
+biocoder,all-found-readable-records,729,29,5,711,0,0,0,0,0,179,2,52645,True,0
+bird,all-found-readable-records,163405,157184,18,1,0,0,0,0,0,51847,3092,146798588,True,0
+chembench,all-found-readable-records,200,14056,324,29,0,0,0,0,0,79250,1434,57058680,True,0
+chemiq,all-found-readable-records,53145,47755,408,35,0,0,0,0,0,117437,2753,199585123,True,0
+classeval,all-found-readable-records,7276,6764,8,0,0,0,0,0,0,2390,256,10432821,True,0
+cmt,all-found-readable-records,237,165,40,60,0,0,0,0,0,16147,16,22744944,True,0
+deepswe,all-found-readable-records,1200,53,16,1138,0,0,0,0,0,38648,4,13663080,True,0
+frontierscience,all-found-readable-records,21451,11470,329,9683,0,107,0,0,0,4324,212,12113531,True,0
+gpqa,all-found-readable-records,7191,7127,39,35,0,0,0,0,0,27352,35,27096174,True,0
+humaneval-plus,all-found-readable-records,154,16807,16,142,0,0,0,0,0,5947,826,8819967,True,0
+labbench,all-found-readable-records,61285,46263,3644,12207,0,779,0,0,0,30226,1477,91078909,True,0
+llm-srbench,all-found-readable-records,33006,31886,18,180,10,378,0,0,0,34176,1075,82187136,True,0
+mbpp-plus,all-found-readable-records,10,11906,7,8,0,0,0,0,0,5946,830,4208859,True,0
+minif2f,all-found-readable-records,41930,39749,107,677,0,0,0,0,0,26779,11,74528558,True,0
+olympiadbench,all-found-readable-records,37098,26125,2228,10061,0,0,0,0,0,22188,476,44483321,True,0
+scibench,all-found-readable-records,68517,66415,48,14,0,0,0,0,0,43348,1014,48140379,True,0
+scicode,all-found-readable-records,58016,56917,19,29,0,0,0,0,0,17454,590,114531086,True,0
+scienceworld,unprocessed-sources-remain,228,33,6,213,0,0,0,3,,3362,4,278342,True,0
+shared-or-unassigned,mixed-unassigned-evidence,346128,360730,1952,20059,6057,406,0,4,,134789,577,435248502,False,0
+skillsbench,partial-source-damaged,375924,293727,5791,19148,61907,205753,2,0,2,57019,578,1231026607,True,2
+terminal-bench,partial-source-damaged,1259855,1168597,2403,10112,119955,682280,1,0,1,109077,1801,1013351820,True,1
+theophyseval,all-found-readable-records,59492,47842,614,11563,0,0,0,0,0,11261,483,54621228,True,0

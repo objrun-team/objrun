@@ -22,4 +22,4 @@
 
 SciCode 的独立输出目录采用只读归档，C 盘原件保留；具体状态见 `scicode-external` 收集。三项外部 U 参照不代表存在本地配对轨迹。
 
-当前选择集已补入 OlympiadBench、SciBench、TheoPhysEval、ClassEval、BIRD 的模型输入输出、日志和结果记录，共 490,876 个文件记录。分 Bench 体积及范围见 [覆盖说明](records/summaries/coverage.md)。其余 15 批尚有延期材料，其中 workspace-tmp 已部分选取；不宣称全部原档已纳入 Git。
+本轮继续补入 LabBench、Terminal-Bench、SkillsBench、ChemIQ 等此前延期来源中的真实详细记录，原有 OlympiadBench、SciBench、TheoPhysEval、ClassEval、BIRD 分片保持不变。当前逐 Bench 的文件引用、运行范围、体积、缺损和恢复结果见 [覆盖说明](records/summaries/coverage.md)。旧选择报告仅代表当时的交付快照；原档仍保留，七个不可读目录不改权限。

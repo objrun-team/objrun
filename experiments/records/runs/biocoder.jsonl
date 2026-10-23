@@ -1,2 +1,5 @@
-{"run_scope":"docs-phase1/.","collection":"docs-phase1","files":1,"status_fields":{},"identifiers":[]}
-{"run_scope":"docs-phase1/pilots/phase1-biocoder-2026-10-07T22-10-01-874Z","collection":"docs-phase1","files":14,"status_fields":{"passed":24,"failed":4},"identifiers":[]}
+{"collection":"docs-phase1","run_scope":"docs-phase1/.","files":1,"status_fields":{},"identifiers":[]}
+{"collection":"docs-phase1","run_scope":"docs-phase1/pilots/phase1-biocoder-2026-10-07T22-10-01-874Z","files":14,"status_fields":{"passed":24,"failed":4},"identifiers":[]}
+{"collection":"phase1","run_scope":"phase1/biocoder/Prompts","files":10,"status_fields":{},"identifiers":[]}
+{"collection":"phase1","run_scope":"phase1/biocoder","files":1,"status_fields":{},"identifiers":[]}
+{"collection":"phase1","run_scope":"phase1/pilots/phase1-biocoder-2026-10-07T22-10-01-874Z","files":3,"status_fields":{"passed":68,"failed":2},"identifiers":[]}
