@@ -128,13 +128,14 @@ class Scrubber:
         return s,{k:v for k,v in counts.items() if v},resources
 
 class PackStore:
-    def __init__(self,root):
-        self.root=root;self.lock=threading.RLock();self.objects={};self.packs=[];self.buffer=io.BytesIO();self.tar=tarfile.open(fileobj=self.buffer,mode='w');self.raw=0;self.owners=collections.Counter();self.level=12
+    def __init__(self,root,prefix='part'):
+        if not re.fullmatch(r'[a-zA-Z0-9_-]+',prefix):raise ValueError('Unsafe pack prefix')
+        self.prefix=prefix;self.root=root;self.lock=threading.RLock();self.objects={};self.packs=[];self.buffer=io.BytesIO();self.tar=tarfile.open(fileobj=self.buffer,mode='w');self.raw=0;self.owners=collections.Counter();self.level=12
     def flush(self):
         if not self.raw:return
         self.tar.close();data=self.buffer.getvalue();packed=zstd.ZstdCompressor(level=self.level,threads=2).compress(data)
         assert len(packed)<=25*1024*1024
-        name=f'packs/part-{len(self.packs):05d}.tar.zst';(self.root/name).write_bytes(packed)
+        name=f'packs/{self.prefix}-{len(self.packs):05d}.tar.zst';(self.root/name).write_bytes(packed)
         self.packs.append(dict(path=name,bytes=len(packed),sha256=sha(packed),tar_bytes=len(data),tar_sha256=sha(data),owner_raw_bytes=dict(self.owners)))
         self.buffer=io.BytesIO();self.tar=tarfile.open(fileobj=self.buffer,mode='w');self.raw=0;self.owners.clear()
     def put(self,data,bench):
@@ -145,7 +146,7 @@ class PackStore:
             with self.lock:
                 if h in self.objects:continue
                 if self.raw+len(block)>16*1024*1024:self.flush()
-                name=f'packs/part-{len(self.packs):05d}.tar.zst';info=tarfile.TarInfo('objects/'+h);info.size=len(block);info.mtime=0
+                name=f'packs/{self.prefix}-{len(self.packs):05d}.tar.zst';info=tarfile.TarInfo('objects/'+h);info.size=len(block);info.mtime=0
                 self.tar.addfile(info,io.BytesIO(block));self.raw+=len(block);self.owners[bench]+=len(block)
                 self.objects[h]=dict(pack=name,bytes=len(block))
         return dict(bytes=len(data),sha256=sha(data),parts=pieces)
@@ -169,10 +170,10 @@ class JsonShards:
 
 class Exporter:
     def __init__(self,args):
-        self.args=args;self.ws=args.workspace.resolve();self.root=getattr(args,'output',None) or self.ws/'objrun/experiments/records';self.work=self.ws/'_publication-preview/2026-10-23/records-export';self.work.mkdir(parents=True,exist_ok=True)
+        self.args=args;self.ws=args.workspace.resolve();self.root=getattr(args,'output',None) or self.ws/'objrun/experiments/records';self.work=getattr(args,'work',None) or self.ws/'_publication-preview/2026-10-23/records-export';self.work.mkdir(parents=True,exist_ok=True)
         for n in ('runs','summaries','packs','manifests','reports'): (self.root/n).mkdir(parents=True,exist_ok=True)
         if any((self.root/'packs').iterdir()):raise ValueError('Output packs already exist; refusing overwrite')
-        self.store=PackStore(self.root);self.scrub=Scrubber(self.ws);self.cache={};self.lock=threading.RLock();self.results=[];self.started=time.time()
+        self.store=PackStore(self.root);self.store.level=getattr(args,'compression_level',12);self.scrub=Scrubber(self.ws);self.cache={};self.lock=threading.RLock();self.results=[];self.started=time.time()
         self.db_blobs=self.work/('database-blobs-'+str(os.getpid()));self.db_blobs.mkdir(exist_ok=True)
     def transform_text(self,data,bench):
         try:s=data.decode('utf-8-sig');encoding='utf-8-sig' if data.startswith(b'\xef\xbb\xbf') else 'utf-8'
@@ -188,8 +189,33 @@ class Exporter:
         if statuses:result['observed_status_fields']=dict(statuses)
         if ids:result['identifiers']=[list(x) for x in ids[:2000]];result['identifiers_total']=len(ids)
         return result
+    def save_database_member(self,data,path):
+        h=sha(data);dest=self.db_blobs/h
+        with self.lock:
+            if not dest.exists():dest.write_bytes(data)
+        return dict(disposition='pending-database' if magic(data[:4096])=='sqlite' else 'database-sidecar',source_blob_sha256=h)
+    def finish_archive(self,members,collection,path,bench,kind,exclusions):
+        """Pair nested SQLite/WAL members after all archive entries are available."""
+        by_path={m['path']:m for m in members}
+        for m in members:
+            if m.get('disposition')!='pending-database':continue
+            base=dict(sha256=m['source_blob_sha256'],bytes=m['source_bytes'])
+            side=by_path.get(m['path']+'-wal')
+            wal=dict(sha256=side['source_blob_sha256'],bytes=side['source_bytes']) if side and side.get('source_blob_sha256') else None
+            result=self.database(collection,path+'!/'+m['path'],base,wal,bench)
+            m.pop('source_blob_sha256',None);m.update(result)
+        for m in members:
+            if m.get('disposition')!='database-sidecar':continue
+            main=m['path'].removesuffix('-wal').removesuffix('-shm')
+            if main in by_path and by_path[main].get('format') in ('sqlite-tables','sqlite-review-required'):
+                m.update(disposition='retained',format='sqlite-sidecar-reference',paired_with=main)
+            else:
+                m.update(disposition='retained',format='orphan-database-sidecar',pending='no associated main database in archive',content=self.store.put((self.db_blobs/m['source_blob_sha256']).read_bytes(),bench))
+            m.pop('source_blob_sha256',None)
+        return dict(disposition='retained',format='archive-members',members=members,excluded_member_counts=dict(exclusions),transformations={'archive_expansion':kind})
     def process_payload(self,data,collection,path,bench,depth=0):
         kind=magic(data[:4096]);h=sha(data)
+        if kind in ('sqlite','wal') or path.endswith(('-wal','-shm')):return self.save_database_member(data,path)
         if kind in ('tar','zip','gzip','zstd'):
             if RESOURCE_NAME.search(path):return dict(disposition='excluded',reason='identified-resource-archive',detected=kind)
             if depth>4:return dict(disposition='retained',format='nested-archive-review-required',content=self.store.put(data,bench),pending='archive nesting exceeds four')
@@ -232,12 +258,11 @@ class Exporter:
                         tail=stream.read(64*1024*1024)
                         if len(tail)==64*1024*1024:return dict(disposition='retained',format='compressed-text-review-required',content=self.store.put(data,bench),pending='decompressed text exceeds 64 MiB; complete original compressed payload preserved')
                         return self.process_payload(head+tail,collection,path+'!/decoded',bench,depth+1)|dict(container_kind=kind)
-                return dict(disposition='retained',format='archive-members',members=members,excluded_member_counts=dict(exclusions),transformations={'archive_expansion':kind})
+                return self.finish_archive(members,collection,path,bench,kind,exclusions)
             except (tarfile.TarError,zipfile.BadZipFile,EOFError,zstd.ZstdError,OSError) as e:
                 return dict(disposition='retained',format='archive-review-required',content=self.store.put(data,bench),pending=type(e).__name__)
         if kind in ('executable','image','pdf','parquet','numpy','hdf','xz','bz2','compress','binary'):
             return dict(disposition='excluded',reason='binary-resource-'+kind,detected=kind)
-        if kind=='sqlite':return dict(disposition='pending-database')
         return dict(disposition='retained',**self.transform_text(data,bench))
     def stream_archive(self,source,head,collection,path,bench,depth=0):
         kind=magic(head);stream=PrefixReader(head,source)
@@ -257,6 +282,9 @@ class Exporter:
                 reason=path_policy(collection,member.name)
                 if reason:excluded[reason]+=1;continue
                 f=tar.extractfile(member);h=f.read(min(4096,member.size));detected=magic(h)
+                if detected in ('sqlite','wal') or member.name.endswith(('-wal','-shm')):
+                    raw=h+f.read();out=self.save_database_member(raw,member.name)
+                    members.append(dict(path=member.name,source_bytes=member.size,source_sha256=sha(raw),**out));continue
                 if detected in ('executable','image','pdf','parquet','numpy','hdf','xz','bz2','compress','binary'):
                     excluded['binary-resource-'+detected]+=1;continue
                 if detected in ('tar','zip','gzip','zstd') and RESOURCE_NAME.search(member.name):excluded['resource-archive-member']+=1;continue
@@ -269,7 +297,7 @@ class Exporter:
                     raw=h+f.read();raw_sha=sha(raw);out=self.process_payload(raw,collection,path+'!/'+member.name,bench,depth+1)
                 if out.get('disposition')=='excluded':excluded[out['reason']]+=1
                 else:members.append(dict(path=member.name,source_bytes=member.size,source_sha256=raw_sha,**out))
-        return dict(disposition='retained',format='archive-members',members=members,excluded_member_counts=dict(excluded),transformations={'archive_expansion':kind})
+        return self.finish_archive(members,collection,path,bench,kind,excluded)
     def stream_text(self,source,head,bench):
         decoder=codecs.getincrementaldecoder('utf-8')('surrogateescape');parts=[];hasher=hashlib.sha256();size=0;changes=collections.Counter();status=collections.Counter();carry='';block=head
         while block:
@@ -344,6 +372,8 @@ class Exporter:
                 row=json.loads(line)
                 if 'sha256' not in row:continue
                 path=row['path'];bench=bench_of(name,path);counts[bench]['discovered_files']+=1;counts[bench]['discovered_bytes']+=row['bytes'];reason=path_policy(name,path)
+                if getattr(self.args,'benches',None) and bench not in self.args.benches:reason='outside-requested-bench-selection'
+                if name=='workspace-tmp' and (path.startswith('theophyseval-runtime/') or '/parquet-runtime/' in path):reason='installed-runtime'
                 if reason:excluded[reason]+=1;excluded_bytes[reason]+=row['bytes'];counts[bench]['excluded_files']+=1;continue
                 rows.append(row);by_path[path]=row;required.setdefault(row['sha256'],row)
         # Include excluded aliases only as possible canonical TAR hardlink bodies.
@@ -457,5 +487,5 @@ class Exporter:
         print(json.dumps({k:v for k,v in report.items() if k not in ('collections','benches')}),flush=True)
 
 def main():
-    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--workspace',type=pathlib.Path,required=True);ap.add_argument('--restic',type=pathlib.Path,required=True);ap.add_argument('--workers',type=int,default=2);ap.add_argument('--output',type=pathlib.Path);ap.add_argument('--only',nargs='+');ap.add_argument('--skip',nargs='+');ap.add_argument('--small-first',action='store_true');args=ap.parse_args();Exporter(args).run()
+    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--workspace',type=pathlib.Path,required=True);ap.add_argument('--restic',type=pathlib.Path,required=True);ap.add_argument('--workers',type=int,default=2);ap.add_argument('--output',type=pathlib.Path);ap.add_argument('--work',type=pathlib.Path);ap.add_argument('--compression-level',type=int,default=12);ap.add_argument('--benches',nargs='+');ap.add_argument('--only',nargs='+');ap.add_argument('--skip',nargs='+');ap.add_argument('--small-first',action='store_true');args=ap.parse_args();Exporter(args).run()
 if __name__=='__main__':main()

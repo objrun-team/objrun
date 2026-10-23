@@ -47,6 +47,14 @@ def contents(value):
     elif isinstance(value,list):
         for x in value:yield from contents(x)
 
+def database_exports(value):
+    if isinstance(value,dict):
+        if value.get('format')=='sqlite-tables':yield value
+        else:
+            for x in value.values():yield from database_exports(x)
+    elif isinstance(value,list):
+        for x in value:yield from database_exports(x)
+
 def verify(records):
     hashes=set();objects=0
     for name in records.packs:
@@ -70,9 +78,9 @@ def verify(records):
                 else:
                     for part in records.parts(content):pass
                 seen.add(signature)
-        if entry.get('format')=='sqlite-tables':
-            databases+=1;assert entry['integrity']=='ok' and entry['rows_verified']
-            for table in entry['tables']:
+        for database in database_exports(entry):
+            databases+=1;assert database['integrity']=='ok' and database['rows_verified']
+            for table in database['tables']:
                 if table.get('excluded'):continue
                 assert table['source_rows']==table['exported_rows'];tables+=1;rows_total+=table['exported_rows']
                 key=table['content']['sha256']
@@ -86,7 +94,7 @@ def main():
     p=sub.add_parser('runs');p.add_argument('--bench');p.add_argument('--limit',type=int,default=20)
     p=sub.add_parser('files');p.add_argument('--bench');p.add_argument('--limit',type=int,default=20)
     for name in ('read','extract'):
-        p=sub.add_parser(name);p.add_argument('--collection',required=True);p.add_argument('--path',required=True);p.add_argument('--table');p.add_argument('--member')
+        p=sub.add_parser(name);p.add_argument('--collection',required=True);p.add_argument('--path',required=True);p.add_argument('--table');p.add_argument('--member',action='append',help='Archive member path; repeat for nested archives, optionally followed by --table')
         if name=='extract':p.add_argument('--output',type=pathlib.Path,required=True)
     sub.add_parser('verify');args=ap.parse_args();root=args.root.resolve(strict=True)
     if args.isolated:
@@ -113,8 +121,8 @@ def main():
             if count>=args.limit:return
         return
     entry=records.get(args.collection,args.path)
+    for member in args.member or []:entry=next(x for x in entry['members'] if x['path']==member)
     if args.table:content=next(x['content'] for x in entry['tables'] if x['name']==args.table)
-    elif args.member:content=next(x['content'] for x in entry['members'] if x['path']==args.member)
     elif 'content' in entry:content=entry['content']
     else:print(json.dumps(entry,ensure_ascii=True));return
     if args.mode=='read':

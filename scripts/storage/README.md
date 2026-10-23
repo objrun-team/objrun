@@ -4,6 +4,12 @@
 
 `curate_records.py --root INPUT --output NEW_DIRECTORY --workspace WORKSPACE` 从已验证导出中生成本轮确认的选择集：保留真实记录，解码已确认的模型响应，归档冻结源码副本及合成批量夹具，保留自测摘要、生成器和独有诊断。输入只读，输出必须为新目录；逐文件决定写入 manifests/selection-decisions-*，不删除未选中的原件。该选择规则对应本轮人工确认范围，不应直接用于未知的新来源。
 
+`export_records.py` 支持 `--work`、`--output`、`--only` 和 `--benches`，新导出使用独立工作目录；`--compression-level` 调节压缩级别。压缩包内的 SQLite 与 WAL 先按成员路径配对，再从一致性副本导出，WAL 在 TAR/ZIP 中出现的先后顺序不影响处理。未配对侧文件或无法核验的数据库必须登记，不能冒充完整记录。
+
+`append_records.py --base EXISTING_RECORDS --supplement VERIFIED_EXPORT --output NEW_DIRECTORY --label UNIQUE_LABEL --partial workspace-tmp` 按哈希复用已有片段，原压缩分片保持不变，新增片段进入带标签的新分片。输出必须为新目录；新来源存在待核验条目时停止。`--partial` 标明仅选取了部分 Bench 的来源，不能视作整批完成。
+
+`records.py read --collection COLLECTION --path outer.zip --member inner.tar.gz --member run.sqlite --table events` 可读取嵌套压缩包内的表。`verify` 同时核对这些嵌套数据库的行数。回归检查运行 `python -B scripts/storage/test_records_export.py`，使用临时合成小样本核验真实 WAL 依赖、嵌套读取、脱敏和增量去重，不访问原档或网络。
+
 下面的 Restic 工具仅维护本地核对原件及历史完整环境恢复；本轮保留原档，不将其作为发布资产。
 
 归档数据位于工作区根目录的 `_objrun-archive/`，不进入 Git。需 Python 3.12+ 和 Restic 0.19.1；本次 Windows 清理脚本使用 PowerShell 7。当前工具保留普通文件的完整字节、原路径与修改时间；不依赖 Windows ACL 来恢复实验记录。
