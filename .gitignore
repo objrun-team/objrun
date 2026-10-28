@@ -616,3 +616,14 @@ Thumbs.db
 
 # Rebuild extension packages from the retained source.
 *.vsix
+
+# Local / large working trees excluded from paper commits (2026-10-28)
+/docs/climaqa/
+/docs/analysis/
+/site/
+/paper/current/_preview/
+/paper/current/figs/fig3-redraw-preview.pdf
+/paper/current/figs/fig3-redraw-preview.png
+/paper/current/review/fig3-redraw-preview.pdf
+/paper/current/review/fig3-redraw-preview.png
+/paper/current/review/rendered/
