@@ -4,6 +4,17 @@
 
 ObjRun 学生协作仓库。项目是基于 Bun 和 TypeScript 的任务执行与评测引擎。
 
+## 对外展示页
+
+静态介绍页见 [site/](site/)（深色单页，无构建）。本地预览：
+
+```bash
+npx --yes serve site
+```
+
+或 `python -m http.server 5173 --directory site`，再打开提示地址。
+
+
 ## 本地整理后的入口
 
 | 路径 | 内容 |
