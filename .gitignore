@@ -620,7 +620,6 @@ Thumbs.db
 # Local / large working trees excluded from paper commits (2026-10-28)
 /docs/climaqa/
 /docs/analysis/
-/site/
 /paper/current/_preview/
 /paper/current/figs/fig3-redraw-preview.pdf
 /paper/current/figs/fig3-redraw-preview.png
