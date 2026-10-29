@@ -6,7 +6,7 @@ ObjRun 学生协作仓库。项目是基于 Bun 和 TypeScript 的任务执行�
 
 ## 对外展示页
 
-静态介绍页见 [site/](site/)（浅色单页，单按钮机器人演示，无构建）。本地预览：
+静态介绍页见 [site/](site/)（深色单页，单按钮机器人演示，无构建）。本地预览：
 
 ```bash
 npx --yes serve site
