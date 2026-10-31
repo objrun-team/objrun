@@ -5,6 +5,9 @@
 !.env.example
 !*.env.example
 
+# Local Claude configuration
+.claude/
+
 # Regenerable local dependencies, including compatibility junctions
 node_modules/
 .bun-cache/
