@@ -8,6 +8,9 @@
 # Local Claude configuration
 .claude/
 
+# Local Cloudflare account/cache state
+/.wrangler/
+
 # Regenerable local dependencies, including compatibility junctions
 node_modules/
 .bun-cache/
@@ -46,6 +49,7 @@ node_modules/
 /paper/current/*.synctex.gz
 /paper/current/main.log
 /paper/current/main.out
+/paper/current/build-output.txt
 
 # Original benchmark payloads; small currently referenced test inputs are allowed explicitly
 /docs/evalplus-20261012/
