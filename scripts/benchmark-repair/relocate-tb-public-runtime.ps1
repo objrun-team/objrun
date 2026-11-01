@@ -1,7 +1,7 @@
 param([switch]$Apply)
 $ErrorActionPreference = 'Stop'
 $taskRepo = 'F:\git\TgEngin-handoff-2026-10-07\TgEngin'
-$taskSecondRoot = 'C:\Users\y1252\.codex\visualizations\2026\10\08\01a119ed-fdf7-7c32-b323-de9bab1290b6'
+$taskSecondRoot = 'C:\Users\y1252\objrun-legacy-workspace'
 $taskSourceRoot = [IO.Path]::GetFullPath((Join-Path $taskRepo 'examples\benchmark\terminal-bench'))
 $taskTargetRoot = [IO.Path]::GetFullPath((Join-Path $taskSecondRoot 'public-runtime-cache\terminal-bench'))
 $taskReport = Join-Path $taskRepo 'docs\repair-2026-10-08\tb-public-runtime-relocation.json'

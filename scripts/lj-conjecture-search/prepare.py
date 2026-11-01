@@ -56,7 +56,7 @@ remain private bwrap namespaces, exact-path stop only. Never restart shared WSL.
 
 At success or expiry stop ALL owned model requests/solver processes; finalize.py
 rechecks existing bundles and prior proof, accounts every API receipt, then the
-Codex heartbeat must delete its monitoring automation and write cleanup receipt.
+host heartbeat must delete its monitoring automation and write cleanup receipt.
 After cutoff verification/closeout only, no research search or paid requests.
 No fees/token/iteration total caps and no purchased compute. Do not expose .env,
 engine/config.yaml or API keys. Do not publish. Copy all model code/seeds/coords,

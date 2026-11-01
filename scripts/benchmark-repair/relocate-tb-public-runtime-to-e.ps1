@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $taskProject='F:\git\TgEngin-handoff-2026-10-07\TgEngin'
-$taskCBase='C:\Users\y1252\.codex\visualizations\2026\10\08\01a119ed-fdf7-7c32-b323-de9bab1290b6\public-runtime-cache\terminal-bench'
+$taskCBase='C:\Users\y1252\objrun-legacy-workspace\public-runtime-cache\terminal-bench'
 $taskFBase=Join-Path $taskProject 'examples\benchmark\terminal-bench'
 $taskEBase='E:\objrun-experiment-cache\01a119ed-fdf7-7c32-b323-de9bab1290b6\inactive-benchmark-archives\public-tb-runtime'
 $taskMini='E:\objrun-experiment-cache\01a119ed-fdf7-7c32-b323-de9bab1290b6\minif2f-v415'

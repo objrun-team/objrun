@@ -87,7 +87,7 @@ for name,target in [('package','formal-src'),('data','formal-data'),('vendor','f
  shutil.copytree(r/name,project/target,dirs_exist_ok=True)
 subprocess.run(['git','add','--','formal-src','formal-data','formal-vendor'],check=True)
 if subprocess.run(['git','diff','--cached','--quiet','--','formal-src','formal-data','formal-vendor']).returncode:
- result=subprocess.run(['git','-c','user.name=Codex','-c','user.email=codex@local','commit','-m','Add authorized shared-16 miniF2F test244 scheduler and controls','--','formal-src','formal-data','formal-vendor'],capture_output=True,text=True)
+ result=subprocess.run(['git','-c','user.name=objrun','-c','user.email=objrun@local','commit','-m','Add authorized shared-16 miniF2F test244 scheduler and controls','--','formal-src','formal-data','formal-vendor'],capture_output=True,text=True)
  if result.returncode:raise RuntimeError(result.stderr)
 record={'commit':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'packageFiles':len(members)}
 (r/'outputs/git-source.json').write_text(json.dumps(record,indent=2)+'\n');print(json.dumps(record))

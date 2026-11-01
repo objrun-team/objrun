@@ -37,5 +37,5 @@ if($Task39Stream){
 }
 $taskTimestamp = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ')
 $taskProcess = Start-Process -FilePath $taskBun -ArgumentList @($taskEntry) -WorkingDirectory $taskRoot -WindowStyle Hidden -RedirectStandardOutput (Join-Path $taskOut "runner-$taskTimestamp.stdout.log") -RedirectStandardError (Join-Path $taskOut "runner-$taskTimestamp.stderr.log") -PassThru
-@{pid=$taskProcess.Id;startedAtUtc=[DateTime]::UtcNow.ToString('o');executable=$taskBun;script=$taskEntry;windowStyle='Hidden';independentOfCodexToolSession=$true} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $taskOut 'background-process.json') -Encoding utf8
+@{pid=$taskProcess.Id;startedAtUtc=[DateTime]::UtcNow.ToString('o');executable=$taskBun;script=$taskEntry;windowStyle='Hidden';independentOfHostToolSession=$true} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $taskOut 'background-process.json') -Encoding utf8
 Write-Output "ChemIQ full816 independent runner PID: $($taskProcess.Id)"

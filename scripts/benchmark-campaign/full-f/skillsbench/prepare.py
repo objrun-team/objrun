@@ -95,8 +95,8 @@ def parse_task(directory):
     return row
 
 def session_settings():
-    tid = os.environ.get('CODEX_THREAD_ID')
-    sessions = Path(os.environ.get('CODEX_HOME', str(Path.home() / '.codex'))) / 'sessions'
+    tid = os.environ.get('OBJRUN_HOST_THREAD_ID')
+    sessions = Path(os.environ.get('OBJRUN_HOST_HOME', str(Path.home() / '.objrun-host'))) / 'sessions'
     context = None
     for file in sessions.glob('2026/10/10/*' + str(tid) + '*'):
         with file.open(encoding='utf-8') as stream:
@@ -110,7 +110,7 @@ def session_settings():
                     continue
     # Rollout context does not expose effective service tier; explicitly record
     # the workspace/global configuration observation instead of claiming it does.
-    config = Path(os.environ.get('CODEX_HOME', str(Path.home() / '.codex'))) / 'config.toml'
+    config = Path(os.environ.get('OBJRUN_HOST_HOME', str(Path.home() / '.objrun-host'))) / 'config.toml'
     text = config.read_text(encoding='utf-8') if config.exists() else ''
     tier = re.search(r'(?m)^service_tier\s*=\s*"([^"]+)"', text)
     return {'threadId': tid, 'actualTurnContext': context, 'configuredServiceTier': tier.group(1) if tier else None, 'effectiveServiceTierExposed': False, 'modelOrFastChanged': False}
@@ -173,20 +173,20 @@ def main():
     if manifest['denominator'] != 87 or manifest['arms'] != ['F'] or len(manifest['taskSchedule']) != 87:
         raise ValueError('Full F denominator/config drift')
     observation = observe(); save(HOME / 'environment-observation.json', observation)
-    config = session_settings(); save(HOME / 'codex-settings-observation.json', config)
+    config = session_settings(); save(HOME / 'host-settings-observation.json', config)
     control = json.loads((HOME.parent / 'control.json').read_bytes())
     prior = json.loads((HOME / 'status.json').read_bytes()) if (HOME / 'status.json').exists() else {}
     blockers = ['full_87_ordinary_artifact_and_private_grader_generalization_pending']
     if not control.get('paidReady'): blockers.append('shared_paid_adapter_not_ready')
     if not observation['daemonReady']: blockers.append('docker_daemon_unavailable')
     status = {**prior, 'protocol': 'skillsbench-full-f-status-v1', 'updatedAtUtc': utc(), 'phase': 'preparing',
-              'threadId': os.environ.get('CODEX_THREAD_ID'), 'runId': manifest['runId'], 'denominator': 87,
+              'threadId': os.environ.get('OBJRUN_HOST_THREAD_ID'), 'runId': manifest['runId'], 'denominator': 87,
               'completed': prior.get('completed', 0), 'scored': prior.get('scored', 0), 'modelRequests': prior.get('modelRequests', 0),
               'costUsd': prior.get('costUsd', 0), 'costStatus': 'no requests dispatched' if not prior.get('modelRequests') else prior.get('costStatus', 'requires journal reconciliation'),
               'unknownCostRequests': prior.get('unknownCostRequests', 0), 'arms': ['F'], 'fullManifestFrozen': True,
               'sharedPaidReady': control.get('paidReady', False), 'daemonReady': observation['daemonReady'], 'blockers': blockers,
               'sharedChangesRequested': {'paidAdapter': 'Shared lane API + per-request journal/USD cash receipt access + heavy container lease required; no canonical owner acquired here.'},
-              'actualCodexSettings': config, 'sourceIdentityCaveat': manifest['source']['identityAuthority'],
+              'actualHostSettings': config, 'sourceIdentityCaveat': manifest['source']['identityAuthority'],
               'nextAction': 'Generalize source-pinned ordinary artifact isolation for all tasks; use shared adapter only after control.paidReady. Do not launch old paired/pilot/partial76 or snapshot graders.'}
     save(HOME / 'status.json', status)
     print(json.dumps({'manifest': str(HOME / 'manifest.json'), 'phase': status['phase'], 'denominator': 87, 'completed': status['completed'], 'costUsd': status['costUsd'], 'blockers': blockers}))

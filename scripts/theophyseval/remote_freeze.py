@@ -26,7 +26,7 @@ def main():
     files=[{'path':p.relative_to(ROOT).as_posix(),'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in paths]
     relative=ROOT.relative_to(PROJECT).as_posix()
     subprocess.run(['git','add','--',*[str(p.relative_to(PROJECT)) for p in paths]],cwd=PROJECT,env=env,check=True)
-    subprocess.run(['git','-c','user.name=Codex','-c','user.email=codex@local','commit','-qm','Freeze TheoPhysEval automatic49 novaeve four-arm protocol and independent runtime'],cwd=PROJECT,env=env,check=True)
+    subprocess.run(['git','-c','user.name=objrun','-c','user.email=objrun@local','commit','-qm','Freeze TheoPhysEval automatic49 novaeve four-arm protocol and independent runtime'],cwd=PROJECT,env=env,check=True)
     commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=PROJECT,env=env,text=True).strip()
     record={'gitCommit':commit,'files':files,'modelsUnchanged':True,'provider':'DigitalOcean only','scientificBudgetUnchanged':True}
     target.write_text(json.dumps(record,indent=2)+'\n')

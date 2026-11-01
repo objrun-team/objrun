@@ -26,7 +26,7 @@ try {
         $taskMode=[regex]::Match($taskCommand,'--mode\s+(mock|live)').Groups[1].Value
         $taskPort=[regex]::Match($taskCommand,'--port\s+(\d+)').Groups[1].Value
         $taskFixture=$taskHome -cmatch '^C:\\Users\\y1252\\AppData\\Local\\Temp\\tgengin-jpg-bridge-[A-Za-z0-9]+$'
-        $taskOldRun=$taskHome -ceq 'C:\Users\y1252\.codex\visualizations\2026\10\08\01a119ed-fdf7-7c32-b323-de9bab1290b6\experiment-stores\skb-jpg-2026-10-08T10-29-51-522Z\stand'
+        $taskOldRun=$taskHome -ceq 'C:\Users\y1252\objrun-legacy-workspace\experiment-stores\skb-jpg-2026-10-08T10-29-51-522Z\stand'
         if($taskProc.CreationDate.ToUniversalTime().ToString('o') -cne $taskWanted.createdUtc -or
            $taskProc.ExecutablePath -cne 'D:\ProgramData\anaconda3\python.exe' -or
            $taskCommandSha -cne $taskWanted.commandSha256 -or

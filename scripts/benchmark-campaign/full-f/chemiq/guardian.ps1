@@ -53,7 +53,7 @@ while($true){
     if($taskResumeAllowed){& (Join-Path $PSScriptRoot 'launch.ps1')}
    }
   }
-  @{protocol='chemiq-guardian-v1';pid=$PID;atUtc=[DateTime]::UtcNow.ToString('o');watchedRunId=$taskActive.runId;watchedPid=$taskActive.pid;action=$taskAction;independentOfCodexToolSession=$true}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $taskOut 'guardian-status.json') -Encoding utf8
+  @{protocol='chemiq-guardian-v1';pid=$PID;atUtc=[DateTime]::UtcNow.ToString('o');watchedRunId=$taskActive.runId;watchedPid=$taskActive.pid;action=$taskAction;independentOfHostToolSession=$true}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $taskOut 'guardian-status.json') -Encoding utf8
  }catch{
   @{pid=$PID;atUtc=[DateTime]::UtcNow.ToString('o');error=$_.Exception.Message;action='Retain evidence; next check in60s'}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $taskOut 'guardian-status.json') -Encoding utf8
  }

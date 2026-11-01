@@ -2,7 +2,7 @@ import json,re,hashlib
 from pathlib import Path
 root=Path(__file__).resolve().parents[4]
 out=root/'docs/repair-2026-10-10/full-f-rerun/chemiq'
-session=Path('C:/Users/y1252/.codex/sessions/2026/10/10/rollout-2026-10-10T17-39-48-01a1252e-d4be-7043-be9f-3c475bc4364c.jsonl')
+session=Path('C:/Users/y1252/.codex/sessions/2026/10/10/session-2026-10-10T17-39-48.jsonl')
 source=None
 for raw in session.read_text(encoding='utf-8').splitlines():
     event=json.loads(raw)

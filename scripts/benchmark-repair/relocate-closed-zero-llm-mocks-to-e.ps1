@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $taskProject = 'F:\git\TgEngin-handoff-2026-10-07\TgEngin'
 $taskRunId = '01a119ed-fdf7-7c32-b323-de9bab1290b6'
-$taskCBase = 'C:\Users\y1252\.codex\visualizations\2026\10\08\01a119ed-fdf7-7c32-b323-de9bab1290b6\evidence-archives'
+$taskCBase = 'C:\Users\y1252\objrun-legacy-workspace\evidence-archives'
 $taskFBase = Join-Path $taskProject '.phase1-data\repair'
 $taskEBase = 'E:\objrun-experiment-cache\01a119ed-fdf7-7c32-b323-de9bab1290b6\inactive-benchmark-archives\closed-zero-llm-mocks'
 $taskMini = 'E:\objrun-experiment-cache\01a119ed-fdf7-7c32-b323-de9bab1290b6\minif2f-v415'
