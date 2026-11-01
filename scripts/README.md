@@ -16,6 +16,12 @@
 | `phase1/` | 初始阶段的入口与自检 |
 | `historical-root/` | 原仓库根目录迁入的历史脚本 |
 | `storage/` | 实验记录导出、读取、归档与核验 |
+| `conway99-search/` | Conway 99 图搜索、独立整数校验及运行审计 |
+| `ks-original-search/` | 原始三维 Kochen–Specker 射线搜索、精确几何及证书重放 |
+| `lj-bound-search/` | Lennard–Jones 统一下界的有理数校验与独立重放 |
+| `lj-conjecture-search/` | Lennard–Jones 猜想证据接收、人工复核门槛及监督收尾 |
+
+这四组脚本保留的是实验源码快照；离线校验入口、运行依赖和本地数据边界见 [开放问题实验源码说明](open-problem-searches.md)。历史运行目录、环境和凭证不随源码提交。
 
 本次目录迁移的精确旧路径与新路径见 [directory-map.json](directory-map.json)。主要对应关系如下：
 

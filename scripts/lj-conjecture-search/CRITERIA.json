@@ -1,0 +1,26 @@
+{
+  "round": 2,
+  "model": "deepseek/deepseek-v4.1-flash",
+  "definition": "N>=2 distinct points in R3; V(r)=r^-12-r^-6; E=sum(i<j)V(r_ij); all global minimizers",
+  "primary": ["proof_ge_1", "proof_gt_1", "counterexample"],
+  "secondary": ["improved_bound", "partial_lemma", "obstruction"],
+  "prior_bound_exact": "347/500 * 2^(1/6)",
+  "prior_bound_decimal": "0.77898866152670484911487193647735058426529331034",
+  "published_reference": "171/250 * 2^(1/6)",
+  "unrounded_literature_reference": "0.7684205255854960462129106898415928375437289...",
+  "primary_acceptance": "Frozen hashes + immutable evidence bundle + host independent mathematical review + replay of every proof obligation + all quantifiers/boundaries/tails/global-optimality requirements. A model-authored checker or self-evaluation is insufficient.",
+  "host_review_receipt": {
+    "primary_passed": true,
+    "claim_type": "must match frozen primary list and submitted claim",
+    "bundle_sha256": "must match immutable checker snapshot",
+    "review_report": "path under protected reviews/",
+    "replay_report": "path under protected reviews/",
+    "all_quantifiers_and_boundaries_verified": true,
+    "independent_replay_passed": true,
+    "review_report_sha256": "must match report bytes",
+    "replay_report_sha256": "must match report bytes"
+  },
+  "stop_rule": "Only certified primary success or original first-paid-plus-five-hours deadline",
+  "no_fallback_success": true,
+  "notification_policy": "Only substantive new evidence, failure, blocker or required user action"
+}
