@@ -28,7 +28,7 @@ def main():
     text=text.decode('utf-16' if text.startswith(b'\xff\xfe') else 'utf-8-sig')
     p.need('Ran 3 tests' in text and text.rstrip().endswith('OK'),'actual_F_controls_incomplete')
     controls_pin=p.save_new(p.DOC/'controls.json',dict(protocol='tb-real-package-native-controls-v1',validated=True,
-        actualPass=3,actualFail=0,childExit=0,sourcePin=p.pin(SOURCE),testPin=p.pin(ROOT/'test/tb_real_pilot_package_test.py'),
+        actualPass=3,actualFail=0,childExit=0,sourcePin=p.pin(SOURCE),testPin=p.pin(ROOT/'test/benchmarks/tb_real_pilot_package_test.py'),
         stdoutPin=p.pin(p.DOC/'controls.stdout.txt'),stderrPin=p.pin(p.DOC/'controls.stderr.txt'),
         controlScope='Own F regular file fsync/copy/readback, real fsync EBADF partial preservation and strict TB/private path selection',
         DProductionWrites=0,modelCalls=0,graderCalls=0,DockerCalls=0,originalSqliteOpened=False))

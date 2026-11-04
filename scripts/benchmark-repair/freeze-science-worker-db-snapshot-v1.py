@@ -10,7 +10,7 @@ spec = importlib.util.spec_from_file_location('snapshot_freeze', SOURCE)
 m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
 DOC = ROOT / 'docs/repair-2026-10-08/science-db-snapshot-native-controls-v1'
-TEST = ROOT / 'test/science_worker_db_snapshot_test.py'
+TEST = ROOT / 'test/benchmarks/science_worker_db_snapshot_test.py'
 PS = SOURCE.with_suffix('.ps1')
 
 def save(path, value):

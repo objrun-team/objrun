@@ -31,7 +31,7 @@ def main():
     sources = [pin(ROOT / "scripts/benchmark-repair" / name) for name in hashes]
     for item in sources:
         assert item["sha256"] == hashes[Path(item["path"]).name]
-    test = pin(ROOT / "test/paid-resource-admission-v2.test.ts")
+    test = pin(ROOT / "test/benchmarks/paid-resource-admission-v2.test.ts")
     assert test["sha256"] == "26d5a92bfd2aabc5d87166023672ce724b77e50bd8f6ee7accaa4beebc90fa11"
     unchanged = []
     for name, expected in {

@@ -60,7 +60,7 @@ write_new(auth_path,auth)
 paths=[PROJECT/'scripts/benchmark-repair/minif2f_public_cache_bulk.py',
        PROJECT/'scripts/benchmark-repair/minif2f_public_cache_bulk_stage.py',
        PROJECT/'scripts/benchmark-repair/minif2f_public_cache_bulk_stage.ps1',
-       PROJECT/'test/minif2f_public_cache_bulk_test.py',auth_path]
+       PROJECT/'test/benchmarks/minif2f_public_cache_bulk_test.py',auth_path]
 new=[pin(p)for p in paths]
 review=dict(protocol='public-cache-explicit-bulk-source-review-v1',validated=True,
     transport_protocol='explicit-root-new-key-complete-bulk-v1',real_acquisition_executed=False,real_gate_executed=False,

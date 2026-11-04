@@ -140,7 +140,7 @@ paper/current/       Paper source, figures, and plotting data
 scripts/             Shared runners, maintenance, and record tools
 site/                Website, run replays, and case study blog
 docs/                Architecture, execution loop, schemas, and reproducibility documentation
-test/                Regression tests
+test/                Unit, integration and benchmark tests; see test/README.md
 ```
 
 ## Website

@@ -29,8 +29,8 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("mode", choices=("core", "python"))
     a = p.parse_args()
-    command = [BUN, "test", "test/skb-ten-core-v2.test.ts"] if a.mode == "core" else [
-        PYTHON, "-B", "-X", "utf8", "test/skb-ten-private-v2_test.py"]
+    command = [BUN, "test", "test/benchmarks/skb-ten-core-v2.test.ts"] if a.mode == "core" else [
+        PYTHON, "-B", "-X", "utf8", "test/benchmarks/skb-ten-private-v2_test.py"]
     directory = HOME / "local-control-runs" / (a.mode + "-" + uuid.uuid4().hex)
     directory.mkdir(parents=True, exist_ok=False)
     source_directory = directory / "source-snapshots"; source_directory.mkdir()

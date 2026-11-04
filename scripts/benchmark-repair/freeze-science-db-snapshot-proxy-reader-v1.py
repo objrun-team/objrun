@@ -6,7 +6,7 @@ import _sqlite3
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT/'scripts/benchmark-repair/science-db-snapshot-proxy-read-v1.py'
-TEST = ROOT/'test/science_db_snapshot_proxy_read_test.py'
+TEST = ROOT/'test/benchmarks/science_db_snapshot_proxy_read_test.py'
 DOC = ROOT/'docs/repair-2026-10-08/science-db-snapshot-proxy-reader-controls-v1'
 spec = importlib.util.spec_from_file_location('reader_freeze',SOURCE)
 r = importlib.util.module_from_spec(spec)

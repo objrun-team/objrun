@@ -22,7 +22,7 @@ if pin(old_path)["sha256"] != "21ce70fcd2c9665f00981b9c2b2aa47a950a5130f02b86648
 old = json.loads(old_path.read_bytes())
 new_paths = [PROJECT/"scripts/benchmark-repair/minif2f_public_cache_root_carry.py",
              PROJECT/"scripts/benchmark-repair/minif2f_public_cache_root_carry.ps1",
-             PROJECT/"test/minif2f_public_cache_root_carry_test.py",
+             PROJECT/"test/benchmarks/minif2f_public_cache_root_carry_test.py",
              DOC/"minif2f-public-cache-root-carry-authorization.json"]
 new_sources = [pin(path) for path in new_paths]
 protected = {}

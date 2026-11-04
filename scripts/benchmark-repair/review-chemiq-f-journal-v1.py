@@ -52,7 +52,7 @@ for p in protected:
 peer = json.loads(PEER_RECIPE.read_bytes()); assert len(peer['sourcePins']) == 95
 for p in peer['sourcePins']:
     assert pin(p['path']) == p
-own_paths = [ROOT / 'scripts/benchmark-repair' / n for n in NAMES] + [ROOT / 'test/chemiq-f-journal-contract.test.ts']
+own_paths = [ROOT / 'scripts/benchmark-repair' / n for n in NAMES] + [ROOT / 'test/benchmarks/chemiq-f-journal-contract.test.ts']
 own = [pin(p) for p in own_paths]
 snapshots = []
 for p in own_paths:
@@ -118,7 +118,7 @@ review = {'protocol': 'chemiq-f-journal-implementation-review-v1', 'family': 'ch
     'crossFamilyGraph': {'modulePin': peer_module, 'preparationRecipePin': pin(PEER_RECIPE), 'conservativeExecutionPins': peer['sourcePins'], 'verifiedCount': 95,
                         'scanner': 'async scanChemiqFPaidRuns(root,currentRun)->{family,closedRecordedCostUpperBoundUsd,inputPins,closedRunIds}', 'jpgDScanner': 'scanJpgDRegistries(samefields);await compatible'},
     'resourceSeedTemplatePin': seed_pin, 'producerPin': pin(__file__), 'remainingConditions': pending,
-    'commands': {'zeroNetworkControlsAlreadyExecuted': "& 'C:/Users/y1252/AppData/Roaming/npm/node_modules/bun/bin/bun.exe' test 'test/chemiq-f-journal-contract.test.ts'",
+    'commands': {'zeroNetworkControlsAlreadyExecuted': "& 'C:/Users/y1252/AppData/Roaming/npm/node_modules/bun/bin/bun.exe' test 'test/benchmarks/chemiq-f-journal-contract.test.ts'",
                  'metadataOnlyPrepare': "& 'C:/Users/y1252/AppData/Roaming/npm/node_modules/bun/bin/bun.exe' 'scripts/benchmark-repair/chemiq-f-journal-campaign.ts' prepare pilot16",
                  'reviewedSeedPrepare': "& 'C:/Users/y1252/AppData/Roaming/npm/node_modules/bun/bin/bun.exe' 'scripts/benchmark-repair/chemiq-f-journal-campaign.ts' prepare pilot16 '<completed-resource-seed.json>'",
                  'notExecutedPaidRun': "& 'C:/Users/y1252/AppData/Roaming/npm/node_modules/bun/bin/bun.exe' 'scripts/benchmark-repair/chemiq-f-journal-campaign.ts' run '<reviewed-recipe.json>'"}}

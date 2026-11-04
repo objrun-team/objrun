@@ -142,7 +142,7 @@ paper/current/       论文源码、图表与绘图数据
 scripts/             通用运行器、维护与记录工具
 site/                网站、运行回放与案例博客
 docs/                架构、主循环、表结构与复现说明
-test/                回归测试
+test/                单元、集成和基准测试，入口见 test/README.md
 ```
 
 ## 网站
