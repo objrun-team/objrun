@@ -445,7 +445,7 @@ def validate_review(path, expected_sha):
         paths[f.as_posix().casefold()]=item
     own=Path(__file__).resolve()
     for f in (own,own.with_suffix(".ps1"),own.with_name("minif2f_public_cache.py"),
-              own.parents[2]/"docs/repair-2026-10-08/minif2f-restoration-preflight.json"):
+              own.parents[2]/"test/fixtures/repair/minif2f-restoration-preflight.json"):
         if f.as_posix().casefold() not in paths: raise RuntimeError("Review omits required source/profile")
     return review
 

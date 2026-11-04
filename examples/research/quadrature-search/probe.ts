@@ -1,0 +1,17 @@
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { resolve } from 'node:path';
+const dir = resolve(import.meta.dir, '../../../data/quadrature-search/preparation');
+mkdirSync(dir, {recursive:true});
+const model = 'deepseek/deepseek-v4.1-flash';
+if (!process.env.OPENROUTER_API_KEY) throw Error('Existing OPENROUTER_API_KEY unavailable');
+const models = await (await fetch('https://openrouter.ai/api/v1/models')).json() as any;
+const entry = models.data.find((m:any)=>m.id===model);
+writeFileSync(dir+'/openrouter-model.json', JSON.stringify(entry??{missing:true},null,2));
+if(!entry) throw Error('Exact model is not listed; no substitution');
+const request = {model,messages:[{role:'user',content:'Interface preflight. Reply exactly: OBJRUN_QUADRATURE_READY'}],reasoning:{effort:'none'},stream:false};
+writeFileSync(dir+'/probe.request.json',JSON.stringify(request,null,2));
+const response=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{authorization:`Bearer ${process.env.OPENROUTER_API_KEY}`,'content-type':'application/json'},body:JSON.stringify(request)});
+const body=await response.json() as any;
+writeFileSync(dir+'/probe.response.json',JSON.stringify(body,null,2));
+console.log(JSON.stringify({http:response.status,requested_model:model,response_model:body.model,content:body.choices?.[0]?.message?.content,usage:body.usage,error:body.error,native_context:entry.context_length,top_provider:entry.top_provider}));
+if(!response.ok || !body.choices?.length) process.exitCode=1;

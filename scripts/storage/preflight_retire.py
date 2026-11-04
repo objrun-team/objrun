@@ -18,7 +18,7 @@ allowed=('objrun/runs','objrun/work','objrun/.phase1-data','objrun/.scratch','ob
          'notes/paper-revisions','work/remaining12-parallel-20261018',
          'objrun/scripts/benchmark-campaign/full-f/chembench/runtime',
          'objrun/scripts/benchmark-campaign/full-f/gpqa/.runtime',
-         'objrun/scripts/code-benchmarks/runtime-snapshot',
+         'objrun/examples/benchmark/code-benchmarks/runtime-snapshot',
          'objrun/scripts/benchmark-campaign/full-f/novaeve_formal_v1',
          'objrun/scripts/benchmark-campaign/full-f/terminal-bench',
          'objrun/scripts/benchmark-campaign/full-f/skillsbench/next-segment',

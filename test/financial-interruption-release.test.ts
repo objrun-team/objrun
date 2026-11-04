@@ -63,6 +63,6 @@ test('actual acknowledgement path failure preserves intent and a blocking failur
   const failure = JSON.parse(readFileSync(join(r.home, 'release-failure.json'), 'utf8')); expect(failure.acknowledgementCommitted).toBe(false); expect(failure.successorAdmissionPermitted).toBe(false); expect(failure.scoreCertificate).toBe(false); expect(jsonPin(r.registryPin).closedPin).toBeNull();
 }, 30000);
 test('production financial proof rejects unknown, changed carry and incomplete raw-index claims', () => {
-  const report = JSON.parse(readFileSync(join(ROOT, 'docs/repair-2026-10-08/scientific-financial-interruptions/repair-2026-10-08T18-32-57-118Z-audit-v2/audit.json'), 'utf8')); expect(() => assertFixedFinancialReport(report)).not.toThrow();
+  const report = JSON.parse(readFileSync(join(ROOT, 'test/fixtures/repair/scientific-financial-interruptions/repair-2026-10-08T18-32-57-118Z-audit-v2/audit.json'), 'utf8')); expect(() => assertFixedFinancialReport(report)).not.toThrow();
   for (const patch of [{ newUnknownCount: 1 }, { newPendingCount: 1 }, { oldUnknownSettled: true }, { originalUnknownCarryNanoCny: '0' }, { rawRequestAndResponseFilesDoubleVerified: 47007 }, { scoreCertificate: true }]) expect(() => assertFixedFinancialReport({ ...report, ...patch })).toThrow();
 });

@@ -43,6 +43,6 @@ if __name__=='__main__':
                 records.append(record)
                 print(json.dumps(record),flush=True)
         output={'benchmark':'HumanEval+','release':'v0.1.10','ids':IDS,'allPassed':all(r['checkPassed'] for r in records),'records':records}
-        (ROOT/'docs/phase1/humaneval-plus-selfcheck.json').write_text(json.dumps(output,indent=2)+'\n',encoding='utf-8')
+        (ROOT/'test/fixtures/phase1/humaneval-plus-selfcheck.json').write_text(json.dumps(output,indent=2)+'\n',encoding='utf-8')
         raise SystemExit(0 if output['allPassed'] else 1)
     serve(BOOK,view,{'parsed':parsed,'correct':correct},args.port,'humaneval-plus')

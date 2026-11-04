@@ -93,7 +93,7 @@ for (const valid of [true, false]) test(`the actual adapter ${valid ? "accepts a
 
 function cashFixture(f: ReturnType<typeof fixture>, providerKind: 'real-provider' | 'local-mock' = 'real-provider') {
   const runId = "repair-2026-10-10T00-00-00-000Z";
-  const stored = resolve(import.meta.dir, "../docs/repair-2026-10-10/openrouter-deepseek-check/3d75fcaf756e44918dab4e7f5ea061ba/v41-endpoints.json");
+  const stored = resolve(import.meta.dir, "../test/fixtures/provider-check/openrouter-deepseek-check/3d75fcaf756e44918dab4e7f5ea061ba/v41-endpoints.json");
   const priceFile = join(f.directory, "fixture-price-profile.json");
   writeFileSync(priceFile, JSON.stringify({ protocol: "openrouter-usd-pricing-source-snapshot-v1", currency: "USD", model: BENCHMARK_PROVIDER.model,
     providerSlug: BENCHMARK_PROVIDER.providerSlug, reservationRates: BENCHMARK_PROVIDER.peakRates, originalResponsePin: actualPin(stored),

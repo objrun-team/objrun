@@ -4,7 +4,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "../..");
-const output = resolve(root, process.argv[2] ?? "docs/phase1/source-baseline.json");
+const output = resolve(root, process.argv[2] ?? "test/fixtures/phase1/source-baseline.json");
 const benchNames = ["_lib", "aime", "gpqa", "chembench", "chemiq", "cmt", "minif2f", "deepswe", "terminal-bench", "skillsbench", "scicode", "scibench", "scienceagentbench", "atomworld", "astrovisbench", "llm-srbench", "biocoder", "atmossci-bench", "lab-bench", "scienceworld", "putnambench", "humaneval-plus"];
 const files: { path: string; sha256: string; bytes: number }[] = [];
 function walk(dir: string) {
@@ -20,7 +20,7 @@ function walk(dir: string) {
     }
   }
 }
-for (const path of ["app/src", "app/scripts", "test", "scripts/phase1", "scripts/scibench", ...benchNames.map(name => `examples/benchmark/${name}`)]) walk(join(root, path));
+for (const path of ["app/src", "app/scripts", "test", "scripts/phase1", "examples/benchmark/scibench/experiments", ...benchNames.map(name => `examples/benchmark/${name}`)]) walk(join(root, path));
 for (const path of ["app/package.json", "app/bun.lock", "app/tsconfig.json", "config.yaml"]) {
   try { const bytes = readFileSync(join(root, path)); files.push({ path, sha256: createHash("sha256").update(bytes).digest("hex"), bytes: bytes.length }); } catch {}
 }

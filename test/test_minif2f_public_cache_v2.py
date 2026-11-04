@@ -106,7 +106,7 @@ new = load("public_body_v2_controls","minif2f_public_cache_v2.py") if "--baselin
 def fixture_review(module, extra=()):
     own=Path(module.__file__).resolve()
     files=[own,own.with_suffix(".ps1"),own.with_name("minif2f_public_cache.py"),
-           own.parents[2]/"docs/repair-2026-10-08/minif2f-restoration-preflight.json",*extra]
+           own.parents[2]/"test/fixtures/repair/minif2f-restoration-preflight.json",*extra]
     rows=[dict(path=f.as_posix(),bytes=f.stat().st_size,
                sha256=hashlib.sha256(f.read_bytes()).hexdigest()) for f in files]
     document=dict(protocol=module.REVIEW_PROTOCOL,validated=True,
@@ -441,7 +441,7 @@ class ProtocolTests(unittest.TestCase):
                 (folder/name).write_bytes((SCRIPTS/name).read_bytes())
             profile=project/"docs/repair-2026-10-08";profile.mkdir(parents=True)
             (profile/"minif2f-restoration-preflight.json").write_bytes(
-                (PROJECT/"docs/repair-2026-10-08/minif2f-restoration-preflight.json").read_bytes())
+                (PROJECT/"test/fixtures/repair/minif2f-restoration-preflight.json").read_bytes())
             spec=importlib.util.spec_from_file_location("executing_copy_source_control",folder/"minif2f_public_cache_v2.py")
             module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
         p=root()
@@ -489,7 +489,7 @@ if __name__=="__main__":
     if "--baseline-red" in sys.argv:
         try:baseline_reproduction()
         finally:
-            (PROJECT/"docs/repair-2026-10-08/minif2f-public-cache-v2-startup-red.json").write_bytes(
+            (PROJECT/"test/fixtures/repair/minif2f-public-cache-v2-startup-red.json").write_bytes(
                 (json.dumps(EVIDENCE,indent=2)+"\n").encode())
     else:
         suite=unittest.defaultTestLoader.loadTestsFromTestCase(ProtocolTests)
@@ -497,6 +497,6 @@ if __name__=="__main__":
         EVIDENCE.update(passed=result.wasSuccessful(),testsRun=result.testsRun,
                        failures=len(result.failures),errors=len(result.errors),
                        source_sha256=hashlib.sha256((SCRIPTS/"minif2f_public_cache_v2.py").read_bytes()).hexdigest())
-        (PROJECT/"docs/repair-2026-10-08/minif2f-public-cache-v2-controls.json").write_bytes(
+        (PROJECT/"test/fixtures/repair/minif2f-public-cache-v2-controls.json").write_bytes(
             (json.dumps(EVIDENCE,indent=2)+"\n").encode())
         raise SystemExit(0 if result.wasSuccessful() else 1)

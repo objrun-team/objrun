@@ -73,6 +73,6 @@ if __name__=='__main__':
                 record={'id':item['rawId'],'kind':kind,'checkPassed':bool(verdict.get('valid') and (verdict.get('passed') if kind=='reference' else not verdict.get('passed'))),**verdict}
                 records.append(record); print(json.dumps(record),flush=True)
         output={'allPassed':all(r['checkPassed'] for r in records),'records':records,'variant':'public author release LSR-Transform','threshold':.01}
-        (ROOT/'docs/phase1/llm-srbench-selfcheck.json').write_text(json.dumps(output,indent=2)+'\n',encoding='utf-8')
+        (ROOT/'test/fixtures/phase1/llm-srbench-selfcheck.json').write_text(json.dumps(output,indent=2)+'\n',encoding='utf-8')
         raise SystemExit(0 if output['allPassed'] else 1)
     ThreadingHTTPServer(('127.0.0.1',args.port),Handler).serve_forever()

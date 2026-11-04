@@ -2,7 +2,7 @@
 
 固定官方 revision `6c6fe63a8c87f15e8fa05f3bcb549a3d44190b5d`，Realistic 条件。排除人工题 autonomous-de，保留 45 个单任务和一个四阶段任务，对应 49 个科学问题。四组为单次、真实 ObjRun、独立采样、二值反馈，费用不对齐，无单题美元上限。
 
-运行实现位于 `scripts/theophyseval/`。本轮工作目录为工作区 `tmp/theophyseval-20261016-v3/`，控制器在宿主 Windows 运行，科学计算通过 Harbor 0.22.0 的 DockerEnvironment 在官方固定镜像中执行。Python 依赖单独安装在 `tmp/theophyseval-runtime/venv/`。评分使用官方 grader_runtime 的原函数，在可信宿主 Python 进程中执行；评分器不执行候选代码，也不向求解容器挂载 tests 或标准答案。
+运行实现位于 `examples/benchmark/theophyseval/experiments/`。本轮工作目录为工作区 `tmp/theophyseval-20261016-v3/`，控制器在宿主 Windows 运行，科学计算通过 Harbor 0.22.0 的 DockerEnvironment 在官方固定镜像中执行。Python 依赖单独安装在 `tmp/theophyseval-runtime/venv/`。评分使用官方 grader_runtime 的原函数，在可信宿主 Python 进程中执行；评分器不执行候选代码，也不向求解容器挂载 tests 或标准答案。
 
 `prepare.py` 固定数据、隔离公开和私有材料，并复用已审计 SciCode 引擎快照。原生引擎每个求解单元 c5、600 秒、4 分支、12 units。其他三组每阶段使用最多 12 次工具求解模型调用、600 秒，一轮表示完整任务流程；独立和二值最多 5 轮，整题通过即停。独立每轮新容器与新上下文，二值保留本题上下文和环境，但外部正确性信息只返回整题 passed 或 failed。四阶段各组只继承本轮实际计算的 handoff，独立重试必须从第一阶段重来。
 

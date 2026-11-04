@@ -8,7 +8,7 @@ import {actualPin,cny,hash,nanoCny,peakWindow,pricedUsage,type Clock} from '../s
 import {createCampaignJournal} from '../scripts/benchmark-repair/campaign-journal.ts';
 
 const main=resolve(import.meta.dir,'..'),area=join(main,'.scratch/paid-resource-admission-v2');mkdirSync(area,{recursive:true});const baseline=mkdtempSync(join(area,'baseline-'));
-const faultRel='docs/repair-2026-10-08/scientific-campaign-deferred-fault.json',balanceRel='docs/repair-2026-10-08/deepseek-balance-readonly.json',priceRel='docs/repair-2026-10-08/deepseek-cny-price-readonly.json',pidRel='docs/repair-2026-10-08/science1220-oom-original-process-closure.json';
+const faultRel='test/fixtures/repair/scientific-campaign-deferred-fault.json',balanceRel='test/fixtures/repair/deepseek-balance-readonly.json',priceRel='test/fixtures/repair/deepseek-cny-price-readonly.json',pidRel='test/fixtures/repair/science1220-oom-original-process-closure.json';
 const legacyIds=['repair-2026-10-08T06-06-06-739Z','repair-2026-10-08T06-06-41-201Z'];
 const fault=JSON.parse(readFileSync(join(main,faultRel),'utf8'));const rels=[faultRel,balanceRel,priceRel,pidRel,...fault.identity.originalEvidenceFiles.filter((x:any)=>['manifest.json','source.json','summary.json','api-ledger.json','frozen-source.json','frozen-source.zip'].includes(x.path.split(/[\\/]/).at(-1))).map((x:any)=>x.path),...fault.deferredCalls.map((x:any)=>x.requestGzip.path),...legacyIds.flatMap(id=>['api-ledger.json','summary.json','source.json','manifest.json','frozen-source.json'].map(name=>'docs/repair-2026-10-08/campaigns/'+id+'/'+name))];
 for(const rel of rels){const target=join(baseline,rel);mkdirSync(dirname(target),{recursive:true});copyFileSync(join(main,rel),target);}

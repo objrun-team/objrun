@@ -1,6 +1,6 @@
 # LAB-Bench ProtocolQA and SeqQA
 
-The owned runner is in `scripts/labbench/`. It evaluates the 108 ProtocolQA and
+The owned runner is in `examples/benchmark/labbench/experiments/`. It evaluates the 108 ProtocolQA and
 600 SeqQA public MCQs at upstream revision 998a8e0a40cf116c80e1b0e7a805ebb5fb9fa838.
 Only baseline and native ObjRun run. OpenRouter is pinned to DigitalOcean.
 

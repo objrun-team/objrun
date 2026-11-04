@@ -12,7 +12,7 @@ import threading
 import time
 
 PROJECT=Path(__file__).resolve().parents[2]
-REVIEW_PATH=PROJECT/"docs/repair-2026-10-08/minif2f-public-cache-bulk-review.json"
+REVIEW_PATH=PROJECT/"test/fixtures/repair/minif2f-public-cache-bulk-review.json"
 spec=importlib.util.spec_from_file_location("explicit_bulk_kernel",Path(__file__).with_name("minif2f_public_cache_bulk.py"))
 k=importlib.util.module_from_spec(spec);spec.loader.exec_module(k)
 b,c=k.base,k.carry
@@ -30,7 +30,7 @@ def review(expected):
         name=str(Path(p["path"]).resolve()).casefold()
         if name in found:raise RuntimeError("Duplicate reviewed path")
         found.add(name);c.pinned(p["path"],p["sha256"],p["bytes"])
-    for p in (Path(__file__),Path(__file__).with_suffix(".ps1"),Path(k.__file__),PROJECT/"docs/repair-2026-10-08/minif2f-restoration-preflight.json"):
+    for p in (Path(__file__),Path(__file__).with_suffix(".ps1"),Path(k.__file__),PROJECT/"test/fixtures/repair/minif2f-restoration-preflight.json"):
         if str(p.resolve()).casefold() not in found:raise RuntimeError("Omitted required bulk source/profile")
     return data
 

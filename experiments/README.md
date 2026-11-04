@@ -1,25 +1,10 @@
-# 实验登记与归档入口
+# 实验资料
 
-实验记录正文已于 2026-11-04 搬到仓库外，Git 历史中的正文已清理。[records/](records/README.md) 保留运行索引、摘要、覆盖报告和校验清单；Hugging Face 尚未上传。下列原有清单继续提供历史来源定位，不代表全部来源已经选入本轮交付。
+- [记录索引与正文读取](records/README.md)：运行范围、摘要、覆盖及外置正文位置。
+- [数据与归档规则](../docs/storage.md)：当前目录边界和历史材料恢复。
+- [benchmark-catalog.csv](benchmark-catalog.csv)：论文 Bench 来源。
+- [paper-selection.csv](paper-selection.csv)：论文协议及来源登记。
+- [archive-catalog.json](archive-catalog.json)、[collection-roots.csv](collection-roots.csv)、[catalog.csv](catalog.csv)：早期原档的恢复与来源定位。
+- [外部来源映射](provenance/external-source-map.json)、[历史源码依赖](provenance/historical-source-dependencies.json)、[不可读来源](provenance/unreadable-paths.json)：复现边界。
 
-| 文件 | 范围 |
-|---|---|
-| [benchmark-catalog.csv](benchmark-catalog.csv) | 论文中 20 项 Bench 的主要来源 |
-| [collection-roots.csv](collection-roots.csv) | 133 个已发现收集根，不代表全部逐次尝试 |
-| [catalog.csv](catalog.csv) | 旧 runs 下 60 个直属目录的基础登记；完整运行清单仍需扩展 |
-| [paper-selection.csv](paper-selection.csv) | 当前 v6.25 的分母、协议及来源登记 |
-| [provenance/local-path-map.json](provenance/local-path-map.json) | 本地迁移与旧路径兼容映射 |
-| [archive-catalog.json](archive-catalog.json) | 已验证收集的快照、原路径、文件数、哈希清单和恢复状态 |
-| [storage-policy.md](storage-policy.md) | 用户确认的保留、压缩与排除规则 |
-| [provenance/unreadable-paths.json](provenance/unreadable-paths.json) | 7 个保留原位、未读取且未归档的目录 |
-| [provenance/external-source-map.json](provenance/external-source-map.json) | 早期目录链接指向的盘外实际数据及只读收集对应关系 |
-
-仓库外 `_objrun-archive/` 的 66 批原档是新记录筛选的核对来源。原档在新包验收前继续保留，本轮不删除，验收后仅登记待检查的可清理范围。它们不再作为发布资产。
-
-日常列出运行、读取轨迹、恢复日志使用 [记录工具](records/README.md)，正文操作需要通过 --root 指定完整外置记录目录。CSV 中 `local_archive_ids` 仅保留原档核对来源；原有 `discovery_only`、分母和分数映射待审状态仍然有效，文件导出不能冒充逐次尝试语义全部审计。
-
-此前使用 Release 附件存放日志的计划已取消。索引和摘要保持易读，压缩记录实体和详细重组映射保存在外置目录，Git 保留必要校验清单；完整覆盖与核验状态见 records/reports/。
-
-SciCode 的独立输出目录采用只读归档，C 盘原件保留；具体状态见 `scicode-external` 收集。三项外部 U 参照不代表存在本地配对轨迹。
-
-本轮继续补入 LabBench、Terminal-Bench、SkillsBench、ChemIQ 等此前延期来源中的真实详细记录，原有 OlympiadBench、SciBench、TheoPhysEval、ClassEval、BIRD 分片保持不变。当前逐 Bench 的文件引用、运行范围、体积、缺损和恢复结果见 [覆盖说明](records/summaries/coverage.md)。旧选择报告仅代表当时的交付快照；原档仍保留，七个不可读目录不改权限。
+索引中的日期、旧路径和哈希保持其历史含义。它们不代表所有来源都已完整恢复；实际覆盖与缺损以 records 中的报告为准。旧整理清单、阶段报告和搬迁过程保存在仓库外备份。

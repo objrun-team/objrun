@@ -1,39 +1,14 @@
-# 脚本目录
-
-目录按 Bench 或职责命名，新增目录使用小写单词和连字符，不在目录名中加入运行日期。运行日期、任务标识和执行版本记录在实验索引与输出中；既有 Python 包名、协议标识和文件名保留其原有约定。
+# 通用工具
 
 | 目录 | 用途 |
 | --- | --- |
-| `bench-runner/` | 通用运行器、执行与审计协议 |
-| `benchmark-repair/` | 多 Bench 的诊断、修复、资源与评分核验 |
-| `terminal-bench-repair/` | Terminal-Bench 的多任务修复、准备与恢复 |
-| `benchmark-campaign/` | 多 Bench 的批次执行、共享适配器与恢复协调 |
-| `code-benchmarks/` | BIRD、ClassEval 的代码和 SQL 评测 |
-| `evalplus/` | HumanEval+、MBPP+ 的执行、判分与恢复 |
-| `gpqa-binary/` | GPQA 的二值反馈运行 |
-| `frontierscience/`、`labbench/`、`olympiadbench/`、`scibench/`、`theophyseval/` | 对应 Bench 的专用脚本 |
-| `minif2f-formal/`、`minif2f-ablation/` | miniF2F 的正式实验与消融 |
-| `phase1/` | 初始阶段的入口与自检 |
-| `historical-root/` | 原仓库根目录迁入的历史脚本 |
-| `storage/` | 实验记录导出、读取、归档与核验 |
-| `conway99-search/` | Conway 99 图搜索、独立整数校验及运行审计 |
-| `ks-original-search/` | 原始三维 Kochen–Specker 射线搜索、精确几何及证书重放 |
-| `lj-bound-search/` | Lennard–Jones 统一下界的有理数校验与独立重放 |
-| `lj-conjecture-search/` | Lennard–Jones 猜想证据接收、人工复核门槛及监督收尾 |
+| `bench-runner/` | 通用任务接入、执行状态、恢复与结果保留 |
+| `benchmark-campaign/` | 多 Bench 共用的提供方、执行协调和冻结适配层 |
+| `benchmark-repair/` | 共用协议、资源/评分核验及恢复实现；部分模块被测试和适配器直接引用 |
+| `terminal-bench-repair/` | Terminal-Bench/SkillsBench 共用的隔离、工具网关及运行支持 |
+| `phase1/` | 多 Bench 共用的数据准备与自检 |
+| `storage/` | 实验记录读取、校验、导出和归档 |
 
-这四组脚本保留的是实验源码快照；离线校验入口、运行依赖和本地数据边界见 [开放问题实验源码说明](open-problem-searches.md)。历史运行目录、环境和凭证不随源码提交。
+独立 Bench 实验已放入 [examples/benchmark](../examples/benchmark/README.md)，科学问题实验放入 [examples/research](../examples/research/README.md)。这些目录提供具体实验入口；上表目录保留被多个入口使用的公共实现。
 
-本次目录迁移的精确旧路径与新路径见 [directory-map.json](directory-map.json)。主要对应关系如下：
-
-| 原目录 | 当前目录 |
-| --- | --- |
-| `evalplus-20261012/` | `evalplus/` |
-| `gpqa-binary-20261018/` | `gpqa-binary/` |
-| `newbench-20261014/` | `code-benchmarks/` |
-| `repair-2026-10-08/` | `benchmark-repair/` |
-| `repair-2026-10-09/` | `terminal-bench-repair/` |
-| `repair-2026-10-10/` | `benchmark-campaign/` |
-
-`benchmark-campaign/full-f/` 及其 `skillsbench/next-segment/` 下的 `parallel-prep` 目录也已去掉日期；`pipeline-mailbox-root-transport-probe` 版本目录采用同样规则。
-
-当前源码的导入、脚本调用和忽略规则使用新路径。实验日志、来源清单、已签名或按哈希锁定的发布回执，以及冻结快照中的原路径保留原值，可结合迁移表定位当前源码；历史源码的字节与哈希仍以对应归档或 Git 版本为准。`docs/` 下的历史输出目录不随脚本改名。
+[directory-map.json](directory-map.json) 记录旧源码路径与当前路径，以及测试固定输入的位置。历史运行证据中的路径、哈希、截止时间和配置不做全局改写；复现原执行版本需要对应的外置原档。

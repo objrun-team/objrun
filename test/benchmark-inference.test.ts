@@ -37,7 +37,7 @@ test("original 16384-token output budget is admitted without accepting malformed
 test("Terminal-Bench's actual HTTP gateway preserves solve thinking and permits forced submit", async () => {
   const output = join(root, ".scratch", "benchmark-tb-gateway-" + randomUUID());
   mkdirSync(output, { recursive: true });
-  const prices = JSON.parse(readFileSync(join(root, "docs/repair-2026-10-08/deepseek-cny-price-readonly.json"), "utf8"));
+  const prices = JSON.parse(readFileSync(join(root, "test/fixtures/repair/deepseek-cny-price-readonly.json"), "utf8"));
   prices.observedAtUtc = new Date().toISOString();
   prices.retrieval = "Synthetic timestamp for a zero-provider gateway test; not a new price observation";
   const pricePath = join(output, "fixture-prices.json");

@@ -253,7 +253,7 @@ if __name__ == '__main__':
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     EVIDENCE.update(tests_run=result.testsRun, failures=len(result.failures), errors=len(result.errors),
                     skipped=len(result.skipped), validated=result.wasSuccessful(), source_sha256=fast.sha(SOURCE))
-    out = PROJECT / 'docs/repair-2026-10-08/minif2f-fast-unpack-fixture.json'
+    out = PROJECT / 'test/fixtures/repair/minif2f-fast-unpack-fixture.json'
     out.write_text(json.dumps(EVIDENCE, indent=2) + '\n', encoding='utf-8')
     print(json.dumps({'validated': EVIDENCE['validated'], 'tests': result.testsRun, 'report': str(out), 'e_write': False}))
     sys.exit(0 if result.wasSuccessful() else 1)

@@ -26,7 +26,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CORPUS = ROOT / ".phase1-data/skillsbench/vendor/skillsbench"
-DEFAULT_REPORT = ROOT / "docs/repair-2026-10-08/software-preflight.json"
+DEFAULT_REPORT = ROOT / "test/fixtures/repair/software-preflight.json"
 ADAPTER = ROOT / "examples/benchmark/skillsbench/stand.py"
 PIN = "b63b7b2850226b6aa4fb5929a8c1ac7bc4d9a6af"
 

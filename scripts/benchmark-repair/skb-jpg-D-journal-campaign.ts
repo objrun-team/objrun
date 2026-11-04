@@ -21,7 +21,7 @@ import { finalCandidate } from '../../app/src/objective/candidate.ts';
 import { graderFetch } from '../../app/src/engine/registry.ts';
 
 const ROOT=resolve(import.meta.dir,'../..'), CROOT='C:/Users/y1252/.codex/visualizations/2026/10/08/01a119ed-fdf7-7c32-b323-de9bab1290b6';
-const AUDITOR=join(import.meta.dir,'audit-jpg-D-journal-campaign.py'), PLAN=join(ROOT,'docs/repair-2026-10-08/jpg-journal-paid-readiness-plan.json');
+const AUDITOR=join(import.meta.dir,'audit-jpg-D-journal-campaign.py'), PLAN=join(ROOT,'test/fixtures/repair/jpg-journal-paid-readiness-plan.json');
 let nativeDEnvironment:NodeJS.ProcessEnv|undefined,activeDescriptor:JpgDDescriptor|undefined;
 type Engine=Awaited<ReturnType<typeof tbEngine>>;
 /** Native, bounded direct child. stdout is discarded to keep host credentials out of logs. */
@@ -87,8 +87,8 @@ export function prepareJpgJournal(input:{providerKind:'local-mock'|'real-provide
   const prepared=join(ROOT,'docs/repair-2026-10-08/jpg-D-journal-preparations',runId),taskRoot=join(ROOT,'.phase1-data/skillsbench/vendor/skillsbench/tasks');
   const catalog=readdirSync(taskRoot,{withFileTypes:true}).filter(row=>row.isDirectory()&&existsSync(join(taskRoot,row.name,'task.md'))).map(row=>({id:row.name,publicTaskSha256:fileHash(join(taskRoot,row.name,'task.md'))})).sort((a,b)=>a.id.localeCompare(b.id));
   demand(catalog.length===87&&catalog.some(row=>row.id===TASK_ID),'jpg_source_catalog_count');
-  const image=join(ROOT,'docs/repair-2026-10-08/software-jpg-build-copy-verified-v2/image-manifest.json'),build=join(dirname(image),'build-proof.json'),b=jsonPin(actualPin(build));
-  const gates={controls:actualPin(join(ROOT,'docs/repair-2026-10-08/software-jpg-controls-copy-verified-v3/report.json')),image:actualPin(image),build:actualPin(build),profile:actualPin(b.dependencyProfilePath)};loadJpgGates(ROOT,gates);
+  const image=join(ROOT,'test/fixtures/repair/software-jpg-build-copy-verified-v2/image-manifest.json'),build=join(dirname(image),'build-proof.json'),b=jsonPin(actualPin(build));
+  const gates={controls:actualPin(join(ROOT,'test/fixtures/repair/software-jpg-controls-copy-verified-v3/report.json')),image:actualPin(image),build:actualPin(build),profile:actualPin(b.dependencyProfilePath)};loadJpgGates(ROOT,gates);
   const runtime=join(ROOT,'examples/benchmark/terminal-bench/.runtime'),artifacts:{name:string;pin:Pin}[]=[];
   for(const name of readdirSync(runtime))if(lstatSync(join(runtime,name)).isFile())artifacts.push({name:'runtime/'+name,pin:actualPin(join(runtime,name))});
   const profile=jsonPin(gates.profile);for(const row of profile.assets)artifacts.push({name:'grader-dependencies/'+row.path,pin:actualPin(resolve(dirname(gates.profile.path),row.path))});
@@ -99,7 +99,7 @@ export function prepareJpgJournal(input:{providerKind:'local-mock'|'real-provide
   const base=process.env.OBJRUN_SKB_ARCHIVE_BASE??join(CROOT,'experiment-stores/skb-jpg-2026-10-08T10-44-53-897Z/frozen-source.zip');
   for(const name of ['descriptorPin','ramPlanPin','profileReviewPin','namespaceProofPin']as const){const pin=input.DStorage[name];if(pin)artifacts.push({name:'storage/'+name+'.json',pin});}
   const r:JpgRecipe={protocol:'jpg-D-journal-recipe-v1',family:JPG_FAMILY,runId,createdAtUtc:new Date().toISOString(),mode:input.providerKind,output,store,prices:input.prices,balance:input.balance,DStorage:input.DStorage,financialBoundary:input.financialBoundary??ACTUAL_FINANCIAL_INTERRUPTED_BOUNDARY,
-    deferredFault:actualPin(join(ROOT,'docs/repair-2026-10-08/scientific-campaign-deferred-fault.json')),originalPidClosure:actualPin(join(ROOT,'docs/repair-2026-10-08/science1220-oom-original-process-closure.json')),
+    deferredFault:actualPin(join(ROOT,'test/fixtures/repair/scientific-campaign-deferred-fault.json')),originalPidClosure:actualPin(join(ROOT,'test/fixtures/repair/science1220-oom-original-process-closure.json')),
     requestedNewEnvelopeCny:input.envelopeCny,headroomCny:'30',capUsd:input.capUsd,priorCampaignCostUpperBoundUsd:input.priorUsd,sourcePins:jpgSourceFiles(ROOT),artifacts,gates,publicDependencyArchive:actualPin(base),approvedNativeProfile:actualPin(NATIVE_PROFILE_PATH),readinessPlan:actualPin(PLAN),coldMockCertificate:input.coldMockCertificate,
     hostRuntime:{bun:actualPin(process.execPath),bunVersion:Bun.version,python:actualPin(loadNativePython().executable),distributionArchived:false},formalPaidReady:false,sourceTaskCount:87,supportedTaskIds:[TASK_ID],unsupportedTaskCount:86,taskSeconds:1800,verifierSeconds:600,checks:6};
   validateJpgRecipe(r);allowedStore(r);loadNativePython();durableJpgJson(join(prepared,'recipe.json'),r);

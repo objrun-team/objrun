@@ -21,5 +21,28 @@
     "../examples/**/*.ts",
     "../test/**/*.ts",
     "../scripts/phase1/**/*.ts"
+  ],
+  "exclude": [
+    "../examples/research/conway99-search/**",
+    "../examples/research/covering-array-search/**",
+    "../examples/research/dna-code-search/**",
+    "../examples/research/ks-original-search/**",
+    "../examples/research/lj-bound-search/**",
+    "../examples/research/lj-conjecture-search/**",
+    "../examples/research/quadrature-search/**",
+    "../examples/research/rk-search/**",
+    "../examples/research/rna-bound-search/**",
+    "../examples/research/spherical-landscape/**",
+    "../examples/benchmark/climaqa/**",
+    "../examples/benchmark/code-benchmarks/**",
+    "../examples/benchmark/evalplus/**",
+    "../examples/benchmark/frontierscience/**",
+    "../examples/benchmark/gpqa/binary/**",
+    "../examples/benchmark/labbench/experiments/**",
+    "../examples/benchmark/minif2f/ablation/**",
+    "../examples/benchmark/minif2f/formal/**",
+    "../examples/benchmark/olympiadbench/experiments/**",
+    "../examples/benchmark/scibench/experiments/**",
+    "../examples/benchmark/theophyseval/experiments/**"
   ]
 }

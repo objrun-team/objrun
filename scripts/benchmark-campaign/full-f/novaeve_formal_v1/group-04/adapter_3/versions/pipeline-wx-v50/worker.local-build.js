@@ -2515,8 +2515,8 @@ var init_financial_interruption_release = __esm(async () => {
   REGISTRY = { path: join21(META2, "paid-resource-v2-run.json"), bytes: 393, sha256: "b635eef60fd169d6133c39f5bcfd4f0f50d3d46b00d26723f7f08e6ce8c47d8a" };
   PROOF = { path: join21(import.meta.dir, "paid-resource-proof-v2.ts"), bytes: 10106, sha256: "b1bacd465d2a76ca166e8048ac8ee83f152f6b9f21600770b39ec6a9864813fe" };
   SNAPSHOT_SOURCE = { path: join21(import.meta.dir, "science-worker-db-snapshot-v1.py"), bytes: 20986, sha256: "3d3c408fa18cc76569f841bf3af68366fb68d4adcb167781a7b030dd65573d32" };
-  SNAPSHOT_REVIEW = { path: join21(ROOT5, "docs/repair-2026-10-08/science-db-snapshot-native-controls-v1/review.json"), sha256: "c382728966b8ecae1c2e934dd22404ee40483948e9d6c10f24125003870a574e" };
-  SNAPSHOT_RECEIPT = { path: join21(ROOT5, "docs/repair-2026-10-08/science-db-snapshots/root-snapshot-2026-10-09T04-10-v1.json"), bytes: 43523, sha256: "8134c6e96ef8718615da901548f2c0c6ada7076ee15543c4723c555ba2a36220" };
+  SNAPSHOT_REVIEW = { path: join21(ROOT5, "test/fixtures/repair/science-db-snapshot-native-controls-v1/review.json"), sha256: "c382728966b8ecae1c2e934dd22404ee40483948e9d6c10f24125003870a574e" };
+  SNAPSHOT_RECEIPT = { path: join21(ROOT5, "test/fixtures/repair/science-db-snapshots/root-snapshot-2026-10-09T04-10-v1.json"), bytes: 43523, sha256: "8134c6e96ef8718615da901548f2c0c6ada7076ee15543c4723c555ba2a36220" };
   OWNER = { pid: 104376, startedAt: "2026-10-08T18:35:52.317Z", runId: FINANCIAL_RUN, entry: join21(import.meta.dir, "scientific-journal-campaign.ts"), ownerNonce: "a324165d98aa2edcca6aee98d1ef2099ba6defaac020e4c4", mode: "carry-science-oom-2026-10-08-v2", policyFaultSha256: "b56760e02fc14725c7fede86457f6155cb3aa4fdeefa9001b2248282a1cb0357" };
   OUTPUT_ROOT = join21(ROOT5, "docs/repair-2026-10-08/scientific-financial-releases");
   FIXTURE_ROOT = join21(ROOT5, ".scratch/financial-release-controls");
@@ -2545,7 +2545,7 @@ var init_financial_interruption_closure_v1 = __esm(async () => {
   REGISTRY2 = { path: join22(META3, "paid-resource-v2-run.json"), bytes: 393, sha256: "b635eef60fd169d6133c39f5bcfd4f0f50d3d46b00d26723f7f08e6ce8c47d8a" };
   LOCK2 = { path: join22(ROOT6, ".phase1-data/owned-paid-campaign.lock.json"), bytes: 432, sha256: "31fa74df0ee0d7c32d1832a4eec3fc2f89e61efe3c4cf54ebe862dd0d488dd53" };
   FIRST3 = { path: join22(ROOT6, "docs/repair-2026-10-08/scientific-interruption-" + FINANCIAL_RUN, "first-pass.json"), bytes: 35517, sha256: "204cc6a0bfa793934b4abdfd78534a57ee606295feffe24a6878c76732652758" };
-  IDENTITY = { path: join22(ROOT6, "docs/repair-2026-10-08/science-db-snapshots/root-proxy-identity-routed-v2/proxy-port-identity.json"), bytes: 9977, sha256: "66f88e99a6d63aa2ab92c4146611d6e5cc11729c03077d629a2b81d629cad1d8" };
+  IDENTITY = { path: join22(ROOT6, "test/fixtures/repair/science-db-snapshots/root-proxy-identity-routed-v2/proxy-port-identity.json"), bytes: 9977, sha256: "66f88e99a6d63aa2ab92c4146611d6e5cc11729c03077d629a2b81d629cad1d8" };
   ACTUAL_FINANCIAL_INTERRUPTED_BOUNDARY = Object.freeze({ acknowledgementPin: ACK, originalLockArchivePin: LOCK_ARCHIVE });
 });
 

@@ -2,8 +2,8 @@
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { Database } from "bun:sqlite";
-import { actualPin, demand, hash, jsonPin, same, verifyPin } from "./../benchmark-repair/paid-resource-proof-v2.ts";
-import { verifyCashClosure } from "./../benchmark-repair/cny-cash-shadow-v2.ts";
+import { actualPin, demand, hash, jsonPin, same, verifyPin } from "../benchmark-repair/paid-resource-proof-v2.ts";
+import { verifyCashClosure } from "../benchmark-repair/cny-cash-shadow-v2.ts";
 import { durable, resourceGuard } from "./tb12-v1/paid_admission.ts";
 import { nativePython } from "./tb12-v2/close_certificate.ts";
 

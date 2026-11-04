@@ -5,7 +5,7 @@ import { CHEMIQ_F_ROOT, loadChemiqFPlan } from '../scripts/benchmark-repair/chem
 import { assertChemiqPrivateBridgeObservation } from '../scripts/benchmark-repair/chemiq-private-boundary-v2.ts';
 import { chemiqCashEnvelope } from '../scripts/benchmark-repair/chemiq-f-paid-admission-v2.ts';
 const root=CHEMIQ_F_ROOT;
-const original=JSON.parse(readFileSync(join(root,'docs/repair-2026-10-08/chemiq-f-journal-implementation-v2/observations/private-inspect-2026-10-09T08-28-01-515672+00-00.json'),'utf8'));
+const original=JSON.parse(readFileSync(join(root,'test/fixtures/repair/chemiq-f-journal-implementation-v2/observations/private-inspect-2026-10-09T08-28-01-515672+00-00.json'),'utf8'));
 test('only the actual original bridge service with its exact protected configuration is accepted',()=>{
   expect(()=>assertChemiqPrivateBridgeObservation(original,root)).not.toThrow();
   const faults=[

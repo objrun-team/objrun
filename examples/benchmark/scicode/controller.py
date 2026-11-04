@@ -62,7 +62,7 @@ def selfcheck(ids):
             record = {"problem": "5", "kind": label, **result, "checkPassed": bool(result.get("valid")) and not result.get("passed")}
             records.append(record)
             print(json.dumps(record), flush=True)
-    output = ROOT / "docs/phase1/scicode-selfcheck.json"
+    output = ROOT / "test/fixtures/phase1/scicode-selfcheck.json"
     passed = all(r.get("valid") and r.get("passed") if r["kind"] == "reference" else r.get("checkPassed", False) for r in records)
     output.write_text(json.dumps({"variant": "SciCode-Verified v2", "ids": ids, "records": records, "allPassed": passed}, indent=2) + "\n", encoding="utf-8")
     return passed

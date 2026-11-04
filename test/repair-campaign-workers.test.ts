@@ -48,6 +48,6 @@ test("four real local workers share one mock provider and a fixed mixed-benchmar
     expect(new Set(engines.map(engine=>engine.pid)).size).toBe(4);
     expect(completed.sort((a,b)=>a-b)).toEqual(plan.map((_,i)=>i));
     expect(calls).toBe(16);expect(peak).toBe(4);expect(active).toBe(0);
-    writeFileSync(join(import.meta.dir,"../docs/repair-2026-10-08/campaign-four-worker-local.json"),JSON.stringify({observedAt:new Date().toISOString(),valid:true,scope:"Local mock preparation only; no benchmark score",realLLMRequests:0,costUsd:0,mockCompletionCalls:calls,providerPeakRequests:peak,workerPids:engines.map(engine=>engine.pid),workerPreflight:admission,schedule:plan.map((task,index)=>({index,...task})),completedIndices:completed,oneProvider:true},null,2)+"\n");
+    writeFileSync(join(import.meta.dir,"../test/fixtures/repair/campaign-four-worker-local.json"),JSON.stringify({observedAt:new Date().toISOString(),valid:true,scope:"Local mock preparation only; no benchmark score",realLLMRequests:0,costUsd:0,mockCompletionCalls:calls,providerPeakRequests:peak,workerPids:engines.map(engine=>engine.pid),workerPreflight:admission,schedule:plan.map((task,index)=>({index,...task})),completedIndices:completed,oneProvider:true},null,2)+"\n");
   } finally {await Promise.all(engines.map(engine=>engine.stop()));await provider.stop(true);process.env.OBJRUN_WORKER_TEST_KEY=prior;rmSync(directory,{recursive:true,force:true});}
 },15000);

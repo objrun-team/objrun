@@ -46,6 +46,6 @@ if __name__=='__main__':
             verdict=score('biocoder',{'id':'dna','code':code})
             records.append({'id':'dna','kind':kind,'checkPassed':bool(verdict.get('valid') and not verdict.get('passed')),**verdict})
         output={'allPassed':all(r['checkPassed'] for r in records),'subset':'official BioCoder Rosalind; GitHub Python/Java fuzz harness pending','positiveControl':'Known-correct output replay; not claimed as a reference program','records':records}
-        (ROOT/'docs/phase1/biocoder-selfcheck.json').write_text(json.dumps(output,indent=2)+'\n',encoding='utf-8')
+        (ROOT/'test/fixtures/phase1/biocoder-selfcheck.json').write_text(json.dumps(output,indent=2)+'\n',encoding='utf-8')
         raise SystemExit(0 if output['allPassed'] else 1)
     serve(BOOK,lambda item:{'id':item['id'],'prompt':item['prompt']},{'parsed':parsed,'correct':correct},args.port,'biocoder')

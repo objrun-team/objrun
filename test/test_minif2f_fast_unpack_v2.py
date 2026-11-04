@@ -19,7 +19,7 @@ def load(name,leaf):
 fast=load("fast_v2_controls","minif2f_fast_unpack_v2.py")
 old=load("old_fast_controls","minif2f_fast_unpack.py")
 recover=load("recovery_controls","minif2f_fast_prefix0_recovery.py")
-DIAG=json.loads((PROJECT/"docs/repair-2026-10-08/minif2f-fast-first-archive-diagnosis.json").read_bytes())
+DIAG=json.loads((PROJECT/"test/fixtures/repair/minif2f-fast-first-archive-diagnosis.json").read_bytes())
 SNAP=PROJECT/"docs/repair-2026-10-08/minif2f-fast-first-failure-readonly-snapshot"
 NAMES=[v["relativePath"] for v in DIAG["stageInventory"]]
 checks=[]

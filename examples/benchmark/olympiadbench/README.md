@@ -1,6 +1,6 @@
 # OlympiadBench 接入
 
-实现位于 `scripts/olympiadbench/`。`prepare.py` 从固定数据和已核验的 FrontierScience 引擎副本构建私有运行包；`ops.py deploy` 部署 novaeve 并执行零模型验收；验收通过后 `ops.py launch` 一次启动 8 题两组 canary，通过后自动继续其余题。canary 包含在 236 题内，不重复生成。
+实现位于 `examples/benchmark/olympiadbench/experiments/`。`prepare.py` 从固定数据和已核验的 FrontierScience 引擎副本构建私有运行包；`ops.py deploy` 部署 novaeve 并执行零模型验收；验收通过后 `ops.py launch` 一次启动 8 题两组 canary，通过后自动继续其余题。canary 包含在 236 题内，不重复生成。
 
 两组为 baseline 和 objrun，统一 DeepSeek 官方 deepseek-flash、thinking enabled/high/16384。运行包的 experiment.json、source-pins.json 和 dependencies.json 为实际配置与版本来源。使用本地动态端口桥接真实引擎，规则评分器在独立受限 Python 子进程执行，真实 Key 只由传输控制器持有。
 

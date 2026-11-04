@@ -115,7 +115,7 @@ def main():
             summary["dockerArtifactClosedLoopValidated"] is True and summary["formalLlmClosedLoopValidated"] is False and
             summary["readyTaskIds"] == [] and not summary.get("fatal"))
     dataset = manifest["datasets"]["skillsbench"]
-    environment_manifest_path = root / "docs/repair-2026-10-08/software-preflight.json"
+    environment_manifest_path = root / "test/fixtures/repair/software-preflight.json"
     environment_manifest = read_json(environment_manifest_path)
     a.check("source_87_one_task_two_arms_no_denominator_loss", dataset["sourceTaskCount"] == 87 and
             dataset["supportedTaskCount"] == 1 and dataset["unsupportedTaskCount"] == 86 and

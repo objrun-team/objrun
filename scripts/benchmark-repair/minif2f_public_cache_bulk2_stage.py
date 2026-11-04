@@ -12,14 +12,14 @@ import threading
 import time
 
 PROJECT=Path(__file__).resolve().parents[2]
-REVIEW_PATH=PROJECT/"docs/repair-2026-10-08/minif2f-public-cache-bulk2-review.json"
+REVIEW_PATH=PROJECT/"test/fixtures/repair/minif2f-public-cache-bulk2-review.json"
 spec=importlib.util.spec_from_file_location("explicit_bulk_kernel",Path(__file__).with_name("minif2f_public_cache_bulk2.py"))
 k=importlib.util.module_from_spec(spec);spec.loader.exec_module(k)
 b,c=k.base,k.carry
 TRANSPORT=k.TRANSPORT
 
 
-FAILURE_PATH=PROJECT/"docs/repair-2026-10-08/minif2f-dependency-failures/public-cache-bulk-v1-lease-cursor-failure/agent-readonly-copy-v1/failure-record.json"
+FAILURE_PATH=PROJECT/"test/fixtures/repair/minif2f-dependency-failures/public-cache-bulk-v1-lease-cursor-failure/agent-readonly-copy-v1/failure-record.json"
 FAILURE_SHA="0d07919e285c6fdeedc0155b2af83a6dccff771856e8b68d81769cb196afbe75"
 REMOVAL_SHA="1a5edd44ec64cc86fb9f2f56be756a05c682ba38bd7ddb9952423273b022c8d6"
 REMOVAL_PATH=FAILURE_PATH.with_name("root-exact-part-removal.json")
@@ -36,7 +36,7 @@ def review(expected):
         name=str(Path(p["path"]).resolve()).casefold()
         if name in found:raise RuntimeError("Duplicate reviewed path")
         found.add(name);c.pinned(p["path"],p["sha256"],p["bytes"])
-    for p in (Path(__file__),Path(__file__).with_suffix(".ps1"),Path(k.__file__),PROJECT/"docs/repair-2026-10-08/minif2f-restoration-preflight.json"):
+    for p in (Path(__file__),Path(__file__).with_suffix(".ps1"),Path(k.__file__),PROJECT/"test/fixtures/repair/minif2f-restoration-preflight.json"):
         if str(p.resolve()).casefold() not in found:raise RuntimeError("Omitted required bulk source/profile")
     return data
 

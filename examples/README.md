@@ -1,4 +1,10 @@
-# 快速启动
+# 示例
+
+- [基础使用与接口](#快速启动)：下文的工具、目标、机制和任务示例。
+- [Benchmark 示例与实验](benchmark/README.md)。
+- [科学问题实验](research/README.md)。
+
+## 快速启动
 
 每个例子都假定这一步做过了。
 
@@ -108,8 +114,6 @@ curl -s "$BASE/help?format=json"  # 机器读的
 | [`rule/`](./rule/) | 规则（挂在时刻上就是钩子） |
 | [`skill/`](./skill/) | skill |
 | [`mode/`](./mode/) | 任务机制 |
-| [`agent/`](./agent/) | 智能体、挂哪几条轨 |
-| [`objective/`](./objective/) | 验证函数 G |
 | [`place/`](./place/) | 干活的地方 |
 
 > 请求体都走 `-d @- <<'JSON'`。写成 `-d '{…}'` 也行，但在 Windows 的 Git Bash 里

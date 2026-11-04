@@ -4,13 +4,13 @@
 
 `grade.py` 从固定上游源码 AST 提取纯后处理函数及 `equiv`，避免引入旧模型客户端。末尾 boxed 提取、科学计数法恢复和 `math.isclose(rel_tol=0.05, abs_tol=0)` 沿用上游；额外拒绝非有限候选。`stand.py` 仅以白名单字段发布题目，私有评分需要令牌。候选只按文本解析，不执行代码。底层原始数据可能含 `solution`，不可整行透传。
 
-`G.json` 是标准 `parsed → correct` 声明。正式试跑通过 `scripts/scibench/native.ts` 挂载候选专属桥接端点，再由桥接端点携令牌调用私有评分服务；不能把私有判卷地址直接放给拥有任意网络能力的求解器。求解器仅开放 submit、verify、task_tree、node_load，没有文件、shell、Python或检索工具。
+`G.json` 是标准 `parsed → correct` 声明。正式试跑通过 `examples/benchmark/scibench/experiments/native.ts` 挂载候选专属桥接端点，再由桥接端点携令牌调用私有评分服务；不能把私有判卷地址直接放给拥有任意网络能力的求解器。求解器仅开放 submit、verify、task_tree、node_load，没有文件、shell、Python或检索工具。
 
 完整 ObjRun 只得到格式诊断和数值对错，不返回标准答案、误差、方向、答案指数或解答。独立组每次仅有固定题面，EX由调度器用于早停；二值组仅追加自己的历史回答与 passed/failed。四组使用统一16k/high/temperature0/DigitalOcean配置。
 
 无模型验收包括全部437条参考答案回灌、错误控制、5%边界、零/负数/非有限值、科学计数法、HTTP令牌和未知题号，以及真实引擎的反馈、提交和工具权限控制。
 
-运行脚本在 `scripts/scibench/`。`stage.py` 把本接入与已审计的 SciCode 引擎快照打包到新目录，不修改原冻结快照。`ops.py deploy/controls/launch/status/sync/settle/retrieve` 负责独立 novaeve 目录、无模型检查、凭据从stdin传递、增量镜像、只读账单核对与归档回传。`audit.py` 保留原21题试跑审计；`audit_batch.py` 核验独立恢复和正式批次，支持进行中快照及最终全量审计。执行时保留实际引擎来源摘要，不能把快照来源误写成当前工作树版本。
+运行脚本在 `examples/benchmark/scibench/experiments/`。`stage.py` 把本接入与已审计的 SciCode 引擎快照打包到新目录，不修改原冻结快照。`ops.py deploy/controls/launch/status/sync/settle/retrieve` 负责独立 novaeve 目录、无模型检查、凭据从stdin传递、增量镜像、只读账单核对与归档回传。`audit.py` 保留原21题试跑审计；`audit_batch.py` 核验独立恢复和正式批次，支持进行中快照及最终全量审计。执行时保留实际引擎来源摘要，不能把快照来源误写成当前工作树版本。
 
 原开发试跑采用每组每题$0.50、整批$30和600秒预算，原归档及费用完整保留。2026-10-16 用户随后授权正式416题四组实验，三种多轮方法不设单题费用上限；正式配置的两个美元上限均为null，保留真实账户余额及有限接口重试（最多3次）。独立和二值组最多5个完整候选、EX通过即停；ObjRun保留c5/600秒/4分支/12units。
 

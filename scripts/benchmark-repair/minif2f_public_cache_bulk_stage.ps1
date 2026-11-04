@@ -5,7 +5,7 @@ param(
 )
 $ErrorActionPreference='Stop'
 $ProjectRoot=Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$ReviewPath=Join-Path $ProjectRoot 'docs/repair-2026-10-08/minif2f-public-cache-bulk-review.json'
+$ReviewPath=Join-Path $ProjectRoot 'test/fixtures/repair/minif2f-public-cache-bulk-review.json'
 $Review=Get-Content -LiteralPath $ReviewPath -Raw | ConvertFrom-Json
 if ((Get-FileHash -LiteralPath $ReviewPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ReviewSha -or $Review.protocol -cne 'public-cache-explicit-bulk-source-review-v1' -or $Review.validated -ne $true) { throw 'Explicit bulk review pin/contract differs.' }
 foreach ($entry in @($Review.new_sources)+@($Review.protected_sources)) {

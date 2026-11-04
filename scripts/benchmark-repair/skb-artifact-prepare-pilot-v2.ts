@@ -14,8 +14,8 @@ export async function prepareSkbPilot(p:{providerKind:'local-mock'|'real-provide
   const r:SkbRecipe={protocol:'skillsbench-ten-paired-recipe-v2',family:SKB_ARTIFACT_FAMILY,runId,createdAtUtc:new Date().toISOString(),providerKind:p.providerKind,
     selectedDistinctTasks:10,plannedTaskRuns:20,output:join(storage.directories.taskmeta,'campaign-'+runId),...p,sourcePins:frozen.sourcePins,
     taskDescriptorPins:collections.taskDescriptorPins,taskSchedule:schedule,taskScheduleSha256:hash(JSON.stringify(schedule)),model:SKB_ARTIFACT_MODEL,
-    deferredFault:actualPin(join(root,'docs/repair-2026-10-08/scientific-campaign-deferred-fault.json')),
-    originalPidClosure:actualPin(join(root,'docs/repair-2026-10-08/science1220-oom-original-process-closure.json')),
+    deferredFault:actualPin(join(root,'test/fixtures/repair/scientific-campaign-deferred-fault.json')),
+    originalPidClosure:actualPin(join(root,'test/fixtures/repair/science1220-oom-original-process-closure.json')),
     balanceOverride:{authorized:true,userInstruction:'直接试跑 忽略余额',reserveCny:'0',balanceIsPrecondition:false},requestedNewEnvelopeCny:'100',priorCampaignCostUpperBoundUsd:prior,capUsd:prior+100};
   if(p.providerKind==='real-provider')Object.assign(r,await prepareOpenRouterFunding(root,r.output),{provider:'openrouter-deepseek',currency:'USD',priorCampaignCostUpperBoundUsd:0});
   validateSkbRecipe(r,p.providerKind==='real-provider');const pin=durableJpgJson(join(r.output,'prepared-recipe.json'),r);

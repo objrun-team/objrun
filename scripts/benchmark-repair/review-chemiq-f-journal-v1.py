@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 HOME = ROOT / 'docs/repair-2026-10-08/chemiq-f-journal-implementation-v1'
 FIXTURE = ROOT / '.scratch/chemiq-f-journal-tests/0f85bbad-e0cd-4815-b0bf-bffa3af7a70c'
 CONTROL = HOME / 'controls-source-archive-final'
-PEER_RECIPE = ROOT / 'docs/repair-2026-10-08/jpg-D-journal-preparations/repair-2026-10-09T06-57-26-283Z/recipe.json'
+PEER_RECIPE = ROOT / 'test/fixtures/repair/jpg-D-journal-preparations/repair-2026-10-09T06-57-26-283Z/recipe.json'
 NAMES = ['chemiq-f-journal-campaign.ts', 'chemiq-f-journal-contract.ts', 'chemiq-f-paid-admission-v1.ts', 'chemiq-f-owned.ts',
          'chemiq-f-grading-recorder.ts', 'chemiq-f-model-witness.ts', 'audit-chemiq-f-journal.ts']
 
@@ -42,7 +42,7 @@ assert re.search(r'\b20 pass\b', stderr) and re.search(r'\b0 fail\b', stderr) an
 assert str(FIXTURE).lower() in stdout.lower()
 for p in boundary['currentSourcePins'] + boundary['protected81Before']:
     assert pin(p['path']) == p, p['path']
-old_pin = pin(ROOT / 'docs/repair-2026-10-08/campaigns/repair-2026-10-08T18-32-57-118Z/source.json')
+old_pin = pin(ROOT / 'test/fixtures/repair/campaigns/repair-2026-10-08T18-32-57-118Z/source.json')
 old = json.loads(Path(old_pin['path']).read_bytes())
 protected = old['files'] + old['repairFiles']
 assert len(protected) == 81

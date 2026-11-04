@@ -22,8 +22,8 @@ PROJECT = Path(__file__).resolve().parents[2]
 V3_SHA = "23e760d9236037e8c5d14ef686b00fcbe9659d34cf28d7c03624a7775573af83"
 AUTH_SHA = "754e410406ed2d310976435d70774a35bf6f85d462f4f492e1c2ffd84a480771"
 ARCHIVE_SHA = "0a36195c10a6371d1badd1c59f9e9f33210eb8bc7ced51260c8741bd25e9d596"
-AUTH_REL = "docs/repair-2026-10-08/minif2f-public-cache-root-carry-authorization.json"
-REVIEW_REL = "docs/repair-2026-10-08/minif2f-public-cache-root-carry-review.json"
+AUTH_REL = "test/fixtures/repair/minif2f-public-cache-root-carry-authorization.json"
+REVIEW_REL = "test/fixtures/repair/minif2f-public-cache-root-carry-review.json"
 TRANSPORT = "same-key-root-reviewed-complete-carry-v1"
 REVIEW_PROTOCOL = "public-cache-root-carry-source-review-v1"
 EVENTS_REL = "audit/public-cache-root-carry-events.jsonl"
@@ -117,7 +117,7 @@ def validate_review(expected_sha):
     required = (Path(__file__).resolve(), Path(__file__).with_suffix(".ps1").resolve(),
                 PROJECT/AUTH_REL, Path(__file__).with_name("minif2f_public_cache_v3.py"),
                 Path(__file__).with_name("minif2f_public_cache.py"),
-                PROJECT/"docs/repair-2026-10-08/minif2f-restoration-preflight.json")
+                PROJECT/"test/fixtures/repair/minif2f-restoration-preflight.json")
     if any(str(path.resolve()).casefold() not in paths for path in required):
         raise RuntimeError("Review omits required executing source/auth/profile")
     return review

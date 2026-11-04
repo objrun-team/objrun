@@ -28,8 +28,7 @@ __pycache__/
 /tmp9gzvczck/
 /--check/
 *.log
-/artifacts/*
-!/artifacts/README.md
+/artifacts/
 
 # External record payloads; tracked indexes, summaries and hashes remain visible
 /experiments/records/packs/
@@ -57,7 +56,7 @@ __pycache__/
 /examples/benchmark/cmt/vendor/
 /scripts/benchmark-campaign/full-f/chembench/runtime/
 /scripts/benchmark-campaign/full-f/gpqa/.runtime/
-/scripts/code-benchmarks/runtime-snapshot/
+/examples/benchmark/code-benchmarks/runtime-snapshot/
 /scripts/benchmark-campaign/full-f/novaeve_formal_v1/sb/docker-shim-v*.exe
 
 # Historical compatibility links and local manuscript review inputs
@@ -77,8 +76,7 @@ __pycache__/
 /paper/current/_preview/
 /paper/current/figs/preview/
 /paper/current/figs/fig3-redraw-preview.*
-/paper/current/review/fig3-redraw-preview.*
-/paper/current/review/rendered/
+/paper/current/review/
 
 # Desktop metadata
 .DS_Store

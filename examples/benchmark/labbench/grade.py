@@ -2,7 +2,7 @@
 from pathlib import Path
 import json
 import sys
-sys.path.insert(0,str(Path(__file__).resolve().parents[3]/'scripts/labbench'))
+sys.path.insert(0,str(Path(__file__).resolve().parents[3]/'examples/benchmark/labbench/experiments'))
 from protocol import grade
 
 if __name__=='__main__':

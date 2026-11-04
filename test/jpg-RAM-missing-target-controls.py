@@ -7,7 +7,7 @@ import jpg_private_ram_executor as e
 
 class Controls(unittest.TestCase):
     def test_01_actual_exact_argv_saved_observation(self):
-        path=ROOT/'docs/repair-2026-10-08/jpg-RAM-exact-missing-name-readonly/observation.json'
+        path=ROOT/'test/fixtures/repair/jpg-RAM-exact-missing-name-readonly/observation.json'
         self.assertEqual(e.pin(path)['sha256'],'b64ba5d126d79d9bba08b91550a00bf77c53aafff932ee3bb78913cdb0c9c136')
         for row in json.loads(path.read_bytes())['queries']:
             kind,target=row['argv'][-3],row['argv'][-1]

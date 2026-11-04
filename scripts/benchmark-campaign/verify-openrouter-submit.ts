@@ -22,7 +22,7 @@ if(!prices){
   const profile=join(output,'synthetic-local-prices.json');
   writeFileSync(profile,JSON.stringify({protocol:'openrouter-usd-pricing-source-snapshot-v1',model:BENCHMARK_PROVIDER.model,currency:'USD',providerSlug:BENCHMARK_PROVIDER.providerSlug,
     reservationRates:BENCHMARK_PROVIDER.peakRates,actualOfficialGET:true,modelCalls:0,observedAtUtc:new Date().toISOString(),
-    originalResponsePin:actualPin(join(ROOT,'docs/repair-2026-10-10/openrouter-deepseek-check/3d75fcaf756e44918dab4e7f5ea061ba/v41-endpoints.json')),
+    originalResponsePin:actualPin(join(ROOT,'test/fixtures/provider-check/openrouter-deepseek-check/3d75fcaf756e44918dab4e7f5ea061ba/v41-endpoints.json')),
     note:'Synthetic local control profile using a stored actual public endpoint response; no fresh tariff GET was made.'}));prices=actualPin(profile);
 }
 const key=live?benchmarkProviderKey(ROOT):undefined,directory=join(output,'journal');

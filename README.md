@@ -135,7 +135,7 @@ app/src/
 examples/            可运行的示例与各评测的接入
 experiments/         Bench 来源与实验记录索引
 paper/current/       论文源码、图表与绘图数据
-scripts/             运行器、校验器与记录工具
+scripts/             通用运行器、维护与记录工具
 site/                网站、运行回放与案例博客
 docs/                架构、主循环、表结构与复现说明
 test/                回归测试

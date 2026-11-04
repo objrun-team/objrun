@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { actualPin, hash, jsonPin } from './paid-resource-proof-v2.ts';
 import { durableChemiqJson } from './chemiq-f-paid-admission-v3.ts';
 import { CHEMIQ_F_ROOT as ROOT } from './chemiq-f-journal-contract-v3.ts';
-const provenance=jsonPin(actualPin(join(ROOT,'docs/repair-2026-10-08/chemiq-nextwave-grader-provenance.json')));
+const provenance=jsonPin(actualPin(join(ROOT,'test/fixtures/repair/chemiq-nextwave-grader-provenance.json')));
 const scriptPin=actualPin(join(ROOT,'scripts/benchmark-repair/chemiq-grader-provenance.py'));
 process.env.PATH='D:/Program/resources/bin;'+process.env.PATH;
 const docker='D:/Program/resources/bin/docker.exe';
@@ -23,6 +23,6 @@ for(const mode of ['bare-inspect','absolute-inspect','bare-runtime','absolute-ru
     records.push({mode,executable,args,startedAtUtc,finishedAtUtc:new Date().toISOString(),elapsedMs:Date.now()-start,success:false,error:{name:e.name,code:e.code??null,errno:e.errno??null,syscall:e.syscall??null,status:e.status??null,signal:e.signal??null,killed:e.killed??null,messageSha256:hash(String(e.message)),stdoutSha256:hash(e.stdout??''),stderrSha256:hash(e.stderr??'')}});
   }
 }
-const value={protocol:'chemiq-v3-native-shutdown-diagnostic-v1',observedAtUtc:new Date().toISOString(),sourcePin:actualPin(import.meta.path),provenancePin:actualPin(join(ROOT,'docs/repair-2026-10-08/chemiq-nextwave-grader-provenance.json')),scriptPin,pid:process.pid,bunVersion:Bun.version,pathSha256:hash(process.env.PATH??''),records,modelCalls:0,gradeCalls:0,paidLockTaken:false,containerMutated:false,originalRunModified:false};
+const value={protocol:'chemiq-v3-native-shutdown-diagnostic-v1',observedAtUtc:new Date().toISOString(),sourcePin:actualPin(import.meta.path),provenancePin:actualPin(join(ROOT,'test/fixtures/repair/chemiq-nextwave-grader-provenance.json')),scriptPin,pid:process.pid,bunVersion:Bun.version,pathSha256:hash(process.env.PATH??''),records,modelCalls:0,gradeCalls:0,paidLockTaken:false,containerMutated:false,originalRunModified:false};
 const pin=durableChemiqJson(join(ROOT,'docs/repair-2026-10-08/chemiq-f-journal-implementation-v3/observations/native-shutdown-diagnostic-'+value.observedAtUtc.replace(/[:.]/g,'-')+'.json'),value);
 console.log(JSON.stringify({pin,records,modelCalls:0,gradeCalls:0}));
