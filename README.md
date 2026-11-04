@@ -1,6 +1,6 @@
 # ObjRun
 
-实验记录实体随普通 Git 保存，包含模型输入输出、对话、工具记录、日志、结果与评分依据。LabBench、Terminal-Bench、SkillsBench、ChemIQ 等来源已在原有 BIRD、ClassEval、OlympiadBench、SciBench、TheoPhysEval 记录基础上补入找到的可读证据。逐 Bench 的已覆盖范围、原始缺损及未读取来源见 [记录整理简报](docs/reproducibility/records-report.md)，不以文件数量或样例成功宣称全部历史实验完整。
+实验日志和完整记录正文保存在仓库外；本仓库保留代码、论文、图表数据、运行索引、摘要、覆盖报告和校验清单。2026-11-04 已按确认方案移出记录正文并清理 Git 历史，尚未上传 Hugging Face。读取方法见 [记录说明](experiments/records/README.md)，搬迁范围见 [清理说明](docs/reproducibility/cleanup-2026-11-04.md)。
 
 ObjRun 学生协作仓库。项目是基于 Bun 和 TypeScript 的任务执行与评测引擎。
 
@@ -15,25 +15,18 @@ npx --yes serve site
 或 `python -m http.server 5173 --directory site`，再打开提示地址。
 
 
-## 本地整理后的入口
+## 目录入口
 
 | 路径 | 内容 |
 |---|---|
-| [experiments/records/](experiments/records/README.md) | 普通 Git 内的实验记录实体、运行索引、摘要和独立压缩分片 |
+| [experiments/records/](experiments/records/README.md) | 运行索引、摘要、当前覆盖与校验清单；正文在仓库外 |
 | [experiments/](experiments/README.md) | Bench 来源、历史收集索引及论文来源 |
-| [paper/current/](paper/README.md) | 当前 v6.25 论文；历史版本由索引定位 |
-| [docs/provenance/](docs/provenance/README.md) | 审计、交接、写作来源和历史报告 |
-| [docs/architecture/](docs/architecture/README.md) | 现有架构文档入口 |
-| [scripts/](scripts/README.md) | 按 Bench 和用途命名的脚本入口及旧路径迁移表 |
-| [artifacts/](artifacts/README.md) | 本地历史备份与大文件，Git 忽略 |
+| [paper/current/](paper/README.md) | 论文源码、图表和绘图数据 |
+| [docs/provenance/](docs/provenance/README.md) | 有独有信息的审计、交接和写作来源 |
+| [docs/architecture/](docs/architecture/README.md) | 架构说明 |
+| [scripts/](scripts/README.md) | 当前运行器、校验器及必要的历史执行源码 |
 
-整理完成后，按 2026-10-24 的明确授权分组提交并发布到 Deref-IO/objrun。筛选后的真实 Bench 成功、失败、中断记录进入 `experiments/records/`，记录实体随普通 Git 文件保存。当前代码继续使用已有 `TGENGIN_*` 配置名。
-
-查看轨迹、恢复日志与核验分片使用 [记录工具](experiments/records/README.md)，只需仓库内文件，不依赖 Restic 或 Release 附件。仓库外原档暂作筛选核对来源，不再是计划发布的资产。完整历史环境重放仍有不同于记录读取的依赖；当前源码、测试所需的小型输入和 v6.25 论文继续保留为普通文件。
-
-运行依赖实体、未选入的资料和整理中间文件统一放在仓库外的 `_objrun-archive/review/`；旧路径保留本地兼容链接。移动与恢复规则见 [本地目录说明](docs/reproducibility/local-layout.md)。
-
-后续提交分组和 GitHub 数据发布步骤见 [提交计划预览](docs/reproducibility/publication-plan.md)。
+备份位于本仓库父目录的 `_objrun-cleanup-backup-20261104/`。原有 `_objrun-archive/` 保持原样。`data/` 的原始运行、临时环境和发布副本已移出；少量按哈希固定的回归测试输入仍留在原路径。读取已导出的日志不需要恢复完整历史运行环境，但需要完整外置记录目录。当前代码继续使用已有 `TGENGIN_*` 配置名。
 
 ## 外面这三个是给人看的
 

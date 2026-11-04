@@ -1,7 +1,29 @@
 """Small regression checks; no original archives, network, or paid runs needed."""
-import argparse,base64,collections,gzip,hashlib,io,json,pathlib,sqlite3,subprocess,sys,tarfile,tempfile,unittest,zipfile
+import argparse,base64,collections,gzip,hashlib,io,json,os,pathlib,sqlite3,subprocess,sys,tarfile,tempfile,unittest,zipfile
 from export_records import Exporter,PackStore,JsonShards,encoded,sha
 from records import Records,database_exports,verify
+
+class ExternalRecordLocationTests(unittest.TestCase):
+    def test_run_index_does_not_require_external_bodies(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=pathlib.Path(directory);(root/'runs').mkdir()
+            (root/'runs/example.jsonl').write_text('{"run_scope":"example/1"}\n',encoding='utf-8')
+            reader=pathlib.Path(__file__).with_name('records.py')
+            result=subprocess.run([sys.executable,'-B',str(reader),'--root',str(root),'--isolated','runs','--bench','example'],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertEqual(json.loads(result.stdout),{'run_scope':'example/1'})
+
+    def test_missing_bodies_explain_external_root_and_cli_overrides_environment(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=pathlib.Path(directory);(root/'runs').mkdir()
+            (root/'runs/example.jsonl').write_text('{"run_scope":"example/1"}\n',encoding='utf-8')
+            reader=pathlib.Path(__file__).with_name('records.py');env={**os.environ,'OBJRUN_RECORDS_ROOT':str(root)}
+            result=subprocess.run([sys.executable,'-B',str(reader),'runs','--bench','example'],capture_output=True,text=True,env=env)
+            self.assertEqual(result.returncode,0,result.stderr)
+            result=subprocess.run([sys.executable,'-B',str(reader),'--root',str(root),'verify'],capture_output=True,text=True,env={**env,'OBJRUN_RECORDS_ROOT':str(root/'missing')})
+            self.assertEqual(result.returncode,2)
+            self.assertIn('Record bodies are stored outside',result.stderr)
+            self.assertNotIn('Traceback',result.stderr)
 
 class NestedDatabaseTests(unittest.TestCase):
     def test_resource_hash_cannot_discard_another_wal_state(self):

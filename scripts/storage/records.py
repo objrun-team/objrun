@@ -1,5 +1,5 @@
-"""Read and verify Git-contained experiment records. No original archive is needed."""
-import argparse,collections,gzip,hashlib,io,json,pathlib,sys,tarfile
+"""List repository indexes; read and verify a complete external records directory."""
+import argparse,collections,gzip,hashlib,io,json,os,pathlib,sys,tarfile
 import zstandard as zstd
 
 def digest(b):return hashlib.sha256(b).hexdigest()
@@ -108,21 +108,22 @@ def verify(records):
     return dict(packs=len(records.packs),objects=objects,content_references=refs,unique_reassembled_contents=len(seen),all_packs_decompressed_and_sha256_verified=True,all_fragment_references_resolve=True,all_reassembled_hashes_verified=True,databases=databases,tables=tables,database_rows=rows_total)
 
 def main():
-    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--root',type=pathlib.Path,default=pathlib.Path(__file__).resolve().parents[2]/'experiments/records');ap.add_argument('--isolated',action='store_true');sub=ap.add_subparsers(dest='mode',required=True)
+    ap=argparse.ArgumentParser(description=__doc__);ap.add_argument('--root',type=pathlib.Path,default=os.environ.get('OBJRUN_RECORDS_ROOT') or pathlib.Path(__file__).resolve().parents[2]/'experiments/records',help='Complete external records directory (or OBJRUN_RECORDS_ROOT); repository indexes are the default');ap.add_argument('--isolated',action='store_true');sub=ap.add_subparsers(dest='mode',required=True)
     p=sub.add_parser('runs');p.add_argument('--bench');p.add_argument('--limit',type=int,default=20)
     p=sub.add_parser('files');p.add_argument('--bench');p.add_argument('--limit',type=int,default=20)
     for name in ('read','extract'):
         p=sub.add_parser(name);p.add_argument('--collection',required=True);p.add_argument('--path',required=True);p.add_argument('--table');p.add_argument('--member',action='append',help='Archive member path; repeat for nested archives, optionally followed by --table')
         if name=='extract':p.add_argument('--output',type=pathlib.Path,required=True)
-    sub.add_parser('verify');args=ap.parse_args();root=args.root.resolve(strict=True)
+    sub.add_parser('verify');args=ap.parse_args()
+    if args.mode in ('runs','files') and args.limit<1:ap.error('--limit must be positive')
+    if not args.root.is_dir():ap.error('Records directory does not exist: '+str(args.root))
+    root=args.root.resolve(strict=True)
     if args.isolated:
         def audit(event,a):
             if event=='open' and isinstance(a[0],(str,bytes)):
                 p=pathlib.Path(a[0]).resolve()
                 if not p.is_relative_to(root):raise PermissionError('Isolated reader cannot open files outside supplied records directory')
         sys.addaudithook(audit)
-    records=Records(root)
-    if args.mode=='verify':print(json.dumps(verify(records)));return
     if args.mode=='runs':
         paths=[root/'runs'/f'{args.bench}.jsonl'] if args.bench else sorted((root/'runs').glob('*.jsonl'));count=0
         for path in paths:
@@ -131,6 +132,16 @@ def main():
                     print(line.rstrip());count+=1
                     if count>=args.limit:return
         return
+    required=[root/'catalog.json',root/'manifests/packs.json',root/'packs']
+    legacy=root/'manifests/objects.jsonl.gz'
+    if not legacy.is_file():
+        index=root/'manifests/object-index.json';required.append(index)
+        if index.is_file():required.extend(root/shard['path'] for shard in read_json(index)['shards'])
+    missing=[p for p in required if not p.exists()]
+    if missing:
+        ap.error('Record bodies are stored outside this repository. Supply --root PATH or OBJRUN_RECORDS_ROOT pointing to a complete records directory containing catalog.json, manifests/, packs/ and runs/. See experiments/records/README.md. Missing: '+str(missing[0]))
+    records=Records(root)
+    if args.mode=='verify':print(json.dumps(verify(records)));return
     if args.mode=='files':
         count=0
         for row in records.entries():

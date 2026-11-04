@@ -1,6 +1,6 @@
 # 实验记录与本地归档工具
 
-当前发布方案使用普通 Git 中的 `experiments/records/`。`export_records.py` 从已验证原档流式筛选记录，`records.py` 只使用 Git 内文件列出运行、读取轨迹、恢复日志和核验分片。用法及格式见 [记录说明](../../experiments/records/README.md)。不通过 Release 提供日志，不需要原档才能读取已导出的记录。
+当前代码仓库只保存 `experiments/records/` 的索引、摘要与校验清单。完整正文和详细映射已移出并清理 Git 历史，尚未上传 Hugging Face。`records.py runs` 可直接读取仓库内索引；读取、提取和核验正文必须用 `--root` 或 `OBJRUN_RECORDS_ROOT` 指向完整外置记录目录。用法见 [记录说明](../../experiments/records/README.md)。不需要恢复此前的 Restic 原档才能读取这份完整导出。
 
 `curate_records.py --root INPUT --output NEW_DIRECTORY --workspace WORKSPACE` 从已验证导出中生成本轮确认的选择集：保留真实记录，解码已确认的模型响应，归档冻结源码副本及合成批量夹具，保留自测摘要、生成器和独有诊断。输入只读，输出必须为新目录；逐文件决定写入 manifests/selection-decisions-*，不删除未选中的原件。该选择规则对应本轮人工确认范围，不应直接用于未知的新来源。
 

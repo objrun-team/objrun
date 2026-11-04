@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "status": "local-backup-awaiting-huggingface-upload",
+  "migration_date": "2026-11-04",
+  "local_backup_relative_to_repository": "../_objrun-cleanup-backup-20261104/repository-before/experiments/records",
+  "dataset_url": null,
+  "dataset_revision": null,
+  "required_layout": [
+    "catalog.json",
+    "packs/",
+    "manifests/",
+    "runs/",
+    "reports/",
+    "summaries/"
+  ],
+  "pack_manifest": "manifests/packs.json",
+  "object_index_manifest": "manifests/object-index.json",
+  "reader_environment_variable": "OBJRUN_RECORDS_ROOT"
+}
