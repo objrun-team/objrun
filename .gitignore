@@ -29,6 +29,7 @@ __pycache__/
 /--check/
 *.log
 /artifacts/
+/site/cloudflare/public/
 /.local-evidence/
 
 # Generated bundles, run exports and one-off build handoffs
