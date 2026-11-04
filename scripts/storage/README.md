@@ -1,6 +1,6 @@
 # 实验记录与本地归档工具
 
-当前代码仓库只保存 `experiments/records/` 的索引、摘要与校验清单。完整正文和详细映射已移出并清理 Git 历史，尚未上传 Hugging Face。`records.py runs` 可直接读取仓库内索引；读取、提取和核验正文必须用 `--root` 或 `OBJRUN_RECORDS_ROOT` 指向完整外置记录目录。用法见 [记录说明](../../experiments/records/README.md)。不需要恢复此前的 Restic 原档才能读取这份完整导出。
+当前代码仓库只保存 `experiments/records/` 的索引、摘要与校验清单。完整正文和详细映射已移出并清理 Git 历史，完整候选集现已上传至私有 HF Dataset [imontlaji/objrun-records](https://huggingface.co/datasets/imontlaji/objrun-records)，供后续筛选和修改。地址及固定版本见 `experiments/records/external-storage.json`。`records.py runs` 可直接读取仓库内索引；读取、提取和核验正文必须用 `--root` 或 `OBJRUN_RECORDS_ROOT` 指向完整外置记录目录。下载与读取用法见 [记录说明](../../experiments/records/README.md)。不需要恢复此前的 Restic 原档才能读取这份完整导出。
 
 `curate_records.py --root INPUT --output NEW_DIRECTORY --workspace WORKSPACE` 从已验证导出中生成本轮确认的选择集：保留真实记录，解码已确认的模型响应，归档冻结源码副本及合成批量夹具，保留自测摘要、生成器和独有诊断。输入只读，输出必须为新目录；逐文件决定写入 manifests/selection-decisions-*，不删除未选中的原件。该选择规则对应本轮人工确认范围，不应直接用于未知的新来源。
 
