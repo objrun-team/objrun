@@ -11,8 +11,8 @@ export async function prepareFastRecipe(file:string){
    output:join(s.directories.taskmeta,'campaign-'+runId),providerKind:'real-provider',selectedDistinctTasks:10,plannedTaskRuns:20,draftFastFirst:true,concurrency:2,
    taskSchedule:schedule,taskScheduleSha256:hash(JSON.stringify(schedule)),model:SKB_ARTIFACT_MODEL,forwardSourcePins:input.sourcePins,
    provider:'openrouter-deepseek',currency:'USD',priorCampaignCostUpperBoundUsd:0,
-   deferredFault:actualPin(join(ROOT,'test/fixtures/repair/scientific-campaign-deferred-fault.json')),
-   originalPidClosure:actualPin(join(ROOT,'test/fixtures/repair/science1220-oom-original-process-closure.json')),
+   deferredFault:actualPin(join(ROOT,'.local-evidence/repository/test/fixtures/repair/scientific-campaign-deferred-fault.json')),
+   originalPidClosure:actualPin(join(ROOT,'.local-evidence/repository/test/fixtures/repair/science1220-oom-original-process-closure.json')),
    userPriority:'最快初版，真实固定10题U/F20次，允许并发，不受余额、API用量、运营预留和旧费用上限限制；完整ZIP，未完成认证明确待补',
    fullEnvironmentCertificationPending:true,formalScoreCertified:false,full87Authorized:false};
  Object.assign(recipe,await prepareOpenRouterFunding(ROOT,recipe.output));

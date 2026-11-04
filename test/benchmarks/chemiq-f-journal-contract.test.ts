@@ -20,7 +20,7 @@ import { createChemiqModelWitness } from '../../scripts/benchmark-repair/chemiq-
 const root = CHEMIQ_F_ROOT, area = join(root, '.scratch/chemiq-f-journal-tests', randomUUID()); mkdirSync(area, { recursive: true });
 const runId = 'repair-2026-10-09T00-00-00-000Z', plan = loadChemiqFPlan(runId, 'pilot16'), full = loadChemiqFPlan(runId, 'full816');
 const before = [...CHEMIQ_F_EXECUTION_FILES.map(p => actualPin(join(root, p))), actualPin(import.meta.path), CHEMIQ_F_SCOPE_PIN, CHEMIQ_F_READINESS_PIN];
-const old = jsonPin(actualPin(join(root, 'test/fixtures/repair/campaigns/repair-2026-10-08T18-32-57-118Z/source.json')));
+const old = jsonPin(actualPin(join(root, '.local-evidence/repository/test/fixtures/repair/campaigns/repair-2026-10-08T18-32-57-118Z/source.json')));
 const protected81 = [...old.files, ...old.repairFiles].map((p: any) => actualPin(resolve(root, p.path)));
 function fresh(name: string) { const directory = join(area, name); mkdirSync(directory); return directory; }
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x));
@@ -57,7 +57,7 @@ test('metadata prepare creates no lock/provider/engine and real-provider mode re
   durableChemiqJson(join(area, 'metadata-preparation-result.json'), { result, productionCalled: false, canonicalLockTaken: false });
 });
 test('the frozen JPG D scanner execution graph is unioned once and cannot omit its own module from source pins', () => {
-  const peer = jsonPin(actualPin(join(root, 'test/fixtures/repair/jpg-D-journal-preparations/repair-2026-10-09T06-57-26-283Z/recipe.json')));
+  const peer = jsonPin(actualPin(join(root, '.local-evidence/repository/test/fixtures/repair/jpg-D-journal-preparations/repair-2026-10-09T06-57-26-283Z/recipe.json')));
   expect(peer.sourcePins.length).toBe(95);
   const module = peer.sourcePins.find((p: Pin) => p.path.endsWith('jpg-D-paid-resource-admission-v1.ts'));
   expect(module.sha256).toBe('87d19f8afd528c3fc4f98a37f650a2d2bdb4fec5287c27b10d131c6446516beb');
@@ -71,7 +71,7 @@ test('the frozen JPG D scanner execution graph is unioned once and cannot omit i
 });
 test('actual frozen native source archiver makes a source-bound F ZIP without duplicate core or private task data', async () => {
   const dir = fresh('source-archive'), meta = join(dir, 'metadata'), store = join(dir, 'public-source'); mkdirSync(meta); mkdirSync(store);
-  const peer = jsonPin(actualPin(join(root, 'test/fixtures/repair/jpg-D-journal-preparations/repair-2026-10-09T06-57-26-283Z/recipe.json')));
+  const peer = jsonPin(actualPin(join(root, '.local-evidence/repository/test/fixtures/repair/jpg-D-journal-preparations/repair-2026-10-09T06-57-26-283Z/recipe.json')));
   const extras = chemiqAdditionalExecutionFiles(peer.sourcePins); expect(extras.every(p => p.startsWith('scripts/benchmark-repair/'))).toBe(true);
   const python = 'D:/ProgramData/anaconda3/python.exe', archiver = join(root, 'scripts/benchmark-repair/freeze-scientific-journal.py');
   durableChemiqJson(join(meta, 'manifest.json'), { campaign: runId, createdAt: new Date().toISOString(), benchmarks: ['chemiq'], taskScheduleSha256: plan.taskScheduleSha256,

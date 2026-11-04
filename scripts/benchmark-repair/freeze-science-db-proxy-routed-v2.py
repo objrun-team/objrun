@@ -50,7 +50,7 @@ def main():
     plan = next(p for p in source_json['repairFiles'] if p['path'] == 'scripts/benchmark-repair/scientific-journal-plan.ts')
     original_plan = m.pin(ROOT/plan['path'])
     assert original_plan['sha256'] == plan['sha256']
-    snapshot = ROOT/'test/fixtures/repair/science-db-snapshots/root-snapshot-2026-10-09T04-10-v1.json'
+    snapshot = ROOT/'.local-evidence/repository/test/fixtures/repair/science-db-snapshots/root-snapshot-2026-10-09T04-10-v1.json'
     snapshot_pin = m.pin(snapshot)
     assert snapshot_pin['sha256'] == '8134c6e96ef8718615da901548f2c0c6ada7076ee15543c4723c555ba2a36220'
     review = dict(protocol='science-db-snapshot-proxy-reader-review-v1',transportRevision='routed-v2',validated=True,

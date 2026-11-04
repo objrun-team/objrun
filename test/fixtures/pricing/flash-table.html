@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<title>Synthetic fixture for the frozen pricing parser</title>
+<!-- Test-only merged-cell table. This is not a captured page or current pricing. -->
+<table>
+  <tr><th colspan="3">模型</th><th>deepseek-flash<sup>(1)</sup></th><th>deepseek-v4-pro</th></tr>
+  <tr><th colspan="3">模型版本</th><td>DeepSeek-V4.1-Flash</td><td>DeepSeek-V4-Pro</td></tr>
+  <tr><th rowspan="6">价格</th><td rowspan="2">百万tokens输入（缓存未命中）</td><td>高峰时段</td><td>2元</td><td>4元</td></tr>
+  <tr><td>空闲时段</td><td>1元</td><td>2元</td></tr>
+  <tr><td rowspan="2">百万tokens输入（缓存命中）</td><td>高峰时段</td><td>0.04元</td><td>0.08元</td></tr>
+  <tr><td>空闲时段</td><td>0.02元</td><td>0.04元</td></tr>
+  <tr><td rowspan="2">百万tokens输出</td><td>高峰时段</td><td>8元</td><td>16元</td></tr>
+  <tr><td>空闲时段</td><td>4元</td><td>8元</td></tr>
+</table>
+<p>北京时间周一至周五（不含中国法定节假日）9:00 - 12:00、14:00 - 18:00 为高峰时段；其余时段，包括周末及中国法定节假日全天均为空闲时段。</p>
+</html>

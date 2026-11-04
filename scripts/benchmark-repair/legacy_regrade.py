@@ -187,12 +187,12 @@ def software_identity():
     dswhome = ROOT / ".phase1-data/deepswe"
     files = sorted((dswhome / "vendor/deep-swe/tasks").glob("*/task.toml"))
     now_ids = {p.parent.name for p in files}
-    exported = ROOT / "examples/benchmark/dsw-full-export/csv/tasks.csv"
+    exported = ROOT / ".local-evidence/repository/examples/benchmark/dsw-full-export/csv/tasks.csv"
     rows = list(csv.DictReader(exported.open(encoding="utf-8-sig", newline="")))
     old_ids = {r["task"] for r in rows}
-    dswstand = ROOT / "examples/benchmark/dsw-full-export/example/stand.py"
+    dswstand = ROOT / ".local-evidence/repository/examples/benchmark/dsw-full-export/example/stand.py"
     skip = literal_skip(dswstand)
-    export_result = ROOT / "examples/benchmark/dsw-full-export/RESULT.md"
+    export_result = ROOT / ".local-evidence/repository/examples/benchmark/dsw-full-export/RESULT.md"
     skbhome = ROOT / ".phase1-data/skillsbench"
     skb_current = {p.parent.name for p in (skbhome / "vendor/skillsbench/tasks").glob("*/task.md")}
     skbrun = ROOT / "runs/skb-f-c5kinf-0929/h2h.sqlite"

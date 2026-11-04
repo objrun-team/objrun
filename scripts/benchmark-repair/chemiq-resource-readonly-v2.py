@@ -72,7 +72,7 @@ def inspect():
     save('private-inspect', value)
 
 def bridge():
-    frozen = json.loads((ROOT / 'test/fixtures/repair/chemiq-nextwave-grader-provenance.json').read_bytes())
+    frozen = json.loads((ROOT / '.local-evidence/repository/test/fixtures/repair/chemiq-nextwave-grader-provenance.json').read_bytes())
     prior = frozen['host_bridge']
     process = prior['process']
     pid = int(process['ProcessId'])

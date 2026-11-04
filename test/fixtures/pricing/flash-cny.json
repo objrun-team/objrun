@@ -1,0 +1,20 @@
+{
+  "fixtureOnly": true,
+  "note": "Synthetic values for the frozen CNY accounting protocol; not a current price observation.",
+  "protocol": "deepseek-cny-pricing-source-snapshot-v1",
+  "model": "deepseek-flash",
+  "currency": "CNY",
+  "unit": "per million tokens",
+  "peak": {
+    "uncachedInput": 2,
+    "cachedInput": 0.04,
+    "output": 8
+  },
+  "offPeak": {
+    "uncachedInput": 1,
+    "cachedInput": 0.02,
+    "output": 4
+  },
+  "modelCalls": 0,
+  "officialSource": "https://api-docs.deepseek.com/zh-cn/quick_start/pricing/"
+}

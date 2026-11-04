@@ -2,8 +2,8 @@ import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseChemiqOfficialFlashPricing } from '../../scripts/benchmark-repair/chemiq-official-price-v2.ts';
-const html=readFileSync(join(import.meta.dir,'../../test/fixtures/repair/chemiq-f-journal-implementation-v2/observations/provider-2026-10-09T09-35-12-993Z-official-pricing.html'),'utf8');
-test('the captured official merged-cell table binds all six Flash prices and the actual Beijing time rule',()=>{
+const html=readFileSync(join(import.meta.dir,'../fixtures/pricing/flash-table.html'),'utf8');
+test('the synthetic merged-cell table binds all six Flash prices and the actual Beijing time rule',()=>{
   const parsed=parseChemiqOfficialFlashPricing(html);
   expect(parsed.peak).toEqual({uncachedInput:2,cachedInput:0.04,output:8});
   expect(parsed.offPeak).toEqual({uncachedInput:1,cachedInput:0.02,output:4});

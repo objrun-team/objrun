@@ -66,8 +66,8 @@ export async function acquireTb12Admission(input:TbAdmissionInput):Promise<Admis
     demand(directive.protocol==="tb12-human-resource-directive-v1"&&directive.authorRole==="user"&&directive.headroomCny===input.headroomCny&&directive.scopeIncludesTerminalBench===true&&typeof directive.verbatimAnswer==="string"&&directive.verbatimAnswer.length>0&&envelope<=nanoCny(directive.requestedEnvelopeCny),"tb12_headroom_authorization_binding");
   }
   const carryProof=jpgCarry({
-    deferredFault:actualPin(join(ROOT,"test/fixtures/repair/scientific-campaign-deferred-fault.json")),
-    originalPidClosure:actualPin(join(ROOT,"test/fixtures/repair/science1220-oom-original-process-closure.json")),
+    deferredFault:actualPin(join(ROOT,".local-evidence/repository/test/fixtures/repair/scientific-campaign-deferred-fault.json")),
+    originalPidClosure:actualPin(join(ROOT,".local-evidence/repository/test/fixtures/repair/science1220-oom-original-process-closure.json")),
   } as Parameters<typeof jpgCarry>[0]);
   const carry=carryProof.carry,carryNano=carry.reduce((sum:bigint,row:any)=>sum+BigInt(row.peakNanoCny),0n);
   demand(carryNano===8_392_180_000n&&cash>=carryNano+headroom+envelope,"tb12_insufficient_current_cash");

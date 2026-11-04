@@ -8,7 +8,7 @@ Run commands from the repository root after installing the dependencies in `app/
 | `integration/` | Engine lifecycle, local HTTP/WebSocket mocks, tool and workflow checks. |
 | `benchmarks/` | Benchmark adapters, grading, journals, resource accounting and cache protocols. |
 | `manual/` | Checks requiring Docker images, a benchmark corpus or a prepared scientific worker. |
-| `fixtures/` | Read-only regression inputs. |
+| `fixtures/` | Small, synthetic regression inputs. |
 | `_lib.ts` | Shared temporary-engine helpers, also imported by examples and benchmark runners. |
 
 ## Core checks
@@ -38,7 +38,7 @@ python -B test/benchmarks/gradelib_test.py
 python -B test/benchmarks/container_isolation_test.py
 ```
 
-The benchmark suites have different requirements. Some use Windows process/file-handle APIs, pinned native executables or separately archived campaign inputs. A blanket `bun test` or Python discovery run is therefore not a portable smoke test. A `v2` or `v3` filename identifies the protocol under test; both can remain relevant.
+The benchmark suites have different requirements. Some use Windows process/file-handle APIs, pinned native executables or separately archived campaign inputs. Historical campaign checks and miniF2F source-pin checks read these original inputs through `.local-evidence/`; see the [restoration instructions](../docs/storage.md). Core tests, synthetic pricing checks and mock provider tests do not require the archive. A blanket `bun test` or Python discovery run is therefore not a portable smoke test. A `v2` or `v3` filename identifies the protocol under test; both can remain relevant.
 
 ## Environment checks and generated files
 

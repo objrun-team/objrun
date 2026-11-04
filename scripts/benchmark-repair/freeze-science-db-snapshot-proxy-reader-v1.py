@@ -49,7 +49,7 @@ def main():
             f.write(raw); f.flush(); r.os.fsync(f.fileno())
         assert dest.read_bytes() == raw
         source_copies.append(m.pin(dest))
-    snapshot = ROOT/'test/fixtures/repair/science-db-snapshots/root-snapshot-2026-10-09T04-10-v1.json'
+    snapshot = ROOT/'.local-evidence/repository/test/fixtures/repair/science-db-snapshots/root-snapshot-2026-10-09T04-10-v1.json'
     snapshot_pin = m.pin(snapshot)
     assert snapshot_pin['sha256'] == '8134c6e96ef8718615da901548f2c0c6ada7076ee15543c4723c555ba2a36220'
     obj = json.loads(snapshot.read_bytes())

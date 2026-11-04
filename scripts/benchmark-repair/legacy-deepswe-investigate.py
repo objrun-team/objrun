@@ -12,7 +12,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "docs/repair-2026-10-08"
-EXPORT = ROOT / "examples/benchmark/dsw-full-export"
+EXPORT = ROOT / ".local-evidence/repository/examples/benchmark/dsw-full-export"
 CORPUS = ROOT / ".phase1-data/deepswe/vendor/deep-swe/tasks"
 TASK = "eicrud-keyset-pagination-cursor"
 
@@ -88,7 +88,7 @@ def image_precheck():
 
 def main():
     original_paths = sorted(p for p in EXPORT.rglob("*") if p.is_file())
-    original_paths += [ROOT / "examples/benchmark/dsw-full-export.zip"]
+    original_paths += [ROOT / ".local-evidence/repository/examples/benchmark/dsw-full-export.zip"]
     run_dirs = sorted(p for p in (ROOT / "runs").iterdir() if p.is_dir() and p.name.startswith("dsw"))
     for directory in run_dirs:
         original_paths += sorted(p for p in directory.iterdir() if p.is_file() and (p.suffix in {".log", ".sqlite"} or p.name.endswith(("-wal", "-shm"))))
@@ -169,7 +169,7 @@ def main():
             lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
             hits = [i + 1 for i, line in enumerate(lines) if "dsw-full" in line]
             log_precheck.append({"source": source(path), "dsw_full_mentions": len(hits), "line_numbers": hits})
-    with zipfile.ZipFile(ROOT / "examples/benchmark/dsw-full-export.zip") as archive:
+    with zipfile.ZipFile(ROOT / ".local-evidence/repository/examples/benchmark/dsw-full-export.zip") as archive:
         archive_members = [{"name": member.filename, "bytes": member.file_size, "uncompressed_sha256": hashlib.sha256(archive.read(member)).hexdigest(),
             "matches_extracted_bytes": (EXPORT / member.filename).is_file() and sha(EXPORT / member.filename) == hashlib.sha256(archive.read(member)).hexdigest()}
             for member in archive.infolist()]
@@ -190,7 +190,7 @@ def main():
             "largest_creation_gaps": gaps[:3], "certified_pre_post_source_assignments": 0,
             "limitation": "Dates establish dispatch chronology, not code or grader identity. The 53/58/1 grouping is a diagnostic consistency reconstruction, not 53/59 certified source batches."},
         "per_task_observed_evidence": per_task, "local_later_run_database_precheck": database_precheck, "local_later_run_log_precheck": log_precheck,
-        "archive": {"source": source(ROOT / "examples/benchmark/dsw-full-export.zip"), "members": archive_members,
+        "archive": {"source": source(ROOT / ".local-evidence/repository/examples/benchmark/dsw-full-export.zip"), "members": archive_members,
             "original_engine_database_in_archive": False, "engine_logs_in_archive": False, "official_task_sources_in_archive": False},
         "eicrud_image_and_control_precheck": image_report, "current_pinned_task_references_only": current_refs,
         "legacy_source_integrity": integrity,

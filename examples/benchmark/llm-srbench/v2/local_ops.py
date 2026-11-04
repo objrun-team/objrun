@@ -11,6 +11,8 @@ def stage():
     shutil.copytree(REPO/'runs/llm-srbench-release240-20261019/full-results/package',package,dirs_exist_ok=True)
     for p in SOURCE.iterdir():
         if p.is_file() and p.suffix in ['.py','.ts','.json','.md','.patch']:shutil.copy2(p,package/p.name)
+    for name in ('continuation-plan.json','source-origin.json'):
+        shutil.copy2(REPO/'.local-evidence/repository/examples/benchmark/llm-srbench/v2'/name,package/name)
     p=package/'engine/test/_lib.ts';s=p.read_text(encoding='utf8');assert s.count('i < 100;')==1 and s.count('i === 99)')==1
     s=s.replace('i < 100;','i < 600;').replace('i === 99)','i === 599)');p.write_text(s,encoding='utf8')
     archive=LOCAL/'v2-package.tar'

@@ -1,9 +1,10 @@
-# 测试固定输入
+# Test fixtures
 
-- `phase1/`：早期自检与基线输入。
-- `repair/`：资源、定价、隔离、恢复和运行协议的固定输入。
-- `provider-check/`：提供方接口的固定响应。
+This directory contains small, synthetic inputs for regression tests:
 
-保留文件从原 docs 日期目录迁入，内容与 SHA-256 未变。目录中的日期、任务编号和旧路径用于识别当时的证据，不代表当前状态。现有输入的旧路径映射见 `scripts/directory-map.json` 的 fixed_test_inputs。
+- `pricing/flash-cny.json`: values for the frozen CNY accounting protocol.
+- `pricing/flash-table.html`: a merged-cell HTML table for the pricing parser.
 
-此目录是只读测试资料，不是新实验日志的输出目录。worker 和 miniF2F 测试产生的报告写入临时目录或 `.scratch/`。历史报告、完整运行记录与原始数据库保存在仓库外。测试入口见 [测试说明](../README.md)。
+These files are test data, not current tariffs, account observations or experiment evidence. Provider endpoint and Docker error responses are constructed directly in the relevant tests.
+
+Historical self-check reports, captured API responses and campaign recovery records live outside Git. Tests that validate those original records require the external inputs described in [storage](../../docs/storage.md). New test output belongs in a temporary directory or `.scratch/`.

@@ -24,7 +24,7 @@ Apply uses one BEGIN IMMEDIATE transaction, rechecks identical rows, changes onl
 Command (root supplies final successor manifest and a new output directory):
 
 ```powershell
-& $bun --smol scripts/bench-runner/reconcile-saved-candidate.ts --mode check --database <existing-queue.sqlite> --manifest <final-manifest.json> --host scripts/bench-runner/release/399afcb2e1fa638f9a355cd18e97518d8694ac06d5808bc79dabc8b20d194c81/runner.js --host-attestation scripts/bench-runner/release/399afcb2e1fa638f9a355cd18e97518d8694ac06d5808bc79dabc8b20d194c81/release-7ae8d68cde017c67f615923b4801d43c1c1ab695c765f2506fa9783707776f94.json --admission <existing-admission-control.json> --python D:/ProgramData/anaconda3/python.exe --output <new-root-check-directory>
+& $bun --smol scripts/bench-runner/reconcile-saved-candidate.ts --mode check --database <existing-queue.sqlite> --manifest <final-manifest.json> --host <reviewed-runner.js> --host-attestation <reviewed-release.json> --admission <existing-admission-control.json> --python D:/ProgramData/anaconda3/python.exe --output <new-root-check-directory>
 ```
 
 For root-approved actual apply use `--mode apply` with a different fresh output directory. Apply repeats all actual checks; it does not trust a previous check JSON as authority. No production check/apply, signature or attempt was performed by this delivery.

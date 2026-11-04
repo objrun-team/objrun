@@ -7,7 +7,7 @@ const PROVENANCE_SHA = "ffda1b12d5d0190767a9564229362371277ffd01978ff936cc25efdb
 const ARCHIVE_SHA = "7e1f476e9664a747436c17bb2e0506b2e1a3704128e4a07fa00152f30586d18b";
 const digest = (path: string) => createHash("sha256").update(readFileSync(path)).digest("hex");
 export function loadChemiqProvenance(root: string, store: string) {
-  const path = join(root, "test/fixtures/repair/chemiq-nextwave-grader-provenance.json");
+  const path = join(root, ".local-evidence/repository/test/fixtures/repair/chemiq-nextwave-grader-provenance.json");
   if (digest(path) !== PROVENANCE_SHA) throw new Error("ChemIQ provenance snapshot changed");
   const proof = JSON.parse(readFileSync(path, "utf8"));
   const validate = () => {

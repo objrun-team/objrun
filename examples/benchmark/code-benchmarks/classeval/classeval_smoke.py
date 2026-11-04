@@ -46,5 +46,6 @@ print(json.dumps({'passed':all(x['passed'] for x in out),'details':out}))
         results.append(result);print(json.dumps(result),flush=True)
     finally:
         api('/containers/'+cid+'?force=1',method='DELETE')
-(root/'classeval-controls.json').write_text(json.dumps({'image':image,'results':results,'allPassed':results[0].get('verdict',{}).get('passed') is True and results[1].get('verdict',{}).get('passed') is False},indent=2),encoding='utf8')
+report=root.parents[3]/'.scratch/code-benchmarks/classeval-controls.json'; report.parent.mkdir(parents=True,exist_ok=True)
+report.write_text(json.dumps({'image':image,'results':results,'allPassed':results[0].get('verdict',{}).get('passed') is True and results[1].get('verdict',{}).get('passed') is False},indent=2),encoding='utf8')
 if not(results[0].get('verdict',{}).get('passed') is True and results[1].get('verdict',{}).get('passed') is False):raise SystemExit(1)

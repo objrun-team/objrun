@@ -4,7 +4,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "../..");
-const output = resolve(root, process.argv[2] ?? "test/fixtures/phase1/source-baseline.json");
+const output = resolve(root, process.argv[2] ?? ".scratch/phase1/source-baseline.json");
 const benchNames = ["_lib", "aime", "gpqa", "chembench", "chemiq", "cmt", "minif2f", "deepswe", "terminal-bench", "skillsbench", "scicode", "scibench", "scienceagentbench", "atomworld", "astrovisbench", "llm-srbench", "biocoder", "atmossci-bench", "lab-bench", "scienceworld", "putnambench", "humaneval-plus"];
 const files: { path: string; sha256: string; bytes: number }[] = [];
 function walk(dir: string) {

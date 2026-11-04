@@ -75,7 +75,7 @@ def main():
             continue
         if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id in ['EXP', 'OLD'] for target in node.targets):
             name = node.targets[0].id
-            path = ROOT / 'examples/benchmark/dsw-full-export/csv' if name == 'EXP' else ROOT / 'latex/data'
+            path = ROOT / '.local-evidence/repository/examples/benchmark/dsw-full-export/csv' if name == 'EXP' else ROOT / 'latex/data'
             node.value = ast.Constant(str(path))
             adaptations.append({'line': node.lineno, 'action': 'bind existing project mirror read path', 'variable': name, 'path': str(path)})
         selected.append(node)
@@ -95,8 +95,8 @@ def main():
         'transitionsCsvExactParsedRows': rows(BASE / 'data/14-dsw-verdict-content-transitions.csv') == rows(stored / '14-dsw-verdict-content-transitions.csv'),
     }
     assert comparisons == report['comparisons'] and all(comparisons.values())
-    tasks = rows(ROOT / 'examples/benchmark/dsw-full-export/csv/tasks.csv')
-    checks = rows(ROOT / 'examples/benchmark/dsw-full-export/csv/checks.csv')
+    tasks = rows(ROOT / '.local-evidence/repository/examples/benchmark/dsw-full-export/csv/tasks.csv')
+    checks = rows(ROOT / '.local-evidence/repository/examples/benchmark/dsw-full-export/csv/checks.csv')
     task_map = {value['task']: value['pass'] for value in tasks}
     assert len(task_map) == 112 and sum(value == '1' for value in task_map.values()) == 91 and len(checks) == 642
     stdout_pin = pin(BASE / 'producer.stdout.log')

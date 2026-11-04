@@ -29,6 +29,17 @@ __pycache__/
 /--check/
 *.log
 /artifacts/
+/.local-evidence/
+
+# Generated bundles, run exports and one-off build handoffs
+*.build.js
+*.compile.js
+*.local-build.js
+/scripts/bench-runner/release/
+/scripts/bench-runner/*-HANDOFF.json
+/scripts/bench-runner/NATIVE-INPUT-PREFLIGHT*.json
+/examples/benchmark/dsw-full-export*
+/examples/benchmark/cmt/cmt-medium-s5b-export*
 
 # External record payloads; tracked indexes, summaries and hashes remain visible
 /experiments/records/packs/

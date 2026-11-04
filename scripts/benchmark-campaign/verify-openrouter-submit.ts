@@ -19,11 +19,13 @@ const sources=[import.meta.path,'app/src/llm/index.ts','app/package.json','app/b
 const lease=live?await acquireOpenRouterAdmission({root:ROOT,output,runId,family:'openrouter-submit-smoke-v1',entry:import.meta.path,sourcePins:sources,capUsd:0.05}):undefined;
 let prices=lease?.prices;
 if(!prices){
+  const stored=join(output,'synthetic-endpoints.json');
+  writeFileSync(stored,JSON.stringify({fixtureOnly:true,data:{endpoints:[{provider_name:BENCHMARK_PROVIDER.providerSlug==='relace'?'Relace':'DeepSeek',tag:BENCHMARK_PROVIDER.providerSlug,model_id:BENCHMARK_PROVIDER.model}]}}));
   const profile=join(output,'synthetic-local-prices.json');
   writeFileSync(profile,JSON.stringify({protocol:'openrouter-usd-pricing-source-snapshot-v1',model:BENCHMARK_PROVIDER.model,currency:'USD',providerSlug:BENCHMARK_PROVIDER.providerSlug,
     reservationRates:BENCHMARK_PROVIDER.peakRates,actualOfficialGET:true,modelCalls:0,observedAtUtc:new Date().toISOString(),
-    originalResponsePin:actualPin(join(ROOT,'test/fixtures/provider-check/openrouter-deepseek-check/3d75fcaf756e44918dab4e7f5ea061ba/v41-endpoints.json')),
-    note:'Synthetic local control profile using a stored actual public endpoint response; no fresh tariff GET was made.'}));prices=actualPin(profile);
+    originalResponsePin:actualPin(stored),
+    note:'Synthetic local control profile and endpoint body; no official GET was made.'}));prices=actualPin(profile);
 }
 const key=live?benchmarkProviderKey(ROOT):undefined,directory=join(output,'journal');
 const journal=createCampaignJournal({directory,campaign:runId,capUsd:lease?.capUsd??0.05,priorCampaignCostUpperBoundUsd:0,outputDirectory:output,provider:BENCHMARK_PROVIDER});

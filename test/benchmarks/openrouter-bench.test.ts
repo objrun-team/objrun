@@ -93,12 +93,13 @@ for (const valid of [true, false]) test(`the actual adapter ${valid ? "accepts a
 
 function cashFixture(f: ReturnType<typeof fixture>, providerKind: 'real-provider' | 'local-mock' = 'real-provider') {
   const runId = "repair-2026-10-10T00-00-00-000Z";
-  const stored = resolve(import.meta.dir, "../../test/fixtures/provider-check/openrouter-deepseek-check/3d75fcaf756e44918dab4e7f5ea061ba/v41-endpoints.json");
+  const stored = join(f.directory, "synthetic-endpoints.json");
+  writeFileSync(stored, JSON.stringify({ fixtureOnly: true, data: { endpoints: [{ provider_name: BENCHMARK_PROVIDER.providerSlug === "relace" ? "Relace" : "DeepSeek", tag: BENCHMARK_PROVIDER.providerSlug, model_id: BENCHMARK_PROVIDER.model }] } }));
   const priceFile = join(f.directory, "fixture-price-profile.json");
   writeFileSync(priceFile, JSON.stringify({ protocol: "openrouter-usd-pricing-source-snapshot-v1", currency: "USD", model: BENCHMARK_PROVIDER.model,
     providerSlug: BENCHMARK_PROVIDER.providerSlug, reservationRates: BENCHMARK_PROVIDER.peakRates, originalResponsePin: actualPin(stored),
     actualOfficialGET: true, modelCalls: 0, observedAtUtc: new Date().toISOString(),
-    note: "Synthetic profile for a local control, derived from the stored real public API response; not a new tariff observation." }));
+    note: "Synthetic profile and endpoint body for a local control; no official GET was made." }));
   const admissionFile = join(f.directory, "fixture-admission.json"); writeFileSync(admissionFile, '{"synthetic":true}');
   return createBenchmarkCash({ directory: join(f.directory, "cash"), runId, providerKind,
     prices: actualPin(priceFile), admission: { currency: "USD", capUsd: 1, runId, owned: { ownerNonce: "fixture", pid: process.pid }, scope: "production",

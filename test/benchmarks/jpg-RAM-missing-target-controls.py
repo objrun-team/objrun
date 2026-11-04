@@ -1,4 +1,4 @@
-"""Exact inspect diagnostic delta; readonly saved live rows, no Docker run."""
+"""Synthetic Docker missing-target response formats; no Docker run."""
 import json,sys,unittest
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
@@ -6,12 +6,15 @@ sys.path.insert(0,str(ROOT/'scripts/benchmark-repair'))
 import jpg_private_ram_executor as e
 
 class Controls(unittest.TestCase):
-    def test_01_actual_exact_argv_saved_observation(self):
-        path=ROOT/'test/fixtures/repair/jpg-RAM-exact-missing-name-readonly/observation.json'
-        self.assertEqual(e.pin(path)['sha256'],'b64ba5d126d79d9bba08b91550a00bf77c53aafff932ee3bb78913cdb0c9c136')
-        for row in json.loads(path.read_bytes())['queries']:
-            kind,target=row['argv'][-3],row['argv'][-1]
-            self.assertTrue(e.missing_target(row['exitCode'],row['stdoutText'].encode(),row['stderrText'].encode(),kind,target))
+    def test_01_docker_missing_container_and_volume_formats(self):
+        container = 'objrun-jpg-private-' + 'a' * 32
+        volume = 'objrun-jpg-ram-' + 'b' * 32
+        for kind, target, message in [
+            ('container', container, f'Error response from daemon: No such container: {container}\n'),
+            ('volume', volume, f'Error response from daemon: get {volume}: no such volume\n'),
+        ]:
+            with self.subTest(kind=kind):
+                self.assertTrue(e.missing_target(1, b'[]\n', message.encode(), kind, target))
     def test_02_word_case_compatible_target_exact(self):
         target='objrun-jpg-private-'+'a'*32;line=('error response from daemon: no such container: '+target+'\n').encode()
         self.assertTrue(e.missing_target(1,b'[]\n',line,'container',target))

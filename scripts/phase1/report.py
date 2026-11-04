@@ -152,7 +152,8 @@ def completed(slug, run):
     if any(type(r.get('valid')) is not bool or type(r.get('passed')) is not bool for r in verdicts):
         raise ValueError(f'{run}: malformed verdict')
     control_name = 'scicode' if slug == 'scicode' else 'atmossci' if slug == 'atmossci-bench' else 'lab' if slug == 'lab-bench' else slug
-    controls = read(DOCS / f'{control_name}-selfcheck.json')
+    current_control = ROOT / '.scratch/phase1' / f'{control_name}-selfcheck.json'
+    controls = read(current_control if current_control.exists() else DOCS / f'{control_name}-selfcheck.json')
     if controls.get('allPassed') is not True:
         raise ValueError(f'{slug}: grader control did not pass')
     row = {'slug': slug, 'run': run, 'tasks': len(verdicts), 'valid': sum(r['valid'] for r in verdicts), 'passed': sum(r['valid'] and r['passed'] for r in verdicts), 'graderErrors': sum(not r['valid'] for r in verdicts), 'generationUnits': summary['tasks'], 'seconds': sum(r['seconds'] for r in summary['results']), 'usdUpperBound': summary['usdUpperBound'], 'sourceDigest': manifest['sourceDigest'], 'taskIds': ids, 'protocol': SUBSETS[slug], 'acceptance': (home / ('whole-problems-reaccepted.json' if slug == 'scicode' else 'acceptance.json')).relative_to(DOCS).as_posix()}

@@ -393,7 +393,7 @@ export async function runScientificNativeFixture() {
   let state: { campaign: string; output: string; store: string } | undefined, cash: ReturnType<typeof createCnyCashShadow> | undefined;
   const tickets = new Map<number, Parameters<ReturnType<typeof createCnyCashShadow>["finish"]>[0]>(), registrations: Record<string, unknown>[] = [];
   const ensureCash = () => cash ??= createCnyCashShadow({ directory: join(state!.store, "currency"), runId: state!.campaign, providerKind: "local-mock",
-    prices: actualPin(join(root, "test/fixtures/repair/deepseek-cny-price-readonly.json")),
+    prices: actualPin(join(root, ".local-evidence/repository/test/fixtures/repair/deepseek-cny-price-readonly.json")),
     journal: { directory: state!.store, configPin: actualPin(join(state!.store, "journal-config.json")), sourcePin: actualPin(join(import.meta.dir, "campaign-journal.ts")) } });
   const admission: ScientificPaidAdmission = {
     capUsd: 100, priorCampaignCostUpperBoundUsd: 0, metadata: { scope: "F-only private native owner; not production canonical admission", realCostUsd: 0, realCostCny: 0, syntheticUsage: true },

@@ -5,7 +5,7 @@ param(
 )
 $ErrorActionPreference='Stop'
 $ProjectRoot=Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$ReviewPath=Join-Path $ProjectRoot 'test/fixtures/repair/minif2f-public-cache-root-carry-review.json'
+$ReviewPath=Join-Path $ProjectRoot '.local-evidence/repository/test/fixtures/repair/minif2f-public-cache-root-carry-review.json'
 $Review=Get-Content -LiteralPath $ReviewPath -Raw | ConvertFrom-Json
 if ((Get-FileHash -LiteralPath $ReviewPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ReviewSha -or $Review.protocol -cne 'public-cache-root-carry-source-review-v1' -or $Review.validated -ne $true) { throw 'Carry review pin/contract differs.' }
 foreach ($entry in @($Review.new_sources)+@($Review.protected_sources)) {

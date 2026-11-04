@@ -112,7 +112,7 @@ new = load("public_body_v3_controls","minif2f_public_cache_v3.py") if "--baselin
 def fixture_review(module, extra=()):
     own=Path(module.__file__).resolve()
     files=[own,own.with_suffix(".ps1"),own.with_name("minif2f_public_cache.py"),
-           own.parents[2]/"test/fixtures/repair/minif2f-restoration-preflight.json",*extra]
+           own.parents[2]/".local-evidence/repository/test/fixtures/repair/minif2f-restoration-preflight.json",*extra]
     rows=[dict(path=f.as_posix(),bytes=f.stat().st_size,
                sha256=hashlib.sha256(f.read_bytes()).hexdigest()) for f in files]
     document=dict(protocol=module.REVIEW_PROTOCOL,validated=True,
@@ -617,9 +617,9 @@ class ProtocolTests(unittest.TestCase):
             folder=project/"scripts/benchmark-repair";folder.mkdir(parents=True)
             for name in ("minif2f_public_cache_v3.py","minif2f_public_cache_v3.ps1","minif2f_public_cache.py"):
                 (folder/name).write_bytes((SCRIPTS/name).read_bytes())
-            profile=project/"test/fixtures/repair";profile.mkdir(parents=True)
+            profile=project/".local-evidence/repository/test/fixtures/repair";profile.mkdir(parents=True)
             (profile/"minif2f-restoration-preflight.json").write_bytes(
-                (PROJECT/"test/fixtures/repair/minif2f-restoration-preflight.json").read_bytes())
+                (PROJECT/".local-evidence/repository/test/fixtures/repair/minif2f-restoration-preflight.json").read_bytes())
             spec=importlib.util.spec_from_file_location("executing_copy_source_control",folder/"minif2f_public_cache_v3.py")
             module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
         p=root()

@@ -54,8 +54,8 @@ export function prepareScientificRecipe(balanceFile: string, executionFiles: rea
   const inspectPlan = actualPin(join(root, "docs/repair-2026-10-08/storage-preparations", runId, "plan.json"));
   const recipe: ScientificRecipe = { protocol: "scientific-journal-paid-recipe-v1", runId, profile: "full", benchmarks: ["chembench", "aime", "cmt"], createdAt: new Date().toISOString(),
     requestedNewEnvelopeCny: "250", minimumHeadroomCny: "30", capUsd: 130, priorCampaignCostUpperBoundUsd: 47.531307588,
-    balance, prices: actualPin(join(root, "test/fixtures/repair/deepseek-cny-price-readonly.json")), deferredFault: actualPin(join(root, "test/fixtures/repair/scientific-campaign-deferred-fault.json")),
-    originalPidClosure: actualPin(join(root, "test/fixtures/repair/science1220-oom-original-process-closure.json")), executedSourcePins, inspectPlan, workers,
+    balance, prices: actualPin(join(root, ".local-evidence/repository/test/fixtures/repair/deepseek-cny-price-readonly.json")), deferredFault: actualPin(join(root, ".local-evidence/repository/test/fixtures/repair/scientific-campaign-deferred-fault.json")),
+    originalPidClosure: actualPin(join(root, ".local-evidence/repository/test/fixtures/repair/science1220-oom-original-process-closure.json")), executedSourcePins, inspectPlan, workers,
     taskScheduleSha256: "1ae6590140a51e9c48c656e92e482dd684843f8ae0e1dfc4e8f8ebad0e738bf8", modelForwardedByRecipePreparation: false };
   return save(join(root, "docs/repair-2026-10-08/scientific-journal-recipes", runId, "recipe.json"), recipe);
 }

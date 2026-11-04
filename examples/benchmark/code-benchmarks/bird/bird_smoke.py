@@ -31,6 +31,7 @@ try:
     result={'taskId':row['question_id'],'exitCode':wait['StatusCode'],'output':output.decode(errors='replace'),'containerId':cid}
     try:result['verdict']=json.loads(result['output'].splitlines()[-1])
     except Exception:pass
-    (base/'preparation-controls.json').write_text(json.dumps(result,indent=2),encoding='utf8');print(json.dumps(result))
+    report=base.parents[3]/'.scratch/code-benchmarks/preparation-controls.json'; report.parent.mkdir(parents=True,exist_ok=True)
+    report.write_text(json.dumps(result,indent=2),encoding='utf8');print(json.dumps(result))
 finally:api('/containers/'+cid+'?force=1',method='DELETE')
 if not all(result.get('verdict',{}).get(k) is True for k in ['referencePassed','wrongRejected','readonlyEnforced']):raise SystemExit(1)

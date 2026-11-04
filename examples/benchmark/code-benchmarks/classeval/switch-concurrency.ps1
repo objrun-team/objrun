@@ -43,7 +43,7 @@ Set-Location -LiteralPath $ceRoot
 if($LASTEXITCODE -ne 0){throw 'Concurrency verification failed; experiment remains checkpointed.'}
 & python -m py_compile examples/benchmark/code-benchmarks/classeval/grader_service.py
 if($LASTEXITCODE -ne 0){throw 'Grader compile failed; experiment remains checkpointed.'}
-& bun build examples/benchmark/code-benchmarks/classeval/run.ts --target=bun --outfile examples/benchmark/code-benchmarks/classeval/run.build.js
+& bun build examples/benchmark/code-benchmarks/classeval/run.ts --target=bun --outfile .scratch/code-benchmarks/classeval/run.js
 if($LASTEXITCODE -ne 0){throw 'Runner build failed; experiment remains checkpointed.'}
 & bun run examples/benchmark/code-benchmarks/classeval/run.ts pin
 if($LASTEXITCODE -ne 0){throw 'Source pinning failed; experiment remains checkpointed.'}
