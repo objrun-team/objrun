@@ -1,96 +1,193 @@
-# ObjRun
+<p align="center">
+  <img src="site/media/objrun-poster.png" alt="ObjRun" width="720">
+</p>
 
-实验日志和完整记录正文保存在仓库外；本仓库保留代码、论文、图表数据、运行索引、摘要、覆盖报告和校验清单。2026-11-04 已按确认方案移出记录正文并清理 Git 历史，尚未上传 Hugging Face。读取方法见 [记录说明](experiments/records/README.md)，搬迁范围见 [清理说明](docs/reproducibility/cleanup-2026-11-04.md)。
+<h1 align="center">ObjRun</h1>
 
-ObjRun 学生协作仓库。项目是基于 Bun 和 TypeScript 的任务执行与评测引擎。
+<p align="center"><b>Objective Engineering for Agentic Science</b><br>你定义目标，AI 带着反馈去完成。</p>
 
-## 对外展示页
+<p align="center">
+  <a href="https://objrun.imontlaji.workers.dev/">网站</a> ·
+  <a href="site/paper.pdf">论文</a> ·
+  <a href="https://objrun.imontlaji.workers.dev/runs">运行回放</a> ·
+  <a href="https://objrun.imontlaji.workers.dev/blog/">案例博客</a> ·
+  <a href="site/media/objrun-film-en-1080p60.mp4">介绍短片</a>
+</p>
 
-静态介绍页见 [site/](site/)（深色单页，单按钮机器人演示，无构建）。本地预览：
+---
+
+ObjRun 是一个目标运行时（objective runtime）。使用者只写“怎样算对”：把一个领域的检查器包装成评估器，封存起来，再规定一次尝试最多能问几次、一次拒绝能透露多少信息。模型、工具和搜索策略都以数据形式声明。智能体只能通过一个返回判决的端口接触标准，被拒后带着历史重启。每条判决都写进数据库，所有分数从记录中计数得出。
+
+内核不包含任何学科、模型或工具的名字。论文中的 20 个评测接入时都没有改内核，每个评测只写了一份目标记录和一层官方评分器的包装。
+
+## 工作原理
+
+<p align="center">
+  <img src="paper/current/figs/main-0-system.png" alt="ObjRun 系统总览（论文 Fig. 2）" width="760">
+</p>
+
+<p align="center"><sub><b>Fig. 2</b>　ObjRun 总览。a：作者定义任务 d、目标 G 和 harness 声明，校验后封存 G。b：求解器通过访问端口查询同一个封存的目标，每次尝试最多 c 次，按信息级别 L 得到反馈；提交被拒时，在 K 和 T 允许的范围内重启，保留历史并重置查询额度。c：调用、判决、历史和用量写入持久记录，结果从记录计算。</sub></p>
+
+一道题的完整流程：
+
+1. **发布**：写任务 d 和目标 G。内核检查 G 的图结构（边合法、无环、唯一出口且输出布尔值、每个端口都接线），任一条不满足就整批拒绝。通过后，G 的定义写入单独的封存库，主库的接口读不到它。
+2. **尝试**：智能体在一次尝试里调用工具，并可向 G 查询最多 c 次，每次得到一条判决和事先声明的反馈。
+3. **重启**：提交被拒后，带着历史重启，查询额度重置。
+4. **结束**：提交通过、预算用完或时间耗尽时任务结束，最后一次提交重新评估，作为最终结果。
+
+逐步说明见 [docs/loop.md](docs/loop.md)。
+
+## 主要结果
+
+以下结果均使用 DeepSeek V4.1 Flash。U 为同一模型的单次作答，F 为挂载目标后的运行。
+
+<p align="center">
+  <img src="paper/current/figs/fig1-vs-published.png" alt="20 个评测上的 U、已发表参考与 F（论文 Fig. 1）" width="820">
+</p>
+
+<p align="center"><sub><b>Fig. 1</b>　20 个评测上的单次作答（浅灰）、已发表参考结果（深灰）与 ObjRun（蓝）。</sub></p>
+
+| 评测 | 领域 | 题数 | U | F |
+| --- | --- | ---: | ---: | ---: |
+| CMT-Benchmark | 凝聚态理论 | 50 | 26.0% | 86.0% |
+| LAB-Bench | 实验流程 | 708 | 41.8% | 99.6% |
+| SciBench | 科学计算 | 416 | 45.9% | 92.1% |
+| TheoPhysEval | 理论物理 | 49 | 6.1% | 42.9% |
+| ChemIQ | 化学 | 816 | 65.6% | 96.1% |
+| BIRD | Text-to-SQL | 1534 | 63.9% | 86.6% |
+| GPQA Diamond | 科学选择题 | 198 | 82.3% | 98.5% |
+| Terminal-Bench 2.1 | 终端任务 | 89 | — | 85.4% |
+| SkillsBench 1.1 | 技能任务 | 87 | — | 80.5% |
+
+- Terminal-Bench 2.1、SkillsBench 1.1 和 DeepSWE（F 为 81.3%）没有在本地运行 U，论文以外部系统的单次作答结果作参考，属于跨系统比较。
+- Fig. 1 中的已发表结果各自使用不同协议，多为单次作答，只用来标示量级，不构成同条件排名。
+- 在轨迹分析队列中，多数被解出的任务在 1 到 3 条判决内通过；每题完成 token 数的中位数为单次作答的 1.04 到 2.31 倍。
+
+全部 20 项结果、预算和口径见论文附录。
+
+### 科学案例
+
+论文另选了四个近期论文中的科学问题，每个限时 5 小时，结果由宿主机上的检查器独立验证。四项的模型调用费用合计 5.62 美元。
+
+| 问题 | 参考值 | 结果 | 验证方式 |
+| --- | --- | --- | --- |
+| DNA 编码（n = 10, d = 4, GC = 5） | 676 个词 | 1,688 个词 | 两套独立的整数实现 |
+| 低存储 Runge–Kutta（5 级 3 阶，2N） | 误差范数 0.015632 | 0.013967，在固定可行集上最优 | 精确有理区间算术 |
+| 球面设计（R⁶ 中 24 个单位向量） | 猜想 | 4 个非全局局部极小值 | 区间算术证书 |
+| RNA 可设计性（Repetitious Sequences 8/10） | 上界 0.18740 | 上界 0.15770 | 全部赋值的包络枚举 |
+
+<p align="center">
+  <img src="paper/current/figs/discovery-runs.png" alt="四个科学案例的验证结果" width="820">
+</p>
+
+每个案例的过程见[案例博客](https://objrun.imontlaji.workers.dev/blog/)。
+
+## 快速开始
+
+### 环境要求
+
+- [Bun](https://bun.sh)。运行时直接执行 `.ts`，没有编译步骤；SQLite 使用 Bun 自带的 `bun:sqlite`。
+- 至少一个模型服务的 API key。
+
+### 安装与启动
 
 ```bash
-npx --yes serve site
+cp .env.example .env
 ```
 
-或 `python -m http.server 5173 --directory site`，再打开提示地址。
-
-
-## 目录入口
-
-| 路径 | 内容 |
-|---|---|
-| [experiments/records/](experiments/records/README.md) | 运行索引、摘要、当前覆盖与校验清单；正文在仓库外 |
-| [experiments/](experiments/README.md) | Bench 来源、历史收集索引及论文来源 |
-| [paper/current/](paper/README.md) | 论文源码、图表和绘图数据 |
-| [docs/provenance/](docs/provenance/README.md) | 有独有信息的审计、交接和写作来源 |
-| [docs/architecture/](docs/architecture/README.md) | 架构说明 |
-| [scripts/](scripts/README.md) | 当前运行器、校验器及必要的历史执行源码 |
-
-备份位于本仓库父目录的 `_objrun-cleanup-backup-20261104/`。原有 `_objrun-archive/` 保持原样。`data/` 的原始运行、临时环境和发布副本已移出；少量按哈希固定的回归测试输入仍留在原路径。读取已导出的日志不需要恢复完整历史运行环境，但需要完整外置记录目录。当前代码继续使用已有 `TGENGIN_*` 配置名。
-
-## 外面这三个是给人看的
-
-| 文件 | 是什么 |
-| --- | --- |
-| `README.md` | 这份。 |
-| `config.yaml` | **整个程序唯一一份配置**。路径一律相对这个文件所在的目录，不是相对 cwd —— 从仓库里任何一个子目录启动，开的都是同一个库。 |
-| `.env` | 号和钥匙。**不进版本库**（见 `.gitignore`），只在这台机器上。 |
-
-## 目录
-
-```
-config.yaml        唯一一份配置
-app/               程序本体
-  package.json     依赖也只有这一份
-  src/
-    main.ts        入口：读配置 → 起库和接口 → 装那些句柄 → 管停机
-    H2H/           状态。库 + 对外接口
-    engine/        读 → 处理 → 写 的循环。内核、句柄注册表、链路串、条件
-    install/       装表。表是声明出来的（tables.json），不是写死的
-    llm/           模型这一侧。chat 一条轨，duplex（实时会话）一条轨
-    objective/     验证函数 G。定义存封存区，主库够不着
-    tree/          树的控制流：派生 / 判死开兄弟 / 回退
-    trigger/       防「静默不生效」：条件校验 + 活库检查
-    msg/           往上下文里投消息。**只有这一处实现**
-    tasks/         发任务、跑 bench
-    tools/         基础工具 read / write / edit / glob / grep / bash
-    place/         在哪儿干。转发层 + 送过去的那个运行时
-    ui/            一张给人看的页，引擎自己 serve（/ui）。只是又一个客户端，只走 /api
-docs/              给人看的
-examples/          跑得起来的例子
-data/              运行时产物，不进版本库
-```
-
-## 跑
-
-```
-cd app
-bun install
-bun start          # bun src/main.ts
-```
-
-**运行时是 Bun**，直接吃 `.ts`，没有编译步骤。sqlite 用它自带的 `bun:sqlite`。
-
-## 打包
-
-```
-cd app && bun run build
-```
-
-出在 `dist/`，单文件，目标机器不用装任何运行时：win-x64 / mac-arm64 / mac-x64
-一台机器上一次全出。把 `config.yaml` 放在可执行文件旁边就行。
-
-`bun run verify` = 类型 + 三个包一起过。
-
-**没有一个 native 依赖**，所以能从 Windows 一次交叉编译出 mac 的。新依赖进来先过两道闸：
-不许是 native（一引进来交叉编译当场废），不许绑死运行时。
-
-## `.env` 里要有什么
+在 `.env` 中填写 key。这个文件不进版本库：
 
 ```
 DEEPSEEK_API_KEY=
 DASHSCOPE_API_KEY=
 ```
 
-缺了应当当场炸，并且说得出缺的是哪个键 —— 悄悄跑下去的话，
-错会在很远的地方才冒出来。
+```bash
+cd app
+bun install
+bun start
+```
+
+服务默认监听 `127.0.0.1:7801`，接口在 `/api` 下，自带页面在 `/ui`。用到的 key 没有填写时，程序会报错并指出缺少哪一个。
+
+检查服务状态：
+
+```bash
+curl -s http://127.0.0.1:7801/api/health
+```
+
+声明智能体、发送第一个任务，以及各评测的接入方式，见 [examples/](examples/README.md)。
+
+### 配置
+
+`config.yaml` 是程序唯一的配置文件，包括端口、日志级别、主库和封存库的位置等。文件中的路径都相对 `config.yaml` 所在目录解析，与启动时的工作目录无关，因此从仓库任何子目录启动，打开的都是同一个库。值里可以写 `${VAR}`，从环境变量读取。代码中的环境变量沿用旧名 `TGENGIN_*`。
+
+### 打包
+
+```bash
+cd app && bun run build
+```
+
+产物在 `dist/`，每个平台一个独立的可执行文件（win-x64、mac-arm64、mac-x64），目标机器不需要安装运行时，把 `config.yaml` 放在可执行文件旁边即可。`bun run verify` 先做类型检查再打包。
+
+项目没有 native 依赖，因此可以在 Windows 上一次交叉编译出 mac 版本。新增依赖同样不能是 native，也不能绑定特定运行时。
+
+## 项目结构
+
+```
+config.yaml          唯一的配置文件
+app/src/
+  main.ts            入口：读配置，启动数据库和接口，注册句柄，处理停机
+  H2H/               状态：数据库与对外接口
+  engine/            读取、处理、写入的主循环
+  objective/         目标 G；定义存放在封存库，主库读不到
+  tree/              尝试树：派生、失败后开兄弟节点、回退
+  llm/               模型接入：chat 与 duplex 两种模式
+  tools/             read / write / edit / glob / grep / bash
+  place/             执行位置：转发层与远端运行时
+  ui/                引擎自带的页面，只通过 /api 访问
+examples/            可运行的示例与各评测的接入
+experiments/         Bench 来源与实验记录索引
+paper/current/       论文源码、图表与绘图数据
+scripts/             运行器、校验器与记录工具
+site/                网站、运行回放与案例博客
+docs/                架构、主循环、表结构与复现说明
+test/                回归测试
+```
+
+## 实验记录与复现
+
+代码仓库保留运行索引、摘要、覆盖报告和 SHA-256 清单。完整的记录正文（模型输入输出、对话、工具调用、日志、评分依据）已移到仓库外，计划发布到 Hugging Face，目前还没有上传，因此只克隆本仓库无法读取完整轨迹。
+
+只查看仓库内的索引：
+
+```bash
+python -B scripts/storage/records.py runs --bench labbench --limit 20
+```
+
+读取正文需要 Python 3.12+ 和 [`scripts/storage/requirements-records.txt`](scripts/storage/requirements-records.txt)，并用 `--root` 或环境变量 `OBJRUN_RECORDS_ROOT` 指定完整记录目录。用法见 [experiments/records/](experiments/records/README.md)，各 Bench 的覆盖范围和原始缺损见[记录整理简报](docs/reproducibility/records-report.md)。
+
+论文每张图和每张表对应的数据文件，见 [paper/current/SOURCE-DATA.md](paper/current/SOURCE-DATA.md)。读取记录和完整重放历史实验是两回事，后者还需要恢复当时的运行环境。
+
+## 网站
+
+线上地址：https://objrun.imontlaji.workers.dev/
+
+本地预览：
+
+```bash
+python -m http.server 5173 --directory site
+```
+
+然后打开 http://127.0.0.1:5173 。网站说明见 [site/README.md](site/README.md)。
+
+## 引用
+
+```bibtex
+@misc{zhao2026objrun,
+  title        = {ObjRun: Objective Engineering for Agentic Science},
+  author       = {Zhao, Zhe and Wen, Haibin and Yang, Yuheng and Fang, Junfeng and An, Bo},
+  year         = {2026},
+  howpublished = {\url{https://objrun.imontlaji.workers.dev/paper.pdf}}
+}
+```
