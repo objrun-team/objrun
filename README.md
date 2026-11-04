@@ -47,21 +47,7 @@ ObjRun 是一个目标运行时（objective runtime）。使用者只写“怎�
 
 <p align="center"><sub><b>Fig. 1</b>　20 个评测上的单次作答（浅灰）、已发表参考结果（深灰）与 ObjRun（蓝）。</sub></p>
 
-| 评测 | 领域 | 题数 | U | F |
-| --- | --- | ---: | ---: | ---: |
-| CMT-Benchmark | 凝聚态理论 | 50 | 26.0% | 86.0% |
-| LAB-Bench | 实验流程 | 708 | 41.8% | 99.6% |
-| SciBench | 科学计算 | 416 | 45.9% | 92.1% |
-| TheoPhysEval | 理论物理 | 49 | 6.1% | 42.9% |
-| ChemIQ | 化学 | 816 | 65.6% | 96.1% |
-| BIRD | Text-to-SQL | 1534 | 63.9% | 86.6% |
-| GPQA Diamond | 科学选择题 | 198 | 82.3% | 98.5% |
-| Terminal-Bench 2.1 | 终端任务 | 89 | — | 85.4% |
-| SkillsBench 1.1 | 技能任务 | 87 | — | 80.5% |
 
-- Terminal-Bench 2.1、SkillsBench 1.1 和 DeepSWE（F 为 81.3%）没有在本地运行 U，论文以外部系统的单次作答结果作参考，属于跨系统比较。
-- Fig. 1 中的已发表结果各自使用不同协议，多为单次作答，只用来标示量级，不构成同条件排名。
-- 在轨迹分析队列中，多数被解出的任务在 1 到 3 条判决内通过；每题完成 token 数的中位数为单次作答的 1.04 到 2.31 倍。
 
 全部 20 项结果、预算和口径见论文附录。
 
@@ -155,39 +141,6 @@ docs/                架构、主循环、表结构与复现说明
 test/                回归测试
 ```
 
-## 实验记录与复现
-
-代码仓库保留运行索引、摘要、覆盖报告和 SHA-256 清单。完整的记录正文（模型输入输出、对话、工具调用、日志、评分依据）已移到仓库外，计划发布到 Hugging Face，目前还没有上传，因此只克隆本仓库无法读取完整轨迹。
-
-只查看仓库内的索引：
-
-```bash
-python -B scripts/storage/records.py runs --bench labbench --limit 20
-```
-
-读取正文需要 Python 3.12+ 和 [`scripts/storage/requirements-records.txt`](scripts/storage/requirements-records.txt)，并用 `--root` 或环境变量 `OBJRUN_RECORDS_ROOT` 指定完整记录目录。用法见 [experiments/records/](experiments/records/README.md)，各 Bench 的覆盖范围和原始缺损见[记录整理简报](docs/reproducibility/records-report.md)。
-
-论文每张图和每张表对应的数据文件，见 [paper/current/SOURCE-DATA.md](paper/current/SOURCE-DATA.md)。读取记录和完整重放历史实验是两回事，后者还需要恢复当时的运行环境。
-
 ## 网站
 
 线上地址：https://objrun.imontlaji.workers.dev/
-
-本地预览：
-
-```bash
-python -m http.server 5173 --directory site
-```
-
-然后打开 http://127.0.0.1:5173 。网站说明见 [site/README.md](site/README.md)。
-
-## 引用
-
-```bibtex
-@misc{zhao2026objrun,
-  title        = {ObjRun: Objective Engineering for Agentic Science},
-  author       = {Zhao, Zhe and Wen, Haibin and Yang, Yuheng and Fang, Junfeng and An, Bo},
-  year         = {2026},
-  howpublished = {\url{https://objrun.imontlaji.workers.dev/paper.pdf}}
-}
-```
