@@ -2,27 +2,61 @@
   <a href="README.md">English</a> | <strong>简体中文</strong>
 </p>
 
-<p align="center">
-  <img src="site/media/objrun-poster.png" alt="ObjRun" width="720">
-</p>
-
 <h1 align="center">ObjRun</h1>
 
-<p align="center"><b>Objective Engineering for Agentic Science</b><br>你定义目标，AI 带着反馈去完成。</p>
+<p align="center">面向智能体科研的目标工程</p>
 
 <p align="center">
-  <a href="https://objrun.imontlaji.workers.dev/">网站</a> ·
-  <a href="site/paper.pdf">论文</a> ·
-  <a href="https://objrun.imontlaji.workers.dev/runs">运行回放</a> ·
-  <a href="https://objrun.imontlaji.workers.dev/blog/">案例博客</a> ·
-  <a href="site/media/objrun-film-en-1080p60.mp4">介绍短片</a>
+  <a href="https://objrun.imontlaji.workers.dev/zh/#video">
+    <img src="site/media/objrun-poster.png" alt="观看 ObjRun 介绍视频" width="720">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://objrun.imontlaji.workers.dev/zh/">网站</a> ·
+  <a href="https://objrun.imontlaji.workers.dev/paper.pdf">论文</a> ·
+  <a href="https://objrun.imontlaji.workers.dev/zh/#video">视频</a> ·
+  <a href="https://objrun.imontlaji.workers.dev/zh/runs">运行回放</a> ·
+  <a href="https://objrun.imontlaji.workers.dev/zh/blog/">科学案例</a>
 </p>
 
 ---
 
-ObjRun 是一个目标运行时（objective runtime）。使用者只写“怎样算对”：把一个领域的检查器包装成评估器，封存起来，再规定一次尝试最多能问几次、一次拒绝能透露多少信息。模型、工具和搜索策略都以数据形式声明。智能体只能通过一个返回判决的端口接触标准，被拒后带着历史重启。每条判决都写进数据库，所有分数从记录中计数得出。
+ObjRun 是让 AI 智能体围绕可验证目标工作的运行时。你提供检查器，设定反馈内容、查询次数、重试次数和时间限制；ObjRun 管理尝试过程，让智能体带着反馈重试，并记录每次判决。
 
-内核不包含任何学科、模型或工具的名字。论文中的 20 个评测接入时都没有改内核，每个评测只写了一份目标记录和一层官方评分器的包装。
+模型、工具和搜索策略都以数据形式声明。论文中的 20 个评测均未修改内核，每项只需一份目标记录和一层官方评分器包装。
+
+## 快速开始
+
+需要 [Git](https://git-scm.com/)、[Bun](https://bun.sh)，以及所用模型服务的 API key。
+
+```bash
+git clone https://github.com/Deref-IO/objrun.git
+cd objrun
+cp .env.example .env
+```
+
+在 `.env` 中填写需要的 key，该文件已被版本控制忽略。基础示例使用 `DEEPSEEK_API_KEY`；使用 DashScope 的示例需要 `DASHSCOPE_API_KEY`。
+
+```dotenv
+DEEPSEEK_API_KEY=your-api-key
+```
+
+启动服务：
+
+```bash
+cd app
+bun install
+bun start
+```
+
+打开[内置界面](http://127.0.0.1:7801/ui)，API 地址为 `http://127.0.0.1:7801/api`。在另一个终端检查服务状态：
+
+```bash
+curl http://127.0.0.1:7801/api/health
+```
+
+接着按[示例](examples/README.md)声明智能体并发送第一个任务。用到的模型 key 缺失时，程序会明确报错。
 
 ## 工作原理
 
@@ -30,20 +64,18 @@ ObjRun 是一个目标运行时（objective runtime）。使用者只写“怎�
   <img src="paper/current/figs/main-0-system.png" alt="ObjRun 系统总览（论文 Fig. 2）" width="760">
 </p>
 
-<p align="center"><sub><b>Fig. 2</b>　ObjRun 总览。a：作者定义任务 d、目标 G 和 harness 声明，校验后封存 G。b：求解器通过访问端口查询同一个封存的目标，每次尝试最多 c 次，按信息级别 L 得到反馈；提交被拒时，在 K 和 T 允许的范围内重启，保留历史并重置查询额度。c：调用、判决、历史和用量写入持久记录，结果从记录计算。</sub></p>
+<p align="center"><sub>定义并封存目标 → 尝试、检查与重试 → 从判决记录计算结果。</sub></p>
 
-一道题的完整流程：
+1. **发布** — 定义任务和目标。内核校验目标图，再写入独立的封存库，主库接口无法读取。
+2. **尝试** — 智能体调用工具，在额度内查询目标，每次获得判决及预先声明的反馈。
+3. **重试** — 提交被拒后，若重试次数和时间仍有余量，则保留历史、重置查询额度，开始下一次尝试。
+4. **结束** — 提交通过或预算耗尽时停止。判决、调用、历史和用量持久保存，分数从记录计算。
 
-1. **发布**：写任务 d 和目标 G。内核检查 G 的图结构（边合法、无环、唯一出口且输出布尔值、每个端口都接线），任一条不满足就整批拒绝。通过后，G 的定义写入单独的封存库，主库的接口读不到它。
-2. **尝试**：智能体在一次尝试里调用工具，并可向 G 查询最多 c 次，每次得到一条判决和事先声明的反馈。
-3. **重启**：提交被拒后，带着历史重启，查询额度重置。
-4. **结束**：提交通过、预算用完或时间耗尽时任务结束，最后一次提交重新评估，作为最终结果。
-
-逐步说明见 [docs/loop.md](docs/loop.md)。
+校验规则、提交处理与最终评估方式见[执行循环](docs/loop.md)。
 
 ## 主要结果
 
-以下结果均使用 DeepSeek V4.1 Flash。U 为同一模型的单次作答，F 为挂载目标后的运行。
+主实验使用 DeepSeek V4.1 Flash。**U** 为单次尝试基线，**F** 为挂载目标、允许在预算内检查与重试的运行。其中 17 项评测使用同一模型在本地运行 U/F；DeepSWE、Terminal-Bench 2.1 和 SkillsBench 1.1 使用外部单次尝试参考结果。
 
 <p align="center">
   <img src="paper/current/figs/fig1-vs-published.png" alt="20 个评测上的 U、已发表参考与 F（论文 Fig. 1）" width="820">
@@ -51,9 +83,7 @@ ObjRun 是一个目标运行时（objective runtime）。使用者只写“怎�
 
 <p align="center"><sub><b>Fig. 1</b>　20 个评测上的单次作答（浅灰）、已发表参考结果（深灰）与 ObjRun（蓝）。</sub></p>
 
-
-
-全部 20 项结果、预算和口径见论文附录。
+这些结果并非等算力比较。全部 20 项结果、预算和评测口径见[论文附录](https://objrun.imontlaji.workers.dev/paper.pdf)。
 
 ### 科学案例
 
@@ -70,81 +100,43 @@ ObjRun 是一个目标运行时（objective runtime）。使用者只写“怎�
   <img src="paper/current/figs/discovery-runs.png" alt="四个科学案例的验证结果" width="820">
 </p>
 
-每个案例的过程见[案例博客](https://objrun.imontlaji.workers.dev/blog/)。
+每个案例的过程见[科学案例](https://objrun.imontlaji.workers.dev/zh/blog/)。
 
-## 快速开始
+## 配置
 
-### 环境要求
+[`config.yaml`](config.yaml) 管理服务、日志、模型默认值和数据库位置。路径相对此文件解析，切换启动目录不会换库。值中可使用 `${VAR}` 读取环境变量，现有 `TGENGIN_*` 名称继续保留。
 
-- [Bun](https://bun.sh)。运行时直接执行 `.ts`，没有编译步骤；SQLite 使用 Bun 自带的 `bun:sqlite`。
-- 至少一个模型服务的 API key。
+Bun 直接执行 TypeScript 源码，并通过内置的 `bun:sqlite` 提供 SQLite。
 
-### 安装与启动
+## 打包
 
-```bash
-cp .env.example .env
-```
-
-在 `.env` 中填写 key。这个文件不进版本库：
-
-```
-DEEPSEEK_API_KEY=
-DASHSCOPE_API_KEY=
-```
+在 `app/` 目录执行：
 
 ```bash
-cd app
-bun install
-bun start
+bun run build
 ```
 
-服务默认监听 `127.0.0.1:7801`，接口在 `/api` 下，自带页面在 `/ui`。用到的 key 没有填写时，程序会报错并指出缺少哪一个。
+产物位于 `dist/`：Windows x64、macOS arm64/x64 的独立可执行文件、Linux x64 远端运行时，以及 `pyodide/` 资源。分发应用时，将 `config.yaml` 和 `pyodide/` 放在可执行文件旁；目标机器无需安装 Bun。
 
-检查服务状态：
-
-```bash
-curl -s http://127.0.0.1:7801/api/health
-```
-
-声明智能体、发送第一个任务，以及各评测的接入方式，见 [examples/](examples/README.md)。
-
-### 配置
-
-`config.yaml` 是程序唯一的配置文件，包括端口、日志级别、主库和封存库的位置等。文件中的路径都相对 `config.yaml` 所在目录解析，与启动时的工作目录无关，因此从仓库任何子目录启动，打开的都是同一个库。值里可以写 `${VAR}`，从环境变量读取。代码中的环境变量沿用旧名 `TGENGIN_*`。
-
-### 打包
-
-```bash
-cd app && bun run build
-```
-
-产物在 `dist/`，每个平台一个独立的可执行文件（win-x64、mac-arm64、mac-x64），目标机器不需要安装运行时，把 `config.yaml` 放在可执行文件旁边即可。`bun run verify` 先做类型检查再打包。
-
-项目没有 native 依赖，因此可以在 Windows 上一次交叉编译出 mac 版本。新增依赖同样不能是 native，也不能绑定特定运行时。
+在 `app/` 执行 `bun run verify` 可完成类型检查和打包。测试套件见 [test/README.md](test/README.md)。
 
 ## 项目结构
 
 ```
-config.yaml          唯一的配置文件
-app/src/
-  main.ts            入口：读配置，启动数据库和接口，注册句柄，处理停机
-  H2H/               状态：数据库与对外接口
-  engine/            读取、处理、写入的主循环
-  objective/         目标 G；定义存放在封存库，主库读不到
-  tree/              尝试树：派生、失败后开兄弟节点、回退
-  llm/               模型接入：chat 与 duplex 两种模式
-  tools/             read / write / edit / glob / grep / bash
-  place/             执行位置：转发层与远端运行时
-  ui/                引擎自带的页面，只通过 /api 访问
+app/src/             运行时、API、工具与内置界面
+config.yaml          运行时配置
 examples/            可运行的示例与各评测的接入
-experiments/         Bench 来源与实验记录索引
+experiments/         评测来源与实验记录
 paper/current/       论文源码、图表与绘图数据
-scripts/             通用运行器、维护与记录工具
-site/                网站、运行回放与案例博客
-docs/                架构、主循环、表结构与复现说明
-test/                单元、集成和基准测试，入口见 test/README.md
+scripts/             通用运行器与维护工具
+site/                网站、运行回放与科学案例
+docs/                架构、执行循环与数据库结构
+test/                单元、集成和基准测试
 ```
 
-## 网站
+## 文档
 
-线上地址：https://objrun.imontlaji.workers.dev/
+- [使用示例](examples/README.md)：智能体、任务、工具与目标。
+- [架构与接口](docs/README.md)：执行循环、协议与数据表。
+- [实验记录](experiments/README.md)：评测来源与运行记录。
+- [论文源码](paper/README.md)：文稿、图表与构建方法。
