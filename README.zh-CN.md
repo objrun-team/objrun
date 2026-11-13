@@ -7,17 +7,17 @@
 <p align="center">面向智能体科研的目标工程</p>
 
 <p align="center">
-  <a href="https://objrun.imontlaji.workers.dev/zh/#video">
+  <a href="https://objrun-team.github.io/zh/#video">
     <img src="site/media/objrun-poster.png" alt="观看 ObjRun 介绍视频" width="720">
   </a>
 </p>
 
 <p align="center">
-  <a href="https://objrun.imontlaji.workers.dev/zh/">网站</a> ·
-  <a href="https://objrun.imontlaji.workers.dev/paper.pdf">论文</a> ·
-  <a href="https://objrun.imontlaji.workers.dev/zh/#video">视频</a> ·
-  <a href="https://objrun.imontlaji.workers.dev/zh/runs">运行回放</a> ·
-  <a href="https://objrun.imontlaji.workers.dev/zh/blog/">科学案例</a>
+  <a href="https://objrun-team.github.io/zh/">网站</a> ·
+  <a href="https://objrun-team.github.io/paper.pdf">论文</a> ·
+  <a href="https://objrun-team.github.io/zh/#video">视频</a> ·
+  <a href="https://objrun-team.github.io/zh/runs/">运行回放</a> ·
+  <a href="https://objrun-team.github.io/zh/blog/">科学案例</a>
 </p>
 
 ---
@@ -83,7 +83,7 @@ curl http://127.0.0.1:7801/api/health
 
 <p align="center"><sub><b>Fig. 1</b>　20 个评测上的单次作答（浅灰）、已发表参考结果（深灰）与 ObjRun（蓝）。</sub></p>
 
-这些结果并非等算力比较。全部 20 项结果、预算和评测口径见[论文附录](https://objrun.imontlaji.workers.dev/paper.pdf)。
+这些结果并非等算力比较。全部 20 项结果、预算和评测口径见[论文附录](https://objrun-team.github.io/paper.pdf)。
 
 ### 科学案例
 
@@ -100,7 +100,7 @@ curl http://127.0.0.1:7801/api/health
   <img src="paper/current/figs/discovery-runs.png" alt="四个科学案例的验证结果" width="820">
 </p>
 
-每个案例的过程见[科学案例](https://objrun.imontlaji.workers.dev/zh/blog/)。
+每个案例的过程见[科学案例](https://objrun-team.github.io/zh/blog/)。
 
 ## 配置
 

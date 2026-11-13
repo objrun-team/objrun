@@ -7,17 +7,17 @@
 <p align="center">Objective Engineering for Agentic Science</p>
 
 <p align="center">
-  <a href="https://objrun.imontlaji.workers.dev/#video">
+  <a href="https://objrun-team.github.io/#video">
     <img src="site/media/objrun-poster.png" alt="Watch the ObjRun overview video" width="720">
   </a>
 </p>
 
 <p align="center">
-  <a href="https://objrun.imontlaji.workers.dev/">Website</a> ·
-  <a href="https://objrun.imontlaji.workers.dev/paper.pdf">Paper</a> ·
-  <a href="https://objrun.imontlaji.workers.dev/#video">Video</a> ·
-  <a href="https://objrun.imontlaji.workers.dev/runs">Run Replays</a> ·
-  <a href="https://objrun.imontlaji.workers.dev/blog/">Case Studies</a>
+  <a href="https://objrun-team.github.io/">Website</a> ·
+  <a href="https://objrun-team.github.io/paper.pdf">Paper</a> ·
+  <a href="https://objrun-team.github.io/#video">Video</a> ·
+  <a href="https://objrun-team.github.io/runs/">Run Replays</a> ·
+  <a href="https://objrun-team.github.io/blog/">Case Studies</a>
 </p>
 
 ---
@@ -83,7 +83,7 @@ The headline runs use DeepSeek V4.1 Flash. **U** is the single-attempt baseline;
 
 <p align="center"><sub><b>Fig. 1</b>　Single-response results (light gray), published reference results (dark gray), and ObjRun (blue) across 20 benchmarks.</sub></p>
 
-These are not equal-compute comparisons. See the [paper's appendix](https://objrun.imontlaji.workers.dev/paper.pdf) for all 20 results, budgets, and evaluation protocols.
+These are not equal-compute comparisons. See the [paper's appendix](https://objrun-team.github.io/paper.pdf) for all 20 results, budgets, and evaluation protocols.
 
 ### Scientific Case Studies
 
@@ -100,7 +100,7 @@ The paper also examines four scientific problems from recent papers. Each had a 
   <img src="paper/current/figs/discovery-runs.png" alt="Verification results for the four scientific case studies" width="820">
 </p>
 
-Read the [case study blog](https://objrun.imontlaji.workers.dev/blog/) for the process behind each result.
+Read the [case study blog](https://objrun-team.github.io/blog/) for the process behind each result.
 
 ## Configuration
 

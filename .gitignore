@@ -30,6 +30,7 @@ __pycache__/
 *.log
 /artifacts/
 /site/cloudflare/public/
+/site/github-pages/public/
 /.local-evidence/
 
 # Generated bundles, run exports and one-off build handoffs
