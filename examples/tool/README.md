@@ -1,11 +1,13 @@
-# 注册工具
+# Register tools
 
-[← 例子](../) ｜ **tool** · [meet-join](../meet-join/) · [meet-book](../meet-book/) · [place](../place/) · [rule](../rule/) · [skill](../skill/) · [mode](../mode/) · [cmtbench](../benchmark/cmt/)
+Instructions and illustrative declarations are in English. Captured responses and logs below are English renderings of earlier Chinese-language output, preserving IDs, timestamps, paths, and numbers. Original archived evidence is unchanged.
 
-同一个骰子，两种写法，都注册进去，一个任务里都用上。
+[← Examples](../) ｜ **tool** · [meet-join](../meet-join/) · [meet-book](../meet-book/) · [place](../place/) · [rule](../rule/) · [skill](../skill/) · [mode](../mode/) · [cmtbench](../benchmark/cmt/)
+
+Two implementations of the same die: register both and use both in one task.
 
 ```bash
-cp config.yaml dist/                     # 配置放 exe 旁边
+cp config.yaml dist/                     # Put configuration beside the executable
 TGENGIN_PLUGIN_HOST=app/src/engine/plugin-host.ts dist/tgengin-win-x64.exe &
 BASE=http://127.0.0.1:7801/api
 curl -s $BASE/health
@@ -14,7 +16,7 @@ curl -s $BASE/health
 {"ok":true,"db":"…/dist/data/h2h.sqlite","tables":13,"write":true,"query":true,"uptimeMs":5103}
 ```
 
-底子（一个地方、两个周期、一个智能体）：
+Base setup (one place, two cycles, one agent):
 
 ```bash
 curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
@@ -30,7 +32,7 @@ JSON
 
 ---
 
-## 写法一：进程内
+## Style one: in process
 
 [`dice-plugin.ts`](./dice-plugin.ts)
 
@@ -51,10 +53,10 @@ curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
   "tools": [{
     "name": "dice_in",
     "identity": "fn:tool.dice_in",
-    "does": "掷一个 n 面骰子（进程内）",
+    "does": "Roll an n-sided die (in process)",
     "params": { "type":"object", "properties": { "sides": {"type":"integer"} }, "required":["sides"] },
     "output": { "type":"object", "properties": { "sides":{"type":"integer"}, "value":{"type":"integer"} } },
-    "when": [[{ "dim":"task", "key":"description", "op":"contains", "value":"骰子" }]]
+    "when": [[{ "dim":"task", "key":"description", "op":"contains", "value":"dice" }]]
   }]
 }
 JSON
@@ -64,9 +66,9 @@ JSON
  "agents":[],"tools":["dice_in"],"rules":[],"skills":[],"tables":[],"entries":{}}
 ```
 
-## 写法二：进程外
+## Style two: out of process
 
-[`dice-server.ts`](./dice-server.ts) —— 一个 MCP server，stdio 上的 JSON-RPC。
+[`dice-server.ts`](./dice-server.ts) is an MCP server using JSON-RPC over stdio.
 
 ```ts
 if (m.method === "tools/list") return reply({ tools: [TOOL] });
@@ -87,7 +89,7 @@ curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
     "name": "dice",
     "command": "bun",
     "args": ["examples/tool/dice-server.ts"],
-    "tools": { "dice_out": { "when": [[{ "dim":"task","key":"description","op":"contains","value":"骰子" }]] } }
+    "tools": { "dice_out": { "when": [[{ "dim":"task","key":"description","op":"contains","value":"dice" }]] } }
   }]
 }
 JSON
@@ -97,9 +99,9 @@ JSON
  "agents":[],"tools":[],"rules":[],"skills":[],"tables":[],"entries":{}}
 ```
 
-名字、描述、schema 都是 `tools/list` 报的，声明里没写。
+Names, descriptions, and schemas come from `tools/list`; they are not specified in the declaration.
 
-## 两个都在
+## Both are registered
 
 ```bash
 curl -s -X POST $BASE/query -H 'content-type: application/json' -d @- <<'JSON'
@@ -115,13 +117,13 @@ JSON
 
 ---
 
-## 一个任务，两个都用上
+## One task uses both tools
 
 ```bash
 curl -s -X POST $BASE/tasks -H 'content-type: application/json' -d @- <<'JSON'
 { "id":"t-dice", "mode":"work", "agent":"bot", "place":"local", "source":"user",
   "solveSeconds": 180,
-  "description": "用 dice_in 和 dice_out 各掷一次 20 面骰子，把两个点数都告诉我，然后就结束" }
+  "description": "Roll 20-sided dice once with dice_in and once with dice_out, report both values, then finish" }
 JSON
 ```
 ```json
@@ -148,71 +150,70 @@ curl -s "$BASE/tasks/t-dice/messages?kind=tool" | grep -o '"value":{[^}]*}'
 curl -s "$BASE/tasks/t-dice/messages?kind=prompt" | grep -o '"body":"[^"]*"' | tail -1
 ```
 ```
-"body":"好的，两个 20 面骰子都掷完了：\n\n- **dice_in**（进程内）：**1**\n- **dice_out**（进程外）：**14**\n\n就这样，结束了。"
+"body":"Both 20-sided dice have been rolled:\n\n- **dice_in** (in process): **1**\n- **dice_out** (out of process): **14**\n\nFinished."
 ```
 
-### 日志
+### Logs
 
-插件在引擎的 stdout 上：
+Plugin output appears on engine stdout. English rendering of the captured output:
 
 ```
-{"level":30,…,"msg":"插件：app/src/engine/plugin-host.ts"}
+{"level":30,…,"msg":"Plugin: app/src/engine/plugin-host.ts"}
 [dice-plugin] sides=20 → 1
 ```
 
-`dice-server` 是子进程，它在 stderr 上 —— stdio 的 server 拿 stderr 当日志，引擎原样转出来：
+`dice-server` is a subprocess and logs to stderr. A stdio server uses stderr for logs; the engine forwards it unchanged:
 
 ```
-[dice-server] 起来了
+[dice-server] Started
 [dice-server] sides=20 → 14
 ```
 
 ---
 
-## 字段
+## Fields
 
 `handles[]`
 
 | | |
 | --- | --- |
-| `name` | `fn:…` 进程内，`http://…` 进程外 |
-| `expectMs` | 调多久算死 |
-| `module` | `fn:` 用：`路径#导出名` |
+| `name` | `fn:…` in process, `http://…` out of process |
+| `expectMs` | Duration before the call is considered dead |
+| `module` | For `fn:`: `path#export-name` |
 
 `tools[]`
 
 | | |
 | --- | --- |
-| `name` `does` `params` `output` | 给模型看的 |
-| `identity` | 指一条句柄 |
-| `when` | 什么时候摆给模型 |
-| `system` `usable` `concurrent` `prompt` | 可不给 |
+| `name` `does` `params` `output` | Shown to the model |
+| `identity` | References a handle |
+| `when` | When to offer it to the model |
+| `system` `usable` `concurrent` `prompt` | Optional |
 
 `servers[]`
 
 | | |
 | --- | --- |
-| `name` | 句柄名是 `mcp:<name>/<tool>` |
+| `name` | Handle name is `mcp:<name>/<tool>` |
 | `command` `args` `env` | stdio |
 | `url` `headers` | HTTP |
-| `tools.<工具名>` | `when` / `expectMs` / `system` / `usable` / `prompt` / `concurrent` |
+| `tools.<tool-name>` | `when` / `expectMs` / `system` / `usable` / `prompt` / `concurrent` |
 
-`when`：`[[…],[…]]`，外层 or，内层 and。一条 = `{dim, key, op, value}`。
+`when`: `[[…],[…]]`, OR between outer groups, AND within each group. One condition = `{dim, key, op, value}`.
 
 | dim | key |
 | --- | --- |
-| `task` `agent` `cycle` | 那张表的列名 |
-| `chain` `moment` `place` | 留空 |
+| `task` `agent` `cycle` | Column name in that table |
+| `chain` `moment` `place` | Empty |
 
 `op`：`eq` `ne` `contains` `not_contains` `prefix` `suffix` `in`
 
-### 进程内插件的生命周期
+### In-process plugin lifecycle
 
 | | |
 | --- | --- |
-| 装 | 写 `handles` 那一行，下一圈生效 |
-| 改 | 存文件就换新版本，不用重启 |
-| 卸 | 删掉 `handle` 那一行，worker 连同它的内存和定时器一起收 |
+| Load | Insert the `handles` row; takes effect on the next loop |
+| Update | Save the file to load the new version; no restart |
+| Unload | Delete the `handle` row; the worker is collected with its memory and timers |
 
-worker 的宿主脚本 exe 里带着，但 exe 找不到自己的路径，所以开头那条命令给了
-`TGENGIN_PLUGIN_HOST`。开机日志里 `插件：…` 那行就是它实际用的路径。跑源码时不用给。
+The executable bundles the worker host script, but cannot locate its own path, so the startup command supplies `TGENGIN_PLUGIN_HOST`. The startup log line labeled `Plugin: …` in the English rendering shows the actual path used. This setting is unnecessary when running from source.

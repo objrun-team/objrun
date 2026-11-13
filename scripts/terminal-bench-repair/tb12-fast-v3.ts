@@ -38,12 +38,12 @@ const publish=()=>{
     initialDelivery:true,allCertificationsComplete:false,completePackageDeferred:true,old17RecordsExcluded:true,
     modelRequests:records.reduce((sum,row)=>sum+row.modelRequests,0),laneSummaries:results.map(value=>value.summary)};
   durable(join(home,"initial-results.json"),summary,true);
-  const lines=["# Terminal-Bench 修正版初版结果", "", "固定 12 题同题 U/F；沿用原任务时间预算。旧 17 条记录只保留为诊断，不计此表。",
-    "", "已评分 "+records.length+"/24 条；当前 U "+score.U+"、F "+score.F+"。未完成项目不能当作失败或通过。",
-    "", "| 题目 | U | F |", "|---|---|---|"];
+  const lines=["# Initial corrected Terminal-Bench results", "", "U/F on the same 12 fixed tasks, retaining original task time budgets. The old 17 records are retained only as diagnostics and excluded from this table.",
+    "", "Graded "+records.length+"/24 records; current U "+score.U+", F "+score.F+". Incomplete items must not be treated as failures or passes.",
+    "", "| Task | U | F |", "|---|---|---|"];
   for(const row of rows)lines.push("| "+row.taskId+" | "+(row.U.status??row.U.outcome)+" | "+(row.F.status??row.F.outcome)+" |");
-  lines.push("", "初版已保存模型原始请求/响应、任务轨迹、实际原测试评分和容器关闭记录；完整打包、额外独立审阅与最终认证后置。",
-    "", "机器可读结果：initial-results.json；原始记录：lane-0/、lane-1/。使用两个独立候选/评分服务；每题 U 后 F。API 用量与旧 9 元上限不再作为此次加速限制，仍保留轻量原始账本。", "");
+  lines.push("", "This initial version saves original model requests/responses, task traces, actual original-test grading, and container-closure records; complete packaging, additional independent review, and final certification are deferred.",
+    "", "Machine-readable results: initial-results.json; original records: lane-0/, lane-1/. Two independent candidate/grading services are used, with U then F for each task. API usage and the old CNY 9 cap no longer constrain this accelerated run; lightweight original ledgers are still retained.", "");
   durable(join(home,"initial-report-data.json"),{lines},true);
   // Write a plain Markdown file, preserving normal line breaks.
   const {writeFileSync}=require("node:fs");writeFileSync(join(home,"初版结果.md"),lines.join("\n"));

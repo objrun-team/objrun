@@ -1,23 +1,21 @@
 /**
- * 一趟正在跑的时候，盯着它。
+ * Watch a run while it is in progress.
  *
  * ```
- * bun examples/benchmark/deepswe/watch.ts [这一跑叫什么] [--loop 60]
+ * bun examples/benchmark/deepswe/watch.ts [run-name] [--loop 60]
  * ```
  *
- * **要早点看出毛病，看的不能只是成绩单** —— 成绩单要几小时才有第一个数，而那时候
- * 该改的早就来不及了。所以每道题都摊开：走到第几站、上一条消息是多久以前、判过几次卷、
- * 判卷说了什么。
+ * **Spotting problems early requires more than a scorecard**: the first score takes hours, by which time it may be too late to fix anything. Show each task’s execution-unit count, time since its last message, number of grading calls, and grading feedback.
  *
- * 几种「不报错的坏」，这儿一眼能看出来：
+ * Several silent failure modes are immediately visible here:
  *
- * | 看到什么 | 多半是什么 |
+ * | Observation | Likely cause |
  * | --- | --- |
- * | 每道题的 `站` 都停在 1，而且 `静了` 越来越大 | 模型那条轨没通（钥匙、额度、网络） |
- * | 站在涨，但一次 `verify` 都没有 | 它不知道要交 sha，或者根本没往交卷走 |
- * | `verify` 有，但 `补丁` 一直是 0 字节 | 它在改文件却没提交 —— 收集钩子取不到东西 |
- * | 判卷全是 `collect` 那一段 | 交上来的不是提交号 |
- * | 某一道 `站` 疯涨而别的不动 | 那道题卡在一个循环里，在烧额度 |
+ * | Every task’s `station` stays at 1 and `idle` keeps increasing | The model rail is unavailable (key, quota, network) |
+ * | Stations increase, but there is no `verify` | It does not know to submit a SHA, or is not progressing toward submission |
+ * | There are `verify` calls, but `patch` is always 0 bytes | It edits files without committing; the collection hook finds nothing |
+ * | Every grading failure is in `collect` | The submission is not a commit hash |
+ * | One task’s `station` count races upward while others stand still | That task is stuck in a loop, consuming quota |
  */
 
 const BASE = process.env.TGENGIN_BASE ?? "http://127.0.0.1:7801/api";
@@ -44,21 +42,21 @@ async function once(): Promise<void> {
     `select id, state, result, created_at from task where run = '${RUN}' order by id`,
   );
   if (tasks.length === 0) {
-    console.log(`${RUN}: 一道题都没有`);
+    console.log(`${RUN}: no tasks`);
     return;
   }
 
-  // 走到第几站 —— 子表一行一站。
+  // Execution-unit count: one row per station in the child table.
   const units = await sql<{ task: string; n: number; dead: number }>(
     `select task, count(*) as n, sum(case when status like 'dead%' then 1 else 0 end) as dead
      from task_solve where task like '${RUN}/%' group by task`,
   );
-  // 上一条消息是什么时候 —— 静太久就是卡住了。
+  // Time of the last message: prolonged silence indicates a stall.
   const last = await sql<{ instance: string; at: number; n: number }>(
     `select instance, max(at) as at, count(*) as n from agent_bot_msg
      where instance like '${RUN}/%' group by instance`,
   );
-  // 它自己问过几次 G。
+  // How many times it has queried G itself.
   const checks = await sql<{ instance: string; n: number }>(
     `select instance, count(*) as n from agent_bot_msg
      where instance like '${RUN}/%' and kind = 'tool' and body like '%"verify"%' group by instance`,
@@ -73,9 +71,9 @@ async function once(): Promise<void> {
   const failed = tasks.filter((t) => t.state === "failed").length;
   console.log(
     `\n${new Date().toTimeString().slice(0, 8)}  ${RUN}  ` +
-      `${done} 做成 / ${failed} 判死 / ${tasks.length - done - failed} 在跑`,
+      `${done} passed / ${failed} dead / ${tasks.length - done - failed} running`,
   );
-  console.log("  " + "题".padEnd(46) + "状态      站  判死  验  静了   开跑");
+  console.log("  " + "Task".padEnd(46) + "State    Units Dead Checks Idle Start");
   for (const t of tasks) {
     const short = t.id.slice(RUN.length + 1);
     const uu = u.get(t.id);
@@ -91,11 +89,11 @@ async function once(): Promise<void> {
     );
   }
 
-  // 一次调用都没落地的话，上面那张表全是 0，看不出是「还没开始」还是「轨不通」。
+  // Before any call lands, every value above is 0; this cannot distinguish “not started” from “rail unavailable”.
   const sent = await sql<{ n: number; kind: string }>(
     `select kind, count(*) as n from agent_bot_msg where instance like '${RUN}/%' group by kind`,
   );
-  console.log("  消息：" + (sent.map((r) => `${r.kind} ${r.n}`).join("  ") || "一条都没有"));
+  console.log("  Messages: " + (sent.map((r) => `${r.kind} ${r.n}`).join("  ") || "none"));
 }
 
 if (LOOP > 0) {
@@ -103,7 +101,7 @@ if (LOOP > 0) {
     try {
       await once();
     } catch (e) {
-      console.log(`  看不了：${e instanceof Error ? e.message : String(e)}`);
+      console.log(`  Cannot inspect: ${e instanceof Error ? e.message : String(e)}`);
     }
     await Bun.sleep(LOOP * 1000);
   }

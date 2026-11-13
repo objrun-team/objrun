@@ -1,45 +1,34 @@
 /**
- * 树自省的那两个工具：**看全树**，和**读某个节点**。
+ * Two tree introspection tools: **view the whole tree** and **read a node**.
  *
- * ## 为什么是工具，不是默认塞进上下文
+ * ## Why tools rather than automatic context injection?
  *
- * 上下文默认只接**单链**（直系祖先 root→父）。兄弟分支、跨链节点**默认不接入** ——
- * 那是故意的：开兄弟正是为了换一条路走，把另一条分支的话直接塞进来，等于让两次
- * 尝试互相污染，δ 就不独立了。
+ * Context normally includes only **one chain**, the direct ancestors from root to parent. Sibling branches and nodes on other chains are **excluded by default**, deliberately: opening a sibling means trying another route. Directly injecting another branch's words would contaminate both attempts and make δ dependent.
  *
- * 但「不默认接入」不等于「看不见」。老仓库那句话是：**进度共享是能看、不是直接继承**。
- * 所以给工具，让它按需去取：判死的那几条多半是踩过的坑，接进来是为了绕开，不是为了抄。
+ * Excluded by default does not mean invisible. As the old repository said, **shared progress means visibility, not direct inheritance**. Provide tools for retrieval on demand. Dead branches often record pitfalls; retrieve them to avoid those mistakes, not to copy them.
  *
- * ## 一个节点是好几个周期拼起来的
+ * ## A node spans several cycles
  *
- * **不是一行。** 一次尝试从思考站起头，中间来回跑工具，最后落在交卷站上收口 ——
- * 这一整段才是一个节点：
+ * **It is not one row.** An attempt starts at a reasoning station, alternates with tool execution, and closes at a submission station. That entire stretch is one node:
  *
  * ```
  *   ask#1 → act#2 → ask#3 → … → act#12 → submit#13
- *   └──────────────── 一个节点 ────────────────┘
+ *   └──────────────── one node ────────────────┘
  * ```
  *
- * 所以这两个工具都按**节点**说话，不按行：`task_tree` 列的是节点，
- * `node_load` 读的是一整个节点拼起来的内容。
+ * Both tools therefore operate on **nodes**, not rows: `task_tree` lists nodes; `node_load` reads the combined content of an entire node.
  *
- * 按行读的那一版是错的：读到一个动作站就是一片空白（那一站不说话，只跑工具），
- * 而那不是「它没说什么」，是问错了粒度。
+ * The old row-based reader was wrong: an action station returned blank because it runs tools without speaking. That did not mean the attempt said nothing; the query used the wrong granularity.
  *
- * ## 每个节点还带一段纯文本
+ * ## Each node also carries plain text
  *
- * `task_tree` 列节点的时候，每个节点带一份 `summary` —— 那一段几格消息拼成的一段
- * 纯文本。拼之前去掉三样：**系统那一侧**（工具约定、skill、内核记账）、**思维链**、
- * 以及**写出去的那几段内容**（按行截，见 `WROTE_LINES`）。
+ * `task_tree` includes a `summary` for each node, combining its message slots into plain text after removing **system-side content** (tool conventions, skills, kernel bookkeeping), **chain of thought**, and **written content** (truncated by line; see `WROTE_LINES`).
  *
- * 列表本身就带着，是因为**看一眼别的分支干了什么，不该先花一次调用**：只给状态的话，
- * 「哪几条走不通」得一个节点一个节点地 `node_load` 才问得出来。要原文再去 `node_load`。
+ * Include this in the listing because **seeing what another branch did should not require an extra call**. Status alone would require `node_load` on every node to understand which paths failed. Use `node_load` when original text is needed.
  *
- * ## 为什么按 mode 分发
+ * ## Why dispatch by mode?
  *
- * 只有会分叉的机制才需要这两个。一条道走到黑的单链机制，上下文本来就是直接继承的，
- * 给它一个 `task_tree` 是纯粹的干扰。**分发靠 `trigger`，不靠代码里写死** ——
- * 条件是「这一站的推断函数是不是走树的那个」（`cycle.infer`）。
+ * Only branching mechanisms need these tools. A single-chain mechanism already inherits context directly, so `task_tree` would only distract it. **Dispatch through `trigger`, not hard-coded branches**, based on whether this station uses the tree inference function (`cycle.infer`).
  */
 
 import type { Conn } from "../H2H/db.ts";
@@ -54,7 +43,7 @@ import { whereAmI } from "../tasks/where.ts";
 
 type Row = Record<string, unknown>;
 
-/** 内核递给工具的那一份（见 `tools/unit.ts` 的 `runOne`）。 */
+/** The input passed from the kernel to a tool (see `runOne` in `tools/unit.ts`). */
 interface At {
   args?: { node?: number; level?: string };
   agent?: string;
@@ -74,7 +63,7 @@ interface Unit {
   done: number;
 }
 
-/** 按节点分组。**节点号是记在行上的**（`task_{mode}.node`），不用推。 */
+/** Group by node. **Node numbers are stored on rows** (`task_{mode}.node`), not inferred. */
 function byNode(units: Unit[]): Unit[][] {
   const g = new Map<number, Unit[]>();
   for (const u of units) {
@@ -87,16 +76,13 @@ function byNode(units: Unit[]): Unit[][] {
 }
 
 /**
- * 一个节点的摘要 —— **第三级那一份，直接读表**。
+ * A node summary: **read the third-level version directly from the table**.
  *
- * 以前这儿自己压一遍。两处各压一份的话，模型从 `task_tree` 看到的和它自己上下文里
- * 那一份就不是一个东西，而两边都说得通、都不报错。现在压只有一处：节点收口那一刻
- * （`msg/press.ts`），这儿只是把最狠那一级取出来。
+ * Previously this function recompressed content itself. Two independent compression paths could give the model different content in `task_tree` and its own context, both plausible and error-free. Compression now happens only when a node closes (`msg/press.ts`); this function retrieves the strongest level.
  *
- * 没压过的节点回空串 —— 还在出的那个节点就是这样，它的话正被用着，本来也不该有摘要。
+ * Return an empty string for an uncompressed node. An active node is in this state: its messages are still in use and it should not have a summary yet.
  *
- * **同一段只出一次**：好几格合用一段是常态（`press` 里几行指着子表同一行），
- * 每格都出一遍的话，省下来的又原样加回去了。
+ * **Emit each passage only once**. Several slots commonly share one passage (multiple `press` rows reference one subtable row); repeating it per slot would add back all the saved content.
  */
 function summaryOf(db: Conn, sub: string, task: string, units: number[]): string {
   return [...bodiesAt(db, sub, task, units, "l3").values()].join("\n");
@@ -172,10 +158,9 @@ const NODE_TOOL = {
 };
 
 /**
- * 把这两个工具注册进去。
+ * Register both tools.
  *
- * `treeInfer` 是「走树的那个推断函数」的句柄名 —— 条件按它写，所以**换一种树策略
- * 只要换这个名字**，不用改代码。
+ * `treeInfer` is the handle name for the tree inference function. Conditions reference it, so **switching tree strategies requires only changing this name**, not the code.
  */
 export function registerTreeView(db: Conn, reg: Registry, treeInfer: string): string[] {
   reg.register(db, `fn:tool.${TREE_TOOL.name}`, TREE_TOOL.expectMs, async (arg) => {
@@ -188,8 +173,8 @@ export function registerTreeView(db: Conn, reg: Registry, treeInfer: string): st
       [at.task],
     ) as unknown as Unit[];
 
-    // **列的是节点，不是行。** 一个节点是一次完整的尝试：从思考站起头，来回跑
-    // 工具，落在拿到终止状态的那一行上收口。
+    // **List nodes, not rows.** A node is a complete attempt: start at a reasoning station,
+    // alternate with tools, and close at the row that reaches a terminal state.
     return {
       task: at.task,
       nodes: byNode(units).map((g) => {
@@ -198,13 +183,13 @@ export function registerTreeView(db: Conn, reg: Registry, treeInfer: string): st
         return {
           node: Number(g[0].node),
           at: g.map((u) => `${u.cycle}#${u.unit}`).join(" > "),
-          // 判决落在收口那一行上：reached = 这次尝试成了，dead_* = 被判不成，
-          // 空 = 还没交到卷。
+          // The closing row holds the verdict: reached = the attempt succeeded; dead_* = it was judged unsuccessful;
+          // empty = no submission yet.
           status: end.status,
           done: g.every((u) => Number(u.done) === 1),
           mine,
-          // **正在走的这个节点不给摘要**：它那几站的消息本来就在上下文里，
-          // 再抄一份是把同一段话收进去两次，而每调一次 `task_tree` 就再收一次。
+          // **Do not summarize the active node**: its station messages are already in context.
+          // Copying them would include the same content twice, with another copy on every `task_tree` call.
           summary: mine ? "" : summaryOf(db, at.sub, at.task, g.map((u) => Number(u.unit))),
         };
       }),
@@ -218,8 +203,8 @@ export function registerTreeView(db: Conn, reg: Registry, treeInfer: string): st
     const at = whereAmI(db, String(a.instance));
     if (!at) return { error: `cannot tell which task ${String(a.instance)} belongs to` };
 
-    // **读的是一整个节点。** 按行读的那一版给一个动作站的号就回一片空白：
-    // 那一站不说话，只跑工具 —— 而那不是「它没说什么」，是问错了粒度。
+    // **Read an entire node.** The old row-based version returned blank for an action-station id,
+    // because that station runs tools without speaking. It was the wrong query granularity, not an absence of content.
     const units = all(
       db,
       `select cycle, unit, node, status from "${at.sub}" where task = ? and node = ? order by unit`,
@@ -227,9 +212,8 @@ export function registerTreeView(db: Conn, reg: Registry, treeInfer: string): st
     ) as unknown as Unit[];
     if (units.length === 0) return { node: want, said: [], note: "there is no such node in this task" };
 
-    // **要哪一级就给哪一级；不说就给原文。** 压过的那三份是节点收口那一刻算好落库的
-    // （`msg/press.ts`），这儿只是取出来 —— 取不到就是这个节点还没收口，那本来也没有
-    // 压过的版本可给。
+    // **Return the requested level, or original text if unspecified.** The three compressed versions were computed and stored at node closure (`msg/press.ts`); retrieve them here.
+    // If absent, the node has not closed and no compressed version exists to return.
     const level = String(a.args?.level ?? "").trim();
     if (level) {
       const levels = readyLevels(db);
@@ -250,11 +234,9 @@ export function registerTreeView(db: Conn, reg: Registry, treeInfer: string): st
 
     const t = tableNameOf("agent_{}_msg", String(a.agent));
     const holes = units.map(() => "?").join(",");
-    // **模型自己说过的话** + **G 判过什么**。别的分支的 skill、内核记账、普通工具
-    // 的返回不给 —— 那些是那一段的家当，不是它的结论。
+    // **The model's own words** and **G's verdicts**. Exclude another branch's skills, kernel bookkeeping, and ordinary tool results: those are its working materials, not its conclusions.
     //
-    // 判决必须给：`task_tree` 报了「这次尝试 dead_failed」，来读却读不到死因的话，
-    // 那跟不给差不多 —— 下一次尝试多半原样再来一遍。
+    // Verdicts are mandatory. If `task_tree` reports dead_failed but reading the node cannot reveal why, the information is barely useful; the next attempt will likely repeat the same path.
     const rows = all(
       db,
       `select unit, seq, kind, body from "${t}"
@@ -275,12 +257,12 @@ export function registerTreeView(db: Conn, reg: Registry, treeInfer: string): st
         continue;
       }
       if (r.kind === "call") {
-        // 调用本身不给参数，只给「它当时想干什么」—— 参数是那一段的细节。
+        // For calls, omit arguments and retain only what the model intended to do; arguments are details of that attempt.
         said.push({ at: r.unit, kind: "call", text: v.text ?? "", called: (v.calls ?? []).map((c) => c.name) });
       } else if (v.name === "verify") {
         said.push({ at: r.unit, kind: "verdict", verdict: v.value });
       }
-      // 别的工具返回跳过。
+      // Skip other tool results.
     }
     const end = units[units.length - 1];
     return {
@@ -304,23 +286,19 @@ export function registerTreeView(db: Conn, reg: Registry, treeInfer: string): st
          gives = excluded.gives`,
       [t.name, `fn:tool.${t.name}`, t.does, JSON.stringify(t.params), JSON.stringify(t.output), t.prompt],
     );
-    // **不是 system 工具** —— 按 mode 分发：只有走树的那种机制才挂得上。
-    // 条件落进 `trigger`，跟别的工具走同一张表、同一套判据。
+    // **Not system tools**: dispatch by mode, only to tree mechanisms.
+    // Conditions enter `trigger`, using the same table and matching rules as other tools.
     run(db, `delete from trigger where owner_kind = 'tool' and owner = ?`, [t.name]);
     run(
       db,
       `insert into trigger (owner_kind, owner, "group", dim, "key", op, value) values ('tool', ?, 0, 'cycle', 'infer', 'eq', ?)`,
       [t.name, treeInfer],
     );
-  // **交卷站不摆工具。** 跑工具的只有动作站（`api_mode` 为空、走 `agent.unit` 的
-  // 那个），而交卷站是模型站、它的下一站也是模型站 —— 模型在那儿请求的任何工具
-  // 都没有人会去跑，那次调用会一直挂着，直到补齐给它写一条「没跑成」。
+  // **Do not offer tools at the submission station.** Only action stations execute tools (empty `api_mode`, using `agent.unit`). A submission station and its successor are both model stations, so nobody will execute tools requested there. Such calls hang until completion inserts a "not executed" result.
   //
-  // 实测的样子：模型在交卷站调 `submit`，拿回一句「没跑成」——它调了工具，没人
-  // 给结果。而交卷本来就不需要工具：交的是它说的话。
+  // Observed behavior: the model called `submit` at the submission station and received "not executed" because nobody supplied a result. Submission needs no tool in the first place: the model's words are the submission.
   //
-  // 这一条跟上面那条同一组（组内是 AND），所以是「命中原来那条**并且**这一站
-  // 不是交卷站」。
+  // This condition belongs to the same group as the earlier one (AND within a group): match the original condition **and** require a non-submission station.
     run(
       db,
       `insert into trigger (owner_kind, owner, "group", dim, "key", op, value) values ('tool', ?, 0, 'cycle', 'cycle', 'ne', ?)`,

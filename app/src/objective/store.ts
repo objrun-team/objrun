@@ -1,26 +1,28 @@
 /**
- * 封存区 —— G 的定义放在这儿。
+ * Sealed storage for G definitions.
  *
- * ## 为什么不放主库
+ * ## Why not use the main database
  *
- * 红线只有两条：**不许直接读到 G 的定义**、**不许改它**。查询自由 —— 想调多少次
- * 都行，反推出这个黑盒的形状不是漏洞，那正是 test-time scaling 本体。
+ * There are two boundaries: **no direct reading of G's definition**, and **no modification**.
+ * Querying the black box is allowed; inferring its behavior through queries is test-time
+ * scaling itself, not a vulnerability.
  *
- * 而强制方式**不是「规定不许」，是「够不着」**。我们的主库是全接口开放的：
- * 智能体一条 `/query` 就能读任意表。**G 要是存在主库里，那道墙根本不存在。**
+ * Enforcement means **making the definition unreachable**, not merely forbidding access.
+ * The main database has a complete query API: an agent can read any table through `/query`.
+ * **Storing G there would eliminate the boundary entirely.**
  *
- * 所以 G 的定义落在一个**单独的库文件**里，H2H 不开它，接口够不着。
- * 主库上只留三样：`objective`（这个任务有没有 G，是哪一份）、`readable`（策略位）、
- * 还有判决落回来的 `result` / `state`。
+ * Keep definitions in a **separate database file** that H2H never opens and its API cannot
+ * reach. The main database stores only `objective` (whether G exists and its identity),
+ * `readable` (the visibility policy), and verdict-derived `result` / `state`.
  *
- * ## readable=true 的不用躲
+ * ## readable=true definitions need not be hidden
  *
- * 运行态的真实任务里，验收标准本来就是需求的一部分，不给智能体看反而是错的。
- * 所以 `readable=true` 时**把 G 的定义并进任务描述** —— 它就是需求文本本身，
- * 连「读 G」这个动作都不存在。benchmark 样本才需要封。
+ * For real tasks, acceptance criteria are part of the requirements. Hiding them can be wrong.
+ * When `readable=true`, **append G's definition to the task description** as requirement text,
+ * without a separate "read G" operation. Benchmark samples are the case requiring secrecy.
  *
- * 墙只有一道，逻辑不分叉：**定义一律进封存区**；`readable` 只决定要不要**另外**
- * 把它抄一份进任务描述。
+ * There is one storage boundary, without separate implementations: **all definitions are sealed**.
+ * `readable` determines only whether an **additional copy** appears in the task description.
  */
 
 import { mkdirSync } from "node:fs";
@@ -31,12 +33,12 @@ import type { Objective } from "./spec.ts";
 import { parseObjective, validate } from "./spec.ts";
 
 /**
- * **一份候选长什么样** —— 也就是 G 收什么。
+ * **The candidate structure** accepted by G.
  *
- * 这份声明属于 G，不属于哪个工具：内核把 G 包装成 `verify`，交卷那一步问的又是
- * 同一个 G，两处要的东西当然一模一样。写在这儿，那两个工具都从这儿取；抄成两份
- * 字面量的话，哪天多一个字段就会只改到一边 —— 而那不报错，只表现为模型照着一边
- * 的说明填，另一边收到的少一样。
+ * This declaration belongs to G, not a tool. The kernel exposes G through `verify`, and final
+ * submission queries the same G, so both must accept exactly the same input. Declare it once
+ * here for both tools. Duplicated literals would eventually diverge after a field addition,
+ * letting a model follow one description while the other endpoint silently receives less data.
  */
 export const CANDIDATE = {
   type: "object",
@@ -52,13 +54,13 @@ export const CANDIDATE = {
 } as const;
 
 export interface Sealed {
-  /** 封存一份 G。**过不了定义期检测就拒**，一个字都不写。 */
+  /** Seal a G definition. **Reject invalid definitions before writing anything.** */
   seal(task: string, g: Objective): void;
-  /** 取一份 G。**只有内核这一侧调得到** —— 智能体那条路只能拿判决。 */
+  /** Retrieve G. **Only the kernel side can call this**; the agent-facing path receives verdicts only. */
   open(task: string): Objective | null;
-  /** 这道题的 G 收什么。没封过就回 `null`。 */
+  /** This task's accepted candidate structure, or `null` if no G has been sealed. */
   paramsOf(task: string): Record<string, unknown> | null;
-  /** 一轮里这个 G 最多被问几次。没封过就回 `null`。 */
+  /** Maximum queries to this G per attempt, or `null` if it has not been sealed. */
   checksOf(task: string): number | null;
   has(task: string): boolean;
   forget(task: string): void;
@@ -81,12 +83,12 @@ export function openSealed(file: string): Sealed {
     seal(task, g) {
       const errs = validate(g);
       if (errs.length) {
-        // **拒收整个任务**，不是「先存着回头再说」。存了一份算不出结果的 G，
-        // 那道题会一直挂在系统里，判不出成败也没人知道为什么。
+        // **Reject the entire task**, rather than storing an invalid G for later. An unevaluable G
+        // would leave the task hanging indefinitely without a success/failure decision or explanation.
         throw new Error(`the grading function failed definition-time checks and was rejected:\n  - ${errs.join("\n  - ")}`);
       }
-      // **一份候选长什么样，跟着 G 一起封。** 内核把 G 包装成 `verify`，交卷那一步
-      // 问的又是同一个 G —— 两处要的东西都从这一列来，不各自抄一份字面量。
+      // **Seal the candidate schema together with G.** Both `verify` and submission query the same G;
+      // they obtain their input schema from this column rather than duplicating literals.
       db.prepare(
         `insert into objective (task, body, params, checks, at) values (?, ?, ?, ?, ?)
          on conflict(task) do update set body = excluded.body, params = excluded.params, checks = excluded.checks, at = excluded.at`,

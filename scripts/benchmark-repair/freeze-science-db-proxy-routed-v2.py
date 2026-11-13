@@ -65,19 +65,19 @@ def main():
         limitations=['Production copied main may lack a checkpointed value; reject instead of falling back to WAL/original.',
                      'This evidence prepares only fifth-port identity for later independent closure, not a release or score certificate.'])
     review_pin = m.save_new(DOC/'review.json',review)
-    md = f"""Root 静阅确认 v1 的裸 origin 假设与生产 UPDATE 不符；v1 9a52 源、全部控制/准备原件保留在 prior-v1，并以 manifest SHA {archive_pin['sha256']} 固定。原 v1 没有执行生产 SQL。
+    md = f"""Root's static review confirmed that v1's bare-origin assumption disagrees with the production UPDATE. The v1 9a52 source and all original controls/preparation artifacts are retained in prior-v1, pinned by manifest SHA {archive_pin['sha256']}. Original v1 did not execute production SQL.
 
-新 routed-v2 保留 SQL 和 raw immutable 只读方式。返回各 worker 的完整 base_url，通过固定原 manifest 的 1220 exact route 校验 RUN/benchmark/arm/replica0/encodeURIComponent(officialId)/v1，再独立比较 origin 和 port；四个 URL 路径允许不同。原 SQL/api.base_url、原数据库、WAL、working 和所有 81 源均未改。
+New routed-v2 preserves the SQL and raw immutable read-only approach. It returns each worker's complete base_url, validates RUN/benchmark/arm/replica0/encodeURIComponent(officialId)/v1 against the 1220 exact routes pinned in the original manifest, then independently compares origin and port; the four URL paths may differ. Original SQL/api.base_url, original databases, WAL, working copies, and all 81 sources are unchanged.
 
-真实 F-native 3 项控制全过、child exit0：四不同原 manifest 路径正例；错 RUN、非本地 host、query、credential、额外路径、裸 origin、未知 officialID 拒绝；原 missing/不同端口/Pin/scope 控制仍通过。读取器 SHA {source_pin['sha256']}，review SHA {review_pin['sha256']}。
+All 3 actual F-native controls passed, child exit0: positive control with four distinct original manifest paths; rejection of wrong RUN, nonlocal host, query, credential, extra path, bare origin, and unknown officialID; original missing/different-port/pin/scope controls still pass. Reader SHA {source_pin['sha256']}, review SHA {review_pin['sha256']}.
 
-Root 精确命令（financial 参数使用 actual4722 路径；F 输出必须 fresh）：
+Exact Root command (financial argument uses the actual4722 path; F output must be fresh):
 
 ```powershell
 & 'D:/ProgramData/anaconda3/python.exe' -B -X utf8 '{SOURCE}' --snapshot-receipt '{snapshot}' --snapshot-sha '{snapshot_pin['sha256']}' --financial-audit '<actual4722 audit.json absolute path>' --review '{DOC/'review.json'}' --review-sha '{review_pin['sha256']}' --output-directory '{ROOT/'docs/repair-2026-10-08/science-db-snapshots/root-proxy-identity-routed-v2'}'
 ```
 
-仅 prepares raw-query 与 typed proxy port 证据；当前 agent 未打开生产副本或原 SQLite、未释放锁、未运行模型/评分。若 raw checkpoint 查不到正确值，typed invalid，不自动重试或切工作副本。
+Prepares only raw-query and typed proxy-port evidence. This agent has not opened production copies or original SQLite, released locks, or run models/grading. If the raw checkpoint query cannot retrieve the correct value, the result is typed invalid, with no automatic retry or switch to a working copy.
 """
     with (DOC/'review.md').open('xb') as f:
         f.write(md.encode('utf-8')); f.flush(); r.os.fsync(f.fileno())

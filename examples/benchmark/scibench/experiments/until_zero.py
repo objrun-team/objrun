@@ -78,11 +78,11 @@ def report(partial=False):
   for k,r in sorted(merged.items()):w.writerow({'arm':k[0],'id':k[1],'classification':classify(r),'valid':r['grade'].get('valid'),'passed':r['grade'].get('passed') if r['grade'].get('valid') else '', 'attemptId':r.get('attemptId',''),'attemptNo':r.get('attemptNo',0),'resultPath':str(locations[k])})
  (target/'MERGED_RESULTS.csv').write_bytes(csvpath.read_bytes())
  fmt=lambda n:'—' if n is None else f'{n:.2%}'
- lines=['# SciBench 原始、逐轮补跑与合并结果','','按用户最新授权，所有剩余无效记录（包括原生预算耗尽/未提交）逐轮获得独立新尝试，直到0异常。有效答错保留，不择优。原始/合并每组分母416，补跑各组分母为当轮计划数；另列有效样本EX率。','','|批次|方法|完成/分母|有效|通过|总集EX率|有效样本EX率|','|---|---|---:|---:|---:|---:|---:|']
+ lines=['# SciBench Original, Successive Retry Rounds, and Merged Results','','Under the user’s latest authorization, all remaining invalid records (including native budget exhaustion/no submission) receive independent new attempts each round until no exceptions remain. Valid incorrect answers are retained, without selecting the best result. Original/merged denominators are 416 per arm; each retry arm uses its planned count for that round. EX rates on valid samples are also shown.','','|Batch|Method|Completed / denominator|Valid|Passed|Overall EX rate|EX rate on valid samples|','|---|---|---:|---:|---:|---:|---:|']
  for run,group in statistics.items():
   for arm,s in group.items():lines.append(f"|{run}|{arm}|{s['completed']}/{s['denominator']}|{s['valid']}|{s['passed']}|{fmt(s['EXRateAll'])}|{fmt(s['EXRateValidOnly'])}|")
- lines+=['',f'有效记录{1664-len(remaining)}/1664；剩余无效{len(remaining)}条。明细见UNTIL_ZERO_REMAINING_EXCEPTIONS.json。','','费用只按各独立来源加一次，原始和补跑全部保留，未知不视为0。']
- for run,s in {**fees,'combined':combined}.items():lines.append(f"- {run}: 已知${s['actualCostUsd']:.9f}，未知/在飞{s['unknownCostCount']}笔，预留${s['unknownCostUpperBoundUsd']:.9f}，请求{s['modelCalls']}笔。")
+ lines+=['',f'Valid records: {1664-len(remaining)}/1664; {len(remaining)} remain invalid. See UNTIL_ZERO_REMAINING_EXCEPTIONS.json for details.','','Count costs once per independent source, retaining all original and retry costs; unknown costs are not zero.']
+ for run,s in {**fees,'combined':combined}.items():lines.append(f"- {run}: known ${s['actualCostUsd']:.9f}, {s['unknownCostCount']} unknown-cost/in-flight requests, reserve ${s['unknownCostUpperBoundUsd']:.9f}, {s['modelCalls']} requests.")
  text='\n'.join(lines)+'\n';(DOCS/'UNTIL_ZERO_REPORT.md').write_text(text,encoding='utf-8');(target/'COMBINED_REPORT.md').write_text(text,encoding='utf-8')
  policy=read(POLICY);policy.update({'remainingCount':len(remaining),'validCount':1664-len(remaining),'currentRun':current,'phase':'running' if current else 'complete' if not remaining else 'ready_for_next_round','latestCombinedFees':combined,'lastVerifiedAtUtc':v['atUtc']});save(POLICY,policy)
  final_policy_path=DOCS/'FINAL_ATTEMPT_POLICY.json'

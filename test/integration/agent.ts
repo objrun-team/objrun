@@ -1,25 +1,29 @@
 /**
- * 例子：**加一个智能体**。
+ * Example: **add an agent**.
  *
  * ```
  * bun test/integration/agent.ts
  * ```
  *
- * 一个智能体由两样东西定：
+ * An agent is defined by two things:
  *
- * - `apis` —— **挂哪几条轨**。每条是 `[环境变量名, 模型]`，得在 `api` 表里真有那一行。
- *   一个智能体可以同时挂两条不同形状的轨（比如一条 `chat` 想和写，一条 `duplex`
- *   实时听说）—— `apis` 是个列表就是为了这个
- * - `unit` —— **这一站不用模型时调谁**。周期的 `apiMode` 留空就走它
+ * - `apis`: **which lanes it supports**. Each entry is `[environment-variable name, model]`
+ *   and must exist in the `api` table. An agent can support differently shaped lanes
+ *   simultaneously, such as `chat` for reasoning/writing and `duplex` for real-time
+ *   listening/speaking. This is why `apis` is a list.
+ * - `unit`: **what to call when this station does not use a model**. An empty
+ *   cycle `apiMode` selects it.
  *
- * 「这一站走哪条轨」是**内核挑的**：按周期表上的 `apiMode`，从 `apis` 里找一条
- * `modes` 含它的。适配器不再自己挑 —— 挑的地方只许有一个，两处说了算早晚漂。
+ * **The kernel selects the station's lane**: it reads `apiMode` from the cycle
+ * table and chooses an `apis` entry whose `modes` includes it. The adapter does
+ * not choose again; two independent selectors would eventually diverge.
  *
- * ## 要害在第二部分
+ * ## The second part is essential
  *
- * 注册成功不代表它接得住活。一个智能体挂的轨要是覆盖不了某个模式的每一站，
- * 那些任务会**躺在库里不动**，而且不报错。所以第二部分要问三件事：
- * 它接得住哪些模式、钥匙配没配、真发个任务它动不动。
+ * Successful registration does not prove that the agent can execute tasks. If
+ * its lanes do not cover every station in a mode, tasks can **remain idle in the
+ * database** without an error. The second part therefore checks supported modes,
+ * configured credentials, and whether a real submitted task actually runs.
  */
 
 import { done, machine, ok, outside, part, show, step, until } from "../_lib.ts";
@@ -29,14 +33,14 @@ const out = await outside({
   "/unit": (u) => ({
     role: "assistant",
     kind: "prompt",
-    // 把内核挑给这一站的轨回显出来 —— 第二部分要看它到底挑没挑对。
+    // Echo the lane selected by the kernel so the second part can verify the choice.
     body: JSON.stringify({ laneForThisStation: u.api ?? null }),
   }),
   "/infer": () => null,
 });
 
 try {
-  // ═══════════════ 第一部分：注册 ═══════════════
+  // =============== Part 1: registration ===============
   part("Part one: registration");
 
   step("1. carry a lane that is not in the api table");
@@ -62,9 +66,9 @@ try {
     ],
     places: [{ place: "local" }],
     modes: [
-      // 这个模式每一站都不用模型（apiMode 留空）→ 谁都接得住
+      // No station in this mode uses a model (empty apiMode), so any agent can handle it.
       { mode: "plain", cycles: [{ cycle: "go", from: [], next: [], infer: out.url("/infer") }] },
-      // 这个模式要一条 chat 轨 → 只有挂了 chat 轨的智能体接得住
+      // This mode requires a chat lane, so only agents with that lane can handle it.
       { mode: "thinky", cycles: [{ cycle: "think", apiMode: "chat", from: [], next: [], infer: out.url("/infer") }] },
     ],
     agents: [
@@ -74,7 +78,7 @@ try {
   });
   ok("both went in", (loaded.agents as string[]).length === 2, loaded.agents);
 
-  // ═══════════════ 第二部分：使用层次的校验 ═══════════════
+  // =============== Part 2: actual-use validation ===============
   part("Part two: checks at the level of use");
   console.log("  Registered is not the same as able to take work. For a mode the lanes do not cover, the task just sits in the database, unmoving and unreported.");
 

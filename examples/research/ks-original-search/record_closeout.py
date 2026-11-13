@@ -22,25 +22,25 @@ s['final_adjudication_utc']=datetime.now(timezone.utc).isoformat()
 write(final/'summary.json',s)
 notes=read(run/'RUN_NOTES.json');notes.update(status='completed_without_primary_success',minimum_valid_n=31,primary_success=False,final_report='final/REPORT.md',automation_status='deleted',final_adjudication_utc=s['final_adjudication_utc']);write(run/'RUN_NOTES.json',notes)
 auto=read(run/'monitor-automation.json');auto.update(status='DELETED',cleanup_receipt='final/automation-cleanup.json');write(run/'monitor-automation.json',auto)
-text=f'''本轮已完成，主目标未达成。冻结基线为31条互异实三维射线，目标始终为至多30条；最终最小有效集合为31条。
+text=f'''This run is complete, but the main objective was not achieved. The frozen baseline contains 31 distinct real three-dimensional rays; the target remained at most 30 throughout. The smallest final valid set contains 31 rays.
 
-真实 ObjRun 引擎始终使用 OpenRouter deepseek/deepseek-v4.1-flash。北京时间2026年10月31日19:57:42.102开始，2026年11月1日00:57:42.102截止，搜索窗口18000秒；截止后仅复核已保存证据。117次请求的模型标识均匹配固定模型。
+The real ObjRun engine used OpenRouter deepseek/deepseek-v4.1-flash throughout. The search window ran for 18,000 seconds, from 2026-10-31 19:57:42.102 to 2026-11-01 00:57:42.102 Beijing time. Only saved evidence was reviewed after the deadline. Model identifiers matched the fixed model in all 117 requests.
 
-终检重建了{s['candidate_artifacts_rechecked']}份不同文件内容的候选，{s['valid_artifacts']}份通过。其中126份为31射线文件；这不是非同构集合数量，也不代表发现新构造。三份拒绝证据分别为空集合、26射线可着色集合和235射线可着色集合。未发现通过完整独立终检的至多30射线集合。
+Final checks reconstructed {s['candidate_artifacts_rechecked']} candidates with distinct file contents; {s['valid_artifacts']} passed. Of these, 126 were 31-ray files. This is not a count of nonisomorphic sets and does not establish new constructions. The three rejected artifacts were an empty set, a colorable 26-ray set, and a colorable 235-ray set. No set of at most 30 rays passed complete independent final verification.
 
-证据等级：精确有理数/实二次域坐标验证、非零及射线去重、全部正交对和正交三元组重建、完整DIMACS编码、可重放DPLL不可满足证书；另一套SymPy精确几何与位掩码SAT实现重新构建并复核。基线为31条射线、71个正交对、17个正交三元组。冻结checker哈希仍与运行前一致，40项预检已通过。
+Evidence level: exact rational/real quadratic-field coordinate validation, nonzero checks and ray deduplication, reconstruction of all orthogonal pairs and triples, complete DIMACS encoding, and replayable DPLL unsatisfiability certificates. A separate implementation using SymPy exact geometry and bitmask SAT reconstructed and rechecked them. The baseline contains 31 rays, 71 orthogonal pairs, and 17 orthogonal triples. Frozen checker hashes still match their pre-run values; all 40 preflight checks passed.
 
-费用按116份含费用的API回执合计 **USD {s['usage']['recorded_cost_usd']}**。117次请求均有响应，无仍在等待响应的请求。第89次请求因上下文超限被提供方拒绝（HTTP400），没有费用回执，其费用状态未知，未按零计入。原始回执与逐请求明细保存在requests/、calls.jsonl、final/usage.json。
+The 116 API receipts with recorded costs sum to **USD {s['usage']['recorded_cost_usd']}**. All 117 requests received responses; none remain pending. Request 89 was rejected by the provider for exceeding context limits (HTTP 400) and has no cost receipt. Its cost is unknown and was not counted as zero. Original receipts and per-request details are in requests/, calls.jsonl, and final/usage.json.
 
-本轮执行了整数与实二次域坐标池、旋转并集、删点替换及SAT隐式击中集搜索。两项最终289射线池搜索分别记录6340与6500次迭代，但未给出有效的更小集合。模型日志中的有限池排除结论未纳入独立认证结论；有限搜索不构成R³普遍下界。复现或生成31射线候选仅为部分成果。
+This run explored integer and real quadratic-field coordinate pools, rotated unions, point removal/replacement, and SAT implicit hitting-set search. The two final 289-ray-pool searches recorded 6,340 and 6,500 iterations, respectively, without producing a valid smaller set. Finite-pool exclusion claims in model logs were not included in independently certified conclusions; finite search does not establish a universal lower bound in R³. Reproducing or generating 31-ray candidates is only a partial result.
 
-两次基础设施恢复分别处理工具消息衔接故障和提供方上下文超限；保存旧轨迹后在原截止时间内继续，模型与checker未变。截止守护写下stop-requested.json，主控制器记录hard_deadline_local_stop；守护未完成后续收尾回执，故由本次监控接手纯证据终检。stop-audit.json确认控制器、引擎、验证器、守护均已停止，所属Linux命名空间为空。未重启共享WSL，未发布结果。
+Two infrastructure recoveries addressed broken tool-message continuity and provider context-limit exhaustion. Old traces were saved before continuing within the original deadline; the model and checker were unchanged. The deadline watchdog wrote stop-requested.json, and the main controller recorded hard_deadline_local_stop. The watchdog did not finish its subsequent closeout receipt, so this monitoring session took over evidence-only final checks. stop-audit.json confirms that the controller, engine, verifier, and watchdog have all stopped and their Linux namespace is empty. Shared WSL was not restarted, and results were not published.
 
-监控自动化ks已删除，回执为final/automation-cleanup.json。
+The ks monitoring automation was deleted; its receipt is final/automation-cleanup.json.
 
-宿主贡献：文献与31射线复现、冻结checker、运行隔离/计时/监控、初始可选搜索辅助程序、并发临时文件修复和恢复调度。模型贡献：经ObjRun编写/选择/执行的搜索程序与策略，原始输入输出保存在数据库和requests中。已有工具贡献：ObjRun、PySAT/SAT求解器、SymPy、科学Python、Bun/SQLite及bubblewrap。代码版本、随机种子、候选坐标、图、编码、证书和回执均保留在独立运行目录。
+Host contributions: literature review and 31-ray reproduction, frozen checker, run isolation/timing/monitoring, initial optional search helpers, concurrent temporary-file repair, and recovery scheduling. Model contributions: search programs and strategies written/selected/executed through ObjRun; original inputs and outputs are saved in the database and requests. Existing tools: ObjRun, PySAT/SAT solvers, SymPy, scientific Python, Bun/SQLite, and bubblewrap. Code versions, random seeds, candidate coordinates, graphs, encodings, certificates, and receipts are retained in the separate run directory.
 
-主要文件：frozen-g.json；baseline-audit.*；reference/RESEARCH.md；runtime-manifest.json；engine/；work/；code-history/；verified/；final/summary.json；final/usage.json；final/stop-audit.json；final/evidence-manifest.json。
+Key files: frozen-g.json; baseline-audit.*; reference/RESEARCH.md; runtime-manifest.json; engine/; work/; code-history/; verified/; final/summary.json; final/usage.json; final/stop-audit.json; final/evidence-manifest.json.
 '''
 (final/'REPORT.md').write_text(text,encoding='utf-8')
 shutil.copytree(Path(__file__).resolve().parent,run/'host-source',dirs_exist_ok=True,ignore=shutil.ignore_patterns('__pycache__','*.pyc'))

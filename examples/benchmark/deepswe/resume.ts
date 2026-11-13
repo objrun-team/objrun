@@ -1,42 +1,34 @@
 /**
- * 把**钟响了**的那些题再拉起来，接着上一趟的工作区跑。
+ * Resume **timed-out** problems using their previous workspaces.
  *
  * ```
- * bun examples/benchmark/deepswe/resume.ts [原来那一跑] [新跑名] [再给多少秒]
+ * bun examples/benchmark/deepswe/resume.ts [original-run] [new-run-name] [additional-seconds]
  * bun examples/benchmark/deepswe/resume.ts dsw-full dsw-full-r2 7200 --dry
  * ```
  *
- * ## 接着跑，接的是什么
+ * ## What is resumed?
  *
- * **工作容器不回档**（判据容器每次回，那是另一侧的事）。所以上一趟改的文件、开的分支、
- * 提的每一个提交都还在 `/app` 里 —— 这一趟的 `place` 指的就是**同一个容器**，
- * 只有 `id` 是新的（`task.id` 全局唯一，`tasks/publish.ts` 重了当场拒）。
+ * **Do not reset the working container**; resetting the grading container is a separate concern. Previous files, branches, and commits remain in /app. The new task points to the **same container** with a new id, since task.id is globally unique and duplicates are rejected by tasks/publish.ts.
  *
- * 带过去的是**工作区**，不是上下文：新任务从空的消息列表开始。上一趟说过的话、
- * 它那棵树，都在库里留着（`agent_bot_msg`、`task_solve`），但不接进来 ——
- * 那些正是把上下文撑到顶的东西，而它自己提的提交 `git log` 一句就读得到。
+ * Carry over the **workspace, not the context**. New tasks start with empty messages. Previous conversations and trees remain in agent_bot_msg/task_solve but are not attached; they caused the context overflow. The solver can inspect its existing commits with git log.
  *
- * ## 题面从库里读，不重新拼
+ * ## Read the statement from the database
  *
- * `task` 那一行存着整道题：`description`、`readable`、`workdir`、`no_search`、
- * 两个上限。原样搬过来，**只换 id、只换时限**。重新拼一份的话就是同一份定义两个副本，
- * 改了一处漏另一处不报错，而表现是「两趟跑的根本不是同一道题」。
+ * The task row stores description, readable, workdir, no_search, and both limits. Copy them unchanged, **changing only the id and time limit**. Reconstructing them independently creates duplicate definitions that could silently make resumed tasks differ.
  *
- * 只有 G 搬不过来：它的定义封在 sealed store 里，库里那一列只写着 `sealed`
- * （`tasks/publish.ts`）。所以 G 从 `objective.ts` 那一份共用定义重新拿 ——
- * 那正是 `send.ts` 起这一趟时用的同一份。
+ * G cannot be copied from the ordinary row, which contains only sealed because its definition is in the sealed store (tasks/publish.ts). Reload the shared objective.ts definition also used by send.ts.
  */
 
 import { objectiveOf } from "./objective.ts";
 
 const BASE = process.env.TGENGIN_BASE ?? "http://127.0.0.1:7801/api";
-/** 引擎设了 api.publisherToken 时，绑判据要带这把钥匙（X-TGEngin-Publisher）。从环境变量取；没设就是空对象，老行为不变。 */
+/** When api.publisherToken is configured, attaching grading criteria requires this key (X-TGEngin-Publisher). Read it from the environment; if unset, use an empty object to preserve existing behavior. */
 const PUBLISHER: Record<string, string> = process.env.TGENGIN_PUBLISHER_TOKEN ? { "x-tgengin-publisher": process.env.TGENGIN_PUBLISHER_TOKEN } : {};
 const STAND = process.env.TGENGIN_DSW_STAND ?? "http://127.0.0.1:7902";
 const FROM = process.argv[2] ?? "dsw-full";
 const RUN = process.argv[3] ?? `${FROM}-r2`;
 const SECONDS = Number(process.argv[4] ?? 7200);
-/** 同时做几道。0 = 一次全发。跟 `send.ts` 同一个环境变量。 */
+/** Concurrent problems; 0 submits all immediately. Uses the same environment variable as send.ts. */
 const AT_ONCE = Number(process.env.TGENGIN_DSW_AT_ONCE ?? 0);
 
 interface Row {
@@ -65,8 +57,7 @@ async function sql<T>(q: string): Promise<T[]> {
   return ((await r.json()) as { rows: T[] }).rows;
 }
 
-// **只挑钟响了的那些。** 判 0 有很多种：交出来的补丁打不上、行为没做出来、把原有的
-// 测试弄坏了 —— 那几种再给两个钟也是同一个答案。时间不够那种不一样：它当时还在往前走。
+// **Select only timed-out problems.** Verdict 0 can also mean an inapplicable patch, missing behavior, or broken existing tests; another two hours may yield the same answer. A time-limited task differs because it was still making progress.
 const rows = await sql<Row>(`
   select id, place, mode, source, domain, workdir, description, readable,
          max_branches, max_dead_siblings, max_searches, no_search, result
@@ -75,11 +66,11 @@ const rows = await sql<Row>(`
   order by id`);
 
 if (rows.length === 0) {
-  console.log(`${FROM}: 没有一道是钟响了判死的`);
+  console.log(`${FROM}: no tasks were marked dead by timeout`);
   process.exit(0);
 }
 
-/** 上一趟停在哪儿 —— 判卷台最后说的那句，拿来看这一趟值不值得再给两个钟。 */
+/** Where the previous run stopped: the grader's last note, used to assess whether another two hours are worthwhile. */
 const near = (result: string): string => {
   const note = (JSON.parse(result) as { note?: string }).note ?? "";
   const m = /"new_behaviours":"([^"]+)"/.exec(note);
@@ -89,7 +80,7 @@ const near = (result: string): string => {
 const tasks = rows.map((r) => {
   const task = r.id.slice(FROM.length + 1);
   return {
-    // 新 id，**同一个位置** —— 那个容器里就是它上一趟干的活。
+    // New id, **same place**: the container contains the previous run's work.
     id: `${RUN}/${task}`,
     place: r.place,
     mode: r.mode,
@@ -97,8 +88,7 @@ const tasks = rows.map((r) => {
     source: r.source,
     domain: r.domain,
     workdir: r.workdir,
-    // 题面原样，后面补一句**这个工作区不是空的**。不说的话它多半从头再做一遍，
-    // 而那正是这一趟不想要的：给的是接着干的时间，不是重来一次的时间。
+    // Keep the original statement and append a notice that **this workspace is not empty**. Otherwise the solver may start over; this allowance is for continuing work, not restarting it.
     description:
       `${r.description}\n\n` +
       `## Where this starts\n\n` +
@@ -111,21 +101,21 @@ const tasks = rows.map((r) => {
     maxDeadSiblings: r.max_dead_siblings,
     ...(r.max_searches === null ? {} : { maxSearches: r.max_searches }),
     noSearch: JSON.parse(r.no_search) as string[],
-    // 唯一另一个变的数：再给多久。
+    // The only other changed number: additional time.
     solveSeconds: SECONDS,
   };
 });
 
 if (process.argv.includes("--dry")) {
-  console.log(`${FROM} → ${RUN}: ${tasks.length} 道钟响了的，每道再给 ${SECONDS} 秒\n`);
+  console.log(`${FROM} → ${RUN}: ${tasks.length} timed-out tasks, each given another ${SECONDS} seconds\n`);
   for (const [i, r] of rows.entries()) {
     console.log(`  ${r.id.slice(FROM.length + 1).padEnd(50)} ${near(r.result).padEnd(16)} → ${tasks[i].id}`);
   }
-  console.log(`\n位置不变（同一个容器），题面、G、上限都是库里那一行原样搬的。`);
+  console.log(`\nPlace is unchanged (same container); statement, G, and limits are copied unchanged from the database row.`);
   process.exit(0);
 }
 
-/** 这一跑现在有几道还没做完。 */
+/** Current unfinished problem count for this run. */
 async function busy(): Promise<number> {
   const r = await fetch(`${BASE}/bench/${RUN}`);
   if (!r.ok) return 0;
@@ -133,7 +123,7 @@ async function busy(): Promise<number> {
   return Number(j.running ?? 0) + Number(j.open ?? 0);
 }
 
-console.log(`${FROM} → ${RUN}: ${tasks.length} 道，每道 ${SECONDS} 秒${AT_ONCE > 0 ? `，同时 ${AT_ONCE} 道` : ""}`);
+console.log(`${FROM} → ${RUN}: ${tasks.length} tasks, ${SECONDS} seconds each${AT_ONCE > 0 ? `, ${AT_ONCE} concurrent` : ""}`);
 let sent = 0;
 for (const t of tasks) {
   if (AT_ONCE > 0) while ((await busy()) >= AT_ONCE) await Bun.sleep(10_000);

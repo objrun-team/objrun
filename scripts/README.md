@@ -1,14 +1,14 @@
-# 通用工具
+# Shared tools
 
-| 目录 | 用途 |
+| Directory | Purpose |
 | --- | --- |
-| `bench-runner/` | 通用任务接入、执行状态、恢复与结果保留 |
-| `benchmark-campaign/` | 多 Bench 共用的提供方、执行协调和冻结适配层 |
-| `benchmark-repair/` | 共用协议、资源/评分核验及恢复实现；部分模块被测试和适配器直接引用 |
-| `terminal-bench-repair/` | Terminal-Bench/SkillsBench 共用的隔离、工具网关及运行支持 |
-| `phase1/` | 多 Bench 共用的数据准备与自检 |
-| `storage/` | 实验记录读取、校验、导出和归档 |
+| `bench-runner/` | Shared task integration, execution state, recovery, and result retention |
+| `benchmark-campaign/` | Providers, execution coordination, and frozen adapters shared across benchmarks |
+| `benchmark-repair/` | Shared protocols, resource/grading verification, and recovery implementations; some modules are imported directly by tests and adapters |
+| `terminal-bench-repair/` | Isolation, tool gateways, and runtime support shared by Terminal-Bench and SkillsBench |
+| `phase1/` | Data preparation and self-checks shared across benchmarks |
+| `storage/` | Reading, verifying, exporting, and archiving experiment records |
 
-独立 Bench 实验已放入 [examples/benchmark](../examples/benchmark/README.md)，科学问题实验放入 [examples/research](../examples/research/README.md)。这些目录提供具体实验入口；上表目录保留被多个入口使用的公共实现。
+Individual benchmark experiments live in [examples/benchmark](../examples/benchmark/README.md), and scientific-problem experiments live in [examples/research](../examples/research/README.md). Those directories provide concrete experiment entry points; the directories above retain implementations shared by multiple entry points.
 
-[directory-map.json](directory-map.json) 记录旧源码路径与当前路径，以及测试固定输入的位置。历史运行证据中的路径、哈希、截止时间和配置不做全局改写；复现原执行版本需要对应的外置原档。
+[directory-map.json](directory-map.json) records old and current source paths and fixed test-input locations. Paths, hashes, deadlines, and configurations in historical run evidence are not globally rewritten. Reproducing an original execution version requires the corresponding external originals.

@@ -1,9 +1,10 @@
 /**
- * 声明 —— **外面把一台机器配起来，只走这几个口。**
+ * Declarations: **these endpoints are the external interface for configuring a machine**.
  *
- * 客户端不该拿原始 SQL 去配机器：那等于把表结构焊进客户端，表一改它就坏，
- * 而且坏得很安静。更要命的是**模式是一张图，而 insert 是一行一行的** ——
- * 写第三行的时候没人知道第一行的 `next` 指错了地方。
+ * Clients must not configure it through raw SQL. That couples them to table layouts, so schema
+ * changes break clients, often silently. More importantly, **a mode is a graph, while INSERT
+ * writes one row at a time**. Inserting the third row cannot reveal that the first row's `next`
+ * points to the wrong destination.
  */
 
 import type { Registry } from "../engine/registry.ts";
@@ -17,7 +18,7 @@ import type { Route } from "./spec.ts";
 
 const DECL = "declare";
 
-/** 一份声明里的三样，参数表长一个样 —— 三个口共用，省得写三遍还写歪。 */
+/** Three declaration types share the same parameter structure; reuse it across three endpoints to prevent drift. */
 const BUNDLE = [
   {
     name: "servers",
@@ -81,9 +82,9 @@ const BUNDLE = [
 ];
 
 /**
- * `when` 怎么写 —— 这段跟着每个收 `when` 的口一起给出去。
+ * How to write `when`. Include this explanation with every endpoint accepting `when`.
  *
- * 客户端不用知道 `trigger` 表长什么样，更不用自己编组号。
+ * Clients should not need to know the `trigger` schema or invent group numbers.
  */
 const WHEN_NOTE =
   "When its turn comes: `[[term,term],[term]]` - the outer level is groups, OR across groups, AND within a group. " +
@@ -122,8 +123,8 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
       },
       errs: [ALL_OR_NOTHING],
       handler: async (a, _req, reply) => {
-        // 连 server、拉 tools/list 都在这一步里，所以是 await。
-        // 连不上就抛 —— 声明一个连不上的 server 是错，得在动库之前说。
+        // This step connects to the server and fetches tools/list, so await it.
+        // Connection failures must be reported before touching the database: an unreachable declared server is invalid.
         const r = await apply(store.rw, reg, pool, a as Declare);
         onWrite();
         return reply.code(201).send(r);
@@ -267,13 +268,14 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
         const row = all(store.ro, `select identity, forward from workplace where place = ?`, [place])[0] as
           | { identity: string | null; forward: number }
           | undefined;
-        // 不转发的地方压根没有连接这回事 —— 它只是「这一站在哪儿」的一个名字。
-        // 不说清楚的话这儿会回一个 alive:false，看着像坏了。
+        // A non-forwarding place has no connection: it is just the name of where an execution unit runs.
+        // Returning alive:false without this explanation would incorrectly make it look broken.
         if (row && !Number(row.forward) && place !== "local") {
           return { place, alive: true, ms: 0, why: "this place does not forward, so there is no connection to probe" };
         }
-        // **探活跟转发是同一条句柄的两个动作**（`op`）。分两条的话，写自定义转发的
-        // 人得实现两个契约，而这两件本来就是同一件事的两面：够得着才转得过去。
+        // **Probing and forwarding are two operations (`op`) of the same handle.** Separate handles
+        // would force custom forwarding implementations to satisfy two contracts for the same concern:
+        // forwarding is possible only when the destination is reachable.
         const identity = String(row?.identity ?? "").trim() || HOPS_HANDLE;
         const t0 = Date.now();
         try {
@@ -346,10 +348,12 @@ export function declareRoutes(store: Store, reg: Registry, pool: Servers, onWrit
 }
 
 /**
- * 一类东西的清单，`when` 还原成组的形状，并且算出**它会不会永远不触发**。
+ * List one type of declaration, reconstruct grouped `when` conditions, and determine
+ * **whether it can never trigger**.
  *
- * 「一条条件都没有 = 从不触发」这条语义写在内核里，客户端不该自己再判一遍 ——
- * 判反了（当成「总是触发」）它会告诉用户一切正常，而实际上那个工具谁都拿不到。
+ * The kernel defines "no conditions = never triggers"; clients must not independently reinterpret
+ * it. Treating it as "always triggers" would report a healthy configuration even though no agent
+ * could ever receive the tool.
  */
 function listOf(store: Store, kind: "tool" | "rule" | "skill", idCol: string) {
   const rows = all(store.ro, `select * from "${kind}" order by "${idCol}"`) as Record<string, unknown>[];
@@ -365,7 +369,7 @@ function listOf(store: Store, kind: "tool" | "rule" | "skill", idCol: string) {
       ...(kind === "skill" ? { role: r.role ?? null, dynamic: !r.body } : {}),
       usable: r.usable === undefined ? true : Boolean(r.usable),
       when,
-      // 系统工具不看条件，所以它没有这个毛病。
+      // System tools ignore conditions, so this issue does not apply to them.
       neverFires: !system && when.length === 0,
     };
   });
@@ -385,7 +389,7 @@ function whenOfRow(store: Store, kind: string, owner: string) {
   return [...by].sort((a, b) => a[0] - b[0]).map(([, t]) => t);
 }
 
-/** 哪些智能体接得住这个模式：它每一站要的调用形状，这个智能体都得有一条轨。 */
+/** Agents compatible with a mode must provide a lane for the invocation shape required by every station. */
 function agentsFor(store: Store, mode: string): string[] {
   const wants = [
     ...new Set(
@@ -401,15 +405,15 @@ function agentsFor(store: Store, mode: string): string[] {
     .filter((name) => wants.every((w) => tracksOf(store, name).some((t) => t.modes.includes(w))));
 }
 
-/** 一条轨在客户端眼里长什么样。**没有密钥这一项** —— 见下。 */
+/** A lane as exposed to clients. **No secret value is included**; see below. */
 interface Track {
   keyEnv: string;
   model: string;
   handle: string | null;
   modes: string[];
-  /** `api` 表里有没有这一行。没有的话这条轨挑不中。 */
+  /** Whether the corresponding `api` row exists. Without it, this lane cannot be selected. */
   registered: boolean;
-  /** 那个环境变量有没有值。 */
+  /** Whether the environment variable has a value. */
   keySet: boolean;
 }
 
@@ -432,9 +436,9 @@ function tracksOf(store: Store, name: string): Track[] {
       handle: r?.handle ?? null,
       modes: String(r?.modes ?? "").split(",").map((x) => x.trim()).filter(Boolean),
       registered: Boolean(r),
-      // **只回「在不在」，不回值。** 密钥不进库、不进日志、不进接口 ——
-      // 客户端要显示「这条轨配好了没」，够用了；要显示密钥本身，那是另一回事，
-      // 而这台机器不提供那回事。
+      // **Return presence, never the value.** Secrets must not enter databases, logs, or API responses.
+      // Presence is enough to show whether a lane is configured. Displaying the secret itself would
+      // be a different capability, which this service deliberately does not provide.
       keySet: Boolean(process.env[keyEnv]),
     };
   });

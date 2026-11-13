@@ -1,26 +1,29 @@
 /**
- * 实时轨（duplex）的端到端。
+ * End-to-end test of the real-time duplex lane.
  *
  * ```
  * bun test/integration/duplex-e2e.ts
  * ```
  *
- * ## 为什么不直接打 DashScope
+ * ## Why not call DashScope directly?
  *
- * 要验的是**事件名对不对得上**，而真端点只会把对的那套发过来 —— 它验不了
- * 「名字漂了会怎样」。所以这儿起一个**说 beta 事件名的假服务器**，
- * 把老代码踩过的三个坑原样摆出来，看我们这边接不接得住：
+ * This tests **event-name compatibility**. A real endpoint sends only its valid
+ * event names and cannot establish what happens when names drift. A **mock server
+ * using beta event names** reproduces three failures seen in the old implementation:
  *
- * 1. `response.done` **不带 usage** —— 老代码在这儿崩掉整条接收协程，之后全静默
- * 2. 中间夹一条**解不开的垃圾**和一条**没见过的事件** —— 不许带倒连接
- * 3. 参会者转写走 beta schema —— 老代码整条跳过，于是永远拿不到「别人说了什么」
+ * 1. `response.done` **omits usage**; the old receive coroutine crashed and went silent.
+ * 2. **Undecodable garbage** and an **unknown event** occur between valid messages;
+ *    neither may break the connection.
+ * 3. Participant transcripts use the beta schema; the old implementation skipped
+ *    them entirely, so it never learned what other participants said.
  *
- * 不烧额度、不看网络、跑得完。真端点那一趟另说，它验的是钥匙和地址，不是这个。
+ * This consumes no quota, does not depend on the network, and terminates. A real-endpoint
+ * check separately validates credentials and addresses, rather than these behaviors.
  */
 
 import { Session } from "../../app/src/llm/duplex.ts";
 
-/** 假服务器收到的东西，跑完拿来对。 */
+/** Record the mock server's incoming payloads for checks after the run. */
 const got = {
   auth: "",
   model: "",
@@ -29,7 +32,7 @@ const got = {
   turns: 0,
 };
 
-/** 一条 beta 事件。**故意用 beta 名** —— 这正是要验的那件事。 */
+/** A beta event. **Use the beta name deliberately**; compatibility is the subject of this test. */
 function beta(ws: { send(s: string): void }, o: Record<string, unknown>): void {
   ws.send(JSON.stringify(o));
 }
@@ -67,33 +70,33 @@ const server = Bun.serve({
   },
 });
 
-/** 第一个来回：正常讲话 + 三个坑。 */
+/** First exchange: normal speech plus the three failure cases. */
 function firstTurn(ws: { send(s: string): void }): void {
-  // beta 名。映射不生效的话，这两条没人认领，text 就是空的。
+  // Beta names: without mapping, neither delta is handled and text remains empty.
   beta(ws, { type: "response.audio_transcript.delta", delta: "first a line, " });
   beta(ws, { type: "response.text.delta", delta: "then another." });
 
-  // 【坑】音频块：收到就丢，只计数。
+  // Failure case: count audio chunks, then discard them.
   beta(ws, { type: "response.audio.delta", delta: "AAAAAAAA" });
 
-  // 【坑】一条根本不是 JSON 的。带倒连接的话，后面全收不到。
+  // Failure case: a payload that is not JSON. Breaking the connection would lose every later event.
   ws.send("{ this is not json");
 
-  // 【坑】没见过的事件名。那边随时会加新的，不许当成错。
+  // Failure case: an unknown event name. The provider may add events at any time; this must not be an error.
   beta(ws, { type: "response.something.brand_new", whatever: 1 });
 
-  // 【坑】参会者转写：beta schema，通用解析器解不了。老代码在这儿整条跳过。
+  // Failure case: participant transcription in the beta schema, which the generic parser cannot decode. The old code skipped it.
   beta(ws, {
     type: "conversation.item.input_audio_transcription.completed",
     transcript: "  from the floor: where does this number come from?  ",
   });
 
-  // 【坑】beta 的 response.done **不带 usage**。老代码读统计字段当场崩，
-  // 接收协程死掉 —— 从这一刻起再没有一个字被处理。
+  // Failure case: beta response.done **omits usage**. Reading missing statistics crashed
+  // the receive coroutine, so no subsequent text was processed.
   beta(ws, { type: "response.done", response: { id: "r1", status: "completed" } });
 }
 
-/** 第二个来回：请求一个工具。名字**只在 item 那条给**，done 那条不带。 */
+/** Second exchange: request a tool. Its name appears **only in the item event**, not in done. */
 function toolTurn(ws: { send(s: string): void }): void {
   beta(ws, {
     type: "conversation.item.created",
@@ -107,7 +110,7 @@ function toolTurn(ws: { send(s: string): void }): void {
   beta(ws, { type: "response.done", response: { id: "r2", status: "completed" } });
 }
 
-// ── 跑 ──────────────────────────────────────────────────────────────────────
+// -- Run ---------------------------------------------------------------------
 
 let bad = 0;
 function ok(what: string, cond: boolean, saw?: unknown): void {
@@ -134,7 +137,7 @@ const one = await s.turn([
   { type: "message", role: "user", content: [{ type: "input_text", text: "go ahead" }] },
 ]);
 
-// 这一条是整块的要害：beta 名没映射的话，两条 delta 都没人认领，text 是空的。
+// The key invariant: without mapping the beta names, neither delta is handled and text is empty.
 ok("the beta event-name mapping works (the text arrived)", one.text === "first a line, then another.", one.text);
 ok("audio is counted, not stored", one.audio === 1, one.audio);
 ok("a garbage line and an unseen event did not take the connection down", s.dead === null);

@@ -1,23 +1,24 @@
 /**
- * 例子：**打完分的题，不许再花钱。**
+ * Example: **a scored task must not spend more money**.
  *
  * ```
  * bun test/integration/dead-quiet.ts
  * ```
  *
- * 判死那一段的原话是「先落一个失败，让它别再被排上」。可挑活的那一句以前只问
- * 「这一行做完没有」（`where done = 0`），从不问「这道题还在不在」——
+ * Timeout handling intended to "record failure first so it is no longer scheduled".
+ * But work selection checked only whether the row was unfinished (`where done = 0`),
+ * never whether the task was still active:
  *
- * 1. 任务超时，`#reap` 把 `state` 写成 `failed`，成绩当场定下
- * 2. 它底下那些没做完的行**还是 `done = 0`**
- * 3. 下一圈照样把它们扫出来、照样派给模型
+ * 1. A task times out; `#reap` sets `state` to `failed` and fixes its score.
+ * 2. Its unfinished rows **still have `done = 0`**.
+ * 3. The next loop finds and dispatches those rows to the model again.
  *
- * 实测一跑里 15 道死题在死后又开了 105 个执行单元，最狠的一道死后还跑了 33 分钟 ——
- * 每个单元都是一次真实的模型调用，而换回来的东西一分不进成绩单：分是判死那一刻
- * 定的。顺带还刷出一串报错，因为死掉那一刻在飞的调用回来之后会在上下文尾巴上留一条
- * 没人应答的工具调用，而收工时的补齐早就跑完了。
+ * In one real run, 15 dead tasks launched another 105 execution units; one continued
+ * for 33 minutes after death. Every unit was a real model call, but none could affect
+ * the score fixed at timeout. Further errors arose because a call still in flight at
+ * timeout later appended an unanswered tool request after final repair had already run.
  *
- * 这个例子让一道题在做着的时候到点，然后盯着它**还敢不敢动**。
+ * This example expires a task while it is working, then checks that **it does not resume**.
  */
 
 import { done, machine, ok, outside, part, show, step, until } from "../_lib.ts";
@@ -25,11 +26,12 @@ import { done, machine, ok, outside, part, show, step, until } from "../_lib.ts"
 const m = await machine();
 
 /**
- * **一格比整道题的时限还慢。** 这一条是这个例子的全部关键：
+ * **One unit takes longer than the entire task deadline.** This is essential to the test.
  *
- * 到点那一刻，手上必须正有一个在飞的调用。它回来的时候任务已经打完分了，而它回来
- * 之后照样会推出下一格 —— **那下一格就是死后才被挑走的那一格**。慢不过时限的话，
- * 死亡那一刻手上一格待办都没有，也就没什么可派的，例子会毫无理由地绿着。
+ * A call must be in flight when time expires. The task has already been scored when
+ * the call returns, but its result still creates a successor. **That successor is the
+ * unit that must not be dispatched after death.** A faster call would leave no pending
+ * work at timeout, making the test pass without exercising the bug.
  */
 let served = 0;
 const out = await outside({
@@ -38,8 +40,8 @@ const out = await outside({
     await Bun.sleep(4000);
     return { role: "assistant", kind: "prompt", body: `unit ${String(served)}` };
   },
-  // 永远接着走 —— 这道题**自己不会停**，只能被时限停下。要拦的正是「停下之后
-  // 还在动」，所以不能让它自己走到头。
+  // Continue indefinitely: **this task never stops on its own**, only at its deadline. To test activity after stopping,
+  // it must not simply reach the end of its workflow.
   "/infer": () => "ask",
 });
 
@@ -91,8 +93,8 @@ try {
   show("units at the moment it was scored:", atDeath);
 
   step("3. keep waking the kernel for a while, then look again");
-  // **每次写库都会把内核叫醒。** 这儿一直戳它 —— 挑活那一句要是还不看任务状态，
-  // 这几秒足够它再派出去好几格。
+  // **Every database write wakes the kernel.** Keep triggering it; if work selection still ignores task state,
+  // these seconds are enough to dispatch several additional units.
   const until_ = Date.now() + 6000;
   while (Date.now() < until_) {
     await m.api("POST", "/exec", { sql: "update task set domain = domain where id = 't-dead-quiet'" });
@@ -106,13 +108,13 @@ try {
   ).rows[0].n;
   show("units six seconds later:", after);
 
-  // 在飞的那一格回来之后还能推进**一格** —— 那一次调用是死之前就派出去的，
-  // 它的结果该收下。要守的是「不再**新开**」，不是「当场断电」。
+  // The in-flight call may create **one** successor when it returns. It was dispatched before task death,
+  // so its result must be accepted. The invariant is **no new dispatches**, not abrupt termination.
   ok("a scored task opens no new units", after <= atDeath + 1, { atDeath, after });
 
   step("4. and no call was made beyond the ones already out when the score was final");
-  // 跟死亡那一刻的格数比，**不是跟「几秒前」比** —— 后者只说明「现在停了」，而洞
-  // 早就在那几秒里花完了钱。这一条要守的是花销的总量。
+  // Compare with the unit count **at task death**, not merely a few seconds earlier. The latter only proves it has stopped now,
+  // after it may already have spent money during those seconds. This check bounds total spending.
   await Bun.sleep(2500);
   show("units at death vs calls served:", { atDeath, served });
   ok("the model was asked no more times than that", served <= atDeath, { atDeath, served });

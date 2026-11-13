@@ -75,19 +75,19 @@ report={'verifiedAtUtc':datetime.datetime.now(datetime.timezone.utc).isoformat()
 need(passed==155,'unexpected_pass_count')
 (HOME/'checks/final-verification.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
 (HOME/'FINAL-RESULTS.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
-md=f'''# HumanEval+ 二值反馈实验最终结果
+md=f'''# HumanEval+ binary-feedback final results
 
-全量164题均有有效结果，通过{passed}/164（{100*passed/164:.2f}%），未通过{len(failed)}题，接口/环境/评分异常0。2026-10-15 13:13:57（Asia/Shanghai）结束，runner已退出，无在途请求。
+All 164 tasks have valid results: {passed}/164 passed ({100*passed/164:.2f}%), {len(failed)} failed, with 0 interface/environment/grading anomalies. Finished at 2026-10-15 13:13:57 (Asia/Shanghai); the runner exited and no requests remain in flight.
 
-最多5次生成、仅公开base的passed/failed反馈、保留本题自己的回答历史，base通过即停。最终候选冻结后做原EvalPlus v0.3.1的base+plus评分；增强测试不参与反馈或停止。模型为deepseek/deepseek-v4.1-flash，DigitalOcean，无fallback，high、temperature0、16384 tokens，并发2。这是二值base反馈协议，不是标准无oracle单次生成或五次完整base+plus反馈。
+At most 5 generations, with only public base passed/failed feedback and the task’s own answer history, stopping when base passes. After freezing the final candidate, run original EvalPlus v0.3.1 base+plus grading; enhanced tests never influence feedback or stopping. Model: deepseek/deepseek-v4.1-flash, DigitalOcean, no fallback, high, temperature0, 16384 tokens, concurrency 2. This is a binary base-feedback protocol, not standard oracle-free single-shot generation or five rounds of complete base+plus feedback.
 
-共{sample_count}个真实样本，次数分布{dict(sorted(distribution.items()))}；{empty_truncated}次输出预算耗尽而未输出答案，均计为失败样本。原适配曾把3题中的空答案截断误记为接口异常，新增适配V2只修正这一分类，消费原样本并继续剩余次数；原58项冻结来源和新增5项来源校验一致，原161个有效结果及全部旧请求文件字节不变，旧异常结果保留在full/history。未提高token预算、提取thinking答案、重试有效失败或扩大5次上限。
+There are {sample_count} actual samples, with attempt distribution {dict(sorted(distribution.items()))}; {empty_truncated} exhausted the output budget without producing an answer and count as failed samples. The original adapter mislabeled empty-answer truncation in 3 tasks as interface anomalies. Adapter V2 corrects only this classification, consumes the original samples, and continues remaining attempts. All original 58 frozen-source and 5 new-source checks match; the original 161 valid results and all old request bytes are unchanged, with old anomaly results retained under full/history. Token budgets were not raised, thinking was not extracted as an answer, valid failures were not retried, and the 5-attempt cap was not extended.
 
-全部{len(calls)}次dispatch均有receipt，pending=0。已知模型费用${report['actualCostUsd']:.9f}，未知费用0。首轮808.036秒、恢复{status['elapsedSeconds']:.3f}秒，实际runner累计{report['totalActiveRunnerSeconds']:.3f}秒（约{report['totalActiveRunnerSeconds']/60:.2f}分钟）；两段之间的等待和诊断不计入runner时长。
+All {len(calls)} dispatches have receipts, pending=0. Known model cost is ${report['actualCostUsd']:.9f}, with 0 unknown charges. Initial run: 808.036 seconds; recovery: {status['elapsedSeconds']:.3f} seconds; cumulative active runner time: {report['totalActiveRunnerSeconds']:.3f} seconds (about {report['totalActiveRunnerSeconds']/60:.2f} minutes). Waiting and diagnosis between segments are excluded.
 
-未通过：{', '.join(failed)}。
+Failed: {', '.join(failed)}.
 
-逐题结果在full/results；候选、样本和base反馈在full/tasks；原始请求响应和费用在full/calls；真实评分缓存和日志在grader。全量只读核验：checks/final-verification.json，已核对固定ID、每题次数、全部请求上下文和模型参数、反馈边界、停止候选、候选哈希与冻结时间、官方评分缓存、费用及旧文件SHA保留。
+Per-task results are in full/results; candidates, samples, and base feedback in full/tasks; raw requests/responses and costs in full/calls; actual grading caches and logs in grader. Full read-only verification is in checks/final-verification.json, covering fixed IDs, attempt counts, all request contexts/model parameters, feedback boundaries, stopping candidates, candidate hashes/freeze times, official grading caches, costs, and preserved old-file SHAs.
 '''
 (HOME/'FINAL-RESULTS.md').write_text(md,encoding='utf-8')
 print(json.dumps(report,ensure_ascii=True))

@@ -46,17 +46,17 @@ report = {
     'resumption': 'New explicit human authorization in a new conversation. First audit original stopped owner/cash state and immutable source pins; do not reuse stale live broker metadata or repeat official valid tasks. No automatic resumption.',
 }
 (home / 'ROOT-STOPPED-HANDOFF-20261012.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-md = '''# SB / TB 停止接续记录
+md = '''# SB / TB stop and continuation record
 
-2026-10-12，人类明确取消本轮继续运行及并发验收，要求收尾后停止。
+On 2026-10-12, the human explicitly canceled further execution and concurrency acceptance checks for this round, requesting shutdown after wrap-up.
 
-已停止两 Bench 的供题、正式派发、准备/正式执行进程及本任务容器；原 owner 已核实租约清零。共享 broker 在活跃请求、排队请求和资源均为 0 后按原 PID/出生时间/源码身份核验停止。bench-f、skillsbench-f、terminal-bench-f 全部 PAUSED，CB/CQ 保持 PAUSED，其他已取消 Bench 不恢复。
+Task supply, formal dispatch, preparation/formal execution processes, and task containers for both benchmarks have stopped; the original owners verified that leases are zero. The shared broker was stopped after active requests, queued requests, and resources all reached 0, with its original PID, birth time, and source identity verified. bench-f, skillsbench-f, and terminal-bench-f are all PAUSED; CB/CQ remain PAUSED, and other canceled benchmarks will not resume.
 
-原成绩保持 SB 35/87 有效（30 通过、5 错），TB 25/89 有效（25 通过）。原候选、评分、源版本、尝试、缓存和费用记录保留。此前并发修复未完成全部真实验收，不宣称达到 16 正式或完成交接验收。
+Original results remain valid for SB 35/87 (30 passes, 5 incorrect) and TB 25/89 (25 passes). Original candidates, grades, source versions, attempts, caches, and cost records are retained. The earlier concurrency repair did not complete all live acceptance checks; this record does not claim 16 formal runs or completed handoff acceptance.
 
-费用未决：Exoplanet 最后 1 请求缺 finish，已知实际 USD 0.131657385；0.1704684 USD 是该未知请求的预留，不是实际费用。原 journal/cash、原 canonical 记录保留，未伪造正常现金闭合或账单。新对话须先核查原停止状态、费用补证及固定版本，再按新授权接续；有效成绩不重跑。
+Unresolved costs: the final Exoplanet request lacks a finish record; known actual cost is USD 0.131657385. USD 0.1704684 is the reservation for that unknown request, not actual cost. Original journal/cash and canonical records are retained; no normal cash closure or bill has been fabricated. A new conversation must first check the original stopped state, supplemental cost evidence, and pinned versions, then continue under new authorization; valid results must not be rerun.
 
-完整证据与两 owner 接续包的 SHA 位于 [ROOT-STOPPED-HANDOFF-20261012.json](ROOT-STOPPED-HANDOFF-20261012.json)。TB 原包编码附有 UTF-8 接续副本，原文件未改写。
+Complete evidence and SHA hashes for both owners' continuation packages are in [ROOT-STOPPED-HANDOFF-20261012.json](ROOT-STOPPED-HANDOFF-20261012.json). A UTF-8 continuation copy accompanies the original TB package encoding; the original file was not rewritten.
 '''
 (home / 'ROOT-STOPPED-HANDOFF-20261012.md').write_text(md, encoding='utf-8')
 print(json.dumps({'stopped': True, 'actualFormal': report['actualFormal'], 'actualPreparation': 0, 'automations': statuses, 'summaryPath': str(home / 'ROOT-STOPPED-HANDOFF-20261012.md'), 'cashFinancialResolved': False}))

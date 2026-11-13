@@ -6,6 +6,7 @@ ROOT=Path(__file__).resolve().parents[3]
 BASE=ROOT/'docs/evalplus-20261012'
 MBPP=BASE/'mbpp'
 OUT=MBPP/'objrun-adapter-v1/full'
+# Original authorization, retained verbatim. English: Interface failures also need fixing; rerun only the affected tasks.
 AUTHORITY='2026-10-12 user: 接口异常问题也需要修复啊 单独跑接口异常的题'
 
 def read(p): return json.loads(p.read_text(encoding='utf-8-sig'))

@@ -1,23 +1,25 @@
 /**
- * 「改之前先读一遍」那道闸。
+ * The read-before-edit gate.
  *
  * ```
  * bun test/integration/file-guard.ts
  * ```
  *
- * ## 为什么单独写一个
+ * ## Why a separate test?
  *
- * 这道闸有过一个**能烧掉整道题**的毛病，而当时全套测试一条都没红：
+ * This gate once had a bug that **consumed an entire task**, while the full test suite stayed green:
  *
- * - `write` 一个**不存在**的文件 → 闸交回「先去读」→ `read` 回 ENOENT →
- *   再 `write` 还是交回「先去读」。**新建文件这条路根本走不通。**
- * - 而且 `hasRead` 本身就没认出读过：它找 `v.tool`，可结果行的形状是
- *   `{id, name, value}`；它又只看当前这一站，可闸交回去的那个 read 落在**下一站**。
- *   两处合起来 → 任何 `write` / `edit` 都被无限交回。
+ * - `write` to a **nonexistent** file returned "read first"; `read` returned ENOENT;
+ *   another `write` still returned "read first". **Creating a file was impossible.**
+ * - `hasRead` also failed to recognize reads: it looked for `v.tool`, but result rows
+ *   have shape `{id, name, value}`. It inspected only the current station, although
+ *   the requested read completed at **the next station**. Together, these mistakes
+ *   rejected every `write` and `edit` indefinitely.
  *
- * 实测代价：cmt-0 那道题 12 个单元全花在这个循环上，一个字答案都没写。
+ * In the observed cmt-0 task, all 12 units were spent in this loop without producing an answer.
  *
- * 所以这个测试不走 HTTP，直接调那条句柄 —— 闸就在句柄里，从外面发任务反而看不清。
+ * This test calls the handle directly rather than through HTTP. The gate is inside
+ * the handle; submitting an external task would obscure the behavior being tested.
  */
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -31,12 +33,12 @@ import { registerTools } from "../../app/src/tools/register.ts";
 import { done, ok, part, show, step } from "../_lib.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "tgengin-guard-"));
-// 走内核自己那条开库的路（`open` 包了一层，`Conn` 不是裸的 bun:sqlite）。
+// Use the kernel's own database-opening path: `open` wraps SQLite, and `Conn` is not raw bun:sqlite.
 const store = open({ db: { file: join(dir, "h2h.sqlite"), pragmas: { journal_mode: "wal" } } } as never);
 const db = store.rw;
 install(db);
 
-// 智能体那张消息表：闸靠它判「读过没有」。
+// The agent's message table lets the gate determine whether a read occurred.
 const MSG = tableNameOf("agent_{}_msg", "bot");
 db.exec(
   `create table if not exists "${MSG}" (instance text, unit integer, seq integer, role text, kind text, body text, at integer)`,
@@ -44,11 +46,11 @@ db.exec(
 db.run(`insert into workplace (place, forward, usable, tools) values (?, 0, 1, ?)`, ["local", ""]);
 
 const reg = new Registry();
-// 这道闸测的是本机那条路（`place: local`，不转发），所以不用挂位置句柄。
+// This tests the local path (`place: local`, no forwarding), so no place handle is needed.
 registerTools(db, reg);
 const write = reg.get("fn:tool.write");
 
-/** 装一行「read 回来了」的结果 —— 形状照抄 `tools/unit.ts` 真写进去的那一份。 */
+/** Insert a completed-read result in the exact shape actually written by `tools/unit.ts`. */
 function sawRead(instance: string, unit: number, path: string): void {
   db.run(
     `insert into "${MSG}" (instance, unit, seq, role, kind, body, at) values (?, ?, 1, 'tool', 'tool', ?, 0)`,
@@ -83,8 +85,8 @@ try {
   ok("and it did not touch the file", readFileSync(existing, "utf8") === "old content");
 
   step("3. come back after reading - it must let the write through");
-  // 闸交回去的 read 落在**下一站**（unit 2），闸自己是在 unit 3 上再被问到的。
-  // 只看本站的话这一条会红 —— 那正是以前的写法。
+  // The read requested by the gate completes at **the next station** (unit 2); the gate is checked again at unit 3.
+  // Looking only at the current station would fail this test, reproducing the old implementation.
   sawRead("t#2", 2, existing);
   const r3 = await asUnit("t#2", 3, existing, "new content");
   show("it answered:", r3);
@@ -100,12 +102,12 @@ try {
   ok("that file was left alone", readFileSync(other, "utf8") === "do not touch me");
 } finally {
   store.close();
-  // Windows 上 close 之后 WAL 那两个文件有时还锁着一小会儿，删不掉就算了 ——
-  // 那是系统临时目录，留着不影响谁；为这个把测试判红没有意义。
+  // On Windows, the WAL files may remain locked briefly after close. Ignore cleanup failure:
+  // this is a system temporary directory, so leaving it does no harm and should not fail the test.
   try {
     rmSync(dir, { recursive: true, force: true });
   } catch {
-    /* 临时目录，留着就留着 */
+    /* Leave the temporary directory if cleanup is unavailable. */
   }
 }
 

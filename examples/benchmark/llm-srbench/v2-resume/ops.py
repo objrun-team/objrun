@@ -9,6 +9,7 @@ def prepare():
     cells=[(p.parent.parent.name,p.parent.name) for p in (old/'outputs/tasks').glob('*/*/result.json')]
     calls={a+'/'+k:[p.relative_to(old).as_posix() for p in (old/'outputs/tasks'/a/k/'calls').rglob('*') if p.is_file()] for a,k in cells}
     u=review['unknownRequests'][0];unknown={k:u[k] for k in ['id','arm','key','path','reservedUpperBoundUsd']};unknown['hashes']={name:hashlib.sha256((old/u['path']/name).read_bytes()).hexdigest() for name in ['receipt.json','dispatch.json','response.raw.txt']}
+    # Preserve the original approval literal: retain anomalies and resume only the 429 units.
     plan={'authorization':{'humanAnswer':'保留异常，仅续跑429单元','recordedAtUtc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'terms':'Preserve all 54 records and the unresolved upper bound. No frozen package edits or redispatch. Retain original failed audit; review only the exact approved exception separately.'},'remainingCells':decision['remainingCells'],'protectedCells':cells,'protectedFiles':files,'protectedCallFiles':calls,'approvedUnknown':unknown,'original54ArchiveSha256':review['archive']['sha256'],'originalV2SourceArchiveSha256':'577819d9dbe2f1ff72f6425ce0849538e532808ae3db58a70cc4bd60fe3bcea0','newPaidCanaryCalls':0}
     assert len(cells)==54 and len(plan['remainingCells'])==429
     (LOCAL/'plan.json').write_text(json.dumps(plan,ensure_ascii=False,indent=2)+'\n',encoding='utf8')

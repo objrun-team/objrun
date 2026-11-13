@@ -1,9 +1,10 @@
-# 文档
+# Documentation
 
-- [执行循环](loop.md)：任务从发布到结束的状态与接口。
-- [H2H 协议](H2H.md)：状态和协作协议。
-- [数据表](tables.md)：数据库结构。
-- [架构入口](architecture/README.md)与[项目说明](理解TgEngin.md)。
-- [数据与归档](storage.md)：实验记录、历史材料和测试固定输入的位置。
+- [Execution loop](loop.md): task states and interfaces, from publication to completion.
+- [H2H protocol](H2H.md): state storage and collaboration interfaces.
+- [Data tables](tables.md): database schemas.
+- [Architecture index](architecture/README.md) and [project guide](understanding-tgengin.md).
+- [Data and archives](storage.md): experiment records, historical material, and fixed test inputs.
 
-可运行示例见 [examples](../examples/README.md)，通用维护工具见 [scripts](../scripts/README.md)。本目录不存放运行日志、交接过程、提交计划或阶段报告。
+See [examples](../examples/README.md) for runnable examples and [scripts](../scripts/README.md) for shared maintenance tools. This directory does not contain run logs, handoff records, commit plans, or progress reports.
+Documentation is maintained in English. Exact protocol tokens, archived filenames, fixed benchmark inputs, and quoted authorization records retain their original text where required for compatibility or provenance.

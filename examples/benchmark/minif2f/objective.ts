@@ -1,44 +1,33 @@
 /**
- * 这套题的 G。**一份定义，发批和续跑都读它。**
+ * G for this benchmark. **Batch launch and resume share one definition.**
  *
- * 三个节点，句柄名就是台子的地址：
+ * Three nodes, whose handles are the service addresses:
  *
  * ```
- *   stated ──→ compiles ──→ sound      stated  ：theorem 声明没被动过（跟原始陈述逐字比）
- *                                      compiles：Lean 编译没有 error
- *                                      sound   ：没有 sorry、公理只在允许的集合里（根）
+ *   stated ──→ compiles ──→ sound      stated: theorem declaration unchanged (verbatim comparison with the original)
+ *                                     compiles: Lean compilation has no errors
+ *                                     sound: no sorry; axioms belong to the allowed set (root)
  * ```
  *
- * 根**必须有入边** —— 没有的话它的值跟候选无关，G 恒定，那是个无效目标，
- * 发布这一关就拒（`objective/spec.ts`）。
+ * The root **must have an incoming edge**; otherwise its value is independent of the candidate, making G constant and the objective invalid. Publication rejects it (`objective/spec.ts`).
  *
- * 这三格是 Lean 判卷本来就有的三段，不是另立的尺子：
+ * These are the three existing stages of Lean grading, not a new criterion:
  *
- * - `stated` 是 Lean 判卷特有的前置：题就是那条声明，改了声明就是换了题。台子送去
- *   编译的永远是官方声明 + 候选的证明体（DeepSeek-Prover-V1.5 的协议），这一格只是把
- *   「你交的前缀跟官方不一样」说出来。
- * - `compiles` = Kimina `is_error` 取反：REPL 回来的消息里没有 severity=error。
- * - `sound` = Kimina `has_sorry` 取反 + `#print axioms` 只见 Lean 那三条核心公理
- *   （默认再加 native_decide 的 `Lean.ofReduceBool`，榜上各家都认它）。
+ * - `stated` is a Lean-specific prerequisite: the declaration defines the problem, so changing it changes the problem. The service always compiles the official declaration + candidate proof body (DeepSeek-Prover-V1.5 protocol); this node only reports a mismatch between the submitted and official prefixes.
+ * - `compiles` = negation of Kimina `is_error`: no REPL message has severity=error.
+ * - `sound` = negation of Kimina `has_sorry` + `#print axioms` lists only Lean’s three core axioms (plus native_decide’s `Lean.ofReduceBool` by default, accepted by leaderboard participants).
  *
- * 没有单独的 `kernel_ok`：Lean 每加一条声明内核就查一次，elaboration 没 error 就是内核过了。
- * 绕内核的路只有两条 —— 引公理（`sound` 里现形）、`set_option debug.skipKernelTC`（顶格的
- * 命令，`stated` 拦下）。第三格查不到更多东西，所以并进 `sound`。
+ * There is no separate `kernel_ok`: Lean checks each declaration when it is added, so error-free elaboration means it passed the kernel. There are only two ways around this: introducing axioms (exposed by `sound`) and `set_option debug.skipKernelTC` (a top-level command blocked by `stated`). A further node would detect nothing more, so it is folded into `sound`.
  *
- * **放在单独一个文件里**，是因为它有两个读者（发批一趟、续跑一趟）。各存一份的话，
- * 改了一处漏另一处不报错，表现是「两趟跑的不是同一道题」。
+ * **This definition lives in a separate file** because both batch launch and resume read it. Duplicating it risks silent divergence: changing one copy but not the other means the two runs solve different problems.
  */
 
 /**
- * **一轮里能问几次这个盒子。**
+ * **How often the box may be queried in one round.**
  *
- * 一次判卷 = 一次 Lean 编译，实测量级 5–60 秒（`maxHeartbeats 0`，300 秒墙上超时兜底）。
- * 答案空间是证明文本，m = ∞，枚举不出来 —— 所以这个数也不是防穷举的，是防「拿一串
- * hammer 一条条试」：`norm_num` / `nlinarith` / `omega` / `simp` / `decide` / `aesop`……
- * Kimina 公开的 197 份证明里 45 份是一行 tactic，那 18% 的题光靠试就能中。
+ * One grading call = one Lean compilation, measured at 5–60 seconds (`maxHeartbeats 0`, with a 300-second wall-time fallback). The answer space is proof text, m = ∞, so enumeration is impossible. This limit instead prevents trying a sequence of hammers: `norm_num` / `nlinarith` / `omega` / `simp` / `decide` / `aesop`… Of Kimina’s 197 public proofs, 45 are one-line tactics; that 18% of tasks can be solved by trial alone.
  *
- * 给 12：够「写一版 → 编译 → 照着 open_goals 改 → 再编译」来回五六趟，
- * 不够把一张二三十条的 hammer 单子过一遍。
+ * Allow 12: enough for five or six cycles of writing a version → compiling → revising from open_goals → recompiling, but not enough to try a list of twenty or thirty hammers.
  */
 export const CHECKS = Number(process.env.TGENGIN_MF2F_CHECKS ?? 12);
 

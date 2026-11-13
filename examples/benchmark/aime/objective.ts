@@ -1,28 +1,24 @@
 /**
- * 这套题的 G。**一份定义，发批和续跑都读它。**
+ * G for this benchmark. **Batch submission and resumed runs share this one definition.**
  *
- * 两个节点，句柄名就是判卷台的地址：
+ * Two nodes; their handles are the grader URLs:
  *
  * ```
- *   parsed ──→ correct       parsed ：答卷里解析得出一个 0–999 的整数吗
- *                            correct：这个整数跟官方答案相等吗（根）
+ *   parsed ──→ correct       parsed: can the submission be parsed as an integer in 0–999?
+ *                            correct: does it equal the official answer? (root)
  * ```
  *
- * 根**必须有入边** —— 没有的话它的值跟候选无关，G 恒定，那是个无效目标，
- * 发布这一关就拒（`objective/spec.ts`）。
+ * The root **must have an incoming edge**. Otherwise it is independent of the candidate and G is constant, which is an invalid objective rejected at publication (`objective/spec.ts`).
  *
- * 这两格正好是 AIME 规则自己的两段：答案得是 0–999 的整数（答题卡只认三位数），
- * 然后相等。我们没有另立一把尺子，只是把官方那把拆开两段读。
+ * These nodes are exactly the two parts of AIME's own rule: the answer must be an integer in 0–999 (the answer sheet accepts three digits), and then it must match. We split the official criterion into two readable stages rather than defining a different one.
  */
 
 /**
- * **一轮里能问几次这个盒子。**
+ * **Maximum queries to this black box per attempt.**
  *
- * 判一次是毫秒级，所以这个数不是成本问题，是意义问题。答案空间 m = 1000：
- * 只回对错的话，一次判卷只划掉一个数 —— 问 c 次加上交卷那一次，瞎猜命中率是
- * (c+1)/1000。给 10：瞎猜 1.1%，而「算出两三个候选逐个试」够用。
+ * Grading takes milliseconds, so the issue is meaning rather than cost. The answer space has m = 1000 elements. Binary feedback rules out only one number per query; c queries plus final submission give blind guessing a success rate of (c+1)/1000. With 10 queries this is 1.1%, while allowing two or three computed candidates to be tried.
  *
- * 全预算 N = (K+1)(c+1)+1 = 100 < 1000，没有一道题是枚举可达的（见 G.md）。
+ * The full budget N = (K+1)(c+1)+1 = 100 < 1000, so no problem is enumeration-reachable (see G.md).
  */
 export const CHECKS = Number(process.env.TGENGIN_AIME_CHECKS ?? 10);
 

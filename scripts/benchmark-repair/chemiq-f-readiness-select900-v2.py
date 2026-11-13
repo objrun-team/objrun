@@ -66,38 +66,38 @@ def main(output):
     table = "\n".join(f"| {item['officialIndex']} | {item['officialId']} | {item['category']}/{item['subCategory']} |" for item in pilot)
     scenarios = [item for item in review["feeTimeByteScenarios"]["scenarios"] if item["scenarioSolveSeconds"] == 900]
     costs = "\n".join(f"| {item['FTaskRuns']} | {float(item['cachedUsdPeakRateScenario']):.2f} | {float(item['noCacheUsdPeakRateScenario']):.2f} | {float(item['cachedCnyAllPeakTokenScenario']):.2f} | {float(item['noCacheCnyAllPeakTokenScenario']):.2f} |" for item in scenarios)
-    text = f"""用户已明确选择 ChemIQ F 每题 **900 秒**。完整目标为原题序 **816 题、每题1次F、共816次**，16题代表性试跑也使用900秒。此件没有生成、评分或启动模型；`formalPaidReady=false`，独立执行入口、recipe/source与cash仍未冻结。
+    text = f"""The user explicitly selected **900 seconds** per ChemIQ F task. The full target is **816 tasks in the original order, one F run per task, 816 runs total**; the representative 16-task pilot also uses 900 seconds. This artifact did not generate answers, grade, or start a model; `formalPaidReady=false`, and the independent execution entry point, recipe/source, and cash are not yet frozen.
 
-| 对象 | 任务及状态 | 时间/预算 | 差异 |
+| Object | Tasks and state | Time/budget | Differences |
 |---|---|---|---|
-| 旧F0731 | 816，存680通过，实际4claimed；scorecard计0running | 900秒/checks3/K8/search3 | 历史source/checkpoint未认证，finalvalidity0 |
-| 旧Fc5kinf0929 | 816，存633通过，实际6claimed；303search全402 | 900秒/checks5/K100000/search3 | 不作为新正式成绩 |
-| 真实10题F试跑 | 10，3通过；仅NMR/zinc_2d | 180秒/checks5/branch4/无search | 原shutdown超时与laterclosing均保留；不代表816 |
-| 本次新F目标 | 原816ID全部保留；未执行 | **900秒**/checks5/branch4/K100000/无search | 新deepseek-flash，8192/temp0/seed42/reasoningnone；非旧0731 checkpoint复现 |
+| Old F0731 | 816; 680 stored passes, actually 4 claimed; scorecard reports 0 running | 900 seconds/checks3/K8/search3 | Historical source/checkpoint uncertified, finalvalidity0 |
+| Old Fc5kinf0929 | 816; 633 stored passes, actually 6 claimed; all 303 searches returned 402 | 900 seconds/checks5/K100000/search3 | Not new formal results |
+| Live 10-task F pilot | 10, with 3 passes; NMR/zinc_2d only | 180 seconds/checks5/branch4/no search | Original shutdown timeout and laterclosing both retained; not representative of 816 |
+| New F target | All original 816 IDs retained; not executed | **900 seconds**/checks5/branch4/K100000/no search | New deepseek-flash, 8192/temp0/seed42/reasoningnone; not a reproduction of the old 0731 checkpoint |
 
-同一任务范围见原 [task-scope.json](../chemiq-f-formal-readiness-v1/task-scope.json)，209,338字节，SHA `{scope_pin['sha256']}`。原待选版本与全部输入SHA未回写；本次再次逐项核验当前字节不变。范围只包含ID/prompt摘要，无参考答案。900秒与旧F时间相同，并不认证模型、搜索、预算、评分与旧运行整体等价。
+The same task scope is in the original [task-scope.json](../chemiq-f-formal-readiness-v1/task-scope.json), 209,338 bytes, SHA `{scope_pin['sha256']}`. The original pending-selection version and all input SHAs have not been overwritten; every current byte sequence was verified unchanged again. The scope contains only ID/prompt digests, no reference answers. Matching the old F duration at 900 seconds does not certify equivalence of models, search, budgets, grading, or the old run as a whole.
 
-修订评分采用固定local OPSIN2.8.0 + raw-input-length，REST fallback=false，level0；原子映射的原文200字限制修复30道误拒。官方parser/RDKit判等保持原源。已有同source正控782/816，负值/结构与格式负控各816；34个IUPAC正参考仍缺，random/canonical各17。全部34准确ID在JSON，不能删分母、记成答错或宣称完全修复。应先补私有正确名称并验证；少量pilot不能替代这一步。该协议与旧未知REST或官方parsed-length成绩不同。
+Revised grading uses pinned local OPSIN2.8.0 + raw-input-length, REST fallback=false, level0. Applying the 200-character atom-mapping limit to raw input fixes 30 false rejections. The official parser/RDKit equivalence check retains its original source. Existing same-source positive controls cover 782/816, with 816 incorrect-value/structure and 816 format negative controls; 34 IUPAC positive references are still missing, 17 random and 17 canonical. All 34 exact IDs are in JSON; they must not be removed from the denominator, counted as incorrect answers, or described as fully repaired. First supply private correct names and verify them; a small pilot cannot replace this step. This protocol differs from old results using an unknown REST service or official parsed-length grading.
 
-最小代表性试跑固定 **16F900**：14个类别/子类/判法各取原题序首题，再加两个25原子映射边界。覆盖8类别、14子类/判法、5评分方法，全部16已有正控；未按模型成绩选择。缺参考34题并不因此获得认证，补齐正参考后可用JSON预定的两题做额外诊断。是否将pilot纳入正式预定子集必须在生成前决定，不能拼接变更后的协议或挑成功样本。
+The minimum representative pilot is fixed at **16F900**: the first task in original order for each of 14 category/subcategory/grading-rule combinations, plus two 25-atom mapping boundary cases. It covers 8 categories, 14 subcategories/grading rules, and 5 grading methods; all 16 have positive controls, and selection did not use model results. This does not certify the 34 tasks missing references; after positive references are supplied, the two tasks prespecified in JSON can provide additional diagnostics. Whether the pilot belongs to a prespecified formal subset must be decided before generation; changed protocols or selected successful samples must not be spliced together.
 
-| 原题索引(0起) | 固定taskID | 类别/子类 |
+| Original task index (0-based) | Pinned taskID | Category/subcategory |
 |---|---|---|
 {table}
 
-费用只按原10道NMR F180的真实token做900/180压力场景：
+Costs use actual tokens from the original 10 NMR F180 tasks only, scaled by 900/180 as a stress scenario:
 
-| F次数 | 缓存USD峰价估算 | 无缓存USD峰价估算 | 全峰CNY独立估算 | 无缓存全峰CNY独立估算 |
+| F runs | Cached USD peak-rate estimate | Uncached USD peak-rate estimate | Independent all-peak CNY estimate | Independent uncached all-peak CNY estimate |
 |---|---|---|---|---|
 {costs}
 
-这些数字不是发票、汇率转换、收费硬上界或当前余额；NMR不是代表性费用样本。用户表示会充值不代表已到账，Root需临近启动获取真实余额/TTL、冻结独立cash envelope，保留原4未知费用8.39218CNY。每次provider forward前先持久raw+admission+现金预留；完整usage/late回执、未知费用、共享ownerwx均不得绕过。
+These numbers are not invoices, currency conversions, hard billing upper bounds, or current balances; NMR is not a representative cost sample. The user's intent to top up does not mean funds have arrived. Root must retrieve the actual balance/TTL near startup, freeze an independent cash envelope, and retain the original 4 unknown costs totaling CNY 8.39218. Before each provider forward, persist raw data, admission, and a cash reservation; complete usage/late receipts, unknown costs, and shared ownerwx must not be bypassed.
 
-checks5限制显式检查，runtime自动与最终独立判卷要另计物理G调用；不得声称全G只有5次或U/F等预算因果效应。现有冻结scientific计划仍产生U/F，且其16题calibration选择不同，因此需另建F-only入口/审核，不改原81源。原全JSON热重写不可直接扩至816，现cash全历史计数与128MiB单Pin/256MiB现金元数据上限也须依据新pilot实际量做范围评估。
+checks5 limits explicit checks; physical G calls for automatic runtime grading and independent final grading must be counted separately. Do not claim that all G calls total only 5, or a causal effect under equal U/F budgets. The existing frozen scientific plan still produces U/F, and its 16-task calibration selection differs, so an independent F-only entry point/review is required without changing the original 81 sources. Full-JSON hot rewrites cannot scale directly to 816; the current cash full-history counting and limits of 128MiB per pin / 256MiB cash metadata also need scope assessment based on actual new pilot volumes.
 
-启动前还需新鲜私有grader/source/runtime/JAR/queue/正负控、RAM与磁盘门、封口候选摘要、原始trace/wire/token/费用、明确的时限与评分分组及精确所有权收尾。历史环境观察和16覆盖不能替代新运行证据。任何invalid保持invalid，部分分数不得标816完整分数。没有修改论文、旧数据、原包或冻结执行来源。
+Startup also requires fresh private grader/source/runtime/JAR/queue/positive and negative controls, RAM and disk gates, sealed candidate digests, original trace/wire/token/cost records, explicit time-limit and grading groups, and cleanup under exact ownership. Historical environment observations and 16-task coverage cannot replace evidence from a new run. Every invalid result remains invalid, and partial results must not be labeled complete 816-task results. The paper, old data, original packages, and frozen execution sources were not modified.
 
-完整 [readiness.json](readiness.json)：{report_pin['bytes']}字节，SHA `{report_pin['sha256']}`。
+Complete [readiness.json](readiness.json): {report_pin['bytes']} bytes, SHA `{report_pin['sha256']}`.
 """
     markdown_pin = save(output / "readiness.md", text.encode(), raw=True)
     print(json.dumps({"report": report_pin, "markdown": markdown_pin, "scope": scope_pin,

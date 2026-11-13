@@ -1,10 +1,12 @@
 /**
- * 起接口。**这一层只搭台子**：开库、装闸（令牌 / CORS / 请求体）、把路由装上。
- * 端口、令牌、能不能写、一次最多几行 —— 都从 config.yaml 来，这儿不设默认值。
+ * Start the API. **This layer only sets up infrastructure**: open the database, install guards
+ * (token, CORS, and body limits), and register routes. Ports, tokens, write permissions, and row
+ * limits come from config.yaml; there are no defaults here.
  *
- * **每个口长什么样不在这儿**，在 `api/` 底下 —— 一个口的说明、它的参数表、
- * 它的实现是同一份声明。契约长在接口上，不在旁边的文档里：文档会漂，声明漂不了
- * （漂了请求就会被错误地拒，当场看得出来）。
+ * **Endpoint contracts live in `api/`**, not here. Each endpoint's description, parameter table,
+ * and implementation share a declaration. The contract belongs to the endpoint rather than a
+ * separate document: prose can drift silently, whereas declaration drift incorrectly rejects
+ * requests and is immediately visible.
  */
 
 import Fastify, { type FastifyInstance } from "fastify";
@@ -15,14 +17,14 @@ import { mount, type Route } from "../api/spec.ts";
 import type { Config } from "./config.ts";
 import { BadName, NoSuchTable, open, type Store } from "./db.ts";
 
-/** 写口被打了之后喊一声。**只是喊一声，不带数据** —— 带了就成内存队列了。 */
+/** Signal after a write endpoint is called. **The signal carries no data**, or it would become an in-memory queue. */
 export interface Hooks {
   onWrite?: () => void;
-  /** 不校验令牌的路径（那张页本身）。**只放页，不放数据** —— 页里发的数据请求照样要令牌。 */
+  /** Paths exempt from token checks: the UI page itself. **Only the page, not its data**; its data requests still require a token. */
   public?: string[];
 }
 
-/** 起好的那台。`routes` 带着已经装上的口 —— 上面那层要拿它去装 help。 */
+/** The running server. `routes` contains registered endpoints so the higher layer can build help. */
 export type App = FastifyInstance & { store: Store; routes: Route[] };
 
 export async function build(cfg: Config, hooks: Hooks = {}): Promise<App> {
@@ -34,17 +36,18 @@ export async function build(cfg: Config, hooks: Hooks = {}): Promise<App> {
 
   if (cfg.cors.enabled) await app.register(cors, { origin: cfg.cors.origin });
 
-  // 有几个口**根本不收 body**（装表那种，打一下就干活）。而 Fastify 认的是
-  // content-type：一个 `curl -X POST` 不带头、不带 body，它按「不认得这种媒体类型」
-  // 顶回 415 —— 那句话指向的是格式，而请求里压根没有格式可言，人只会以为接口坏了。
+  // Some endpoints **accept no body at all**, such as table installation. Fastify checks
+  // content-type, however: `curl -X POST` with neither headers nor body receives 415 for an
+  // unsupported media type. The message suggests a format problem when there is no body
+  // whose format could be wrong, making the endpoint appear broken.
   //
-  // 所以在这儿兜一道，但**只兜空 body**：
+  // Handle this centrally, but **only for empty bodies**:
   //
-  // - 没有 body → 当没有 body（`undefined`），该干什么干什么
-  // - 有 body 但格式不认得 → **还是 415**，而且说清不认得的是哪一种
+  // - No body: use `undefined` and let the endpoint proceed normally.
+  // - A body with an unsupported format: **still return 415**, naming the unsupported type.
   //
-  // 一刀切成「什么都收下」的话，第二种就被吞了：发来一坨我们解不了的东西，
-  // 接口回 200，而那份 body 悄悄没了。
+  // Accepting everything indiscriminately would swallow the second case: an undecodable body
+  // would disappear silently while the endpoint returned 200.
   app.addContentTypeParser("*", { parseAs: "buffer" }, (req, body, done) => {
     if ((body as Buffer).length === 0) return done(null, undefined);
     const ct = req.headers["content-type"] ?? "(none given)";
@@ -53,8 +56,9 @@ export async function build(cfg: Config, hooks: Hooks = {}): Promise<App> {
     done(err, undefined);
   });
 
-  // 令牌。配置里留空就整个不校验 —— 本地默认这样。
-  // `/health` 放行：令牌配错了也得探得出来机器是活的，不然分不清是没起来还是没认证。
+  // Token validation is entirely disabled when the configuration value is empty, the local default.
+  // Allow `/health`: even with a misconfigured token, a probe must distinguish a running service
+  // from one that never started.
   if (cfg.api.token) {
     app.addHook("onRequest", async (req, reply) => {
       if (req.url.startsWith(`${cfg.api.prefix}/health`)) return;
@@ -66,13 +70,15 @@ export async function build(cfg: Config, hooks: Hooks = {}): Promise<App> {
     });
   }
 
-  // **封存域和绑判据这两道闸，在路由之前统一拦。**
+  // **Enforce sealed-database isolation and objective-publishing authorization before routing.**
   //
-  // 1. 原始 SQL 不许 ATTACH / DETACH。只读连接挡得住写，挡不住把封存库挂进来读 ——
-  //    `/query` 一句 ATTACH 就能读出全部判据定义（10-01 审计实测过）。拦关键词是下策，
-  //    但够不到另一个库文件只有 ATTACH 这一个口，这里认这个词是准的。
-  // 2. 绑判据要发布者令牌（`api.publisherToken`）。来源字段是调用方自报的：容器里的
-  //    求解器能连到这个 API 时，报一个 `user` 就能给自己的任务绑判据。
+  // 1. Raw SQL cannot ATTACH / DETACH. A read-only connection blocks writes but cannot prevent
+  //    attaching the sealed database to read it. One ATTACH through `/query` exposed all objective
+  //    definitions in the 10-01 audit. Keyword filtering is a fallback, but ATTACH is the only SQL
+  //    mechanism for reaching that other database file, so matching this keyword is appropriate.
+  // 2. Attaching objectives requires the publisher token (`api.publisherToken`). Callers report
+  //    their own source: a solver container with access to the API could otherwise claim `user`
+  //    and attach an objective to its own task.
   const pub = cfg.api.publisherToken;
   app.addHook("preHandler", async (req, reply) => {
     if (req.method !== "POST") return;
@@ -100,11 +106,11 @@ export async function build(cfg: Config, hooks: Hooks = {}): Promise<App> {
   const routes = h2hRoutes(cfg, store, () => hooks.onWrite?.());
   mount(app, cfg.api.prefix, routes);
 
-  // 领域里的错换成对应的状态码 —— 让 500 只剩下「真的是我这边坏了」。
+  // Map domain errors to appropriate status codes, reserving 500 for actual server failures.
   //
-  // **错身上带的细节要一起送出去。** 只送 `message` 的话，`/declare` 那句
-  // 「这份声明有 4 处不对」就成了一句空话 —— 它承诺过要把全部问题一次说全，
-  // 而列表在 `problems` 上，被这儿吞掉了。承诺了没给，比不承诺更糟。
+  // **Include the error's details too.** Sending only `message` makes `/declare`'s "4 problems
+  // in this declaration" useless: it promises all problems together, but their list lives in
+  // `problems` and would be discarded here. Breaking that promise is worse than not making it.
   app.setErrorHandler(async (err: Error, req, reply) => {
     if (err instanceof NoSuchTable) return reply.code(404).send({ error: err.message });
     if (err instanceof BadName) return reply.code(400).send({ error: err.message });
@@ -119,7 +125,7 @@ export async function build(cfg: Config, hooks: Hooks = {}): Promise<App> {
     });
   });
 
-  // 打错地址的时候把 help 指出来 —— 不指的话他只能去猜，或者去读表。
+  // Point unknown routes to help; otherwise callers must guess or inspect database tables.
   app.setNotFoundHandler(async (req, reply) =>
     reply.code(404).send({
       error: `no such route: ${req.method} ${req.url}`,

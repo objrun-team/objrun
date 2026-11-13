@@ -1,8 +1,8 @@
 /**
- * 通用 U 臂事后判分：每道题最后一次 `submit` 的答案 → 问判卷台的每个节点（按 G.json 的边从源到 sink）。
+ * Shared post-run grading for arm U: take each task's last `submit` answer and query every grader node, following the edges in G.json from sources to sink.
  *
- *   cd app && TGENGIN_BENCH_DIR=... bun ../examples/benchmark/_lib/grade-unaided.ts <run> <db 路径>
- * 输出 $TGENGIN_OUT/unaided.csv：task,submitted,<node1>,<node2>,...,seconds,units
+ *   cd app && TGENGIN_BENCH_DIR=... bun ../examples/benchmark/_lib/grade-unaided.ts <run> <database-path>
+ * Writes $TGENGIN_OUT/unaided.csv: task,submitted,<node1>,<node2>,...,seconds,units
  */
 import { Database } from "bun:sqlite";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -45,7 +45,7 @@ function stats(task: string) {
   const r = db.query(`select count(*) n, min(at) a, max(at) b from "task_${mode}" where task = ?`).get(task) as { n: number; a: number | null; b: number | null };
   return { units: Number(r.n), seconds: r.a && r.b ? Math.round((Number(r.b) - Number(r.a)) / 1000) : 0 };
 }
-// 并发判分：Lean 这类判卷台一次几十秒、后面有 REPL 池，串行问会把池子闲着。TGENGIN_GRADE_PAR 定并发（默认 16）。
+// Grade concurrently: graders such as Lean take tens of seconds and have a REPL pool, which serial requests would leave idle. TGENGIN_GRADE_PAR controls concurrency (default: 16).
 const PAR = Number(process.env.TGENGIN_GRADE_PAR ?? 16);
 const rowsOut: Map<string, string> = new Map();
 let pass = 0, nothing = 0;

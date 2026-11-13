@@ -1,24 +1,26 @@
 /**
- * 跑一次 bench。
+ * Execute a benchmark run.
  *
- * 老代码那份协议就三步：
+ * The old protocol had three steps:
  *
- * 1. 给每个样本造一个 `G`
- * 2. 训练模式逐个求解 —— **第一个数：`G=1` 的道数**
- * 3. 降解，然后不带 `G` 重跑 —— **第二个数：resolved 的道数**
+ * 1. Construct a `G` for each sample.
+ * 2. Solve samples in training mode: **first metric, number with `G=1`**.
+ * 3. Distill, then rerun without `G`: **second metric, number resolved**.
  *
- * 到我们这儿，一次 bench 就是**一批任务，每个自带一个 G**，靠 `task.run` 认。
- * 跑完数 `G=1` 的道数就是成绩 —— 不需要另一套统计，state 本来就是 G 判出来的。
+ * Here a benchmark run is **a batch of tasks, each with its own G**, identified by `task.run`.
+ * Count tasks with `G=1` at completion; no separate scoring system is needed because G already
+ * determines state.
  *
- * ## 要么全发，要么一个不发
+ * ## Publish the entire batch or none of it
  *
- * 一批里有一道的 G 写坏了，那**整批都别发**。发一半的话，成绩单上的分母是错的，
- * 而且没人看得出来少了哪几道 —— 这跟单个任务「拒收整个任务」是同一条理。
+ * If one task has an invalid G, **reject the whole batch**. Publishing only part would silently
+ * change the result denominator without revealing missing tasks. This extends the same atomic
+ * rejection principle used for one task.
  *
- * ## 不另开一张 bench 表
+ * ## No separate benchmark table
  *
- * 一跑的成绩是**数出来的**，不是存着的：`task` 表按 `run` 一数就有。存一份的话
- * 它会跟真相漂，而且漂了不报错。
+ * A run's result is **computed**, not stored: group and count `task` by `run`. A stored copy
+ * could silently diverge from the actual task records.
  */
 
 import type { Conn } from "../H2H/db.ts";
@@ -27,32 +29,32 @@ import type { Sealed } from "../objective/store.ts";
 import { publish, type Publish } from "./publish.ts";
 
 export interface Bench {
-  /** 这一跑叫什么。不给就按时间生一个。 */
+  /** Run name. Generate one from the timestamp if omitted. */
   run?: string;
-  /** 这一批的每一道。`run` 由外层统一盖，各项不用写。 */
+  /** Every task in the batch. The outer declaration supplies `run` uniformly. */
   tasks: Publish[];
 }
 
 export interface Score {
   run: string;
   total: number;
-  /** `G=1` 的道数 —— **这就是第一个数**。 */
+  /** Number of tasks with `G=1`: **the first metric**. */
   passed: number;
   failed: number;
   running: number;
-  /** 还没开跑的。 */
+  /** Tasks that have not started. */
   open: number;
   tasks: { id: string; state: string; result: string | null }[];
 }
 
 /**
- * 发一批。**先把整批都验一遍，一道不过就整批不发。**
+ * Publish a batch. **Validate every task first; one failure rejects the entire batch.**
  *
- * 验的办法是先在一个事务里全发一遍，有一道抛就回滚 —— 每一道的检查（来源、G 的
- * 定义期检测、readable、模式/智能体/地方在不在）都在 `publish` 里，不在这儿抄一份。
+ * Attempt publication inside one transaction and roll back if any task throws. Per-task checks
+ * (source, G definition, readable, mode/agent/place existence) remain in `publish`, not duplicated here.
  */
 export function runBench(db: Conn, b: Bench, sealed: Sealed): { run: string; ids: string[] } {
-  // 同 `publish`：先问「这是不是一份东西」。空请求打进来不该崩在字段上。
+  // As in `publish`, check for an object before inspecting fields. Empty requests should not fail during property access.
   if (b === null || typeof b !== "object") throw new Error("the request body must be a JSON object");
   if (!Array.isArray(b.tasks) || b.tasks.length === 0) throw new Error("this batch contains no tasks");
   const run = (b.run ?? "").trim() || new Date().toISOString().replace(/[:.]/g, "-");
@@ -70,15 +72,15 @@ export function runBench(db: Conn, b: Bench, sealed: Sealed): { run: string; ids
     db.exec("commit");
   } catch (e) {
     db.exec("rollback");
-    // G 是在 publish 里封存的，回滚不管它 —— 手动把这一批已经封进去的抹掉，
-    // 否则下次同名重发会撞上一堆孤儿 G。
+    // `publish` seals G in separate storage that the transaction cannot roll back. Remove this
+    // batch's already-sealed definitions manually to avoid orphaned G entries blocking a retry.
     for (const id of ids) sealed.forget(id);
     throw new Error(`the batch was not sent (one bad task rejects the whole batch): ${e instanceof Error ? e.message : String(e)}`);
   }
   return { run, ids };
 }
 
-/** 一跑的成绩。**数出来的，不是存着的。** */
+/** A run's results, **computed rather than stored**. */
 export function score(db: Conn, run: string): Score {
   const rows = all(db, `select id, state, result from task where run = ? order by id`, [run]) as {
     id: string;
@@ -97,7 +99,7 @@ export function score(db: Conn, run: string): Score {
   };
 }
 
-/** 有哪几跑。 */
+/** Available runs. */
 export function runs(db: Conn): { run: string; total: number; passed: number }[] {
   return all(
     db,

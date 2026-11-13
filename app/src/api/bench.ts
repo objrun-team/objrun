@@ -1,9 +1,10 @@
 /**
- * 跑分和诊断。
+ * Benchmark scoring and diagnostics.
  *
- * 诊断那几个口是这台机器的**要害功能**，不是调试附赠品：条件写错了不会报错，
- * 那条规则只是永远不触发，而系统照常跑。老代码那边的原话是「写错的典型后果是
- * 静默不生效，跑一遍系统也看不出来」。
+ * The diagnostic endpoints are **essential functionality**, not optional debugging extras.
+ * An invalid condition can fail silently: the rule never triggers while the system otherwise
+ * runs normally. The old implementation explicitly warned that a typical mistake "silently
+ * has no effect and cannot be detected by simply running the system."
  */
 
 import type { Store } from "../H2H/db.ts";
@@ -33,7 +34,7 @@ export function benchRoutes(store: Store, reg: Registry, sealed: Sealed, wake: (
       returns: { run: "2026-08-29T12-00-00", ids: ["b-1", "b-2"] },
       errs: [{ code: 400, when: "Duplicate run name, an empty batch, or any single task failing the publish gate (the whole batch is rejected)" }],
       handler: async (a, _req, reply) => {
-        // 同 `/tasks`：拒收是请求的问题，一律 400。
+        // As with `/tasks`, rejected input is a request error and always returns 400.
         let r: unknown;
         try {
           r = runBench(store.rw, a as unknown as Bench, sealed);

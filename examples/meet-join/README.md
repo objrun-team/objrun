@@ -1,10 +1,12 @@
-# 一个会给你新句柄的工具
+# A tool that provides new handles
 
-[← 例子](../) ｜ [tool](../tool/) · **meet-join** · [meet-book](../meet-book/) · [place](../place/) · [rule](../rule/) · [skill](../skill/) · [mode](../mode/) · [cmtbench](../benchmark/cmt/)
+Instructions and illustrative declarations are in English. Captured responses and logs below are English renderings of earlier Chinese-language output, preserving IDs, timestamps, paths, and numbers. Original archived evidence is unchanged.
 
-`meet_join` 进会。进去之后，会里才有的 `say` 和 `screen` 才出现在表里。
+[← Examples](../) ｜ [tool](../tool/) · **meet-join** · [meet-book](../meet-book/) · [place](../place/) · [rule](../rule/) · [skill](../skill/) · [mode](../mode/) · [cmtbench](../benchmark/cmt/)
 
-字段说明在 [`../tool/`](../tool/)。
+`meet_join` joins a meeting. Only after joining do the meeting-specific `say` and `screen` tools appear in the table.
+
+Field descriptions are in [`../tool/`](../tool/).
 
 ```bash
 cp config.yaml dist/
@@ -12,7 +14,7 @@ dist/tgengin-win-x64.exe &
 BASE=http://127.0.0.1:7801/api
 ```
 
-底子（一个地方、两个周期、一个智能体）：
+Base setup (one place, two cycles, one agent):
 
 ```bash
 curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
@@ -28,11 +30,9 @@ JSON
 
 ---
 
-## 接进来的只有一个工具
+## Initially, only one tool is connected
 
-[`meet-server.ts`](./meet-server.ts) 只有 `meet_join`。进会成功之后，它回过头调
-`/declare` 把 [`meet-live.ts`](./meet-live.ts) 接进来 —— `say` 和 `screen`
-就是那时候才有的。
+[`meet-server.ts`](./meet-server.ts) exposes only `meet_join`. After joining successfully, it calls `/declare` to connect [`meet-live.ts`](./meet-live.ts); that is when `say` and `screen` become available.
 
 ```ts
 const res = await fetch(`${BASE}/declare`, {
@@ -44,8 +44,8 @@ const res = await fetch(`${BASE}/declare`, {
       command: "bun",
       args: [LIVE, meetId],
       tools: {
-        say:    { when: [[{ dim:"task", key:"description", op:"contains", value:"会议" }]] },
-        screen: { when: [[{ dim:"task", key:"description", op:"contains", value:"会议" }]] },
+        say:    { when: [[{ dim:"task", key:"description", op:"contains", value:"meeting" }]] },
+        screen: { when: [[{ dim:"task", key:"description", op:"contains", value:"meeting" }]] },
       },
     }],
   }),
@@ -60,7 +60,7 @@ curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
     "name": "meet",
     "command": "bun",
     "args": ["examples/meet-join/meet-server.ts"],
-    "tools": { "meet_join": { "when": [[{ "dim":"task","key":"description","op":"contains","value":"会议" }]] } }
+    "tools": { "meet_join": { "when": [[{ "dim":"task","key":"description","op":"contains","value":"meeting" }]] } }
   }] }
 JSON
 ```
@@ -69,7 +69,7 @@ JSON
  "agents":[],"tools":[],"rules":[],"skills":[],"tables":[],"entries":{}}
 ```
 
-进会之前：
+Before joining:
 
 ```bash
 curl -s -X POST $BASE/query -H 'content-type: application/json' -d @- <<'JSON'
@@ -82,17 +82,17 @@ JSON
 
 ---
 
-## 发任务
+## Submit a task
 
 ```bash
 curl -s -X POST $BASE/tasks -H 'content-type: application/json' -d @- <<'JSON'
 { "id":"t-meet", "mode":"work", "agent":"bot", "place":"local", "source":"user",
   "solveSeconds": 240,
-  "description": "这是一个会议任务：先用 meet_join 进 https://meet.google.com/abc-defg-hij，进去之后用会里新出现的工具说一句「大家好」，再共享 file:///deck.html，然后就结束" }
+  "description": "This is a meeting task: first use meet_join to join https://meet.google.com/abc-defg-hij, then use the newly available meeting tools to say 'Hello everyone' and share file:///deck.html, then finish." }
 JSON
 ```
 
-进会之后：
+After joining:
 
 ```bash
 curl -s -X POST $BASE/query -H 'content-type: application/json' -d @- <<'JSON'
@@ -111,7 +111,7 @@ curl -s "$BASE/tasks/t-meet/messages?kind=call" | grep -o '"name":"[a-z_]*","inp
 ```
 ```
 "name":"meet_join","input":{"meetUrl":"https://meet.google.com/abc-defg-hij"}
-"name":"say","input":{"text":"大家好"}
+"name":"say","input":{"text":"Hello everyone"}
 "name":"screen","input":{"url":"file:///deck.html"}
 ```
 
@@ -120,30 +120,29 @@ curl -s "$BASE/tasks/t-meet/messages?kind=tool" | grep -o '"value":{[^{}]*}'
 ```
 ```
 "value":{"ok":true,"meetId":"abc-defg-hij","handles":["mcp:meet-live/say","mcp:meet-live/screen"]}
-"value":{"ok":true,"meet":"abc-defg-hij","said":"大家好"}
+"value":{"ok":true,"meet":"abc-defg-hij","said":"Hello everyone"}
 ```
 
-`screen` 那条回的是嵌套对象（deck 的操作契约），上面这个 grep 不收。
+The `screen` response is a nested object containing the deck's operation contract, so the grep above does not capture it.
 
 ```bash
 curl -s "$BASE/tasks/t-meet/messages?kind=prompt" | grep -o '"body":"[^"]*"' | tail -1
 ```
 ```
-"body":"已完成会议任务：\n\n1. ✅ **进入会议**：通过 `meet_join` 加入了 https://meet.google.com/abc-defg-hij\n2. ✅ **在会里说「大家好」**：已通过会里的 `say` 工具发言\n3. ✅ **共享 file:///deck.html**：已通过 `screen` 共享，返回了操作契约，deck 共 12 页，当前在第 1 页，可用左右箭头翻页、输入页码跳转\n\n任务已全部完成。"
+"body":"Meeting task completed:\n\n1. ✅ **Joined the meeting**: joined https://meet.google.com/abc-defg-hij using `meet_join`\n2. ✅ **Said 'Hello everyone'**: spoke using the meeting's `say` tool\n3. ✅ **Shared file:///deck.html**: shared using `screen`, which returned an operation contract; the deck has 12 slides, is currently on slide 1, and supports arrow navigation or a slide number to jump\n\nAll requested work is complete."
 ```
 
-### 日志
+### Logs
 
-两个 server 都是子进程，它们的 stderr 引擎原样转出来：
+Both servers are subprocesses; the engine forwards their stderr unchanged. English rendering of the captured output:
 
 ```
-[meet] 起来了
-[meet] 进会 abc-defg-hij
-[meet-live abc-defg-hij] 起来了
-[meet] 长出 mcp:meet-live/say、mcp:meet-live/screen
-[meet-live abc-defg-hij] say「大家好」
+[meet] Started
+[meet] Joined meeting abc-defg-hij
+[meet-live abc-defg-hij] Started
+[meet] Added tools mcp:meet-live/say、mcp:meet-live/screen
+[meet-live abc-defg-hij] say「Hello everyone」
 [meet-live abc-defg-hij] screen file:///deck.html
 ```
 
-`meet-live` 那行比 `[meet] 长出` 先出来 —— `/declare` 那一趟要连上新 server 问
-`tools/list` 才算完，所以 server 是先起来的。
+The `meet-live` line appears before `[meet] Added tools`: `/declare` completes only after connecting to the new server and requesting `tools/list`, so the server starts first.

@@ -4,7 +4,7 @@ import {HERE,OUT,read,save,walk,receipts,extractSQL,hash} from './common.ts';
 import {runIndependent,IndependentPrefixIncomplete,IndependentRecoveryError,independentProtocol} from './independent-ex-stop.ts';
 const base=join(OUT,'full'),migration=join(OUT,'protocol-change-independent-ex-stop');
 const correctedRoot=process.env.BIRD_CORRECTED_STAGING??join(base,'results/independent-ex-stop');
-const tasks=read(join(HERE,'public-tasks.json')),report:any={atUtc:new Date().toISOString(),protocol:independentProtocol,label:'独立采样，EX早停，最多5次',reconstructionLabel:'事后按早停规则重建',completedReconstructed:0,reusedSamples:0,pendingPrefixes:[],recoveryObstacles:[],results:[]};
+const tasks=read(join(HERE,'public-tasks.json')),report:any={atUtc:new Date().toISOString(),protocol:independentProtocol,label:'Independent sampling, EX early stopping, at most 5 attempts',reconstructionLabel:'Post-hoc reconstruction under the early-stopping rule',completedReconstructed:0,reusedSamples:0,pendingPrefixes:[],recoveryObstacles:[],results:[]};
 for(const task of tasks){
  const dir=join(base,'tasks/independent',task.officialId),calls=join(base,'calls/independent',task.officialId),original=join(base,'results/independent',task.officialId+'.json');
  if(!existsSync(dir)&&!existsSync(calls))continue;

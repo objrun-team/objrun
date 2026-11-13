@@ -1,42 +1,34 @@
-"""AIME 2024–2025 的判卷台 —— 引擎外面的一个 HTTP 服务。
+r"""AIME 2024–2025 grading service: an HTTP service outside the engine.
 
     python3 stand.py [--port 7903] [--level 1] [--selftest]
 
-引擎那边它是**两条句柄**：
+The engine sees **two handles**:
 
-    http://127.0.0.1:7903/parsed      G 的第一格：答卷里解析得出一个 0–999 的整数吗
-    http://127.0.0.1:7903/correct     G 的根：这个整数跟官方答案相等吗
+    http://127.0.0.1:7903/parsed      First G node: can the submission be parsed as an integer in 0–999?
+    http://127.0.0.1:7903/correct     G root: does that integer equal the official answer?
 
-句柄名本身就是地址，内核 POST 一份 JSON 过来，这儿回一份 JSON —— 没有别的协议。
+The handle name is the URL. The kernel POSTs JSON and receives JSON; there is no additional protocol.
 
-## 判据是官方的，一行不改
+## Use the official criterion unchanged
 
-AIME 的判卷规则只有一句：答案是 0–999 的整数，相等就对。**「从一段文字里读出那个
-整数」才是全部难点** —— `\\boxed{070}`、`\\boxed{70.}`、`$70$`、末尾一句 "the answer
-is 70"、算式链 `a+b = 70`……自己写正则的话，每一条边界都是一次跟别人分数不可比的机会。
+AIME's rule is simple: the answer is an integer in 0–999 and must match exactly. **Extracting that integer from text is the difficult part**: `\boxed{070}`, `\boxed{70.}`, `$70$`, a final "the answer is 70", or a chain such as `a+b = 70`. Every edge case in a custom regex could make our scores incomparable with others.
 
-所以解析和比较都交给 `math_verify`（HuggingFace Math-Verify，Apache-2.0）——
-OpenCompass 的 `MATHVerifyEvaluator`、lighteval、Open-R1 判 AIME 用的就是它。
-这个文件**不实现任何解析和比较**，只做三件事：接 HTTP、调 `parse` / `verify`、
-在两者之间加一道**值域闸**（解析出来的必须是 0–999 的整数）—— 那是 AIME 的规则，
-不是我们的发明。
+Delegate parsing and comparison to `math_verify` (HuggingFace Math-Verify, Apache-2.0), also used by OpenCompass's `MATHVerifyEvaluator`, lighteval, and Open-R1 for AIME.
+This file **implements neither parsing nor comparison**. It accepts HTTP, calls `parse`/`verify`, and applies a **domain check** between them: the parsed value must be an integer in 0–999. That is AIME's rule, not a new criterion.
 
-## 答案不出这个进程
+## Answers remain inside this process
 
-题库 `aime.jsonl` 带 `answer`，**只有这个进程读它**。`/problems` 发题时把 `answer`
-摘掉。跟 cmt 一样：**这不是隔离** —— solver 的 bash 跟这个进程在同一台机器上，
-`cat ~/.cache/tgengin-aime/aime.jsonl` 一样拿到。改的是路径，不是可达性；真堵死得把
-solver 关进沙箱，那是 `place` 那一维的事。
+The `aime.jsonl` corpus contains `answer`; **only this process reads it**. `/problems` removes `answer` before exposing statements.
+As with CMT, **this is not isolation**: if the solver's bash shares the machine, `cat ~/.cache/tgengin-aime/aime.jsonl` can still read it. Moving the file changes the path, not reachability. Real isolation requires a solver sandbox, which belongs to the `place` dimension.
 
-## 分级：判 0 的时候多说多少
+## Feedback levels: additional information on verdict 0
 
-    0   只有过没过
-    1   + 断在哪一格（parse / value）+ 我们从你答卷里读出的那个整数
-    2   + 官方答案比你的大还是小    ← **这是泄露实验，不是正常设置**：有了方向，
-                                       二分 10 次就到 0–999 里任何一个数，c=10 刚好够。
-                                       只回对错的话二分不成立（见 G.md）。
-    3   没有。再多说一个字（差多少、哪几位对）就等于把答案交出去。
-"""
+    0   Pass/fail only.
+    1   Also the failed stage (parse/value) and the integer extracted from the submission.
+    2   Also whether the official answer is higher or lower. **A leakage experiment, not a normal setting**:
+        directional feedback lets binary search find any number in 0–999 in 10 queries, exactly c=10.
+        Binary search does not work with pass/fail feedback alone (see G.md).
+    3   Not provided. More information, such as the difference or matching digits, would reveal the answer."""
 
 from __future__ import annotations
 
@@ -48,23 +40,21 @@ import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-# **题库在判卷台这一侧，不在仓库里。** solver 手上有 read / glob / bash，仓库里放
-# 一份带答案的 jsonl，它 glob 一下就找到（cmt 那边实测发生过）。够不着，不是不许。
+# **Keep the corpus on the grader side, outside the repository.** A solver with read/glob/bash can find an answer-bearing JSONL in the repository with one glob (observed with CMT). Access must be prevented, not merely forbidden.
 HOME_DIR = Path(os.environ.get("TGENGIN_AIME_HOME", Path.home() / ".cache" / "tgengin-aime"))
 DATA = Path(os.environ.get("TGENGIN_AIME_DATA", HOME_DIR / "aime.jsonl"))
 
 LEVEL = int(os.environ.get("TGENGIN_AIME_LEVEL", "1"))
 
-# **AIME 答案的值域。** 官方规则：0–999 的整数。这是 `parsed` 那一格的全部内容。
+# **AIME answer domain:** the official rule is an integer in 0–999. This is the complete criterion for the `parsed` node.
 LO, HI = 0, 999
 
-# 答卷只看**尾巴**。math_verify 认的是最后一个 `\boxed{}`，前面几万字的推理对判卷
-# 没用，却能把 ANTLR 拖到很慢 —— 线程里又开不了它自带的超时（见 `judge`）。
+# Inspect only the **tail** of the submission. math_verify uses the last `\boxed{}`; tens of thousands of preceding reasoning characters do not help grading but can make ANTLR very slow. Its built-in timeout is unavailable in a worker thread (see `judge`).
 TAIL = 20000
 
 
 def load_official():
-    """把官方判据加载进来。**装错了在这儿就炸**，不会等到判卷才发现。"""
+    r"""Load the official grader. Fail immediately on an invalid installation rather than discovering it during grading."""
     try:
         import sympy  # noqa: F401
         from math_verify import ExprExtractionConfig, LatexExtractionConfig, parse, verify
@@ -75,10 +65,9 @@ def load_official():
 
 PARSE, VERIFY, LatexCfg, ExprCfg = load_official()
 
-# 答卷这一侧：`\boxed{}` 优先级最高（math_verify README 的建议），其次任何 latex 环境，
-# 最后光秃秃的算式。**官方默认配置，一个数都不改。**
+# On the submission side, prioritize `\boxed{}` as recommended by math_verify, then any LaTeX environment, and finally bare expressions. **Use the official default configuration unchanged.**
 PRED_CFG = [LatexCfg(boxed_match_priority=0), ExprCfg()]
-# 答案这一侧：只是个整数，按 README 的说法用 `ExprExtractionConfig()` 就够。
+# The reference answer is just an integer; `ExprExtractionConfig()` is sufficient, as described in the README.
 GOLD_CFG = [ExprCfg()]
 
 
@@ -96,16 +85,13 @@ def load_book() -> dict[str, dict]:
 BOOK = load_book()
 
 
-# ── 判卷 ────────────────────────────────────────────────────────────────────
+# ── Grading ──
 
 
 def integer_of(parsed: list) -> int | None:
-    """官方 `parse` 吐出来的那串里，挑第一个**是整数**的。
+    r"""Select the first **integer-valued** result from the official `parse` output.
 
-    `parse` 回的是 sympy 对象（可能还夹着一个原文字符串作 fallback）。`\\boxed{070}`
-    出来是 `Integer(70)`，`\\boxed{70.0}` 出来是 `Float`；后者按值算也是整数 ——
-    AIME 的答题卡上写 70 和 70.0 是同一个数。字符串 fallback 不算解析出来。
-    """
+    `parse` returns SymPy objects, possibly with the original string as a fallback. `\boxed{070}` yields `Integer(70)`, whereas `\boxed{70.0}` yields a `Float`; the latter is still integer-valued. On an AIME answer sheet, 70 and 70.0 represent the same number. A fallback string is not a successful parse."""
     import sympy
 
     for e in parsed:
@@ -122,24 +108,20 @@ def integer_of(parsed: list) -> int | None:
 
 
 def judge(said: str, item: dict) -> dict:
-    """跑一遍官方判据。回 `{parsed, value, correct, err}`。
+    r"""Run the official criterion and return `{parsed, value, correct, err}`.
 
-    `parsing_timeout=None` / `timeout_seconds=None` **不是偷懒**：math_verify 的超时
-    靠 `signal.alarm`，只能在主线程里用，ThreadingHTTPServer 的 handler 不在主线程，
-    开着就抛 ValueError。所以关掉，改用 `TAIL` 截答卷长度来兜底。
-    """
+    `parsing_timeout=None` / `timeout_seconds=None` are deliberate: math_verify implements timeouts with `signal.alarm`, which only works in the main thread. ThreadingHTTPServer handlers run elsewhere and would raise ValueError. Disable those timeouts and bound submission length with `TAIL` instead."""
     said = said[-TAIL:]
     try:
         got = PARSE(said, extraction_config=PRED_CFG, parsing_timeout=None)
         gold = PARSE(str(item["answer"]), extraction_config=GOLD_CFG, parsing_timeout=None)
-    except Exception as e:  # 官方那套自己会抛，抛了就是没解析出来
+    except Exception as e:  # The official implementation can raise; treat that as a failed parse.
         return {"parsed": False, "value": None, "correct": False, "err": f"{type(e).__name__}: {e}"}
     value = integer_of(got)
     parsed = value is not None and LO <= value <= HI
     if not parsed:
         return {"parsed": False, "value": value, "correct": False, "err": ""}
-    # **相等与否由官方 `verify` 说**，不是我们拿 `==` 比。它对 Integer vs Integer 就是
-    # 数值相等，跟 `==` 结果一样 —— 自检里两条都对一遍，不一样就炸。
+    # **The official `verify` decides equality**, not our own `==`. For Integer versus Integer it is numeric equality, matching `==`; the self-test compares both and fails if they differ.
     try:
         ok = bool(VERIFY(gold, got, timeout_seconds=None))
     except Exception as e:
@@ -147,7 +129,7 @@ def judge(said: str, item: dict) -> dict:
     return {"parsed": True, "value": value, "correct": ok, "err": ""}
 
 
-# 一道题一份答卷判一次就够 —— `parsed` 和 `correct` 两格问的是同一次判卷的两栏。
+# Grade a given submission once per problem: `parsed` and `correct` request two fields of that same result.
 CACHE: dict[tuple[str, str], dict] = {}
 
 
@@ -168,11 +150,11 @@ def verdict(tid: str, said: str) -> dict:
     return CACHE[key]
 
 
-# ── note：判 0 的时候多说多少，按 --level ──────────────────────────────────
+# ── note: additional information on verdict 0, selected by --level ──
 
 
 def note_of(tid: str, got: dict) -> dict | str:
-    """判 0 的时候多说的那一份。**级别定详略**，形状不随级别变。"""
+    r"""Additional information on verdict 0. **The level controls detail**, while the response structure stays the same."""
     if LEVEL <= 0:
         return ""
     if not got["parsed"]:
@@ -184,8 +166,8 @@ def note_of(tid: str, got: dict) -> dict | str:
     note: dict = {"stage": "value", "read": got["value"], "detail": f"{got['value']} is not the answer"}
     if LEVEL <= 1:
         return note
-    # **级别 2 是泄露实验。** 有了大小，猜数就成了二分：⌈log2 1000⌉ = 10 次必中。
-    # 只回对错的时候二分不成立 —— 一次判卷只划掉一个数。这一级存在是为了量那条差距。
+    # **Level 2 is a leakage experiment.** Higher/lower feedback permits binary search: ⌈log2 1000⌉ = 10 queries guarantee success.
+    # Binary search is impossible with pass/fail alone, which rules out only one number per query. This level measures that difference.
     gold = int(BOOK[tid]["answer"])
     note["gold_is"] = "higher" if gold > got["value"] else "lower"
     return note
@@ -197,12 +179,9 @@ ID_RE = re.compile(r"aime-(\d{4})-(I|II)-(\d{1,2})")
 
 
 def task_of(body: dict) -> tuple[str, str]:
-    """从内核送来的那份东西里挖出「哪道题」和「它答了什么」。
+    r"""Extract the problem identity and submitted answer from the kernel payload.
 
-    内核送的是 `{node, moment, domain, feed, input}`，`input` 是 `{task, chain, result}`
-    （树那条路）或者 `{task, result}`（收尾那一路）。题号从 `task.id` 里摘：
-    `aime-2025-I-3`，前面带不带 `<跑名>/` 都行 —— `task.id` 全局唯一，第二趟要换跑名。
-    """
+    The kernel sends `{node, moment, domain, feed, input}`. `input` contains `{task, chain, result}` on the tree path or `{task, result}` during finalization. Extract the problem ID from `task.id`, such as `aime-2025-I-3`, with or without a `<run-name>/` prefix. Since `task.id` is globally unique, a second run must use a different run name."""
     inp = body.get("input") or {}
     task = inp.get("task") or {}
     m = ID_RE.search(str(task.get("id", "")))
@@ -215,7 +194,7 @@ def task_of(body: dict) -> tuple[str, str]:
 
 
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, *a):  # 默认那行访问日志太吵
+    def log_message(self, *a):  # Suppress the noisy default access log.
         pass
 
     def _send(self, obj, code=200):
@@ -231,7 +210,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send({"ok": True, "items": len(BOOK), "level": LEVEL})
             return
         if self.path.startswith("/problems"):
-            # **发题的口：给题面，不给答案。** 发批那个脚本跑在引擎那台机器上，读不到题库。
+            # **Problem endpoint: expose statements, not answers.** The batch sender runs on the engine machine and cannot read the corpus.
             n, year = 0, ""
             if "?" in self.path:
                 for kv in self.path.split("?", 1)[1].split("&"):
@@ -276,28 +255,27 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/parsed":
             ok = got["parsed"]
         else:
-            # **根。** 上游判 0 的话不必再说一遍 —— 那句话已经在上一格里了。
+            # **Root.** Do not repeat an upstream failure explanation; the preceding node already supplied it.
             feed = body.get("feed") or []
             if feed and feed[0].get("value") is not True:
                 self._send({"value": False})
                 return
             ok = got["correct"]
-        # 判 1 回裸 `{"value": true}`；判 0 带 note。值域是封闭的，回别的内核当违约归 0。
+        # On pass, return only `{"value": true}`; on failure, include note. The domain is closed: the kernel treats any other shape as a contract violation and returns 0.
         self._send({"value": True} if ok else {"value": False, "note": note_of(tid, got)})
 
 
-# ── 自检 ────────────────────────────────────────────────────────────────────
+# ── Self-tests ──
 
 
 def selftest() -> int:
-    """四条，每道题都过一遍。**装错了在这儿就炸。**
+    r"""Run four checks on every problem. **Fail here if the installation is wrong.**
 
-      1. 官方答案喂回去（`\\boxed{N}`）        → parsed=1 correct=1
-      2. 官方答案按 AIME 答题卡写法补零到三位   → 同上（`\\boxed{070}` 得是 70）
-      3. 答案 +1 (mod 1000)                   → parsed=1 correct=0
-      4. 没有整数 / 越界（`\\boxed{1000}`）     → parsed=0
-    另外把官方 `verify` 跟 `==` 对一遍：整数对整数它俩必须一致，不一致就是装错了版本。
-    """
+    1. Feed back the official answer (`\boxed{N}`) -> parsed=1, correct=1.
+    2. Pad it to three digits as on an AIME answer sheet -> same result (`\boxed{070}` must parse as 70).
+    3. Answer +1 (mod 1000) -> parsed=1, correct=0.
+    4. No integer or an out-of-range value (`\boxed{1000}`) -> parsed=0.
+    Also compare official `verify` with `==`: they must agree on integers; disagreement indicates the wrong version."""
     bad = 0
     for tid in sorted(BOOK):
         gold = int(BOOK[tid]["answer"])

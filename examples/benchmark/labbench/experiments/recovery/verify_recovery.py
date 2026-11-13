@@ -41,16 +41,16 @@ def main():
     assert proof['allPassed'],proof['failures'][:10]
     save(LOCAL/'INDEPENDENT_SUMMARY.json',result)
     for name in ['SUMMARY.json','ORIGINAL_RESULTS.csv','COMPLETED_RESULTS.csv','REPLACEMENT_PROVENANCE.json']:(LOCAL/name).write_bytes((root/name).read_bytes())
-    lines=['# LAB-Bench 原始实验与首次有效补跑结果','','原实验完整保留。仅对原 8 条基础设施异常重新给予每次 600 秒，以首次有效结果补齐；有效但答错、格式失败或正常预算耗尽均立即停止该身份。','', '|结果视图|题集|组别|通过/总数|未知|准确率范围|','|---|---|---|---:|---:|---|']
+    lines=['# LAB-Bench original experiment and first-valid recovery results','','The original experiment is fully preserved. Only the original 8 infrastructure failures receive fresh 600-second attempts, using the first valid result to fill gaps. A valid wrong answer, format failure, or normal budget exhaustion immediately stops that identity.','', '|Result view|Task set|Arm|Passed/total|Unknowns|Accuracy bounds|','|---|---|---|---:|---:|---|']
     for view in ['original','completed']:
-        for category,arms in list(result[view]['categories'].items())+[('全部',result[view]['arms'])]:
+        for category,arms in list(result[view]['categories'].items())+[('All',result[view]['arms'])]:
             for arm,s in arms.items():lines.append(f"|{view}|{category}|{arm}|{s['passed']}/{s['tasks']}|{s['unknown']}|{s['accuracyBounds'][0]*100:.2f}%–{s['accuracyBounds'][1]*100:.2f}%|")
-    lines+=['',f"共 {result['attemptCount']} 次补跑，新增声明求解预算 {result['additionalDeclaredSolveBudgetSeconds']} 秒；每次最多 3 次逻辑请求传输，全部失败与成功尝试都计入费用。逐身份来源和次数见 REPLACEMENT_PROVENANCE.json。",'','|费用范围|组别|已知实际 USD|费用未知请求|传输尝试|','|---|---|---:|---:|---:|']
-    for scope,groups in [('原实验',result['fees']['original']['byArm']),('全部补跑',result['fees']['allRecoveryAttempts']['byArm']),('合计',result['fees']['combinedByArm'])]:
+    lines+=['',f"There were {result['attemptCount']} recovery attempts with {result['additionalDeclaredSolveBudgetSeconds']} additional declared solving seconds. Each logical request permits at most 3 transports; costs include every failed and successful attempt. See REPLACEMENT_PROVENANCE.json for provenance and counts per identity.",'','|Cost scope|Arm|Known actual USD|Unknown-cost requests|Transport attempts|','|---|---|---:|---:|---:|']
+    for scope,groups in [('Original experiment',result['fees']['original']['byArm']),('All recovery attempts',result['fees']['allRecoveryAttempts']['byArm']),('Combined',result['fees']['combinedByArm'])]:
         for arm,g in groups.items():lines.append(f"|{scope}|{arm}|{g['knownActualCostUsd']:.9f}|{g['unknownCostRequests']}|{g['requests']}|")
-    lines+=['','补齐视图是增加独立预算后的基础设施条件化补充结果，不替换原始冻结实验。完整方法有金标反馈；单次原始格式失败和截断均保留，不为答对而重试。原 3 条试跑恢复的停机计时例外仍属于原始视图；本批每次尝试独立重新授予完整 600 秒。',
-            '',f"本地 {proof['checkCount']} 项核验通过；补跑归档 SHA256：{meta['sha256']}。原归档 SHA256：{parent['sha256']}。",
-            '',f"完整材料：{meta['fullResults']}",f"补跑归档：{meta['archive']}",f"原始归档：{parent['archive']}"]
+    lines+=['','The completed view is an infrastructure-conditioned supplemental result with additional independent budgets; it does not replace the frozen original experiment. The full method has ground-truth feedback; original single-shot format failures and truncations remain, without retries for correctness. The downtime exception for the original 3 pilot recoveries still belongs to the original view. Every attempt in this batch receives a fresh full 600 seconds.',
+            '',f"Passed {proof['checkCount']} local checks. Recovery archive SHA256: {meta['sha256']}. Original archive SHA256: {parent['sha256']}.",
+            '',f"Complete materials: {meta['fullResults']}",f"Recovery archive: {meta['archive']}",f"Original archive: {parent['archive']}"]
     (LOCAL/'RESULTS.md').write_bytes(('\n'.join(lines)+'\n').encode())
     save(LOCAL/'DELIVERY.json',{'delivered':True,'verified':True,'localChecks':proof['checkCount'],'recoveryArchive':meta,'originalArchive':parent,'firstValidCount':8,'attemptCount':result['attemptCount'],'additionalDeclaredSolveBudgetSeconds':result['additionalDeclaredSolveBudgetSeconds'],'fees':result['fees']})
     print(json.dumps({'allPassed':True,'checks':proof['checkCount'],'attempts':result['attemptCount'],'completed':result['completed']['arms'],'fees':result['fees']}),flush=True)

@@ -120,7 +120,7 @@ def main():
                         counts=count['effectiveChecksPerAttempt'];counts[node]=counts.get(node,0)+1
                 db.close()
             engine_counts.append(count)
-    result={'protocol':'DeepSeek模型判卷协议；同模型盲复评仅测一致性，非外部独立验证；deepseek-flash是滚动别名',
+    result={'protocol':'DeepSeek model-grading protocol; same-model blind regrading measures consistency, not external independent verification; deepseek-flash is a rolling alias',
             **summaries,'auditReclassification':notes,'recoveryOutcomes':list(recovery.values()),
             'additionalSolverBudgetTasks':[{'arm':e['arm'],'id':e['id'],'seconds':600} for e in entries.values() if e['action']=='objrun_once'],
             'onlineBlindDisagreements':online_disagreements,'internalFirstRejectedToBlindAccepted':repairs,'internalRepairClassifications':repair_counts,
@@ -141,39 +141,39 @@ def main():
                      'appliedPassed':a['grade'].get('passed') if valid(a) else None})
     with (LOCAL/'COMBINED_RESULTS.csv').open('w',encoding='utf-8-sig',newline='') as f:
         w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
-    pct=lambda v:f'{v*100:.2f}%' if v is not None else '未定'
-    pp=lambda v:f'{v*100:.2f}个百分点' if v is not None else '未定'
-    lines=['# FrontierScience-Olympiad：原始批次与一次有界恢复','',
-           '固定公开100题（物理50、化学40、生物10），单次组与真实ObjRun各一次。所有模型请求均为DeepSeek官方deepseek-flash、thinking enabled/high/max_tokens=16384。',
-           '采用冻结的DeepSeek模型判卷协议；同模型盲复评仅检查一致性，不是外部独立验证。滚动别名不等同不可变版本。','',
-           '|结果口径|单次组：正确/有效（总100）|ObjRun：正确/有效（总100）|配对差值及95%区间|','|---|---:|---:|---|']
-    for label,cn in [('rawOriginal','原始记录'),('auditedOriginal','原始审计口径'),('appliedRecovery','应用一次恢复后')]:
+    pct=lambda v:f'{v*100:.2f}%' if v is not None else 'undetermined'
+    pp=lambda v:f'{v*100:.2f} percentage points' if v is not None else 'undetermined'
+    lines=['# FrontierScience-Olympiad: original batch and one bounded recovery','',
+           '100 fixed public questions (50 physics, 40 chemistry, 10 biology), one run each for the single-attempt arm and real ObjRun. All model requests use official DeepSeek deepseek-flash, thinking enabled/high/max_tokens=16384.',
+           'Uses a frozen DeepSeek model-grading protocol; blind regrading by the same model checks consistency, not external independent verification. A rolling alias is not an immutable version.','',
+           '|Result basis|Single attempt: correct/valid (100 total)|ObjRun: correct/valid (100 total)|Paired difference and 95% interval|','|---|---:|---:|---|']
+    for label,cn in [('rawOriginal','Original records'),('auditedOriginal','Audited original'),('appliedRecovery','After applying one recovery')]:
         s=summaries[label];a,b=s['arms']['baseline'],s['arms']['objrun'];p=s['paired']
         lines.append(f"|{cn}|{a['correct']}/{a['valid']}（{pct(a['accuracy'])}）|{b['correct']}/{b['valid']}（{pct(b['accuracy'])}）|{pp(p['difference'])} [{pp(p['ci95'][0])}, {pp(p['ci95'][1])}]，n={p['validPairs']}|")
-    lines+=['','原始未解决项不按错误计分；完整100题的正确比例界限、有效分母及逐题状态均见JSON/CSV。审计口径仅将一项有回执证据的原600秒预算耗尽归为正常空交付失败，原始错误标记、候选和成绩文件均未改写。',
-            '', '恢复清单在调用前冻结：两项真实判卷故障中断的ObjRun各追加最多600秒，一项完整单次答案只补一次独立评分。恢复结果按预定清单应用，不按分数择优。正常错误、求解截断、预算耗尽均未重跑。','',
-            '|恢复任务|处理|有效|盲评通过|','|---|---|---|---|']
-    for r in recovery.values():lines.append(f"|{r['arm']}/{r['id']}|{r['action']}；额外求解{r['extraSolveSeconds']}秒|{valid(r)}|{r['grade'].get('passed') if r['grade'].get('valid') else '评分异常'}|")
-    lines+=['','酶动力学题 `3d762ba1-3958-453b-b34e-fe24c2822994` 的单次组补评分仍截断，ObjRun恢复又被在线判卷截断中止；两组均保留异常，不当作正常答错。一轮恢复已用尽，不再自动重试。铁氧化物题恢复获得真实提交，新的盲评判错。',
-            '应用后每组各有1项待决：全100题准确率的缺失结果范围为单次组59%—60%、ObjRun86%—87%；这是待决结果范围，不是95%置信区间。']
-    lines+=['','|学科（应用恢复后）|单次正确/有效|ObjRun正确/有效|','|---|---:|---:|']
+    lines+=['','Unresolved original cases are not scored as wrong. JSON/CSV provide full-100 correctness bounds, valid denominators, and per-question states. The audited basis reclassifies only one receipt-supported case of original 600-second budget exhaustion as a normal empty-submission failure; original error flags, candidates, and score files remain unchanged.',
+            '', 'The recovery list was frozen before calls: two ObjRun cases interrupted by genuine grading faults each receive at most 600 additional seconds; one complete single-attempt answer receives one independent grade only. Recovery results are applied according to the predetermined list, without selecting by score. Normal errors, solver truncation, and budget exhaustion are not rerun.','',
+            '|Recovery task|Action|Valid|Blind-grade pass|','|---|---|---|---|']
+    for r in recovery.values():lines.append(f"|{r['arm']}/{r['id']}|{r['action']}; extra solving {r['extraSolveSeconds']} seconds|{valid(r)}|{r['grade'].get('passed') if r['grade'].get('valid') else 'grading exception'}|")
+    lines+=['','For enzyme-kinetics question `3d762ba1-3958-453b-b34e-fe24c2822994`, supplemental grading of the single-attempt answer was again truncated, and ObjRun recovery was again stopped by online-grading truncation. Both retain exception status rather than normal incorrect-answer status. The one recovery round is exhausted; no further automatic retries. Recovery of the iron-oxide question produced an actual submission, which the new blind grade rejected.',
+            'After recovery, each arm has one pending case: missing-outcome accuracy bounds over all 100 questions are 59%–60% for single attempt and 86%–87% for ObjRun. These are pending-outcome ranges, not 95% confidence intervals.']
+    lines+=['','|Subject (after recovery)|Single attempt correct/valid|ObjRun correct/valid|','|---|---:|---:|']
     for subject,v in summaries['appliedRecovery']['subjects'].items():lines.append(f"|{subject}|{v['baseline']['correct']}/{v['baseline']['valid']}|{v['objrun']['correct']}/{v['objrun']['valid']}|")
     p=summaries['appliedRecovery']['paired']
-    lines+=['',f"有效配对胜/负/平：{len(p['wins'])}/{len(p['losses'])}/{p['ties']}。跨组胜题与ObjRun内部修复分别统计，不能将二者等同。",
-            f"内部首次受等价检查候选被拒、最终盲评通过：{len(repairs)}项；逐例核查分类 {repair_counts}。等价改写导致的判卷翻转不算真实内容修复，格式修改也不并入内容修复。详见CASE_REVIEW.json。",
-            f"原始在线/盲评不一致 {len(online_disagreements['original'])}项；恢复批次 {len(online_disagreements['recovery'])}项，方向及题号见JSON。",'',
-            '|批次|已知token费率估算（USD）|费用未知请求数|实际逐请求账单|','|---|---:|---:|---|']
+    lines+=['',f"Valid paired wins/losses/ties: {len(p['wins'])}/{len(p['losses'])}/{p['ties']}. Cross-arm wins and internal ObjRun repairs are counted separately and must not be equated.",
+            f"Cases with an initially rejected equivalence-checked internal candidate and a final blind pass: {len(repairs)}; individual review classifications: {repair_counts}. Grading flips caused by equivalent rewording are not genuine content repairs; formatting changes are also excluded from content repair. See CASE_REVIEW.json.",
+            f"Original online/blind-grade disagreements: {len(online_disagreements['original'])}; recovery batch: {len(online_disagreements['recovery'])}. Directions and question IDs are in JSON.",'',
+            '|Batch|Known token-rate estimate (USD)|Requests with unknown cost|Actual per-request bills|','|---|---:|---:|---|']
     for label,a in accounting.items():
-        g=a['byCategory'];lines.append(f"|{label}|{sum(x['estimatedUsd'] for x in g.values()):.6f}|{sum(x['unknownCostRequests'] for x in g.values())}|不可获得|")
-    lines+=['','费用为按已核查官方费率与缓存token计算的估算，未知请求不计入已知估算和，不冒充实际账单。求解、在线判卷、盲评、控制与失败请求分别保留账目，失败分类不是额外重复相加。',
-            '耗时分别保留模型时间、求解墙钟、求解内判卷等待、交卷后判卷等待、盲评等待及批次耗时；预算内等待未延长求解截止时间。','',
-            '95%区间用固定种子20261016对题目配对差值进行20000次bootstrap；只反映本次固定协议下的题目抽样不确定性，不反映重复运行或判卷模型不确定性。结论限定本次DeepSeek求解及判卷协议。','',
-            f"原始归档SHA256：`{result['archiveSha256']['original']}`。",f"恢复归档SHA256：`{result['archiveSha256']['recovery']}`。",
-            '两批次完整材料、依赖、请求响应、候选、判决、费用、异常和ObjRun SQLite/树/消息/工具轨迹分别归档，两端SHA256及本地核验结果见各批次retrieval.json和LOCAL_VERIFICATION.json。']
-    lines+=['',f"原始批次耗时 {timing['original']['batchElapsedSeconds']:.1f}秒，恢复批次 {timing['recovery']['batchElapsedSeconds']:.1f}秒。两项ObjRun实际新增求解墙钟合计 {sum(r['solverWallSeconds'] for k,r in rr.items() if k[0]=='objrun'):.2f}秒，授权上限为每题额外600秒，截止后仅清理和读取冻结提交。",
-            '原始在线通过而盲评失败：ObjRun/710c1336-0995-4d45-bfea-48ff475f255f。原始在线失败而盲评通过：单次组/8b695bb3-ea3c-4372-9222-9f0b79a68b6c。恢复无此类有效判决不一致。',
-            f"原始本地核验 {result['verification']['original']['checks']}项全部通过，恢复本地核验 {result['verification']['recovery']['checks']}项全部通过。所有实际请求端点、候选身份、原/追加截止时间、c5、共享限流及评分端隐私均保留审计证据。",
-            '响应模型标识：'+', '.join(sorted({m for v in model_versions.values() for m in v['responseModels']}))+'；响应日期与可获得的版本信息见COMBINED_SUMMARY.json和原始回执。']
+        g=a['byCategory'];lines.append(f"|{label}|{sum(x['estimatedUsd'] for x in g.values()):.6f}|{sum(x['unknownCostRequests'] for x in g.values())}|Unavailable|")
+    lines+=['','Costs are estimates using verified official rates and cached tokens. Unknown requests are excluded from known-cost totals, which are not presented as actual bills. Solving, online grading, blind grading, controls, and failed requests retain separate accounts; failure categories are not added again as duplicate costs.',
+            'Timing separately retains model time, solver wall time, in-solver grading waits, post-submission grading waits, blind-grading waits, and batch duration. In-budget waits did not extend solving deadlines.','',
+            '95% intervals use 20,000 paired-question bootstrap samples with fixed seed 20261016. They reflect question-sampling uncertainty under this fixed protocol, not repeat-run or grading-model uncertainty. Conclusions are limited to this DeepSeek solving and grading protocol.','',
+            f"Original archive SHA256: `{result['archiveSha256']['original']}`.",f"Recovery archive SHA256: `{result['archiveSha256']['recovery']}`.",
+            'Complete materials, dependencies, requests/responses, candidates, judgments, costs, exceptions, and ObjRun SQLite/tree/message/tool traces are archived separately for both batches. Both-end SHA256 values and local checks are in each batch retrieval.json and LOCAL_VERIFICATION.json.']
+    lines+=['',f"Original batch duration: {timing['original']['batchElapsedSeconds']:.1f} seconds; recovery batch: {timing['recovery']['batchElapsedSeconds']:.1f} seconds. Actual added solving wall time for the two ObjRun cases totals {sum(r['solverWallSeconds'] for k,r in rr.items() if k[0]=='objrun'):.2f} seconds, within the authorized extra 600 seconds per question. After deadlines, only cleanup and reading frozen submissions occurred.",
+            'Original online pass but blind failure: ObjRun/710c1336-0995-4d45-bfea-48ff475f255f. Original online failure but blind pass: single-attempt/8b695bb3-ea3c-4372-9222-9f0b79a68b6c. Recovery has no such disagreement between valid judgments.',
+            f"All {result['verification']['original']['checks']} original local checks and all {result['verification']['recovery']['checks']} recovery local checks passed. Audit evidence retains actual request endpoints, candidate identities, original/additional deadlines, c5, shared rate limits, and grader-side privacy.",
+            'Response model identifiers: '+', '.join(sorted({m for v in model_versions.values() for m in v['responseModels']}))+'; response dates and available version information are in COMBINED_SUMMARY.json and original receipts.']
     (LOCAL/'FINAL_REPORT.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
     print(json.dumps({'summaries':summaries,'repairClassifications':repair_counts,'accounting':accounting},ensure_ascii=False))
 

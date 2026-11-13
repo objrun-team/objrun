@@ -1,63 +1,66 @@
 /**
- * 求 G 的值。
+ * Evaluate G.
  *
- * 按拓扑序跑：每个节点调它那个句柄，拿到的东西按值域封口，接线把输出送到下一个
- * 节点。根节点的 bool 就是 G 的判决。
+ * Execute nodes in topological order. Each invokes its handle, validates the returned value
+ * against its domain, and passes outputs along edges. The root node's Boolean is G's verdict.
  *
- * ## 全函数，默认 0
+ * ## A total function with default 0
  *
- * 句柄失败时仍按 false 封口，G 的值域保持 bool。执行是否成功另记在回执的
- * `valid` / `outcome`，故障不能作为候选答错、消耗有效检查额度或复用的依据。
+ * Handle failures still produce false so G's domain remains Boolean. Execution success is
+ * recorded separately in receipt fields `valid` / `outcome`. Infrastructure failure must not
+ * count as an incorrect candidate, consume a valid-check allowance, or justify verdict reuse.
  *
- * 归 0 的时候**把原因带出来**。判决本身只有 0/1，但我们这边要能查为什么。
+ * When returning 0, **include the reason**. The verdict is binary, but diagnostics must explain it.
  *
- * ## 判 0 的节点可以多说一份：`note`
+ * ## A false-valued node may also return `note`
  *
- * 返回值可以是光秃秃的 `true` / `false`（老形状，绝大多数节点该有的样子），
- * 也可以是 `{ value, note }` —— `note` 是自由格式（一段字或者一份 JSON），
- * 这一层解析完当字符串收进判决新加的那一栏。**默认空的**，不给的话行为一个字不变。
+ * Nodes may return plain `true` / `false`, the original shape and the usual case, or `{ value, note }`.
+ * `note` is free-form text or JSON, parsed and stored as a string in the added verdict field.
+ * **It defaults to empty**, preserving existing behavior when omitted.
  *
- * `why` 那一栏没动：它说的还是「这一格根本没算出来」。两件事不该挤在一栏里 ——
- * 「算出来是假」和「算不出来」混在一起的话，判决为什么是 0 就说不清了。
+ * `why` still describes a node that failed to evaluate. Keep it separate: combining "evaluated
+ * to false" with "could not evaluate" would obscure why the final verdict is 0.
  *
- * **说多少是节点自己的事**，这一层不解释也不裁剪。
+ * **The node controls feedback detail**. This layer neither interprets nor truncates it.
  */
 
 import type { Registry } from "../engine/registry.ts";
 import { checkValue, domainText, type Node, type Objective } from "./spec.ts";
 
 export interface Verdict {
-  /** 判决。**只有 0 和 1。** */
+  /** Verdict: **only 0 or 1**. */
   pass: 0 | 1;
-  /** 所有节点成功执行并满足输出契约；false 时 pass=0 是关闭成功通路，不是答错。 */
+  /** Whether every node executed successfully and satisfied its output contract. If false, pass=0 closes the success path; it does not mark the answer incorrect. */
   valid: boolean;
   outcome: "passed" | "rejected" | "grader_error";
   /**
-   * 归 0 的原因（判 1 时为空）。
+   * Reason for a zero verdict, empty on success.
    *
-   * **这一栏给智能体**（`deliverVerdict` 和 `verify` 都带上它）—— 只给 0/1 的话
-   * 它只知道错了不知道错在哪，下一条分支多半原样再来一遍。要藏的是 GT，不是判决。
+   * **Expose this to the agent** through both `deliverVerdict` and `verify`. A bare 0/1 explains
+   * neither the problem nor how to correct it, so the next branch may repeat the same failure.
+   * Protect the ground truth, not the verdict.
    */
   why: string;
   /**
-   * 判 0 的节点自己**多说的那一份**（判 1 时为空）。**默认就是空的** ——
-   * 节点回一个光秃秃的 `false`，这一栏什么都没有，跟以前一模一样。
+   * **Additional feedback supplied by false-valued nodes**, empty on success and **empty by default**.
+   * A plain `false` therefore preserves the original behavior.
    *
-   * 内容是节点的自由格式（一段字或者一份 JSON），这一层不解释、不裁剪，
-   * 解析完当字符串收着。详略要按跑来调的话，调的是那个节点，不是内核。
+   * Nodes may supply text or JSON. Store it as a string without interpretation or truncation.
+   * Changing detail per run belongs in the node implementation, not the kernel.
    */
   note: string;
-  /** 每个节点算出了什么。**这一栏只给我们排障看**，不出这一层。 */
+  /** Each node's output. **Internal diagnostics only**; it does not leave this layer. */
   trace: { node: string; value: unknown; error?: string; note?: string }[];
 }
 
 /**
- * 节点回来的东西拆成「值」和「它想说的话」。
+ * Separate a node result into its value and accompanying feedback.
  *
- * 光秃秃的 `true` / `false` / `[...]` 原样回去，一个字都不解释 —— 那是老形状，
- * 也是绝大多数节点该有的样子。带话的写成 `{ value, why }`。
+ * Return plain `true` / `false` / `[...]` unchanged: these are the original forms and the usual
+ * case. Feedback-bearing results use `{ value, why }`.
  *
- * **数组要先挡掉**：`bool[n]` 的返回本身就是数组，不挡的话会被当成带话的那种形状。
+ * **Exclude arrays first**: `bool[n]` itself returns an array, which must not be mistaken for
+ * a feedback-bearing object.
  */
 function unwrap(got: unknown): { value: unknown; note: string } {
   if (got !== null && typeof got === "object" && !Array.isArray(got)) {
@@ -76,7 +79,7 @@ export function candidateInput(task: Record<string, unknown>, body: string, chai
   return { task: { ...task, result: body }, chain, result: { kind: "prompt", body } };
 }
 
-/** 多说的那一份换成一行字。给的是 JSON 就原样序列化 —— 这一层不解释内容。 */
+/** Convert additional feedback to one string. Serialize JSON unchanged without interpreting it. */
 function say(note: unknown): string {
   if (note === undefined || note === null) return "";
   if (typeof note === "string") return note;
@@ -87,7 +90,7 @@ function say(note: unknown): string {
   }
 }
 
-/** 拓扑序。图已经过定义期检测，这儿不会遇到环。 */
+/** Topological order. Definition-time validation already excluded cycles. */
 function topo(o: Objective): Node[] {
   const idx = new Map(o.nodes.map((n, i) => [n.name, i]));
   const deg = o.nodes.map(() => 0);
@@ -105,10 +108,10 @@ function topo(o: Objective): Node[] {
 }
 
 /**
- * 跑一遍 G。
+ * Evaluate G once.
  *
- * `input` 是给每个节点句柄的那份东西（任务、候选、工作区……）。这一层不解释它，
- * 原样递下去 —— **输入形式自由**，是节点自己的事。
+ * `input` is passed to each node handle: task, candidate, workspace, and so on. This layer
+ * forwards it unchanged. **Input structure is unrestricted** and belongs to the node contract.
  */
 export async function evaluate(o: Objective, reg: Registry, input: unknown): Promise<Verdict> {
   const trace: Verdict["trace"] = [];
@@ -116,7 +119,7 @@ export async function evaluate(o: Objective, reg: Registry, input: unknown): Pro
   const root = o.sink || o.nodes.find((n) => !o.edges.some((e) => e.src === n.name))?.name || "";
 
   for (const n of topo(o)) {
-    // 上游送进来的：这个节点的每条入边，带着源节点那一路的第几个输出。
+    // Incoming edges identify the upstream node and the index of the output to consume.
     const feed = o.edges
       .filter((e) => e.dst === n.name)
       .map((e) => {
@@ -143,7 +146,7 @@ export async function evaluate(o: Objective, reg: Registry, input: unknown): Pro
       got = n.domain.kind === "bool" ? false : Array.from({ length: n.domain.width }, () => false);
     }
     value.set(n.name, got);
-    // **判 `true` 的节点不收这一份。** 带话回来是为了说清「为什么不成」。
+    // **Ignore additional feedback from nodes returning `true`.** Its purpose is to explain failure.
     if (got === true) note = "";
     trace.push({ node: n.name, value: got, ...(error ? { error } : {}), ...(note ? { note } : {}) });
   }
@@ -152,13 +155,13 @@ export async function evaluate(o: Objective, reg: Registry, input: unknown): Pro
   const broke = trace.filter((t) => t.error);
   const valid = broke.length === 0 && typeof out === "boolean";
   const pass = valid && out === true ? 1 : 0;
-  // **新加的这一栏，默认空的。** 判 0 的节点自己带回来的那份东西，拼成一行。
+  // **The added field defaults to empty.** Combine feedback supplied by false-valued nodes into one string.
   const note = pass === 1 ? "" : trace.filter((t) => t.note).map((t) => `${t.node}: ${t.note}`).join("; ");
   return {
     pass,
     valid,
     outcome: valid ? (pass === 1 ? "passed" : "rejected") : "grader_error",
-    // 那一栏填了的话，这儿就写一句指过去 —— 内容归 `note`，这一栏不搬也不摘。
+    // When note is populated, point to it here. Its content belongs to `note`; do not duplicate or summarize it.
     why:
       pass === 1
         ? ""

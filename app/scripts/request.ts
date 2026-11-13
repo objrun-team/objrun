@@ -1,34 +1,38 @@
 /**
- * 把某一站**当时发给模型的那份请求**，从库里重建出来。
+ * Reconstruct **the request originally sent to the model** for an execution unit from the database.
  *
  * ```
- * bun scripts/request.ts <库文件> <实例> <单元> [--json]
+ * bun scripts/request.ts <database> <instance> <unit> [--json]
  * bun scripts/request.ts ../data/h2h.sqlite dsw-full/anko-typed-variable-bindings#1 775
  * ```
  *
- * ## 为什么能重建
+ * ## Why reconstruction is possible
  *
- * 「**库 = 快照**」这条定理落在两个地方：
+ * The **database = snapshot** invariant rests on two facts:
  *
- * - 消息表存的就是发出去的那份材料，不是「发生了什么事」的流水（`msg/deliver.ts` 开头
- *   那段说的正是这件事）；思考另占一列，出站时拼回消息里（`llm/index.ts` 的 `toMsg`）
- * - 每一站落一行**出站记账**（`kind=inject`、`role=system`）：那一轮模型被告知有哪些
- *   工具、每件工具的用法约定是什么、命中了哪些规则。没有它，回头看这一步就说不清
- *   它为什么那么做
+ * - Message rows store the actual material sent, not an event log describing what happened
+ *   (see the introduction to `msg/deliver.ts`). Thinking occupies a separate column and is
+ *   reattached when sending the message (`toMsg` in `llm/index.ts`).
+ * - Each execution unit stores an **outbound accounting row** (`kind=inject`, `role=system`):
+ *   the tools offered to the model, each tool's usage instructions, and the rules that matched.
+ *   Without it, a later inspection could not explain the model's behavior.
  *
- * 所以这个脚本不自己拼消息 —— 它拿库里的行凑出内核那份 `Unit`，再调**内核自己那个**
- * `messagesOf`。自己拼一份的话，量的是这个脚本，不是那次请求。
+ * This script therefore does not assemble messages independently. It reconstructs the kernel's
+ * `Unit` from database rows and calls **the kernel's own** `messagesOf`. A separate implementation
+ * would measure this script's request rather than the original request.
  *
- * ## 有两样不在库里
+ * ## Two things are not stored in the database
  *
- * - **这一轮的任务视图**（`view`）：内核每轮现算，不落成消息 —— 因为消息跟着单链走，
- *   兄弟分支爬不到，而视图人人有份。里头的 `secondsLeft` 还跟着墙上的钟，事后重算
- *   本来也不会是当时那个数。这儿**不补**：补了就是编。
- * - **采样参数**（`maxTokens` / `temperature` / `seed` / `reasoningEffort`）在
- *   `config.yaml`，不在库里。
+ * - **The task view for this iteration** (`view`): the kernel recomputes it each iteration rather
+ *   than recording it as a message. Messages follow a single ancestor chain, which sibling
+ *   branches cannot traverse, whereas the view is available to all branches. Its `secondsLeft`
+ *   also depends on wall-clock time, so recomputing it later would not reproduce the original
+ *   value. **Do not fabricate this missing view.**
+ * - **Sampling parameters** (`maxTokens` / `temperature` / `seed` / `reasoningEffort`) live in
+ *   `config.yaml`, not in the database.
  *
- * 所以重建出来的是**消息列表和交代**，那也正是大小的来源：一份请求里除了它俩，剩下
- * 的是几个数。
+ * The reconstruction therefore includes **the message list and instructions**. These account
+ * for almost all of the request size; the remaining fields are a few numbers.
  */
 
 import { all, open } from "../src/H2H/db.ts";
@@ -37,7 +41,7 @@ import { instructionsOf, messagesOf, type Unit } from "../src/llm/index.ts";
 import { sentAsIn } from "../src/msg/deliver.ts";
 import { swapClosed, type Level, type Line } from "../src/msg/press.ts";
 
-/** 一行或者没有。`db.ts` 只给了 `all`。 */
+/** One row or none. `db.ts` only provides `all`. */
 const one = (db: Parameters<typeof all>[0], sql: string, params?: Parameters<typeof all>[2]) =>
   (all(db, sql, params)[0] ?? null) as Record<string, unknown> | null;
 
@@ -47,11 +51,11 @@ if (!file || !instance || !unitArg) {
   process.exit(1);
 }
 /**
- * **那一发是压过的话，压到哪一级。** 引擎的日志会说（`… sent at l2 (…)`）——
- * 不说就是没压。
+ * **If the request was compressed, which level was used?** The engine log records it
+ * (`… sent at l2 (…)`). No such entry means no compression.
  *
- * 换节点用的是内核那条路自己在用的 `swapClosed`，不是这儿另写一份：另写一份的话，
- * 重建出来的那份量的是这个脚本，不是那次请求。
+ * Replace nodes through the kernel's own `swapClosed`, not a second implementation here.
+ * Otherwise the reconstruction would measure this script rather than the original request.
  */
 const level = ((process.argv.find((a) => a.startsWith("--level")) ?? "").split("=")[1] ??
   (process.argv.includes("--level") ? process.argv[process.argv.indexOf("--level") + 1] : "")) as Level | "";
@@ -60,7 +64,7 @@ const want = Number(unitArg);
 const store = open({ db: { file, pragmas: { journal_mode: "wal" } } } as never);
 const db = store.ro;
 
-/** 这个实例在哪张子表上、是哪道题。 */
+/** Which subtable and task this instance belongs to. */
 function whereIs(): { sub: string; task: string; mode: string } {
   for (const m of all(db, `select distinct mode from cycle`) as { mode: string }[]) {
     const sub = tableNameOf("task_{}", m.mode);
@@ -84,7 +88,7 @@ interface Stat {
 const at = one(db, `select * from "${sub}" where instance = ? and unit = ?`, [instance, want]) as unknown as Stat | null;
 if (!at) throw new Error(`${instance} has no unit ${String(want)}`);
 
-// ── 链：顺着 from 一路走到根，跟 `#contextOf` 同一条走法 ──
+// ── Chain: follow `from` to the root, exactly as `#contextOf` does ──
 const line: number[] = [];
 const seen = new Set<string>();
 let cur: Stat = at;
@@ -107,8 +111,8 @@ const msgTable = tableNameOf("agent_{}_msg", at.agent);
 const holes = line.map(() => "?").join(", ");
 const context = all(
   db,
-  // **`unit` 也要选出来** —— 换节点那一步是按格换的（`swapClosed`），
-  // 少了这一列，每一行都不知道自己属于哪一格，于是一格都换不掉、而且不报错。
+  // **Select `unit` too.** `swapClosed` replaces complete units. Without this column,
+  // rows cannot be assigned to a unit, so nothing is replaced and no error is reported.
   `select unit, seq, role, kind, body, thought from "${msgTable}"
     where instance = ? and unit in (${holes}) order by unit, seq`,
   [instance, ...line],
@@ -118,7 +122,7 @@ const context2 = level
   ? (swapClosed(db, { sub, task, unit: want }, context as unknown as Line[], line, level) as unknown as typeof context)
   : context;
 
-// ── 那一轮摆了哪几件工具：出站记账那一行说了 ──
+// ── Tools offered in that iteration: recorded by the outbound accounting row ──
 const ledger = all(
   db,
   `select body from "${msgTable}" where instance = ? and unit = ? and kind = 'inject' and body like '%"sent":true%'`,
@@ -146,7 +150,7 @@ const u: Unit = {
   context: context2,
   sentAs: sentAsIn(db),
   mustCall: String(cycle.must_call ?? "") || null,
-  // **视图不补** —— 它不在库里，编一个出来就不是那次请求了。
+  // **Do not invent a view.** It is absent from the database; inventing one would change the request.
   tools,
   rules: kit.rules ?? [],
 };
@@ -157,14 +161,14 @@ const instructions = instructionsOf(u);
 const bytes = (v: unknown) => Buffer.byteLength(JSON.stringify(v), "utf8");
 const kb = (n: number) => `${(n / 1024).toFixed(0)}k`;
 
-console.log(`${instance}  ${at.cycle}#${String(want)}  （${mode}，链上 ${line.length} 格）\n`);
-console.log(`  消息      ${String(messages.length).padStart(5)} 条   ${kb(bytes(messages)).padStart(7)}  ≈${String(Math.round(bytes(messages) / 4 / 1000))}k tok`);
-console.log(`  交代      ${String(instructions.split("\n\n").length).padStart(5)} 段   ${kb(Buffer.byteLength(instructions, "utf8")).padStart(7)}`);
-console.log(`  工具      ${String(tools.length).padStart(5)} 件   ${kb(bytes(tools.map((t) => ({ name: t.name, does: t.does, params: t.params })))).padStart(7)}`);
-console.log(`  必须调用  ${u.mustCall ?? "（它自己挑）"}`);
-console.log(`  模型      ${api ? `${String(api.model)} @ ${String(api.base_url)}` : "（这一站不问模型）"}`);
+console.log(`${instance}  ${at.cycle}#${String(want)}  (${mode}, ${line.length} slots in chain)\n`);
+console.log(`  Messages  ${String(messages.length).padStart(5)} items   ${kb(bytes(messages)).padStart(7)}  ≈${String(Math.round(bytes(messages) / 4 / 1000))}k tok`);
+console.log(`  Instructions ${String(instructions.split("\n\n").length).padStart(5)} sections   ${kb(Buffer.byteLength(instructions, "utf8")).padStart(7)}`);
+console.log(`  Tools     ${String(tools.length).padStart(5)} tools   ${kb(bytes(tools.map((t) => ({ name: t.name, does: t.does, params: t.params })))).padStart(7)}`);
+console.log(`  Required call ${u.mustCall ?? "(model chooses)"}`);
+console.log(`  Model     ${api ? `${String(api.model)} @ ${String(api.base_url)}` : "(no model at this station)"}`);
 
-// 每种消息各占多少 —— 压缩要先知道砍哪儿最值
+// Size by message category: identify the most worthwhile compression targets first.
 const per = new Map<string, { n: number; b: number }>();
 for (const r of context2) {
   const g = per.get(r.kind) ?? { n: 0, b: 0 };
@@ -172,15 +176,15 @@ for (const r of context2) {
   g.b += Buffer.byteLength(String(r.body ?? ""), "utf8") + Buffer.byteLength(String(r.thought ?? ""), "utf8");
   per.set(r.kind, g);
 }
-console.log(`\n  按 kind 分：`);
+console.log(`\n  By kind:`);
 for (const [k, g] of [...per.entries()].sort((a, b) => b[1].b - a[1].b)) {
-  console.log(`    ${k.padEnd(10)} ${String(g.n).padStart(5)} 行  ${kb(g.b).padStart(7)}`);
+  console.log(`    ${k.padEnd(10)} ${String(g.n).padStart(5)} rows  ${kb(g.b).padStart(7)}`);
 }
 const think = context2.reduce((n, r) => n + Buffer.byteLength(String(r.thought ?? ""), "utf8"), 0);
 const body = context2.reduce((n, r) => n + Buffer.byteLength(String(r.body ?? ""), "utf8"), 0);
-console.log(`\n  其中思考 ${kb(think)} / 正文 ${kb(body)} —— 思考占 ${String(Math.round((think / (think + body)) * 100))}%`);
-console.log(`\n  不在库里、这儿没补的：这一轮的任务视图（每轮现算，含跟墙上钟走的 secondsLeft）、`);
-console.log(`  以及 config.yaml 里的采样参数。`);
+console.log(`\n  Reasoning ${kb(think)} / body ${kb(body)} — reasoning accounts for ${String(Math.round((think / (think + body)) * 100))}%`);
+console.log(`\n  Not stored in the database or reconstructed here: this round’s task view (computed each round, including wall-clock secondsLeft),`);
+console.log(`  and sampling parameters from config.yaml.`);
 
 if (process.argv.includes("--json")) {
   console.log(`\n${JSON.stringify({ instructions, messages }, null, 2)}`);

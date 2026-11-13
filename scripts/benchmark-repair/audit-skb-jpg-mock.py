@@ -470,22 +470,22 @@ def main():
               "metadataInventory": before_meta, "rawInventory": before_raw, "limits": manifest["hostOperationalLimits"],
               "limitations": limitations, "seconds": round(time.monotonic() - started, 3)}
     (out / "audit.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    text = ["# JPG Docker 模拟闭环独立审计", "", f"运行 `{args.run}`；只读审计，无新模型请求、重评分或 Docker 修改。", "",
-            "| 项目 | 独立核对结果 |", "|---|---|",
-            "| 范围 | 87 题来源，仅 JPG 已实现；其余 86 未支持 |",
-            "| 模型 | 19 个本地替身回执，0 个真实 LLM 请求，$0 |",
-            "| 真实链路 | U/F 两个独立冷候选、各8 RPC、固定 XLSX 捕获和真实官方私有判卷 |",
-            "| 最终判决 | 两臂均 valid=true/reward0，是故意错误工作簿的有效负例 |",
-            "| 判卷数量 | U 最终1；F 显式反馈1、自动3、独立终判1；合计6 fresh graders |",
-            "| 查询预算 | CHECKS=6只限制模型显式verify，本次F用了1次、left5 |",
-            "| 源/依赖 | 新ZIP120成员；只引用base中4115公共依赖，逐项SHA与当前文件匹配 |",
-            "| 凭证 | 原6值关闭证书无命中；独立可恢复4值再次核对，2临时值已不保留 |",
-            "", f"可执行检查 {sum(c['passed'] for c in a.checks)}/{len(a.checks)} 通过；正式模型实验仍未运行，`readyTaskIds=[]`。", "",
-            "证据限制：", ""]
+    text = ["# Independent audit of the JPG Docker mock end-to-end run", "", f"Run `{args.run}`; read-only audit with no new model requests, regrading, or Docker changes.", "",
+            "| Item | Independent verification |", "|---|---|",
+            "| Scope | Source contains 87 tasks; only JPG is implemented, and the other 86 are unsupported |",
+            "| Model | 19 local substitute receipts, 0 actual LLM requests, $0 |",
+            "| Live path | Independent cold candidates for U/F, 8 RPCs each, pinned XLSX capture, and actual official private grading |",
+            "| Final verdict | Both arms have valid=true/reward0: valid negative controls using intentionally incorrect workbooks |",
+            "| Grading count | U: 1 final; F: 1 explicit feedback, 3 automatic, 1 independent final; 6 fresh graders in total |",
+            "| Query budget | CHECKS=6 limits only explicit model verify calls; F used 1 here, leaving 5 |",
+            "| Source/dependencies | 120 members in the new ZIP; references only 4115 public dependencies in base, with each SHA matching the current file |",
+            "| Credentials | No hits for the original 6 values in the closure certificate; 4 independently recoverable values were checked again, and 2 temporary values are no longer retained |",
+            "", f"Executable checks: {sum(c['passed'] for c in a.checks)}/{len(a.checks)} passed; the formal model experiment has not run, and `readyTaskIds=[]`.", "",
+            "Evidence limitations:", ""]
     text += ["- " + item for item in limitations]
-    text += ["", "复现（`--docker`仅只读核对已存本轮精确容器ID）：", "", "```powershell",
+    text += ["", "Reproduction (`--docker` only performs read-only checks of the exact stored container IDs for this run):", "", "```powershell",
              f"python -X utf8 \"{Path(__file__)}\" --run {args.run} --docker", "```", "",
-             "详细检查、输出/评分绑定、当前关闭观察、原文件摘要和审计源码摘要见同目录 `audit.json`。"]
+             "See `audit.json` in the same directory for detailed checks, output/grade binding, current closure observations, original file digests, and the audit source digest."]
     (out / "audit.md").write_text("\n".join(text) + "\n", encoding="utf-8")
     print(json.dumps({"audit": str(out / "audit.json"), "passed": result["passedAllAvailableChecks"],
                       "checks": len(a.checks), "failedChecks": [c["name"] for c in a.checks if not c["passed"]],

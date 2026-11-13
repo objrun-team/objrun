@@ -84,9 +84,9 @@ if exact_audit:
         summary['claim_boundary']='The exact algebraic solution certified by the rational isolating box attains the global objective lower bound in the frozen feasible set only. No literature priority, broad method superiority, universal ODE speedup, or framework superiority claim.'
 summary['early_completion_authorization']=authorization
 (final/'summary.json').write_text(json.dumps(summary,indent=2))
-lines=['# 本轮终检','',f"基线误差范数：{base['principal_error_norm'][:24]}",f"最终误差范数：{best['error_norm'][:24]}",f"相对下降：{float(improvement)*100:.8f}%",f"最大约束残差：{best['max_constraint_residual']}",f"已记录 API 费用（美元）：{usage['recorded_cost_usd']}",f"无费用回执的请求：{usage['unreceipted_request_ids']}",'','非线性 ODE 与内部放大结果见 baseline.held-out.json 和 selected.held-out.json。','这是对修正后论文示例的单次实验；不据此宣称新的最佳方法或 ObjRun 框架优势。']
+lines=['# Final checks for this run','',f"Baseline error norm: {base['principal_error_norm'][:24]}",f"Final error norm: {best['error_norm'][:24]}",f"Relative reduction: {float(improvement)*100:.8f}%",f"Maximum constraint residual: {best['max_constraint_residual']}",f"Recorded API cost (USD): {usage['recorded_cost_usd']}",f"Requests without cost receipts: {usage['unreceipted_request_ids']}",'','See baseline.held-out.json and selected.held-out.json for nonlinear ODE and internal amplification results.','This is one experiment on the corrected paper example; it does not establish a new best method or an advantage of the ObjRun framework.']
 (final/'REPORT.md').write_text('\n'.join(lines),encoding='utf-8')
 if exact_audit and exact_audit['valid_exact_isolation']:
     with (final/'REPORT.md').open('a',encoding='utf-8') as f:
-        f.write('\n\n独立精确有理数区间审计证明，隔离盒内存在唯一满足全部冻结约束的代数解，其主误差范数恰为 639/45752，达到本轮固定稳定多项式下的全局下界。保存的小数系数与该精确解的距离上界见 exact-isolation-audit.json；这不构成更广泛的方法排名或文献优先权结论。\n')
+        f.write('\n\nAn independent exact rational-interval audit proves that the isolation box contains a unique algebraic solution satisfying all frozen constraints. Its principal error norm is exactly 639/45752, reaching the global lower bound under this run\'s fixed stability polynomial. See exact-isolation-audit.json for bounds on the distance from the saved decimal coefficients to that exact solution. This does not establish broader method rankings or literature priority.\n')
 print(json.dumps(summary,indent=2))

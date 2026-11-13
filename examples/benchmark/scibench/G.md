@@ -1,16 +1,16 @@
-# SciBench 判据与反馈
+# SciBench criteria and feedback
 
-| 字段 | 设计 |
+| Field | Design |
 |---|---|
-| 候选 | 最终交付的完整文本；最后一个boxed数字按官方后处理读取 |
-| 结构 | parsed → correct；根为correct |
-| parsed | 官方提取、科学计数法处理及float转换后可取得有限数值 |
-| correct | 官方equiv：移除逗号，尝试完整字符串/首个token，以math.isclose的5%对称相对容差比较 |
-| 反馈 | parsed失败可解释输出格式；correct只回对错；不返回误差、大小方向、金标或参考解 |
-| 预算 | c5按尝试计数；600秒/4分支/12units；另有限定的美元费用上限及整题反馈计数 |
-| 隔离 | 私有服务持有答案且要求令牌；模型工具白名单不含任意文件、网络或执行能力 |
-| 故障 | 数据/服务异常为无效评分；候选格式或数值错误为有效拒绝；不缓存无效评分 |
+| Candidate | The complete final submission text; the last boxed number is read using official postprocessing. |
+| Structure | parsed → correct; root is correct. |
+| parsed | Official extraction, scientific-notation handling, and float conversion yield a finite number. |
+| correct | Official equiv: remove commas, try the complete string / first token, and compare with math.isclose using a symmetric 5% relative tolerance. |
+| Feedback | parsed failures may explain the output format; correct returns only correctness, without error magnitude, direction, gold answer, or reference solution. |
+| Budget | c5 counts attempts; 600 seconds / four branches / 12 units, plus a dollar-cost cap and whole-problem feedback counting. |
+| Isolation | A private service holds answers and requires a token; the model tool allowlist provides no arbitrary file, network, or execution access. |
+| Failures | Data/service exceptions are invalid grades; candidate format or numerical errors are valid rejections. Invalid grades are not cached. |
 
-原始unit可能包含答案的10^n尺度。题面只使用官方remove_not处理后的单位，评分端恢复完整尺度。标准答案为零时没有附加绝对容差。在线评分和终判是同一数值目标，独立终判不能被称为新的held-out目标。
+The original unit may contain the answer's 10^n scale. Statements use only the unit after official remove_not processing; the grader restores the full scale. Zero reference answers receive no additional absolute tolerance. Online grading and final judgment use the same numerical objective; independent final judgment must not be described as a new held-out objective.
 
-纯数值对错不足以证明公式或推导正确；修复机制的解释须结合实际轨迹审查。独立采样的EX早停是调度器使用gold进行选择，结果应披露oracle-feedback条件。
+Numerical correctness alone does not establish that a formula or derivation is correct; explanations of the repair mechanism require inspection of actual trajectories. Early stopping of independently sampled EX uses gold-based selection by the scheduler, so results must disclose the oracle-feedback condition.

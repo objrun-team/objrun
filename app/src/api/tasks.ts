@@ -1,23 +1,25 @@
 /**
- * 任务 —— 客户端用得最多的一组。
+ * Tasks: the endpoint group clients use most often.
  *
- * ## 这一组的标准
+ * ## Requirements for this group
  *
- * 客户端要显示的每一样，这儿得直接给出来。凡是要它「自己算一下」的，都是这边欠的：
+ * Return everything a client needs for display. Asking a client to calculate it independently
+ * leaves an obligation unmet on this side:
  *
- * - **树长什么样**：依据是子表里的 `from_cycle`/`from_unit` 指针，客户端拼一遍
- *   等于把内核那段抄一份
- * - **链路串**：拼法是协议（`chain.ts`），客户端另拼一份的话，哪天拼法改了
- *   它那边的条件就**静默失效**
- * - **还有多久判死**：`now - at > expect_ms`，而 `expect_ms` 挂在这一站真正要调的
- *   那个句柄上 —— 客户端要自己算，得先把「这一站调哪个句柄」那段挑轨逻辑抄一遍
- * - **为什么不动**：见 `/tasks/:id/why`
+ * - **Tree structure** comes from `from_cycle` / `from_unit` pointers in subtables. Reconstructing
+ *   it in the client duplicates kernel logic.
+ * - **Chain strings** follow the protocol in `chain.ts`. A separate client implementation would
+ *   make its conditions **silently stop matching** when the protocol changes.
+ * - **Time until an execution unit is marked dead** follows `now - at > expect_ms`. The timeout
+ *   belongs to the handle actually selected for that station. Computing it in the client would
+ *   first require duplicating lane-selection logic.
+ * - **Why execution is stalled**: see `/tasks/:id/why`.
  *
- * ## 干预
+ * ## Intervention
  *
- * `msg_kind` 里一直有 `intervene`（「用户看着它执行时施加的干预标记」），但在这个
- * 口之前**没有任何一处写它** —— 那一行是个空位。客户端要能在它跑的时候插一句话，
- * 这就是那个口。
+ * `msg_kind` has always included `intervene`, marking user intervention during execution.
+ * Before this endpoint, **nothing ever wrote that kind**. Clients need a way to inject a message
+ * while a task is running; this endpoint provides it.
  */
 
 import type { Store } from "../H2H/db.ts";
@@ -39,7 +41,7 @@ function one(store: Store, sql: string, p: unknown[] = []): Row | null {
   return r.length ? r[0] : null;
 }
 
-/** 主表那一行 + 它的子表叫什么。找不到回 null。 */
+/** The main task row and its subtable name; return null if not found. */
 function taskOf(store: Store, id: string): (Row & { sub: string }) | null {
   const t = one(store, `select * from task where id = ?`, [id]);
   if (!t) return null;
@@ -50,7 +52,7 @@ function has(store: Store, table: string): boolean {
   return all(store.ro, `select 1 from sqlite_master where type='table' and name = ?`, [table]).length > 0;
 }
 
-/** 这一行这一站要调哪个句柄 —— 跟内核挑的是同一套依据。 */
+/** The handle this execution unit will call, selected from the same facts as the kernel. */
 function handleOf(store: Store, mode: string, cycle: string, agent: string): string | null {
   const a = one(store, `select unit, apis from agent where name = ?`, [agent]);
   if (!a) return null;
@@ -72,7 +74,7 @@ function handleOf(store: Store, mode: string, cycle: string, agent: string): str
 }
 
 export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: () => void): Route[] {
-  /** 一个执行单元在客户端眼里的样子。**该算的都算好。** */
+  /** Client-facing execution-unit representation. **Compute all derived fields here.** */
   const unitOf = (t: Row & { sub: string }, u: Row) => {
     const handle = handleOf(store, String(t.mode), String(u.cycle), String(u.agent));
     const expect = handle && reg.has(handle) ? reg.get(handle).expectMs : null;
@@ -96,7 +98,7 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
       at,
       done: Number(u.done) === 1,
       status: u.status ?? null,
-      // 三档是**算**出来的，不是存着的 —— 内核也是这么判的，这儿给同一个答案。
+      // The three states are **derived**, not stored. Use the same calculation as the kernel.
       phase: Number(u.done) === 1 ? "done" : sentOut ? "running" : "pending",
       handle: handle,
       expectMs: expect,
@@ -105,7 +107,7 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
         try {
           return chainOf(store.ro, t.sub, String(t.mode), u as never);
         } catch (e) {
-          // 链路拼不出来（数据坏了）不该让整个任务查不了 —— 把话带上就行。
+          // An invalid chain caused by corrupt data must not make the entire task unreadable; include the diagnostic.
           return `(cannot be assembled: ${e instanceof Error ? e.message : String(e)})`;
         }
       })(),
@@ -144,9 +146,8 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
         { code: 400, when: "this task should not be published at all: duplicate id, unregistered mode or place, a source not allowed to carry a grading function, or one that fails the definition-time checks" },
       ],
       handler: async (a, _req, reply) => {
-        // **发布这一路的拒收全是 400。** 「这道题根本别发布」是请求的问题，
-        // 不是系统坏了 —— 回 500 的话，客户端会当成服务端故障去重试，
-        // 而重试多少次结果都一样。
+        // **Every publication rejection returns 400.** A task that must not be published is a request
+        // problem, not a server failure. Returning 500 encourages retries that will always fail identically.
         let r: unknown;
         try {
           r = publish(store.rw, a as unknown as Publish, sealed);
@@ -302,7 +303,7 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
           subTable: t.sub,
           objective: {
             has: Boolean(t.objective),
-            // **只说有没有、读不读得到，不给定义** —— G 存在封存区，主库够不着。
+            // **Expose only existence and readability, not the definition.** G lives in sealed storage, beyond the main database's reach.
             agentReadable: Number(t.readable ?? 0) === 1,
             verdict,
           },
@@ -344,8 +345,8 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
             continue;
           }
           const parent = nodes.get(key(r.from_cycle, r.from_unit));
-          // 父指的那一行不在 —— 数据坏了。**单列出来**，不要静静挂到根上：
-          // 挂上去的话树看着是完整的，而它其实断了。
+          // The referenced parent row is missing, indicating corrupt data. **Report it separately**
+          // instead of silently attaching the node to the root, which would make a broken tree appear complete.
           if (parent) parent.children.push(me);
           else orphans.push(me);
         }
@@ -406,25 +407,25 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
           offset: Number(a.offset),
           rows: page.map((m) => {
             const body = String(m.body ?? "");
-            // **判据是 `kind`，不是 body 长什么样。**
+            // **Classify by `kind`, not the shape of `body`.**
             //
-            // 按前缀判的话，模型只要在回答开头复读一句 `【人】` 就被当成人写的 ——
-            // 实测它真的会这么干（上下文里人写的那条就带着这个前缀，它照着学）。
-            // `kind` 是投递那一刻推出来的，模型伪造不了。
+            // A prefix check would let a model impersonate a human by repeating `[human]` at the start of
+            // its answer. This has occurred in practice: the model imitates the marker seen in human
+            // messages. `kind` is inferred at delivery time and cannot be forged by the model.
             const human = HUMAN_KINDS.has(String(m.kind));
             const out: Row = {
               agent: m.agent, instance: m.instance, unit: m.unit, seq: m.seq,
               role: m.role, kind: m.kind, at: Number(m.at), body,
               human,
             };
-            // 标记在这儿剥，不让客户端自己截字符串 —— 它一旦硬编码 "【人】"，
-            // 这边一改那边就全乱。
+            // Strip the marker here rather than making clients slice strings. Once a client hard-codes
+            // "[human]", changing the server-side marker breaks it.
             if (human && body.startsWith(HUMAN_MARK)) out.text = body.slice(HUMAN_MARK.length);
             if (m.kind === "call" || m.kind === "tool" || m.kind === "inject") {
               try {
                 out.parsed = JSON.parse(body);
               } catch {
-                // 解不开就算了，`body` 原样还在，不是丢了
+                // If decoding fails, retain the original `body`; the content is not lost.
               }
             }
             return out;
@@ -532,8 +533,9 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
           problems.push(`the whole task is over solveSeconds=${String(t.solve_seconds)}s - the kernel will mark it failed`);
         }
 
-        // 内核推某一行时炸过的话，它把话落在了那一行的上下文里。**捞出来。**
-        // 只留在日志里的话，看日志的人和被卡住的人不是同一个 —— 而客户端手里只有接口。
+        // If advancing an execution unit failed, the kernel recorded the diagnostic in that unit's
+        // context. **Retrieve it.** Logs alone are insufficient: the person reading logs is not necessarily
+        // the blocked user, whose client only has the API.
         for (const u of units) {
           const table = tableNameOf("agent_{}_msg", String(u.agent));
           if (!has(store, table)) continue;
@@ -546,7 +548,7 @@ export function taskRoutes(store: Store, reg: Registry, sealed: Sealed, wake: ()
               const v = JSON.parse(r.body) as { stuck?: string };
               if (v.stuck) problems.push(`${String(u.cycle)}#${String(u.unit)}: the kernel threw while advancing it - ${v.stuck}`);
             } catch {
-              // 不是那种记账行，跳过
+              // Skip rows that are not the relevant accounting kind.
             }
           }
         }

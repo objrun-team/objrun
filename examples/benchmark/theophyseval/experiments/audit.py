@@ -99,11 +99,11 @@ def audit(run):
               'summary': summary, 'invalid_or_missing_submissions': missing_candidates, 'errors': errors,
               'scope': 'Realistic automatic-only; no cost matching; scientific failure does not fail infrastructure acceptance'}
     (out / 'audit.json').write_text(json.dumps(result, indent=2) + '\n')
-    lines = ['# TheoPhysEval ' + run, '', '状态：' + ('核验通过' if result['passed'] else '需要处理异常'), '',
-             '| 组别 | 有效任务 | 科学问题 | 通过 | 已知费用 USD | 未知费用笔数 |', '|---|---:|---:|---:|---:|---:|']
+    lines = ['# TheoPhysEval ' + run, '', 'Status: ' + ('verification passed' if result['passed'] else 'anomalies require attention'), '',
+             '| Arm | Valid tasks | Scientific problems | Passed | Known cost USD | Unknown charges |', '|---|---:|---:|---:|---:|---:|']
     for arm, s in summary.items():
         lines.append(f"| {arm} | {s['valid']}/{len(catalog)} | {s['units']} | {s['passedUnits']} | {s['knownCostUsd']:.9f} | {s['unknownCostCount']} |")
-    lines += ['', '费用及调用量未对齐；四阶段按原顺序运行。人工题 autonomous-de 排除。', '', '评分及接口异常不作为模型答错。', '', '核验异常：' + json.dumps(errors, ensure_ascii=False)]
+    lines += ['', 'Costs and call counts are unmatched; four-stage tasks run in their original order. The manual autonomous-de task is excluded.', '', 'Grading and interface anomalies are not treated as wrong model answers.', '', 'Verification anomalies: ' + json.dumps(errors, ensure_ascii=False)]
     (out / 'REPORT.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
     return result
 

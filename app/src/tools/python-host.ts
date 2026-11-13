@@ -1,15 +1,15 @@
 /**
- * `python_exec` 住的地方 —— 一个 Worker，里面是 Pyodide（CPython 编到 wasm）。
+ * Host `python_exec` in a Worker running Pyodide, CPython compiled to WASM.
  *
- * **为什么不在主线程里跑。** Pyodide 的 `runPython` 是同步的：模型写一句
- * `while True: pass`，整个引擎进程就停在那儿了 —— 内核醒不过来，所有任务一起挂。
- * 单开一个 Worker，超时了外面 `terminate()`，掀掉的只是它自己。
+ * **Why not use the main thread?** Pyodide's `runPython` is synchronous. A model's
+ * `while True: pass` would freeze the engine and every task. A dedicated Worker can instead
+ * be terminated externally at timeout, affecting only that interpreter.
  *
- * **为什么不用容器。** 这台机器上 docker 装在 WSL 里，而这东西是要跟安装包一起
- * 分发的基础设施：换一台干净的 Windows 就没有 WSL，也没有 docker。wasm 没有这个
- * 问题 —— 它就是几个文件，跟二进制放一块儿。
+ * **Why not use containers?** Docker is installed inside WSL on this machine, but this runtime
+ * ships with the application. A clean Windows installation may have neither WSL nor Docker.
+ * WASM requires only files distributed beside the executable.
  *
- * ## 协议
+ * ## Protocol
  *
  * ```
  * → { kind: "run", id, code }
@@ -17,13 +17,13 @@
  * ← { kind: "done", id, exitCode, stdout, stderr }
  * ```
  *
- * 起 Pyodide 大约两秒半，所以**起一次用很多次**；换包（第一次 import numpy 之类）
- * 还要几秒，也是一次性的。
+ * Pyodide takes about two and a half seconds to start, so **start once and reuse it**. Initial
+ * package imports such as numpy take a few additional seconds, also only once.
  *
- * ## 每次调用换一套全局名字
+ * ## Fresh globals for each invocation
  *
- * 解释器复用，但**变量不复用**：每次 `runPython` 给一个新的 globals。一道题里
- * 定义的符号漏到下一道题去，比慢几秒难查得多 —— 那会变成「换个顺序跑结果就不一样」。
+ * Reuse the interpreter, **not variables**: give every `runPython` fresh globals. Symbols leaking
+ * between tasks would make results depend on execution order, a harder problem than startup latency.
  */
 
 import { statSync } from "node:fs";
@@ -34,10 +34,10 @@ declare const self: {
   postMessage(v: unknown): void;
 };
 
-/** 回给模型的输出上限。再多也没用，只会把上下文撑掉。 */
+/** Maximum output returned to the model. More output only exhausts context. */
 const CAP = 4000;
 
-/** 用 pyodide 自己的类型 —— 手抄一份的话，它一升级我们这份就悄悄对不上了。 */
+/** Use Pyodide's own types; copied definitions would silently drift after upgrades. */
 type Py = Awaited<ReturnType<typeof import("pyodide").loadPyodide>>;
 
 let py: Py | null = null;
@@ -45,23 +45,23 @@ let out: string[] = [];
 let err: string[] = [];
 
 /**
- * Pyodide 那一堆文件在哪儿。
+ * Locate the Pyodide assets.
  *
- * 跟插件宿主一个道理：**这条路不能靠猜**。跑源码时 `node_modules` 里那份找得到；
- * 编译成单文件之后 `import.meta.url` 是个虚拟路径，那儿没有文件 —— 得由外面告诉
- * 它，也就是安装包把 `pyodide/` 放在二进制旁边，再用这条环境变量指过去。
+ * As with the plugin host, **do not guess this path**. Source execution can find node_modules,
+ * but compilation makes `import.meta.url` a virtual path without files. Supply an external
+ * location: distribute `pyodide/` beside the executable and allow the environment override.
  */
 function whereIs(): string | undefined {
   const given = process.env.TGENGIN_PYODIDE;
   if (given && given.trim()) return given;
-  // **默认就在二进制旁边找。** 安装包把 `pyodide/` 放在 exe 边上就完事了，
-  // 不用谁去配一条环境变量 —— 要配才能用的东西，第一次装的人一定会漏。
-  // 上面那条留着是给「放到别处」用的。
+  // **Look beside the executable by default.** Shipping `pyodide/` adjacent to the exe should
+  // work without an environment variable, which first-time users would easily omit.
+  // The override above supports assets installed elsewhere.
   try {
     const beside = join(dirname(process.execPath), "pyodide");
     if (statSync(beside).isDirectory()) return beside;
   } catch {
-    // 旁边没有 —— 那就是在跑源码，让 pyodide 自己从 node_modules 里找
+    // No adjacent assets: assume source execution and let Pyodide locate node_modules.
   }
   return undefined;
 }
@@ -72,8 +72,8 @@ async function boot(): Promise<Py> {
   const where = whereIs();
   const it = await loadPyodide({
     ...(where ? { indexURL: where } : {}),
-    // 装到哪儿算哪儿：第一次用 numpy 会去 CDN 取轮子并缓存下来。安装包里带上
-    // 那几个轮子的话，这一步就是本地读文件，一次网都不用上。
+    // Package availability determines loading. The first numpy import downloads and caches a wheel
+    // from the CDN; bundled wheels turn that operation into a local read without network access.
     stdout: (s: string) => out.push(s),
     stderr: (s: string) => err.push(s),
   });
@@ -88,27 +88,26 @@ function cut(lines: string[]): string {
 
 async function runOnce(code: string): Promise<Record<string, unknown>> {
   const it = await boot();
-  // **代码里 import 了什么就装什么。** 不用谁去维护一张「这道题要哪几个包」的表 ——
-  // 模型写 `import sympy`，这一句就把 sympy 装上。装过的第二次是空操作。
+  // **Load packages imported by the code.** No per-task package list needs maintenance:
+  // `import sympy` causes sympy to load, and subsequent loads are no-ops.
   let trouble = "";
   try {
     await it.loadPackagesFromImports(code);
   } catch (e) {
-    // 装不上不代表跑不了（可能它 import 的本来就是标准库里的东西）。
+    // Package-loading failure does not necessarily prevent execution; the import may belong to the standard library.
     trouble = e instanceof Error ? e.message : String(e);
   }
-  // 装包这一步 pyodide 自己会往 stdout 上写「Loading numpy / Loaded numpy」。
-  // **那不是这段程序印的**，混给模型看只会让它以为自己的代码印了这些东西 ——
-  // 所以清在这儿，而不是清在装包之前。
+  // Pyodide itself writes "Loading numpy / Loaded numpy" while loading packages. **Those lines
+  // are not program output** and would mislead the model. Clear output after loading, not before.
   out = [];
   err = trouble ? [trouble] : [];
   try {
-    // 每次一套新的全局名字 —— 上一次留下的变量不该被下一次看见。
+    // Fresh globals for every invocation prevent earlier variables from leaking into later executions.
     const names = it.globals.get("dict") as () => unknown;
     await it.runPythonAsync(code, { globals: names() as never });
     return { exitCode: 0, stdout: cut(out), stderr: cut(err) };
   } catch (e) {
-    // Python 抛的错**当结果回**，不当协议错：模型看得见回溯才改得动代码。
+    // Return Python exceptions **as tool results**, not protocol errors; the model needs the traceback to fix its code.
     err.push(e instanceof Error ? e.message : String(e));
     return { exitCode: 1, stdout: cut(out), stderr: cut(err) };
   }
@@ -131,7 +130,7 @@ self.onmessage = (e) => {
     );
 };
 
-// 一起来就先把解释器烧上，别等第一次调用才花那两秒半。
+// Warm the interpreter at worker startup rather than making the first invocation wait two and a half seconds.
 void boot().then(
   () => self.postMessage({ kind: "ready" }),
   (x: unknown) => self.postMessage({ kind: "failed", error: x instanceof Error ? x.message : String(x) }),

@@ -152,10 +152,10 @@ def main():
         'reviewerScript': pin(Path(__file__)),
     }
     json_pin = new_file(OUT_JSON, (json.dumps(result, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
-    text = ('独立静阅通过：原数据计算与断言保留至第252行，第256行起的图形部分未执行；只有style/graphics初始化和EXP/OLD镜像路径适配。三份CSV/JSON/转换表在已声明的解析行/JSON值比较下精确一致，14项原输入/图输出Pin和原重放脚本Pin当前均匹配。\n\n'
-            '本次没有再次执行producer、绘图、评分、API或修改论文。保存表有112个独立任务键、91个pass标志和642条check；该一致性不能认证91次历史判卷，也不能解决113/112分母及旧系统/环境来源。报告记录Py3.13.5、SciPy1.16.1，未记录NumPy版本，本次未运行这些包的额外探针。\n\n'
-            '首个静态AST校验在Py3.12.7失败：ast.dump保留空字段；使用报告相同3.13.5只做AST解析，精确复得e289083b…，未重复原计算。该版本依赖和失败保留于独立JSON。\n\n'
-            '[独立JSON](' + str(OUT_JSON).replace(chr(92), '/') + ')，SHA `' + json_pin['sha256'] + '`。财务中止审查仍优先等待最终源码Pin。\n')
+    text = ('Independent static review passed: original data calculations and assertions are retained through line 252; graphics from line 256 onward were not executed. Only style/graphics initialization and EXP/OLD mirror-path adaptations differ. Three CSV/JSON/conversion tables match exactly under the declared parsed-row/JSON-value comparison; 14 original input/figure-output pins and the original replay-script pin all currently match.\n\n'
+            'This review did not rerun the producer, plot, grade, call APIs, or modify the paper. Saved tables contain 112 distinct task keys, 91 pass flags, and 642 checks. This consistency does not certify 91 historical grades or resolve the 113/112 denominator and old system/environment provenance. The report records Py3.13.5 and SciPy1.16.1 but no NumPy version; no additional probes of those packages were run.\n\n'
+            'The first static AST check failed on Py3.12.7 because ast.dump retains empty fields. Using 3.13.5, matching the report, for AST parsing only reproduced e289083b… exactly without repeating the original calculation. This version dependency and failure are retained in independent JSON.\n\n'
+            '[Independent JSON](' + str(OUT_JSON).replace(chr(92), '/') + '), SHA `' + json_pin['sha256'] + '`. Financial-abort review still takes priority while awaiting the final source pin.\n')
     md_pin = new_file(OUT_MD, text.encode('utf-8'))
     print(json.dumps({'outputs': [json_pin, md_pin], 'validated': True, 'scoreCertificateValid': False, 'comparisons': comparisons, 'assertCount': len(assert_lines)}, ensure_ascii=False))
 

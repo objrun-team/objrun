@@ -114,13 +114,13 @@ for record in original:
                  'nativeModelRequests':record.get('nativeModelRequests'),'attemptCount':record.get('attemptCount'),'checkCandidates':record.get('checkCandidates')})
 with (out/'FINAL_RESULTS.csv').open('w',newline='',encoding='utf-8-sig') as f:
     writer=csv.DictWriter(f,fieldnames=list(rows[0]));writer.writeheader();writer.writerows(rows)
-lines=['# FrontierScience-Olympiad 正式实验','',
-       '范围：固定公开 Olympiad 100题，两组各一次。求解与判卷均为 DeepSeek 官方 deepseek-flash，thinking/high/16384。',
-       '这是 DeepSeek 模型判卷协议；同模型盲复评只测一致性，不构成外部独立验证。滚动别名不视为不可变模型版本。','',
-       '|组别|有效/总数|正确|有效样本正确率|','|---|---:|---:|---:|']
+lines=['# FrontierScience-Olympiad formal experiment','',
+       'Scope: 100 fixed public Olympiad questions, one run per arm. Both solving and grading use official DeepSeek deepseek-flash, thinking/high/16384.',
+       'This is a DeepSeek model-grading protocol; blind regrading by the same model measures consistency, not external independent verification. A rolling alias is not an immutable model version.','',
+       '|Arm|Valid/total|Correct|Accuracy on valid samples|','|---|---:|---:|---:|']
 for a,s in summary['arms'].items():lines.append(f"|{a}|{s['valid']}/{s['tasks']}|{s['correct']}|{s['accuracy']}|")
-lines+=['',f"配对差值与95% CI：{summary['paired']['difference']}；{summary['paired']['ci95']}，有效配对 {n}。",'异常保留未解决状态；不得把缺失评分默认为错误。',
-        f"跨组胜/负：{len(wins)}/{len(losses)}；ObjRun内部首次候选错误后最终通过：{len(repairs)}，案例分类仍须逐条核查。",'费用按官方token费率估算，非逐请求实际账单；未知费用另列。',
-        '完整数字、学科分项、评分不一致及费用详见 SUMMARY.json；逐题详见 FINAL_RESULTS.csv；审计详见 AUDIT.json。']
+lines+=['',f"Paired difference and 95% CI: {summary['paired']['difference']}; {summary['paired']['ci95']}, with {n} valid pairs.",'Exceptions remain unresolved; missing grades must not default to incorrect.',
+        f"Cross-arm wins/losses: {len(wins)}/{len(losses)}; ObjRun cases passing finally after an incorrect first internal candidate: {len(repairs)}. Case classifications still require individual review.",'Costs are estimates from official token rates, not actual per-request bills; unknown costs are listed separately.',
+        'See SUMMARY.json for complete figures, subject breakdowns, grading disagreements, and costs; FINAL_RESULTS.csv for per-question results; AUDIT.json for the audit.']
 (out/'REPORT.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
 print(json.dumps({'auditPassed':all(x['passed'] for x in audit),'original':len(original),'final':len(final),'arms':summary['arms']}))

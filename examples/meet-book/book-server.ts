@@ -1,4 +1,4 @@
-/** 写法二：进程外的 MCP server。stdio 上的 JSON-RPC。两个工具体跟写法一是同一份代码。 */
+/** Approach 2: an out-of-process MCP server using JSON-RPC over stdio. Both tool bodies share the code used by approach 1. */
 
 import {
   authStart,
@@ -60,7 +60,7 @@ async function handle(m: { id?: number; method?: string; params?: unknown }): Pr
       const out = await call(String(p.name), p.arguments ?? {});
       return reply({ content: [{ type: "text", text: JSON.stringify(out) }], structuredContent: out });
     } catch (e) {
-      // 工具自己没干成，不是协议错 —— 走 isError，让模型看得见原因、自己换个招。
+      // A tool failure is not a protocol error. Use isError so the model sees the cause and can try another approach.
       const why = e instanceof Error ? e.message : String(e);
       process.stderr.write(`[book-server] failed: ${why}\n`);
       return reply({ content: [{ type: "text", text: why }], isError: true });

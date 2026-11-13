@@ -1,39 +1,42 @@
 /**
- * 例子：**`web_search` 摆给谁、带回什么。**
+ * Example: **who sees `web_search`, and what it returns**.
  *
  * ```
  * bun test/integration/search.ts
  * ```
  *
- * 这件工具跟别的不一样的地方在于**它自己要去打一次模型**：厂商跑的检索在
- * `/responses` 上，而我们平时用的 `/chat/completions` 不认 `type: "web_search"`
- * （`unknown variant 'web_search', expected 'function'`）。所以这个例子把那一端
- * 整个换成假的 —— 一台小服务器同时供两条路，`api.base_url` 改一行数据就指过去了。
+ * Unlike other tools, this one **makes a model call itself**. Provider-side search
+ * uses `/responses`; the usual `/chat/completions` endpoint rejects
+ * `type: "web_search"` (`unknown variant 'web_search', expected 'function'`).
+ * A small mock server therefore supplies both paths, selected by changing one
+ * `api.base_url` data row.
  *
- * 钉三件事：
+ * Three invariants:
  *
- * 1. **摆给谁看是数据说了算** —— `trigger` 里那两条同组：这家会搜、且不在交卷站
- * 2. **带回来的不只是答案** —— 还有搜了什么、开了哪些页，那是事后审计的全部依据
- * 3. **搜完不说话也要交代清楚** —— 实测过一发烧掉十八万个 token 零答案，
- *    那时候「它做过什么」比一句「失败了」有用得多
+ * 1. **Tool exposure is data-controlled**: the two same-group trigger conditions
+ *    require search support and a station other than submit.
+ * 2. **The result contains more than an answer**: queries and visited pages provide
+ *    the entire basis for subsequent auditing.
+ * 3. **Search without an answer must still be explained**: a real request consumed
+ *    180,000 tokens with no answer. Its actions were more useful than a generic failure message.
  */
 
 import { done, machine, ok, outside, part, show, step, until } from "../_lib.ts";
 
-// 钥匙得有，不然工具会说「没东西可搜」。假端点不看它。
+// A credential must be present or the tool reports no available search service. The mock does not inspect it.
 process.env.DEEPSEEK_API_KEY ??= "sk-not-a-real-key";
 
 const m = await machine();
 
-/** 这一格该请求哪个问题 —— 靠它把两条路（有答案 / 没答案）分开。 */
+/** Which query this unit should request, distinguishing the answer and no-answer paths. */
 let ask = "how many KT transitions does the triangular lattice TFIM have?";
 
-/** 假端点每收到一发，就把那一发的 `input` 和思考强度记在这儿。 */
+/** Record each mock request's `input` and reasoning effort. */
 const sent: { role?: string; content?: string }[][] = [];
 const efforts: string[] = [];
 
 const out = await outside({
-  /** 假的 `/chat/completions`：一开口就请求 `web_search`。 */
+  /** Mock `/chat/completions`: immediately request `web_search`. */
   "/chat/completions": () => ({
     id: "fake-1",
     object: "chat.completion",
@@ -59,9 +62,9 @@ const out = await outside({
     usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
   }),
 
-  /** 假的 `/responses`。**形状照抄真的那一份** —— 假的形状不对，例子就白钉。 */
+  /** Mock `/responses` in the **exact real response shape**; an incorrect mock shape would invalidate the regression. */
   "/responses": (a) => {
-    // 每一发都记下来 —— 第 8 步查的就是「上一轮的对话有没有带上」。
+    // Record every request; step 8 checks whether the previous conversation was included.
     const raw = (a as { input?: unknown }).input;
     const input = (Array.isArray(raw) ? raw : [{ role: "user", content: String(raw ?? "") }]) as {
       role?: string;
@@ -71,8 +74,8 @@ const out = await outside({
     const asked = input.map((x) => String(x.content ?? "")).join(" ");
     const effort = String((a as { reasoning_effort?: unknown }).reasoning_effort ?? "");
     efforts.push(effort);
-    // 踩线那一路：答案本身干净，**但它开过的页面出卖了它** —— 闸查的是整份，
-    // 不只是那段话。
+    // Disallowed-source case: the answer text is clean, but **the visited pages reveal the violation**.
+    // The gate inspects the whole response, not just the answer.
     if (asked.includes("forbidden")) {
       return {
         status: "completed",
@@ -83,7 +86,7 @@ const out = await outside({
         usage: { input_tokens: 1, output_tokens: 1, total_tokens: 999 },
       };
     }
-    // 「搜完了一个字没说」那一路。
+    // The search-completed-without-an-answer case.
     if (asked.includes("nothing")) {
       return {
         status: "completed",
@@ -98,10 +101,10 @@ const out = await outside({
       output: [
         {
           type: "web_search_call",
-          // 第二条是那一端自己的记号，不是它搜的东西 —— 实测每次都会多出这么一条。
+          // The second entry is the provider's internal marker, not a search query. Real responses consistently included one.
           action: { type: "search", queries: ["two KT transitions triangular lattice", "ws_call_id=call_00_abc"] },
         },
-        // 过场话。**它也是 message** —— 答案取最后一条，取错就会取到这句。
+        // Transitional text is **also a message**. The answer is the last message; selecting the wrong one returns this text.
         { type: "message", content: [{ type: "output_text", text: "Let me look this up." }] },
         {
           type: "web_search_call",
@@ -116,12 +119,12 @@ const out = await outside({
     };
   },
 
-  // ask → act → ask …，靠格子额度自己停。**第二轮是第 7 步的全部意义**：
-  // 只走一轮的话，「超额被拒」那条断言对着空数组恒真，什么都没证明。
+  // ask -> act -> ask ..., stopping at the unit limit. **The second round is the point of step 7**:
+  // with only one round, the over-limit rejection assertion is vacuously true for an empty array and proves nothing.
   "/infer": (u) => (String((u as { cycle?: { cycle?: string } }).cycle?.cycle) === "ask" ? "act" : "ask"),
 });
 
-/** 这道题跑完之后，`web_search` 那次调用的结果。 */
+/** Result of the task's `web_search` call after completion. */
 async function resultOf(task: string): Promise<Record<string, unknown>> {
   const rows = (
     await m.api<{ rows: { body: string }[] }>("POST", "/query", {
@@ -139,9 +142,9 @@ try {
   part("web_search: who gets it, and what it hands back");
 
   step("1. point the api row at the fake endpoint - data, not code");
-  // `api.base_url` 是**表里的一列**，工具拿它拼 `/responses`，适配器拿它拼
-  // `/chat/completions`。改一行数据就把两条路一起指过去 —— 这正是当初把地址从
-  // 代码里搬进表里的理由。
+  // `api.base_url` is **a table column**. The tool derives `/responses` from it, and the adapter derives
+  // `/chat/completions`. Updating one data row redirects both paths together, which is precisely why
+  // the endpoint moved from code into the table.
   await m.api("POST", "/exec", {
     sql: `update api set base_url = '${out.url("")}' where model = 'deepseek-v4-flash'`,
   });
@@ -154,18 +157,18 @@ try {
       {
         mode: "one",
         cycles: [
-          // **转起来**：ask → act → ask …，靠格子额度停。第 7 步要的就是第二轮 ——
-          // 只走一轮的话，「超额被拒」那条断言对着空数组恒真，什么都没证明。
+          // **Exercise the loop**: ask -> act -> ask ..., stopping at the unit budget. Step 7 requires a second round;
+          // one round would make the over-limit rejection assertion vacuously true for an empty array.
           { cycle: "ask", apiMode: "chat", maxUnits: 3, from: [], next: ["act"], infer: out.url("/infer") },
           { cycle: "act", maxUnits: 3, from: ["ask"], next: ["ask"], infer: out.url("/infer") },
         ],
       },
     ],
     agents: [
-      // `unit` 是**跑工具那一站**走的句柄：`api_mode` 留空的站调它。
+      // `unit` is the handle used by the **tool-execution station**, selected when `api_mode` is empty.
       { name: "bot", apis: [["DEEPSEEK_API_KEY", "deepseek-v4-flash"]], unit: "fn:unit.tools" },
-      // **这件工具背后的那个智能体。** 模型、端点、思考强度都是它这一行说了算 ——
-      // 不是调用方那一行。检索是一份固定的活：去查、把查到的说清楚，不需要想。
+      // **The agent behind this tool** controls its model, endpoint, and reasoning effort through its own row,
+      // independently of the caller's row. Retrieval has a fixed job: find information and explain it, without additional reasoning.
       {
         name: "searcher",
         apis: [["DEEPSEEK_API_KEY", "deepseek-v4-flash"]],
@@ -192,8 +195,8 @@ try {
     terms.some((t) => t.dim === "cycle" && t.op === "ne" && t.value === "submit"),
     terms,
   );
-  // 两条**同一组** = AND。分成两组就成了「会搜 **或者** 不在交卷站」，于是交卷站上
-  // 照样摆出来 —— 那正是这条要挡的。
+  // Two conditions in the **same group** mean AND. Separate groups would mean search support **or** not being at submit,
+  // exposing the tool at submit as well, which this condition must prevent.
   const groups = (
     await m.api<{ rows: { n: number }[] }>("POST", "/query", {
       sql: `select count(distinct "group") as n from trigger where owner_kind = 'tool' and owner = 'web_search'`,
@@ -216,24 +219,24 @@ try {
     spent?: { total_tokens?: number };
   };
   show("what it handed back:", got);
-  // **最后一条 message 才是答案。** 前面那句「Let me look this up.」是过场话 ——
-  // 取错的话，模型拿到的是一句废话，而它看起来像个答案。
+  // **Only the last message is the answer**. The earlier "Let me look this up." is transitional text;
+  // choosing it would return an uninformative phrase that superficially looks like an answer.
   ok("the answer is the last thing it said", String(got.answer).includes("Isakov"), got.answer);
   ok("not the small talk on the way there", !String(got.answer).includes("Let me look"), got.answer);
   ok("the queries it ran are recorded", (got.queries ?? []).length === 1, got.queries);
-  // 那一端的内部编号不是查询串。留着的话，事后拿这份清单去比对它摸过什么，
-  // 每隔几行就有一行是编号。
+  // A provider-internal identifier is not a query. Retaining it would insert identifier rows throughout
+  // the list used to audit what was searched.
   ok("and its call ids are not mistaken for queries", !(got.queries ?? []).some((q) => q.startsWith("ws_call_id")), got.queries);
-  // URL 上那截 `#ws_call_id=...` 是它自己的记号，不是地址 —— 留着的话，事后拿这份
-  // 清单去比对「有没有摸到答案册」会一条都对不上。
+  // The URL fragment `#ws_call_id=...` is the provider's marker, not part of the resource address.
+  // Keeping it would prevent exact matching when auditing access to reference-answer sources.
   ok(
     "the pages it opened are recorded, without the call-id tag",
     (got.opened ?? [])[0] === "https://arxiv.org/abs/1909.03608",
     got.opened,
   );
   ok("and how many moves it made", got.searches === 2, got.searches);
-  // **这一次搜花了多少也要记。** 消息表那几个计数列记的是智能体自己那次调用；
-  // 这件工具背地里打的那一次不落在任何一行上，不记的话整场开销会小一个数量级。
+  // **Record this search call's cost too.** Message-table counters describe the agent's own model call;
+  // the tool's separate internal call belongs to no such row. Omitting it can undercount total costs by an order of magnitude.
   ok("and what the search itself cost", got.spent?.total_tokens === 72267, got.spent);
 
   step("5. searched but said nothing - say what it did, not just that it failed");
@@ -253,11 +256,11 @@ try {
   ok("and still reports the ground it covered", (none.queries ?? []).length === 1, none.queries);
 
   step("6. it went where the publisher said not to - drop the whole thing");
-  // **这道闸在模型看见之前。** 事后审计救不了：答案一旦进了上下文，那道题就废了，
-  // 作废它只是记下损失。
+  // **The gate runs before the model sees the result**. Later auditing cannot undo exposure: once a reference answer
+  // enters context, the task is contaminated, and invalidation merely records that loss.
   //
-  // 这一路里那段话本身是干净的（「The answer is 42.」），出卖它的是**开过的页面**——
-  // 所以闸查的是整份，不是只查那段话，也不是只查网址。
+  // In this path the answer text is clean ("The answer is 42."); **visited pages** reveal the violation.
+  // The gate therefore checks the whole response, not only answer text or URLs.
   ask = "find the forbidden thing";
   await m.api("POST", "/tasks", {
     id: "t-search-banned", mode: "one", agent: "bot", place: "local", source: "user",
@@ -274,16 +277,16 @@ try {
   };
   show("what the agent was allowed to see:", banned);
   ok("it is told the publisher forbids it", String(banned.error).includes("Forbidden access"), banned.error);
-  // 连搜了什么、开了哪些页都不回 —— **那些本身就是线索**：知道「答案在
-  // somebody/secret_answers 里」跟拿到答案只差一步。
+  // Do not return the queries or visited pages either: **they are clues themselves**. Knowing that the answer lives in
+  // somebody/secret_answers is only one step away from obtaining it.
   ok("the answer is gone", !banned.answer, banned);
   ok("and so is every trace of where it had been", !banned.opened && !banned.queries, banned);
-  // **花掉的钱照报。** 被拦下不等于没花过，快照要能把这笔算进去。
+  // **Still report the cost incurred**. Blocking a result does not undo spending; the snapshot must account for it.
   ok("but what it cost is still on the books", banned.spent?.total_tokens === 999, banned.spent);
 
   step("7. the publisher capped how many searches one attempt gets");
-  // **闸在次数上，不在格子上。** 实测一跑：超时那批把一小时的一半花在检索上，
-  // 而每站的格子额度一次都没碰到 —— 检索花的是钟，放宽格子治不了。
+  // **Limit search calls, not units**. In a real run, timed-out tasks spent half their hour on retrieval
+  // without once reaching their station-unit limits. Retrieval consumes wall time; a larger unit budget cannot fix that.
   ask = "how many KT transitions does the triangular lattice TFIM have?";
   await m.api("POST", "/tasks", {
     id: "t-search-capped", mode: "one", agent: "bot", place: "local", source: "user",
@@ -314,11 +317,11 @@ try {
   );
 
   step("8. it is a plain question-and-answer agent, and it keeps its own conversation");
-  // **它不是 ReAct。** 那一端怎么搜、翻了哪几页，在我们的对话模型里根本不是一次工具
-  // 调用 —— 所以它那张表里没有 call、没有工具结果，只有一问一答。
+  // **This is not ReAct**. Provider-side queries and page visits are not tool calls in our conversation model,
+  // so its table contains no call/result pairs, just one question and one answer.
   //
-  // 而下一次不用把同一片地方再走一遍，靠的也不是保存那一端的检索状态：**上一轮的
-  // 答案本身就是材料**，带着它去问就够了。
+  // Avoiding repeated searches also does not require preserving provider search state:
+  // **the previous answer itself is useful material** and can accompany the next question.
   sent.length = 0;
   ask = "how many KT transitions does the triangular lattice TFIM have?";
   await m.api("POST", "/tasks", {
@@ -348,7 +351,7 @@ try {
   ok("and the question is still last", sent[1]?.[sent[1].length - 1]?.role === "user", sent[1]?.slice(-1));
 
   step("9. the searcher's own settings are what goes out, not the run's");
-  // 求解那边调思考强度，不该顺手把检索也拖慢 —— 这一条就是 `agent.knobs` 存在的理由。
+  // Increasing solver reasoning must not also slow retrieval; this is why `agent.knobs` exists.
   show("reasoning effort on each search request:", efforts.filter(Boolean));
   ok("it searches without reasoning", efforts.every((e) => e === "" || e === "none"), efforts);
 } finally {

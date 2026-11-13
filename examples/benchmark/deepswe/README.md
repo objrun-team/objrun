@@ -1,10 +1,10 @@
 # DeepSWE
 
-[datacurve 的 DeepSWE](https://github.com/datacurve-ai/deep-swe) —— 113 道**原创**的长程工程任务,91 个仓库,五种语言(TypeScript 35 / Go 34 / Python 34 / JavaScript 5 / Rust 5)。每道题一个钉死的容器镜像、一套手写的行为验证器。参考解从零写,不抄任何 PR,也从不合进上游。
+[Datacurve’s DeepSWE](https://github.com/datacurve-ai/deep-swe): 113 **original** long-horizon engineering tasks across 91 repositories and five languages (TypeScript 35 / Go 34 / Python 34 / JavaScript 5 / Rust 5). Each task has a pinned container image and hand-written behavioral verifiers. Reference solutions are written from scratch, never copied from PRs or merged upstream.
 
-榜上(官方 `pier` + `mini-swe-agent`):GPT-5.6 Sol **72.70**、GPT-5.5 70%±3、GPT-5.4 56%±2、Claude Opus 4.7 54%±5、Claude Sonnet 4.6 32%±2。
+Leaderboard (official `pier` + `mini-swe-agent`): GPT-5.6 Sol **72.70**, GPT-5.5 70%±3, GPT-5.4 56%±2, Claude Opus 4.7 54%±5, Claude Sonnet 4.6 32%±2.
 
-三条命令。第一条在 WSL 里(docker 在那儿),后两条在引擎这台机器上。
+Three commands: run the first in WSL, where Docker is installed, and the latter two on the engine host.
 
 ```bash
 ssh wsl "bash /mnt/e/sgu-bzhc/EACN_EX/TgEngin/examples/benchmark/deepswe/setup.sh 10 0"
@@ -12,7 +12,7 @@ ssh wsl "cd /mnt/e/sgu-bzhc/EACN_EX/TgEngin/examples/benchmark/deepswe && python
 cd app && bun run start
 ```
 
-台子起着、引擎起着之后:
+Once the service and engine are running:
 
 ```bash
 bash examples/benchmark/deepswe/run.sh 10 dsw-l2 0
@@ -20,117 +20,117 @@ bash examples/benchmark/deepswe/run.sh 10 dsw-l2 0
 
 ---
 
-## 一、备料
+## 1. Setup
 
-`setup.sh` 干五件事,幂等:
+`setup.sh` performs five idempotent steps:
 
 | | |
 | --- | --- |
-| 1 | clone 语料到 `$HOME/.cache/tgengin-deepswe/deep-swe`(**不进仓库** —— `tasks/<id>/solution/` 是参考解) |
-| 2 | 把 `dist/tgengin-runtime-linux-x64` 拷进家目录(snap 装的 docker 够不着 `/mnt` 和 `/tmp`) |
-| 3 | 按 `(n, seed)` 点名这一跑要哪几道 |
-| 4 | 拉题目镜像、建判据镜像 |
-| 5 | **自检**:每道题拿它自己的参考解喂回官方判据,该判 1;空补丁该判 0。`TGENGIN_DSW_SELFTEST=0` 跳过 |
+| 1 | Clone the corpus to `$HOME/.cache/tgengin-deepswe/deep-swe` (**outside the repository**: `tasks/<id>/solution/` contains reference solutions) |
+| 2 | Copy `dist/tgengin-runtime-linux-x64` into the home directory (snap Docker cannot access `/mnt` or `/tmp`) |
+| 3 | Select tasks for this run using `(n, seed)` |
+| 4 | Pull task images and build grader images |
+| 5 | **Self-test**: submit each task’s reference solution to its official grader; it should score 1, while an empty patch should score 0. Skip with `TGENGIN_DSW_SELFTEST=0` |
 
 ```bash
-ssh wsl "bash …/setup.sh [几道] [种子]"
-ssh wsl "TGENGIN_DSW_SELFTEST=0 bash …/setup.sh 0 0"   # 全量 113 道，只备镜像不自检
+ssh wsl "bash …/setup.sh [count] [seed]"
+ssh wsl "TGENGIN_DSW_SELFTEST=0 bash …/setup.sh 0 0"   # All 113 tasks: prepare images without self-tests.
 ```
 
-`几道 = 0` 是全部。自检一道题要判两次卷，全量跑要几个钟头 —— 只想把镜像备齐就把它关掉。
+`count = 0` selects all tasks. Each self-test grades twice, so the full set takes hours; disable it if only preparing images.
 
-代理:WSL 在 NAT 模式下够不着 Windows 那个 `127.0.0.1:7890`,脚本现算网关(`ip route`)。**网关每次重启会变**,所以不写死。
+Proxy: NAT-mode WSL cannot reach Windows at `127.0.0.1:7890`, so the script calculates the gateway with `ip route`. **The gateway changes on every restart**, so it is not hardcoded.
 
-docker 守护进程那一侧另有一份代理配置:
+The Docker daemon has separate proxy configuration:
 
 ```bash
 systemctl show snap.docker.dockerd.service -p Environment
 # Environment=HTTP_PROXY=http://172.20.48.1:7890 HTTPS_PROXY=… NO_PROXY=localhost,127.0.0.1,::1
 ```
 
-### 空间预算
+### Storage budget
 
-实测,全量拉完(113 道题目镜像 + 113 个判据镜像):
+Measured after pulling the full set (113 task images + 113 grader images):
 
 | | |
 | --- | --- |
-| 镜像(去重后) | **99.59 GB** |
-| build cache | 25.04 GB,**可回收**(`docker builder prune`),建判据镜像留下的 |
-| 干活容器的可写层 | 起步 60 MB / 个,随它改的东西涨 |
-| 判卷日志 | `$HOME/.cache/tgengin-deepswe/logs/<task>-<patch16>/`,一次判卷几百 KB |
-| 语料 | 30 MB |
-| 拉完要多久 | 52 分钟(这台机器,走网关代理) |
+| Images (deduplicated) | **99.59 GB** |
+| Build cache | 25.04 GB, **reclaimable** with `docker builder prune`; left by grader-image builds |
+| Work-container writable layers | Start at 60 MB each and grow with modifications |
+| Grading logs | `$HOME/.cache/tgengin-deepswe/logs/<task>-<patch16>/`, hundreds of KB per grading call |
+| Corpus | 30 MB |
+| Pull duration | 52 minutes on this machine through the gateway proxy |
 
-单个镜像 3.7–11.1 GB,但 113 个**共用同一个 `swe-bench-202605` 底座**,去重后总共不到 100 GB —— 按单个尺寸乘 113 会高估一倍以上。十道的子集占 18.03 GB。
+Individual images are 3.7–11.1 GB, but all 113 **share the `swe-bench-202605` base**, keeping the deduplicated total below 100 GB. Multiplying one image size by 113 overestimates by more than 2×. The ten-task subset occupies 18.03 GB.
 
-镜像落在 **`E:\wsl\Ubuntu\ext4.vhdx`**(WSL 的整块虚拟磁盘,稀疏增长):
+Images reside in **`E:\wsl\Ubuntu\ext4.vhdx`**, WSL’s sparsely growing virtual disk:
 
 ```
-/var/snap/docker/common/var-lib-docker   docker 自己说的根（snap 装的，overlayfs）
-  └─ /dev/sdd                            1 TB，WSL 里的块设备
-       └─ E:\wsl\Ubuntu\ext4.vhdx        真身
+/var/snap/docker/common/var-lib-docker   Docker-reported root (snap, overlayfs)
+  └─ /dev/sdd                          1 TB block device inside WSL
+       └─ E:\wsl\Ubuntu\ext4.vhdx      Backing file
 ```
 
 ```bash
-docker system df                       # 镜像 / 容器 / 构建缓存各占多少
-df -h /                                # WSL 里还剩多少
-docker builder prune -f                # 回收那 25 GB，不动已建好的镜像
+docker system df                       # Image / container / build-cache usage.
+df -h /                                # Remaining space inside WSL.
+docker builder prune -f                # Reclaim 25 GB without removing built images.
 ```
 
-**vhdx 只涨不缩** —— 在里面删了东西,E 盘不会自动还回来,要 `wsl --shutdown` 之后
-`Optimize-VHD` 或者 `diskpart` 压缩。所以拉之前先看 E 盘,别拉到一半没地方。
+**The VHDX grows but does not shrink automatically**: deleting files inside it does not return space to drive E. After `wsl --shutdown`,
+compact it with `Optimize-VHD` or `diskpart`. Check drive E before pulling to avoid running out of space midway.
 
-## 二、台子
+## 2. Service
 
-一个进程,跑在 WSL 里,手上有 docker。引擎那边它是**三条句柄**:
+One process runs in WSL with Docker access. The engine sees **three handles**:
 
 ```
-http://127.0.0.1:7902/place       在哪儿干:把工具调用转发进那道题的容器
-http://127.0.0.1:7902/applies     G 的第一格:交出来的补丁打得上吗
-http://127.0.0.1:7902/resolved    G 的根:官方判据说做成了吗
+http://127.0.0.1:7902/place       Where to work: forward tool calls into the task container.
+http://127.0.0.1:7902/applies     First node of G: does the submitted patch apply?
+http://127.0.0.1:7902/resolved    Root of G: does the official grader report success?
 ```
 
 ```bash
 python3 stand.py [--port 7902] [--level 2] [--selftest [TASK_ID...]]
 ```
 
-### 位置为什么在这儿
+### Why place handling lives here
 
-`workplace.identity` 指着的那条句柄负责**解析地址、转发调用**。内核自带的
-`fn:place.hops` 读的是 `wsl` / `ssh` / `docker` 那套跳板串,在这台机器上三处过不去:
+The handle referenced by `workplace.identity` **resolves addresses and forwards calls**. The kernel’s built-in
+`fn:place.hops` reads `wsl` / `ssh` / `docker` hop strings, which fail at three points on this machine:
 
 ```
-wsl.exe -- docker ps        docker: command not found（snap 装的，只在登录 shell 的 PATH 上）
-ship() 只处理最外一跳        运行时 cp 进了 WSL 的 /tmp，不在容器里
-docker cp /tmp/…            lstat: no such file（snap 够不着 /tmp）
+wsl.exe -- docker ps        docker: command not found (snap; only on login-shell PATH)
+ship() handles outer hop   Runtime copied into WSL /tmp, not the container
+docker cp /tmp/…            lstat: no such file (snap cannot access /tmp)
 ```
 
-所以这个例子自带一条:地址写法 `dsw:<task-id>` 是它自己的,容器怎么起、运行时怎么送,全在这个进程里。**内核一个字不用改。**
+This example therefore supplies its own handle and `dsw:<task-id>` address scheme. Container startup and runtime transfer stay in this process. **No kernel changes are needed.**
 
-转发出去的工具**还是内核那一份实现** —— 送进容器的是 `dist/tgengin-runtime-linux-x64`(一个 MCP server,装的就是 `app/src/tools/` 那一批)。
+Forwarded tools **still use the kernel’s implementation**: the container receives `dist/tgengin-runtime-linux-x64`, an MCP server containing the tools from `app/src/tools/`.
 
-### 容器
+### Containers
 
 | | |
 | --- | --- |
-| 干活的 | `dsw-<task-id>`,那道题钉死的镜像,`--network none --cpus 2 --memory 8g`,`/app` 是仓库。**判死重来不回档** |
-| 起容器时 | 送进运行时,并且把 git 调顺(`user.email` / `user.name` / `safe.directory`)—— 镜像里没有身份,第一次 `git commit` 会撞 `Please tell me who you are` |
-| 判卷的 | 每次全新,`--rm`,镜像 = 同一个题目镜像 + 隐藏测试烤进 `/tests`,`--network none` |
+| Work | `dsw-<task-id>`, the task’s pinned image, `--network none --cpus 2 --memory 8g`; repository at `/app`. **Restarting after being marked dead does not roll back state** |
+| Startup | Transfer the runtime and configure Git (`user.email` / `user.name` / `safe.directory`); images lack an identity, so the first `git commit` would otherwise fail with `Please tell me who you are` |
+| Grading | Fresh each time, `--rm`, image = same task image + hidden tests baked into `/tests`, `--network none` |
 
-两条限额照抄官方 `task.toml`(`cpus = 2`、`memory_mb = 8192`),判卷上限 1800 秒。
+Resource limits follow official `task.toml` (`cpus = 2`, `memory_mb = 8192`); grading timeout is 1800 seconds.
 
-### 分级
+### Feedback levels
 
-`--level` 定 `note` 那一栏写多细。**每个级别是一次单独的实验**,引擎那边不知道有这回事,G 的形状不随级别变。
+`--level` controls detail in `note`. **Each level is a separate experiment**; the engine knows nothing about it, and G keeps the same shape.
 
-| 级 | `note` 里有什么 |
+| Level | Contents of `note` |
 | --- | --- |
-| 0 | (空) |
-| 1 | 哪一段断的 + 计数 |
-| 2 | + 是哪几条没过(测试名,最多 60 条) |
-| 3 | + 失败信息原文(最多 40 条,每条 2000 字符) |
+| 0 | Empty |
+| 1 | Failed stage + counts |
+| 2 | + Failed test names, at most 60 |
+| 3 | + Raw failure messages, at most 40, each limited to 2000 characters |
 
-级别 2 判一份只做了一半的补丁,实际回的是:
+An actual level-2 response for a partially implemented patch:
 
 ```json
 { "stage": "tests",
@@ -139,9 +139,9 @@ docker cp /tmp/…            lstat: no such file（snap 够不着 /tmp）
   "failing": ["[f2p] …repl.TestChallengeBeginReplScriptModeWithModulePathFlag", "…"] }
 ```
 
-## 三、引擎
+## 3. Engine
 
-`run.sh` 的第 2 步发一份声明。要紧的是位置那几行:
+Step 2 of `run.sh` sends a declaration. The place entries are the important part:
 
 ```json
 { "handles": [
@@ -162,19 +162,19 @@ docker cp /tmp/…            lstat: no such file（snap 够不着 /tmp）
   "agents": [{"name":"bot","apis":[["DEEPSEEK_API_KEY","deepseek-v4-flash"]],"unit":"fn:unit.tools"}] }
 ```
 
-**一道题一行位置** —— `task.place` 指的是 `workplace.place`,一道题一个容器。
+**One place row per task**: `task.place` references `workplace.place`, giving each task its own container.
 
-关掉两件工具(第 3 步,改的是 `usable` 那一列,纯数据):
+Disable two tools in step 3 by changing the data-only `usable` column:
 
 ```sql
 update tool set usable = 0 where name in ('web_search','python_exec')
 ```
 
-`web_search` 关掉是因为官方两侧都是 `no-network`,而它不转发到 workplace —— 它是条真网络,而参考解就公开在 GitHub 上。`python_exec` 关掉是因为要跑什么都在容器里用 `bash` 跑,用容器自己那套工具链。
+Disable `web_search` because both official sides use `no-network`, while this tool bypasses workplace forwarding and reaches the real network, where reference solutions are public on GitHub. Disable `python_exec` because all execution should use `bash` inside the container with its own toolchain.
 
-## 四、一道题长什么样
+## 4. Task shape
 
-`send.ts` 拼的请求体:
+Request constructed by `send.ts`:
 
 ```json
 { "id": "abs-module-cache-flags",
@@ -195,58 +195,58 @@ update tool set usable = 0 where name in ('web_search','python_exec')
     "checks": 6 } }
 ```
 
-| 旋钮 | 值 | 从哪儿来 |
+| Setting | Value | Source |
 | --- | --- | --- |
-| `solveSeconds` | 10800 | 官方 `task.toml` 的 `agent.timeout_sec` |
-| `checks` | 6 | 判一次 3–97 秒,判卷上限 1800 秒 —— 不是成本问题 |
-| `maxBranches` | 4 | 只留时间这一个闸 |
-| `maxDeadSiblings` | 8 | 同上 |
-| `readable` | true | 靶子该看得见 |
-| 环境变量 | `TGENGIN_DSW_CHECKS` / `TGENGIN_DSW_SECONDS` / `TGENGIN_DSW_SEED` | 顶掉上面几个 |
+| `solveSeconds` | 10800 | Official `task.toml` `agent.timeout_sec` |
+| `checks` | 6 | Grading takes 3–97 seconds, with an 1800-second cap; cost is not the issue |
+| `maxBranches` | 4 | Leave time as the sole gate |
+| `maxDeadSiblings` | 8 | Same rationale |
+| `readable` | true | The target should be visible |
+| Environment variables | `TGENGIN_DSW_CHECKS` / `TGENGIN_DSW_SECONDS` / `TGENGIN_DSW_SEED` | Override the settings above |
 
-### G 是官方那把尺子拆成两段
+### G splits the official criterion into two stages
 
-官方判据的公式:
-
-```
-reward = 1  ⟺  |f2p| > 0  ∧  每条 f2p 都过  ∧  没有一条 p2p 挂
-```
-
-补丁打不上就写 `apply_failed=1` 并且**不跑测试** —— 那是第零段。G 就照这个分:
+Official grading formula:
 
 ```
-applies ──→ resolved            根 = resolved
+reward = 1  ⟺  |f2p| > 0  ∧  every f2p passes  ∧  no p2p fails
 ```
 
-根**必须有入边**(`objective/spec.ts`:没有的话它的值跟候选无关,G 恒定,是无效目标)。一次判卷出一份 `reward.json` + 一份 `ctrf.json`,两格读同一份,按补丁的 sha256 认缓存。
+If the patch does not apply, write `apply_failed=1` and **skip tests**: that is stage zero. G follows this split:
 
-### 交的是提交 sha
+```
+applies ──→ resolved            root = resolved
+```
 
-官方的收集钩子取的是 `git diff --binary <base> HEAD`,**带二进制 hunk** —— 让模型把它从工具调用里吐出来既贵又不可靠。所以交上来的是它自己那个提交的 sha,台子拿它去容器里跑同一条命令,只把 `HEAD` 换成那个 sha。
+The root **must have an incoming edge** (`objective/spec.ts`: otherwise its value is candidate-independent, G is constant, and the objective is invalid). One grading run produces `reward.json` + `ctrf.json`; both nodes read the same result, cached by patch SHA256.
 
-sha 不可变,而且只指一棵树 —— `verify` 回执里 `graded` 回显的就是它。
+### Submit a commit SHA
 
-## 五、跑一趟
+The official collection hook uses `git diff --binary <base> HEAD`, **including binary hunks**. Making the model reproduce this from tool output is costly and unreliable. Submit its commit SHA instead; the service runs the same command inside the container, replacing only `HEAD` with that SHA.
+
+A SHA is immutable and identifies one tree. `graded` in the `verify` receipt echoes it.
+
+## 5. Run a batch
 
 ```bash
-bash examples/benchmark/deepswe/run.sh [几道] [这一跑叫什么] [种子]
+bash examples/benchmark/deepswe/run.sh [count] [run-name] [seed]
 ```
 
-点名是确定的:同一个 `(n, seed)` 永远是同一批,复现靠这两个数。
+Selection is deterministic: the same `(n, seed)` always selects the same batch. These two numbers reproduce the selection.
 
 ```bash
 curl -s "$STAND/problems?n=10&seed=0" | grep -o '"id":"[^"]*"'
 ```
 
-成绩单:
+Scorecard:
 
 ```bash
 curl -s http://127.0.0.1:7801/api/bench/dsw-l2
 ```
 
-## 台子自检
+## Service self-test
 
-判据装没装对,不靠读文档,靠跑:
+Verify the grader installation by execution:
 
 ```bash
 python3 stand.py --selftest abs-module-cache-flags adaptix-name-mapping-aliases \
@@ -255,9 +255,9 @@ python3 stand.py --selftest abs-module-cache-flags adaptix-name-mapping-aliases 
                             csstree-shorthand-expansion-compression
 ```
 
-五种语言各一道,参考解喂回去全判 1,空补丁全判 0。顺带量到的墙上时间:
+One task per language: every reference solution scores 1, and every empty patch scores 0. Measured wall times:
 
-| 题 | 语言 | f2p / p2p | 镜像 | 空补丁 | 参考解 |
+| Task | Language | f2p / p2p | Image | Empty patch | Reference solution |
 | --- | --- | --- | --- | --- | --- |
 | abs-module-cache-flags | go | 20 / 3 | 3.90 GB | 14s | 14s |
 | adaptix-name-mapping-aliases | python | 44 / 2738 | 3.71 GB | 19s | 29s |
@@ -265,21 +265,21 @@ python3 stand.py --selftest abs-module-cache-flags adaptix-name-mapping-aliases 
 | boa-hierarchical-evaluation-cancellation | rust | 17 / 7 | 9.92 GB | 12s | 97s |
 | csstree-shorthand-expansion-compression | javascript | 79 / 16715 | 3.72 GB | 3s | 4s |
 
-判一次的代价跟测试条数几乎无关(16715 条判完 4 秒,7 条判完 97 秒),贵的是**编译一棵被改过的树**。
+Grading cost is almost unrelated to test count (16715 tests in 4 seconds versus 7 tests in 97 seconds); the expensive step is **compiling a modified tree**.
 
-容器冷启(起容器 + 送运行时 + MCP 握手)1.5 秒。
+Container cold start (startup + runtime transfer + MCP handshake) takes 1.5 seconds.
 
-## 我们的基线
+## Our baseline
 
-还没跑。这一节等第一趟出来再写:怎么跑的、分数、关键分解、数据在哪。
+Not run yet. After the first run, document the configuration, score, key breakdowns, and data location here.
 
-## 文件
+## Files
 
 ```
-setup.sh     备料：语料、运行时、镜像、自检。幂等
-stand.py     台子：三条句柄（位置 + G 两格）。跑在 WSL 里，手上有 docker
-send.ts      把题拼成一批带 G 的任务发出去
-run.sh       跑一趟：声明 → 关工具 → 发批 → 等 → 成绩单
+setup.sh     Idempotent corpus, runtime, image, and self-test setup.
+stand.py     Service: three handles (place + two G nodes), running in WSL with Docker.
+send.ts      Assemble tasks with G and submit a batch.
+run.sh       Declare → disable tools → submit batch → wait → scorecard.
 ```
 
-语料、参考解、镜像、判卷日志都在 `$HOME/.cache/tgengin-deepswe/`(WSL 家目录),不进仓库。
+The corpus, reference solutions, images, and grading logs stay under `$HOME/.cache/tgengin-deepswe/` (WSL home), outside the repository.

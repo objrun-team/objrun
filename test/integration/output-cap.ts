@@ -1,30 +1,32 @@
 /**
- * 一次工具调用能往回带多少，以及**到点了是不是真停下了**。
+ * Bound the output of one tool call and verify **that work actually stops at its deadline**.
  *
  * ```
  * bun test/integration/output-cap.ts
  * ```
  *
- * ## 为什么单独写一个
+ * ## Why a separate test?
  *
- * `read` 一直有上限，`bash` 没有。实测撞到的样子：模型在一个 TypeScript 仓库里
- * `grep` 了一遍，扫进了 `node_modules`，那一次返回 **3909459 字节**。那条落进上下文
- * 之后这道题再也发不出去 ——
+ * `read` always had an output limit; `bash` did not. In a real TypeScript repository,
+ * a model's `grep` entered `node_modules` and returned **3909459 bytes**. Once that
+ * result entered the context, the task could never send another request:
  *
  * ```
  * This model's maximum context length is 1048576 tokens.
  * However, you requested 1443851 tokens (1427467 in the messages, 16384 in the completion).
  * ```
  *
- * 一趟 112 道里，前 25 道就有 7 道一次调用超过 100 KB，两道超过 3.5 MB。
+ * In a 112-task run, 7 of the first 25 tasks had a call exceeding 100 KB, and two exceeded 3.5 MB.
  *
- * ## 期限得有人去停
+ * ## A deadline must actively stop execution
  *
- * 后来又撞到另一半：`sh` 超时那一下调的是 `p.kill()`，杀的是那个 shell，**不是进程组**。
- * `sh -c 'grep -r … /'` 起的 `grep` 是 shell 的子进程，shell 一死它被 init 收养接着跑。
- * 实测六个容器各占一整个核，最久的一条烧了 50 分钟 —— 而工具那边早就交回「超时」了。
+ * Another failure affected timeout handling: `sh` called `p.kill()`, killing the shell,
+ * **not the process group**. A `grep` child spawned by `sh -c 'grep -r … /'` was adopted
+ * by init and kept running after the shell died. Six containers each consumed a full
+ * core, one for 50 minutes, even though the tool had already reported a timeout.
  *
- * 所以这儿验的不是「回没回话」，是**那条命令是不是真的不干活了**。
+ * This test therefore checks **whether the command has actually stopped working**,
+ * not merely whether the caller received a response.
  */
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, statSync } from "node:fs";
@@ -41,7 +43,7 @@ const small = await sh(`node -e "console.log('hello')"`, undefined, 30_000);
 ok("byte for byte", small.stdout === "hello\n", small);
 
 step("2. a huge one is cut down");
-// 两百万行，两兆多。
+// Two million lines, totaling more than two megabytes.
 const big = await sh(`node -e "for(let i=0;i<200000;i++)console.log('line '+i)"`, undefined, 120_000);
 const bytes = Buffer.byteLength(big.stdout, "utf8");
 show("what came back:", `${String(bytes)} bytes`);
@@ -62,13 +64,13 @@ show("what came back on stderr:", `${String(eb)} bytes`);
 ok("under the same cap", eb < SH_MAX_BYTES + 200, eb);
 ok("and its two ends are there too", err.stderr.startsWith("e 0\n") && err.stderr.trimEnd().endsWith("e 199999"), err.stderr.slice(-30));
 
-// ── 到点了是真停，不是只回话 ────────────────────────────────────────────────
+// -- Timeout must stop execution, not merely return a response ----------------
 const dir = mkdtempSync(join(tmpdir(), "tgengin-cap-"));
 const beat = join(dir, "beat.txt").replace(/\\/g, "/");
 
 step("5. a command that outlives its timeout is actually gone");
-// 一条**起了个孩子**的命令：孩子每 100ms 往文件里写一笔。超时杀的要是只有 shell，
-// 孩子会接着写 —— 那正是实测里烧掉六个核的形状。
+// A command **with a child process**: the child writes to a file every 100 ms. Killing only the shell
+// lets the child continue writing, reproducing the failure that consumed six cores.
 const child = `node -e "setInterval(()=>require('fs').appendFileSync('${beat}','.'),100)"`;
 const t0 = Date.now();
 const timed = await sh(child, undefined, 1_500);
@@ -81,9 +83,9 @@ const later = statSync(beat).size;
 show("beats written by the time it returned / 1.5s later:", `${String(at)} / ${String(later)}`);
 ok("the work stopped too - nothing was written after it returned", later === at, { at, later });
 
-// ── 搜索那两件：一个池子，装满就中断 ────────────────────────────────────────
+// -- Both search tools share a bounded pool and stop when it is full ----------
 step("6. grep fills a pool and cuts off");
-// 一百个文件，每个两百行全是命中 —— 两万条，池子远装不下。
+// One hundred files with two hundred matching lines each: twenty thousand matches, far beyond the pool capacity.
 for (let f = 0; f < 100; f++) {
   writeFileSync(join(dir, `f${String(f)}.txt`), Array.from({ length: 200 }, (_, i) => `hit ${String(f)}-${String(i)} xyzzy`).join("\n"));
 }
@@ -101,7 +103,7 @@ show("paths / bytes:", `${String(gl.files.length)} / ${String(glBytes)}`);
 ok("under the pool", glBytes <= TOOL_POOL_BYTES, glBytes);
 ok("every path it returned is a real one", gl.files.every((f) => statSync(f).isFile()), gl.files[0]);
 
-// ── read：不截断，先算，太大就整个拒 ────────────────────────────────────────
+// -- read: calculate size first and reject oversized output rather than truncate
 step("8. read returns a small file whole");
 const smallFile = join(dir, "small.txt");
 writeFileSync(smallFile, "one\ntwo\nthree\n");

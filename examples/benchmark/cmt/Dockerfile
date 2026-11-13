@@ -1,21 +1,19 @@
-# 判卷台连题库一起打包。**oracle 不出这个镜像。**
+# Package the grading service and corpus together. **The oracle stays inside this image.**
 #
 #   docker build -t tgengin-cmt-grader examples/benchmark/cmt
 #   docker run --rm -p 127.0.0.1:7901:7901 tgengin-cmt-grader
 #
-# 引擎那边一个字不用改 —— 它只认 `http://127.0.0.1:7901/{parsed,equiv}` 这两个名字，
-# 后面是 WSL 里的一个 venv 还是一个容器，跟它无关。
+# The engine needs no changes: it only knows `http://127.0.0.1:7901/{parsed,equiv}` and does not care whether a WSL venv or a container serves them.
 #
-# 构建要联网：题库从 HuggingFace 拉，官方判据从 GitHub 拉，**两样都钉死版本**
-# —— 判据版本一飘，分数跟论文那张表就不可比了。
+# Building requires network access: fetch the corpus from HuggingFace and the official grader from GitHub, **pinning both versions**. Grader drift makes scores incomparable with the paper's table.
 FROM python:3.12-slim
 
-# 官方判据钉在这个 commit。setup.sh 那条路（WSL venv）拉的也是它。
+# Pin the official grader to this commit, also used by the WSL-venv path in setup.sh.
 ARG HARNESS_REF=c114183
 ARG HARNESS_URL=https://github.com/JamesRoggeveen/cmt_benchmark_data/archive
 ARG DATA_URL=https://huggingface.co/datasets/JVRoggeveen/cmt_benchmark/resolve/main/cmt_data.jsonl
 
-# `ARG` 在 `RUN` 里读不到，得转成 `ENV` —— 顺带镜像自己也就记下了它是从哪个版本建的。
+# Convert `ARG` to `ENV` for the value read by `RUN`; the image also records the version from which it was built.
 ENV TGENGIN_CMT_HOME=/oracle \
     TGENGIN_CMT_PORT=7901 \
     PYTHONUNBUFFERED=1 \
@@ -23,12 +21,9 @@ ENV TGENGIN_CMT_HOME=/oracle \
     HARNESS_URL=${HARNESS_URL} \
     DATA_URL=${DATA_URL}
 
-# **不装 apt 包。** 拉两个文件而已，python 自带 urllib 和 tarfile 就够了 ——
-# 装 git/curl 要走 deb.debian.org 的明文 HTTP，在代理后面容易 502（实测卡在这儿），
-# 而且它们会留在镜像里：这是个放着答案的容器，能少一样是一样。
+# **Install no apt packages.** Python's urllib and tarfile suffice to download two files. Installing git/curl uses plain HTTP to deb.debian.org, which produced 502 errors behind the proxy in practice. They would also remain in this answer-bearing image, where fewer tools are preferable.
 #
-# 只装判卷那条路要的三个。官方 pyproject 还列着 openai / anthropic / google-genai /
-# datasets / matplotlib —— 那是它「拿模型跑一遍」和「画图」那半边要的。版本照抄官方 pin。
+# Install only the three grading dependencies. Official pyproject also lists openai/anthropic/google-genai/datasets/matplotlib for model runs and plotting. Copy the official dependency pins.
 RUN pip install --no-cache-dir "sympy==1.13.3" "numpy==2.2.5" "regex==2024.11.6"
 
 WORKDIR /oracle
@@ -41,32 +36,32 @@ def get(url):
     with urllib.request.urlopen(url, timeout=120) as r:
         return r.read()
 
-# 官方判据：拿 tarball，不用 git —— 顺带也就没有 .git 留在镜像里。
+# Download the official grader as a tarball rather than using git; this also keeps .git out of the image.
 raw = get(f"{base}/{ref}.tar.gz")
 with tarfile.open(fileobj=io.BytesIO(raw), mode="r:gz") as tf:
     root = tf.getnames()[0].split("/")[0]
     tf.extractall("/oracle/vendor", filter="data")
 os.rename(f"/oracle/vendor/{root}", "/oracle/vendor/cmt_benchmark_data")
-assert pathlib.Path("/oracle/vendor/cmt_benchmark_data/src/cmtbench/evaluator.py").exists(), "官方判据没解出来"
-print(f"判据 {ref} 解好了")
+assert pathlib.Path("/oracle/vendor/cmt_benchmark_data/src/cmtbench/evaluator.py").exists(), "Official grader was not extracted"
+print(f"Extracted grader {ref}")
 
-# 题库
+# Problem corpus.
 book = get(data)
 pathlib.Path("/oracle/cmt_data.jsonl").write_bytes(book)
 n = sum(1 for line in book.splitlines() if line.strip())
-assert n == 50, f"题库该是 50 行，拿到 {n} 行"
-print(f"题库 {n} 行")
+assert n == 50, f"Expected 50 dataset rows; got {n}"
+print(f"Dataset: {n} rows")
 PY
 
-# grader.py 单独一层：改它不用重拉题库和判据。
+# Keep grader.py in its own layer, so edits do not redownload the corpus and official grader.
 COPY grader.py /app/grader.py
 WORKDIR /app
 
-# 构建时就把判据验一遍：拿题库自己的 GT 当回答喂回去，官方判据该说 5/5 等价。
-# 装错了在这儿就炸，不会等到跑 bench 才发现。
+# Validate the grader during the build: feeding back corpus GT must yield 5/5 equivalent answers under the official criterion.
+# An invalid installation fails here, before the benchmark run.
 RUN python grader.py --selftest
 
-# 判卷台不需要写任何东西，也不需要 root。
+# The grading service needs neither file writes nor root privileges.
 RUN useradd -u 10001 -m grader && chown -R grader /oracle /app
 USER grader
 

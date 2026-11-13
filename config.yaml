@@ -1,18 +1,18 @@
-# H2H —— 一台本地 SQLite 服务。
+# H2H: a local SQLite service.
 #
-# **这台机器的全部配置都在这一个文件里**，代码里不留第二处默认值可改。
-# 路径一律相对这个文件所在的目录（H2H/），不是相对进程的 cwd ——
-# 相对 cwd 的话，从别的地方启动就会去开另一个库，而它不报错，
-# 只是那台机器看起来「什么都没有」。
+# **All configuration for this instance lives in this file**; there is no second set of editable defaults in code.
+# Paths resolve relative to the directory containing this file (H2H/), not the process cwd.
+# Resolving against cwd could silently open a different database when launched elsewhere,
+# making the instance appear empty without reporting an error.
 #
-# 值里可以写 ${VAR}，从环境变量取（仓库根的 .env 会先装进来）。
+# Values may use ${VAR} to read environment variables; the root .env is loaded first.
 
 server:
   host: 127.0.0.1
   port: 7801
-  # 请求体上限，字节。
+  # Maximum request-body size, in bytes.
   bodyLimit: 1048576
-  # 收到 Ctrl-C 之后，最多等在途请求多久（毫秒）。
+  # Maximum wait for in-flight requests after Ctrl-C, in milliseconds.
   shutdownTimeout: 5000
 
 log:
@@ -20,14 +20,14 @@ log:
   level: info
 
 db:
-  # 库文件。目录不在就建 —— 不建的话 SQLite 报的是
-  # 「unable to open database file」，那句话看不出是目录缺了。
+  # Database file. Create its directory if missing; otherwise SQLite reports
+  # "unable to open database file", which does not identify the missing directory.
   file: ./data/h2h.sqlite
-  # 验证函数 G 的封存区。**单独一个库文件，H2H 不开它** —— 主库是全接口开放的，
-  # G 存主库等于没有墙。红线是「不许直接读到 G 的定义」，靠的是够不着，不是规定不许。
+  # Sealed storage for objective G: **a separate database file that H2H does not open**. The main database exposes its full API,
+  # so storing G there would remove the boundary. Direct access to G must be structurally impossible, not merely forbidden.
   sealed: ./data/sealed.sqlite
 
-  # 开机按顺序执行的 PRAGMA。
+  # PRAGMAs executed in this order at startup.
   pragmas:
     journal_mode: WAL
     synchronous: NORMAL
@@ -35,58 +35,58 @@ db:
     busy_timeout: 5000
 
 api:
-  # 所有接口挂在这个前缀下。
+  # All API routes use this prefix.
   prefix: /api
-  # 令牌。留空 = 不校验（本地默认）。要校验就写 ${H2H_TOKEN}，
-  # 值放进仓库根的 .env，客户端发 Authorization: Bearer <token>。
+  # Token. Empty disables authentication (the local default). To enable it, use ${H2H_TOKEN},
+  # put the value in the root .env, and send Authorization: Bearer <token> from the client.
   token:
-  # 允许发原始 SQL 查（POST /query）。走一条独立的**只读连接**，
-  # 写不进去 —— 这是连接层面的保证，不是靠认关键字。
+  # Allow raw SQL queries (POST /query) through a separate **read-only connection**.
+  # Writes cannot succeed: this is enforced by the connection, not by recognizing SQL keywords.
   allowQuery: true
-  # 允许写（POST /exec、POST /tables/:table/rows）。只听 127.0.0.1，本地开着；
-  # 要是把 server.host 改成对外的地址，先把这条关掉，或者配上 api.token。
+  # Allow writes (POST /exec and POST /tables/:table/rows). Enabled locally while listening on 127.0.0.1.
+  # Before exposing server.host externally, disable writes or configure api.token.
   allowWrite: true
-  # 一次最多返回多少行。请求要更多也按这个截。
+  # Maximum rows per response. Larger requested limits are capped at this value.
   maxRows: 500
-  # 请求没带 limit 时返回多少行。
+  # Rows returned when a request does not specify limit.
   defaultLimit: 100
 
 llm:
-  # **一次调用**最多生成多少 token。不是一个执行单元的上限 —— 截断了会续写，见下。
+  # Maximum generated tokens per **model call**, not per execution unit: truncated calls can continue below.
   maxTokens: 16384
-  # 一次调用炸了之后最多重打几次。0 = 不重打。
+  # Maximum retries after a failed call. 0 disables retries.
   #
-  # 跟 SDK 自己那层重试不是一回事：它管的是 HTTP 层（连不上、5xx、429），管不了
-  # 「200 回来了但读不懂」那种（`Failed to process successful response`）。而炸在那儿
-  # 之后内核按设计不重试（醒了就是原地热循环），那一站只能挂着等 expect_ms ——
-  # 一次偶发抖动烧掉 15 分钟。
+  # This differs from SDK retries, which handle HTTP failures (connection errors, 5xx, 429),
+  # but not an unreadable successful response (`Failed to process successful response`).
+  # The kernel intentionally does not retry such a failed unit: waking it would create a hot loop.
+  # It must then wait for expect_ms, allowing one transient failure to consume 15 minutes.
   #
-  # 每重打一次多等 5 秒（5 / 10 / 15…）：抖动多半自己会过去，等一等比立刻再打有用。
+  # Each retry adds a 5-second delay (5 / 10 / 15...); transient failures often resolve while waiting.
   retryTimes: 3
-  # 截断之后最多再续几次。0 = 不续。
+  # Maximum continuations after truncation. 0 disables continuation.
   #
-  # 为什么要这一档：思考型模型的输出预算是**思考和可见文本共用**的，一刀切的大额度
-  # 只会让它把预算全花在思考上，最后可见文本是空的（实测 19 条答复里 12 条全空，
-  # 三道题因此一个字都没答）。改成「每次少给一点，没说完就接着说」——
-  # 模型「没答」和「没答完」是两回事，前者该判错，后者该给它说完。
+  # Reasoning models share their output budget between **reasoning and visible text**.
+  # One large budget can be spent entirely on reasoning, leaving no visible answer (12 of 19 observed responses were empty,
+  # so three tasks received no answer). Instead, allocate smaller calls and continue unfinished output.
+  # No answer and an unfinished answer differ: the former should fail; the latter should be allowed to finish.
   continueTimes: 3
-  # 思考强度。**原样发给那家** —— 认不认得是那家的事，我们不替它猜。
+  # Reasoning effort. **Pass this value to the provider unchanged**; support is the provider's responsibility.
   #
-  # 合法的七档，是拿一个非法值问出来的（那一端会把合法值列全）：
+  # These seven supported values were obtained by sending an invalid value; the endpoint lists valid choices:
   #
   #     none · minimal · low · medium · high · xhigh · max
   #
-  # 实测（`deepseek-v4-flash`，同一道物理题）：`none` 14.5 秒、一点不想；`minimal`
-  # 113 秒、想 10,653 个 token；`low` 124 秒、想 12,057。**`minimal` 跟 `low` 只差
-  # 一成，不是一档能省事的旋钮 —— `none` 才是断崖。**
+  # Observed for `deepseek-v4-flash` on the same physics problem: `none` took 14.5 seconds without reasoning; `minimal`
+  # took 113 seconds and 10,653 reasoning tokens; `low` took 124 seconds and 12,057. **`minimal` differs from `low` by only
+  # about 10%; it is not a substantial cost reduction. `none` is the sharp reduction.**
   #
-  # **它跟 `cycle.must_call` 互斥**：只要在思考，`tool_choice` 一律 400
-  # （`Thinking mode does not support this tool_choice`），指名和 `required` 一视同仁，
-  # 只有 `auto` 放行。这道坎由适配器兜着 —— 钉死了工具的站（比如交卷）它自己把这一档
-  # 换成 `none` 再发，这儿不用为那几站迁就。
+  # **Incompatible with `cycle.must_call`**: while reasoning is enabled, forced `tool_choice` values return HTTP 400
+  # (`Thinking mode does not support this tool_choice`), for both named tools and `required`.
+  # Only `auto` is accepted. The adapter handles this: a unit with a required tool, such as submission,
+  # sets reasoning to `none` before sending. The global setting need not accommodate those units.
   #
-  # 单个智能体可以钉死自己的那一档（`agent.knobs`），不受这一行影响：一个「去查、
-  # 把查到的说清楚」的智能体不需要思考，而它服务的求解者要想得越多越好。
+  # An agent can override this setting through `agent.knobs`: an agent that retrieves information
+  # and explains its findings may not need reasoning, while the solver it serves may benefit from as much reasoning as possible.
   reasoningEffort: medium
   # Sampling temperature. **0 for a benchmark**: without it there is no telling how
   # much of a score change came from an edit and how much from sampling noise.
@@ -96,5 +96,5 @@ llm:
 
 cors:
   enabled: true
-  # "*" 或者一串来源，如 ["http://127.0.0.1:5173"]
+  # "*" or a list of origins, such as ["http://127.0.0.1:5173"]
   origin: "*"

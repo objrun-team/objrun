@@ -1,30 +1,24 @@
 /**
- * SkillsBench 1.1 的 G。**一份定义，发批和续跑都读它。**
+ * G for SkillsBench 1.1. **Batch launch and resume share one definition.**
  *
- * 两个节点，句柄名就是台子的地址：
+ * Two nodes, whose handles are the service addresses:
  *
  * ```
- *   verified ──→ passed      verified：官方 verifier/test.sh 跑完、写出了 reward.txt
- *                            passed  ：reward == 1.0（根）
+ *   verified ──→ passed      verified: official verifier/test.sh completed and wrote reward.txt
+ *                           passed: reward == 1.0 (root)
  * ```
  *
- * 根**必须有入边** —— 没有的话它的值跟候选无关，G 恒定，发布那一关就拒（`objective/spec.ts`）。
+ * The root **must have an incoming edge**; otherwise its value is independent of the candidate, making G constant, and publication rejects it (`objective/spec.ts`).
  *
- * 这两格正好是官方 harness 自己的两步：跑 `test.sh`，读 `/logs/verifier/reward.txt`。
- * 文件没写出来（崩了、超时、OOM）和写了个 0 在榜上都是 0，但对求解器是两种信息 ——
- * 前者多半是环境不是答案。我们没另立尺子，只是把官方那把拆开两段读。
+ * These nodes are exactly the official harness’s two steps: run `test.sh`, then read `/logs/verifier/reward.txt`. A missing file (crash, timeout, OOM) and a written 0 both score 0 on the leaderboard, but convey different information to a solver: the former is usually an environment issue, not an answer issue. We introduce no new criterion, only read the official one in two stages.
  *
- * **判据是二值的。** 论文：reward = 1 当且仅当 test_outputs.py 的断言全过。7 道题的
- * test.sh 写的是分数（47/48 = 0.979），榜单 `mean(reward)` 给部分分，这儿只认 1.0 ——
- * 跟论文一致，跟榜单在那 7 道上差一点（更严）。分数进 `note`，事后要算榜单口径能算。
+ * **The criterion is binary.** The paper defines reward = 1 iff every test_outputs.py assertion passes. Seven tasks’ test.sh scripts write fractional rewards (47/48 = 0.979); leaderboard `mean(reward)` grants partial credit, but this service accepts only 1.0. This matches the paper and is slightly stricter than the leaderboard on those seven tasks. Store the fractional reward in `note` so the leaderboard metric can be calculated afterward.
  */
 
 /**
- * **一轮里能问几次这个盒子。**
+ * **How often the box may be queried in one round.**
  *
- * 一次判卷是一趟 pytest（几十秒到几分钟；官方给判卷的上限 `verifier.timeout_sec`
- * 中位 1800 秒）。所以这个数不是成本问题，是意义问题：给 6，够「做一版 → 验一次 →
- * 照着 note 改 → 再验」来回三趟，不够穷举 —— 何况产物是整个文件，穷举无从谈起。
+ * One grading call runs pytest (tens of seconds to minutes; the official `verifier.timeout_sec` median is 1800 seconds). This limit concerns meaning, not cost: allow 6, enough for three cycles of creating a version → verifying → revising from note → verifying again, but not exhaustive search. The artifact is a whole file, so enumeration is not practical anyway.
  */
 export const CHECKS = Number(process.env.TGENGIN_SKB_CHECKS ?? 6);
 

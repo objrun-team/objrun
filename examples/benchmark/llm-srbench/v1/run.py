@@ -30,7 +30,7 @@ def status():
     with LOCK:
         rr=all_results();STATE['updatedAtUtc']=utc();STATE['completed']=len(rr);STATE['arms']={a:{'completed':sum(r['arm']==a for r in rr),'valid':sum(r['arm']==a and r['valid'] for r in rr)} for a in ARMS};STATE.update(accounting(OUT/'tasks'))
         save(OUT/'status.json',STATE)
-        (OUT/'RUNNING.md').write_text('# LLM-SRBench 发布版 240 题\n\n阶段：'+STATE['stage']+'\n\n'+json.dumps({k:STATE[k] for k in ['pid','completed','arms','actualCostUsd','unknownCostCount','stopReason']},ensure_ascii=False,indent=2)+'\n\n服务器 novaeve；入口 package/run.py。四组共960条记录，10题四组技术试跑通过后自动继续。ID/OOD在全部候选冻结后评分。\n')
+        (OUT/'RUNNING.md').write_text('# LLM-SRBench release: 240 tasks\n\nStage: '+STATE['stage']+'\n\n'+json.dumps({k:STATE[k] for k in ['pid','completed','arms','actualCostUsd','unknownCostCount','stopReason']},ensure_ascii=False,indent=2)+'\n\nServer: novaeve; entry: package/run.py. Four arms, 960 records; automatically continue after the 10-task, four-arm technical pilot passes. ID/OOD grading follows freezing of all candidates.\n')
 class Gateway:
     def __init__(self,task,arm,directory):
         self.task=task;self.arm=arm;self.d=directory;self.events=[];self.error=None;self.counter=0;self.guard=threading.RLock();self.pending={}

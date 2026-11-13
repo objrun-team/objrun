@@ -1,69 +1,69 @@
 # cmtbench
 
-[← 例子](../../) ｜ [tool](../../tool/) · [meet-join](../../meet-join/) · [meet-book](../../meet-book/) · [place](../../place/) · [rule](../../rule/) · [skill](../../skill/) · [mode](../../mode/) · **cmtbench**
+[← Examples](../../) ｜ [tool](../../tool/) · [meet-join](../../meet-join/) · [meet-book](../../meet-book/) · [place](../../place/) · [rule](../../rule/) · [skill](../../skill/) · [mode](../../mode/) · **cmtbench**
 
-[CMT-Benchmark](https://arxiv.org/abs/2510.05228)：50 道凝聚态理论的研究级题目。
-这个例子把它整批发进引擎，判卷用官方那套（LaTeX→Sympy），出一张成绩单。
-最后一节是我们跑出来的基线。
+[CMT-Benchmark](https://arxiv.org/abs/2510.05228): 50 research-level condensed-matter theory problems.
+This example sends the entire batch to the engine, grades with the official LaTeX→Sympy pipeline, and produces a scorecard.
+The final section records our measured baseline.
 
 ```
-                         Windows                          WSL
-   ┌──────────────────────────────────────┐   ┌────────────────────────┐
-   │  引擎 tgengin-win-x64.exe            │   │  判卷台 grader.py      │
-   │    place=local ← 智能体在这儿解题    │──▶│    官方 cmtbench 判据  │
-   │    G 的两个节点 = 两条 http 句柄     │   │    题库 cmt_data.jsonl │
-   └──────────────────────────────────────┘   └────────────────────────┘
+Windows                                      WSL
+┌────────────────────────────────────────┐   ┌──────────────────────────────────────────────────┐
+│ Engine tgengin-win-x64.exe             │   │ Grading service: grader.py                       │
+│ place=local: agent solves here         │──▶│ Official cmtbench grader                         │
+│ Two G nodes = two HTTP handles         │   │ Dataset: cmt_data.jsonl                          │
+└────────────────────────────────────────┘   └──────────────────────────────────────────────────┘
 ```
 
-判卷台在 WSL，只是因为官方评分代码要 Python ≥3.12。Windows 上有真 Python 的话原地
-就能跑，引擎一个字不用改 —— 它只认那两个 URL。
+The grading service runs in WSL only because the official grader requires Python ≥3.12. With a full Python installation on Windows,
+it can run there directly without any engine changes: the engine knows only the two URLs.
 
-**题库带标准答案，所以它只在判卷台那一侧**（WSL 家目录或容器里），不在这个目录、
-也不在仓库里。发题的脚本一样读不到，题走 HTTP 取。
+**The dataset contains reference answers, so it stays on the grading-service side** (the WSL home directory or a container),
+outside this directory and repository. The submission script cannot read it either; it fetches problems over HTTP.
 
 ---
 
-## 一、备料
+## 1. Setup
 
 ```bash
 ssh wsl "bash /mnt/e/sgu-bzhc/EACN_EX/TgEngin/examples/benchmark/cmt/setup.sh"
 ```
 
-`ssh wsl` 不通就换 `wsl.exe -d Ubuntu-24.04 -- bash -lc "..."`，等价。
+If `ssh wsl` is unavailable, use the equivalent `wsl.exe -d Ubuntu-24.04 -- bash -lc "..."`.
 
-[`setup.sh`](./setup.sh) 幂等，三样都落在 `~/.cache/tgengin-cmt/`：
+[`setup.sh`](./setup.sh) is idempotent and installs all three components under `~/.cache/tgengin-cmt/`:
 
-| 落在哪儿 | 从哪儿来 |
+| Location | Source |
 | --- | --- |
-| `cmt_data.jsonl` | HuggingFace `JVRoggeveen/cmt_benchmark`，50 行 |
-| `vendor/cmt_benchmark_data/` | GitHub `JamesRoggeveen/cmt_benchmark_data`，钉在 `c114183` |
+| `cmt_data.jsonl` | HuggingFace `JVRoggeveen/cmt_benchmark`, 50 rows |
+| `vendor/cmt_benchmark_data/` | GitHub `JamesRoggeveen/cmt_benchmark_data`, pinned to `c114183` |
 | `venv` | sympy 1.13.3 / numpy 2.2.5 / regex 2024.11.6 |
 
 ```
-── 自检：官方判据能不能加载、判得对不对 ──
-  √ cmt-0（HF）parsed=True equiv=True
+── Self-test: can the official grader load and grade correctly? ──
+  √ cmt-0 (HF)parsed=True equiv=True
   ...
-  拿 GT 当回答：5 道里 5 道判等价
+  Ground truth submitted as answers: 5 of 5 graded equivalent
 ```
 
-版本照抄官方 pin：自己搓一套 LaTeX 归一的话，分数跟论文那张表就不可比。只装那三个包
-—— 官方 `pyproject.toml` 里的 openai / anthropic / google-genai / datasets / matplotlib
-是它「拿模型跑一遍」和「画图」那半边要的，判卷用不上。
+Follow the official version pins: custom LaTeX normalization would make scores incomparable with the paper’s table. Install only those three packages;
+the official `pyproject.toml` also lists openai / anthropic / google-genai / datasets / matplotlib
+for model execution and plotting, which grading does not need.
 
-## 二、判卷台
+## 2. Grading service
 
 ```bash
 ssh wsl "cd /mnt/e/sgu-bzhc/EACN_EX/TgEngin/examples/benchmark/cmt \
          && ~/.cache/tgengin-cmt/venv/bin/python grader.py"
 ```
 ```
-[cmt] 判卷台起来了：http://0.0.0.0:7901/{parsed,equiv}｜题库 50 道
+[cmt] Grading service ready: http://0.0.0.0:7901/{parsed,equiv} | 50 tasks
 ```
 
-[`grader.py`](./grader.py) 不实现任何判断：接 HTTP、按官方 `scripts/evaluate.py` 那套
-分支挑 evaluator、把结果缓存住。回的是官方那两栏 `success` / `is_equivalent`。
+[`grader.py`](./grader.py) implements no grading decisions: it receives HTTP, selects evaluators using the same branches
+as official `scripts/evaluate.py`, and caches results. It returns the official `success` / `is_equivalent` fields.
 
-**从 Windows 那侧验**（引擎走的就是这条路）：
+**Check from Windows**, using the same route as the engine:
 
 ```bash
 curl -s http://127.0.0.1:7901/health
@@ -73,46 +73,46 @@ curl -s 'http://127.0.0.1:7901/problems?n=1'
 ```
 ```
 {"ok": true, "items": 50}
-  U_1/2 → parsed=true equiv=true      （cmt-0 的 GT 就是 U_1/2）
+  U_1/2 → parsed=true equiv=true      (cmt-0 ground truth is U_1/2)
 [{"index":0,"prompt":"Consider a spinful electron system…","parameters":"$U_0;U_1$","functions":"","type":"HF"}]
 ```
 
-`/problems` **没有 `solution` 这一栏** —— 答案不出这个进程。
+`/problems` **has no `solution` field**: answers never leave this process.
 
-### 换成容器（题库和判据一起打包进去）
+### Container alternative (bundle the dataset and grader)
 
 ```bash
 docker compose -f examples/benchmark/cmt/compose.yaml up -d --build
 ```
 
-[`Dockerfile`](./Dockerfile) 把题库、官方判据、三个 python 包和 `grader.py` 封进镜像，
-构建时跑一遍 `--selftest`（该 5/5）。引擎一个字不用改，它只认那两个 URL。
+[`Dockerfile`](./Dockerfile) packages the dataset, official grader, three Python packages, and `grader.py` into an image,
+running `--selftest` during the build (expected 5/5). The engine remains unchanged and knows only the two URLs.
 
-`compose.yaml` 里 `127.0.0.1:7901:7901` 的 `127.0.0.1:` 别去掉 —— 不写的话这个口会
-发布到所有网卡。
+Keep the `127.0.0.1:` prefix in `compose.yaml`’s `127.0.0.1:7901:7901`; removing it publishes
+the port on every network interface.
 
-在 WSL 的 snap docker 上有三条要注意：
+Three points for snap Docker in WSL:
 
 ```bash
-# 一、snap 是严格 confinement，只读得到 $HOME：构建上下文得先拷进家目录
+# 1. Strict snap confinement allows reads only under $HOME: copy the build context there first.
 mkdir -p ~/build && cp Dockerfile grader.py ~/build/ && cd ~/build && docker build .
 
-# 二、dockerd 是 systemd 服务，拿不到 shell 里的代理（拉基础镜像是它自己发的请求）
+# 2. dockerd is a systemd service and cannot inherit shell proxy settings; it fetches base images itself.
 sudo mkdir -p /etc/systemd/system/snap.docker.dockerd.service.d
 printf '[Service]\nEnvironment="HTTP_PROXY=http://%s:7890"\nEnvironment="HTTPS_PROXY=http://%s:7890"\nEnvironment="NO_PROXY=localhost,127.0.0.1,::1"\n' \
   "$(ip route show default | awk '{print $3}')" "$(ip route show default | awk '{print $3}')" \
   | sudo tee /etc/systemd/system/snap.docker.dockerd.service.d/proxy.conf
 sudo systemctl daemon-reload && sudo snap restart docker
-docker info | grep -i proxy      # 出现 HTTP Proxy: 那行才算配上
+docker info | grep -i proxy      # The HTTP Proxy: line confirms configuration.
 ```
 
-地址要用 **WSL 的默认网关**，不是 `localhost`；`wsl --shutdown` 之后会变。
+Use **WSL’s default gateway**, not `localhost`; it changes after `wsl --shutdown`.
 
-三、`# syntax=` 那行会去 Docker Hub 拉 frontend，网络不稳先炸在 `auth.docker.io` ——
-不需要就别写。Dockerfile 里也一个 apt 包都不装（`deb.debian.org` 走明文 HTTP，
-代理后面实测 502），拉两个文件用 python 自带的 `urllib` + `tarfile` 就够。
+3. A `# syntax=` directive fetches the frontend from Docker Hub and can fail at `auth.docker.io` on an unstable network;
+omit it when unnecessary. The Dockerfile installs no apt packages (`deb.debian.org` uses plaintext HTTP,
+which returned 502 behind the proxy). Python’s built-in `urllib` + `tarfile` suffice to fetch the two files.
 
-## 三、引擎
+## 3. Engine
 
 ```bash
 cp config.yaml dist/
@@ -123,39 +123,39 @@ models: fn:api.deepseek, fn:api.dashscope | 16384 output tokens (up to 3 continu
 db …\data\h2h.sqlite | write on | token none
 ```
 
-`config.yaml` 的 `llm:` 底下这几个旋钮，这个例子对它们敏感：
+This example is sensitive to the following settings under `llm:` in `config.yaml`:
 
 | | |
 | --- | --- |
-| `reasoningEffort` | 七档：`none` · `minimal` · `low` · `medium` · `high` · `xhigh` · `max`。**这一档得跟题目、模型、时限一样记进成绩单** —— 同一道题在不同档上耗时差着数量级。单个智能体可以用 `agent.knobs` 钉死自己那一档（`searcher` 钉的是 `none`） |
-| `maxTokens: 16384` | 思考本身就能吃掉整个额度。8192 那一跑 19 个执行单元里 12 个一个字都没答出来 |
-| `continueTimes: 3` | `finish_reason = length` 时把已经产出的（**包括思维链**）接回去续写，最多三次 |
-| `retryTimes: 3` | 一次调用炸了重打，第 n 次前多等 `5n` 秒。哪些错该重打由 `api.retry_on` 那一列说了算 |
+| `reasoningEffort` | Seven levels: `none` · `minimal` · `low` · `medium` · `high` · `xhigh` · `max`. **Record this alongside the task, model, and time limit in the scorecard**: the same task can take orders of magnitude longer at another level. Individual agents can pin their level through `agent.knobs` (`searcher` pins `none`) |
+| `maxTokens: 16384` | Reasoning alone can exhaust the allowance. In the 8192-token run, 12 of 19 execution units produced no answer text |
+| `continueTimes: 3` | On `finish_reason = length`, feed the existing output back (**including chain of thought**) and continue, at most three times |
+| `retryTimes: 3` | Retry failed calls, waiting an additional `5n` seconds before retry n. `api.retry_on` determines retryable errors |
 
-跑之前把 WSL 钉住 —— 判卷台在里面，而 WSL2 空闲时会回收整个虚拟机：
+Keep WSL alive before running: the grading service is inside it, and WSL2 reclaims the whole VM when idle.
 
 ```bash
 wsl.exe -d Ubuntu-24.04 -- sleep infinity &
 ```
 
-## 四、跑一趟
+## 4. Run a batch
 
 ```bash
 TGENGIN_CMT_BARE=1 TGENGIN_CMT_AT_ONCE=20 bash examples/benchmark/cmt/run.sh 0 cmt-run
 ```
 
-| 参数 | |
+| Parameter | |
 | --- | --- |
-| 第一个位置参数 | 几道题。`0` = 判卷台有多少发多少 |
-| 第二个位置参数 | 这一跑叫什么 |
-| `TGENGIN_CMT_BARE=1` | 不挂领域扩展（无扩展基线） |
-| `TGENGIN_CMT_AT_ONCE=20` | 同时做 20 道，做完一道补一道。留空 = 整批一次全发 |
-| `TGENGIN_CMT_ONLY=3,5,8` | 只发点名的那几道（按题库下标）。空 = 不挑 |
-| `TGENGIN_CMT_SECONDS=900` | 每道题多久。默认 3600 |
+| First positional argument | Task count. `0` submits every task available from the service |
+| Second positional argument | Run name |
+| `TGENGIN_CMT_BARE=1` | Disable domain extensions (extension-free baseline) |
+| `TGENGIN_CMT_AT_ONCE=20` | Run 20 tasks concurrently, replacing each completed task. Empty = submit the entire batch at once |
+| `TGENGIN_CMT_ONLY=3,5,8` | Submit only these dataset indices. Empty = no selection |
+| `TGENGIN_CMT_SECONDS=900` | Time per task; default 3600 |
 
-[`run.sh`](./run.sh) 把下面这几步串起来。
+[`run.sh`](./run.sh) combines the steps below.
 
-### 底子
+### Base configuration
 
 ```bash
 curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
@@ -173,10 +173,10 @@ curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
 JSON
 ```
 
-句柄名就是地址，没有别的注册动作。`ask` 让模型开口，`act` 把它请求的工具真跑掉；
-`infer: fn:infer.dfs` 决定了这是走树的机制 —— 判 0 就在同一个父底下开兄弟换条路。
+A handle’s name is its address; no additional registration is needed. `ask` invokes the model, and `act` executes its requested tools.
+`infer: fn:infer.dfs` selects tree traversal: after a score of 0, open a sibling under the same parent and try another route.
 
-一道纯推导题用不上文件系统，那几个 system 工具关掉（改的是 `usable` 那一列，纯数据）：
+Pure derivation problems do not need a filesystem, so disable those system tools by changing the data-only `usable` column:
 
 ```bash
 curl -s -X POST $BASE/exec -H 'content-type: application/json' -d @- <<'JSON'
@@ -184,13 +184,13 @@ curl -s -X POST $BASE/exec -H 'content-type: application/json' -d @- <<'JSON'
 JSON
 ```
 
-条件写错了不报错，只是那条永远不触发，所以发批之前先问一次：
+An incorrect condition raises no error; it simply never triggers. Check before submitting a batch:
 
 ```bash
-curl -s $BASE/check          # {"trigger":[],"data":[]} = 全通
+curl -s $BASE/check          # {"trigger":[],"data":[]} = all checks pass
 ```
 
-### 每道题的 G
+### G for each task
 
 ```json
 { "nodes": [
@@ -201,14 +201,14 @@ curl -s $BASE/check          # {"trigger":[],"data":[]} = 全通
   "checks": 10 }
 ```
 
-两个节点正好是原基准自己报的那两栏。根必须有入边，否则发布这一关就拒：
-`输出节点 … 没有任何入边 —— 它的值与候选无关，G 恒定，是无效目标`。
+The two nodes match the two fields reported by the original benchmark. The root must have an incoming edge; otherwise publication rejects it:
+`Output node … has no incoming edges — its value is independent of the candidate, making G constant and the objective invalid.`
 
-`checks` 是**一轮里能主动问几次 G**（`verify` 工具），判死重来是新的一轮。
+`checks` is **the number of proactive G queries per round** through `verify`. Restarting after being marked dead begins a new round.
 
-### 一道题的形状
+### Task shape
 
-[`send.ts`](./send.ts) 从 `/problems` 取题，拼 `POST /bench` 的请求体：
+[`send.ts`](./send.ts) fetches tasks from `/problems` and constructs the `POST /bench` request:
 
 ```json
 { "id":"cmt-0", "mode":"solve", "agent":"bot", "place":"local", "source":"user",
@@ -219,22 +219,22 @@ curl -s $BASE/check          # {"trigger":[],"data":[]} = 全通
   "maxSearches": 5,
   "noSearch": ["cmt benchmark", "cmt dataset", "cmt jsonl"],
   "description":"Consider a spinful electron system in a two-dimensional triangular lattice…\n\nSymbols: $U_0;U_1$\n\nPut the final answer inside \\boxed{}.",
-  "objective": { "…上面那个…": null },
+  "objective": { "…definition above…": null },
   "readable": true }
 ```
 
 | | |
 | --- | --- |
-| `solveSeconds` | 每道题多久。要长过一次调用的死期（模型那条句柄 `expect_ms` 是 15 分钟），否则「一次调用卡住 → 判死这一站 → 换条路」永远走不到 |
-| `maxSearches: 5` | 一站准搜五次。判死重来是新的额度，被拦下的和超额被拒的不扣数 |
-| `noSearch` | 不许搜到这套题本身。一条项是**一组词**，全都出现才算命中；整份检索结果（答复、跑过的查询串、开过的页）只要命中就整份丢掉，模型拿到一句 `Forbidden access` |
-| `readable: true` | 带 G 就必须显式给（没有默认值）。给 `true` 会把 G 的定义并进任务描述 —— 要藏的只有 GT，不是尺子 |
-| `source: "user"` | 只有 `user` 能带 G，智能体自己派生的任务不许带 |
-| `domain: "physics"` | 扩展按它分发，跟 `mode`（推理机制）是两回事 |
+| `solveSeconds` | Time per task. Must exceed a single call’s deadline (the model handle’s `expect_ms` is 15 minutes), or a stalled call can never progress to marking the execution unit dead and switching routes |
+| `maxSearches: 5` | Five searches per execution unit. Restarting after being marked dead gives a fresh allowance; blocked and over-limit requests do not consume it |
+| `noSearch` | Block access to this benchmark itself. Each entry is **a group of words**, all required for a match. A match anywhere in the search result (answer, queries, opened pages) discards the whole result; the model receives `Forbidden access` |
+| `readable: true` | Explicitly required with G; no default. `true` appends G’s definition to the task description. Hide ground truth, not the criterion |
+| `source: "user"` | Only `user` tasks may carry G; agent-derived tasks may not |
+| `domain: "physics"` | Routes extensions; distinct from `mode`, which selects the reasoning mechanism |
 
-一道不过就整批不发 —— 发一半的话成绩单的分母是错的，而且没人看得出来少了哪几道。
+If any task fails validation, submit none of the batch. Partial submission gives the scorecard a wrong denominator and hides which tasks are missing.
 
-### 成绩单
+### Scorecard
 
 ```bash
 curl -s $BASE/bench/cmt-run
@@ -244,15 +244,15 @@ curl -s $BASE/bench/cmt-run
  "tasks":[{"id":"cmt-0","state":"done","result":"{\"pass\":1,\"why\":\"\"}"}]}
 ```
 
-成绩是数出来的，不是存着的。`failed` 得看 `why`：`equiv evaluated to false` 是 G 真判了 0，
-`over solve_seconds=…` 是时间先没了。
+Scores are counted, not stored. Inspect `why` for `failed`: `equiv evaluated to false` means G actually returned 0;
+`over solve_seconds=…` means time expired first.
 
 ---
 
-## 我们的基线
+## Our baseline
 
-`cmt-medium-s5b`，2026-09-01。**50 道全量、每道一小时、思考 `medium`、不挂扩展、
-检索每站 5 次、同时做 20 道。**
+`cmt-medium-s5b`, 2026-09-01. **All 50 tasks, one hour per task, `medium` reasoning, no extensions,
+5 searches per execution unit, and 20 concurrent tasks.**
 
 ```bash
 TGENGIN_CMT_BARE=1 TGENGIN_CMT_AT_ONCE=20 bash examples/benchmark/cmt/run.sh 0 cmt-medium-s5b
@@ -260,49 +260,49 @@ TGENGIN_CMT_BARE=1 TGENGIN_CMT_AT_ONCE=20 bash examples/benchmark/cmt/run.sh 0 c
 
 ### 44 / 50
 
-失败的六道（`cmt-2` `cmt-11` `cmt-37` `cmt-44` `cmt-46` `cmt-49`）判词都一样：
-`over solve_seconds=3600s; equiv evaluated to false` —— **走满一小时、手上有答案、
-答案不对**，没有一道是交不出来的。
+The six failures (`cmt-2` `cmt-11` `cmt-37` `cmt-44` `cmt-46` `cmt-49`) all have the same verdict:
+`over solve_seconds=3600s; equiv evaluated to false`: **the full hour elapsed with an answer in hand,
+but the answer was wrong**. None failed to submit an answer.
 
-44 道做对里，第一个交给 G 的答案就对的是 **19 道**，其余 25 道验了不止一次才对。
-后者两种混着：一种是「算错了、看到 false、回去改推导」，另一种是「把选项一个个报过去」
-—— 选择题的答案空间比一轮 10 次的额度还小。额度是给定的（`checks: 10`，判死重来才有新的一轮），
-额度内怎么用是它的事。两个数库里都记着：`export/csv/tasks.csv` 的 `pass` 和 `first_answer_pass`。
+Of the 44 correct tasks, **19** were correct on the first answer submitted to G; the remaining 25 needed multiple checks.
+The latter combine two behaviors: correcting a derivation after seeing false, and submitting choices one by one.
+For choice questions, the answer space is smaller than the 10-check allowance per round. The budget is fixed (`checks: 10`; only a restart after being marked dead starts a new round),
+and the solver chooses how to use it. Both counts are recorded as `pass` and `first_answer_pass` in `export/csv/tasks.csv`.
 
-### 一小时花在哪
-
-| | |
-| --- | --- |
-| 问模型 | 762 次 × 62 秒 = **65%** |
-| 等检索 | 153 次 × 133 秒 = **28%** |
-| 跑别的工具 | 559 次 × 8 秒 = 6% |
-
-一共走了 1,474 站。检索 102 次：34 道题用过，最多的一道 8 次，7 次撞到每站 5 次的上限。
-每次调用输入 98,011 token（88% 命中缓存），输出 6,842，其中思考 6,398。
-
-### 数据
-
-`data/runs/cmt-medium-s5b/`（`data/` 不进仓库）：
+### Where the hour goes
 
 | | |
 | --- | --- |
-| `h2h.sqlite` | 这一跑的整个库 |
-| `engine.log` · `run.log` | 引擎日志、跑批日志 |
-| `RESULT.md` | 这一跑的完整结论 |
-| `export/csv/{tasks,stations,verify,searches}.csv` | 四种粒度的表 |
-| `export/FIELDS.md` | 每一列是什么意思 |
+| Model calls | 762 × 62 seconds = **65%** |
+| Waiting for search | 153 × 133 seconds = **28%** |
+| Other tools | 559 × 8 seconds = 6% |
+
+There were 1,474 execution units and 102 searches across 34 tasks; one task searched 8 times, and the per-unit limit of 5 was hit 7 times.
+Each call averaged 98,011 input tokens (88% cache hits) and 6,842 output tokens, including 6,398 reasoning tokens.
+
+### Data
+
+`data/runs/cmt-medium-s5b/` (`data/` is outside version control):
+
+| | |
+| --- | --- |
+| `h2h.sqlite` | Complete database for this run |
+| `engine.log` · `run.log` | Engine and batch logs |
+| `RESULT.md` | Full conclusions for this run |
+| `export/csv/{tasks,stations,verify,searches}.csv` | Tables at four granularities |
+| `export/FIELDS.md` | Column definitions |
 
 ---
 
-## 文件
+## Files
 
 | | |
 | --- | --- |
-| [`setup.sh`](./setup.sh) | 备料。题库 + 官方判据 + venv，幂等（不用容器那条路） |
-| [`Dockerfile`](./Dockerfile) · [`compose.yaml`](./compose.yaml) | 判卷台连题库一起打包（用容器那条路，二选一） |
-| [`grader.py`](./grader.py) | 判卷台。判据是官方的，这个文件只接 HTTP；另开一个 `/problems` 发题面 |
-| [`send.ts`](./send.ts) | 从 `/problems` 取题，拼 `POST /bench` 的请求体 |
-| [`run.sh`](./run.sh) | 声明 → 关掉用不上的工具 → 挂扩展 → 发批 → 等 → 成绩单 |
-| [`parmeras/`](./parmeras/) | 从老仓库搬来的 skill + 注册脚本（`TGENGIN_CMT_BARE` 就是不挂它） |
+| [`setup.sh`](./setup.sh) | Idempotent dataset + official grader + venv setup for the non-container route |
+| [`Dockerfile`](./Dockerfile) · [`compose.yaml`](./compose.yaml) | Bundle the grading service and dataset for the alternative container route |
+| [`grader.py`](./grader.py) | HTTP wrapper around the official grader, plus `/problems` for problem statements |
+| [`send.ts`](./send.ts) | Fetch tasks from `/problems` and construct `POST /bench` |
+| [`run.sh`](./run.sh) | Declare → disable unused tools → attach extensions → submit batch → wait → scorecard |
+| [`parmeras/`](./parmeras/) | Skill and registration script migrated from the old repository (`TGENGIN_CMT_BARE` disables it) |
 
-题库和官方判据不在这个目录里，在 `~/.cache/tgengin-cmt/`（WSL 家目录）或容器里。
+The dataset and official grader live outside this directory, under `~/.cache/tgengin-cmt/` (WSL home) or inside the container.

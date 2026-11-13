@@ -1,11 +1,12 @@
-# 干活的地方
+# Places to work
 
-[← 例子](../) ｜ [tool](../tool/) · [meet-join](../meet-join/) · [meet-book](../meet-book/) · **place** · [rule](../rule/) · [skill](../skill/) · [mode](../mode/) · [cmtbench](../benchmark/cmt/)
+Instructions and illustrative declarations are in English. Captured responses and logs below are English renderings of earlier Chinese-language output, preserving IDs, timestamps, paths, and numbers. Original archived evidence is unchanged.
 
-登记一个本机开着的浏览器标签页当一个地方。**执行单元落在这儿，就有这一页的那几个工具；
-落在别处就没有。**
+[← Examples](../) ｜ [tool](../tool/) · [meet-join](../meet-join/) · [meet-book](../meet-book/) · **place** · [rule](../rule/) · [skill](../skill/) · [mode](../mode/) · [cmtbench](../benchmark/cmt/)
 
-这儿只讲地方。工具怎么注册的在 [`../tool/`](../tool/)。
+Register an open local browser tab as a place. **Execution units at this place receive that page's tools; units elsewhere do not.**
+
+This example covers places only. Tool registration is described in [`../tool/`](../tool/).
 
 ```bash
 cp config.yaml dist/
@@ -13,7 +14,7 @@ dist/tgengin-win-x64.exe &
 BASE=http://127.0.0.1:7801/api
 ```
 
-浏览器得带调试端口起着，标签页开着那份 deck：
+Start the browser with a debugging port and open the deck in a tab:
 
 ```bash
 chrome --remote-debugging-port=9222 \
@@ -21,21 +22,17 @@ chrome --remote-debugging-port=9222 \
        file:///E:/sgu-bzhc/EACN_EX/TgEngin/examples/place/deck.html
 ```
 
-> **这样起来的浏览器没有音视频输入。** Chrome 136 起，默认 profile 上不许开远程调试，
-> 所以只能另开一个 `--user-data-dir` —— 那是个空 profile：没登录，也没给过任何站点
-> 摄像头麦克风的权限。在那个标签页里探一下就知道：
+> **A browser started this way has no audio/video input.** Since Chrome 136, remote debugging is disallowed on the default profile, so a separate `--user-data-dir` is required. That empty profile has no login and no camera/microphone permissions for any site. Probe the tab to see this:
 >
 > ```
-> enumerateDevices  [{"kind":"audioinput","label":"","id":"空"},
->                    {"kind":"videoinput","label":"","id":"空"}, …]
-> getUserMedia      （挂住不返回 —— 权限弹窗在那儿等人点，没人点）
+> enumerateDevices  [{"kind":"audioinput","label":"","id":"empty"},
+>                    {"kind":"videoinput","label":"","id":"empty"}, …]
+> getUserMedia      (hangs without returning: the permission dialog awaits a click, and no one clicks)
 > ```
 >
-> `label` 和 `deviceId` 全是空的，就是「一个都没授权」。所以这条路只能开**不需要
-> 摄像头麦克风的页面** —— deck 这种正好是。真要拿一个能进会说话的浏览器，
-> 得走扩展那条路（跑在用户自己那个 profile 里），不是调试端口。
+> Empty `label` and `deviceId` mean no device is authorized. This approach therefore suits **pages that need neither camera nor microphone**, such as this deck. A browser that can join meetings and speak requires the extension approach in the user's own profile, rather than a debugging port.
 
-底子（两个周期、一个智能体）：
+Base setup (two cycles, one agent):
 
 ```bash
 curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
@@ -51,11 +48,11 @@ JSON
 
 ---
 
-## 登记
+## Register the place
 
-一份声明里三样：**这个地方是哪条链接**、**它给哪几个工具**、**一条核这两样的规则**。
+One declaration contains three things: **the URL identifying the place**, **the tools it provides**, and **a rule that checks both**.
 
-工具的 `when` 写 `dim: "place"` —— 这一维问的是**这个执行单元在哪儿**。
+Use `dim: "place"` in the tool's `when`; this dimension asks **where the execution unit is**.
 
 ```bash
 R=E:/sgu-bzhc/EACN_EX/TgEngin
@@ -78,7 +75,7 @@ curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<JSON
                 "module":"\$R/examples/place/deck-contract.ts#run" }],
   "rules": [{
     "identity": "fn:rule.deck_contract",
-    "does": "这一站落在 tab:deck 上的时候，核一下那一页还开着、该有的工具都在",
+    "does": "When this station is at tab:deck, check that the page is still open and all required tools are present",
     "params": {}, "writes": {}, "scope": {},
     "when": [[{ "dim":"moment","op":"eq","value":"unit_start" },
               { "dim":"place", "op":"eq","value":"tab:deck" }]]
@@ -92,11 +89,9 @@ JSON
  "modes":[],"cycles":0,"agents":[],"tools":[],"skills":[],"tables":[],"entries":{}}
 ```
 
-链接要整条给，不是给一截让它去猜 —— **链接就是这个地方的身份**。同时开着两个 deck
-的时候，猜会连错一个，而且连错了看不出来。
+Supply the complete URL, not a fragment to guess from: **the URL is this place's identity**. With two decks open, guessing can connect to the wrong one without an obvious sign.
 
-那条 `when` 里两项在**同一组**，所以是 and：`unit_start` 这一刻，**并且**这一站落在
-`tab:deck` 上。
+The two conditions in `when` belong to **the same group**, so they are ANDed: the moment is `unit_start`, **and** this station is at `tab:deck`.
 
 ```bash
 curl -s -X POST $BASE/query -H 'content-type: application/json' -d @- <<'JSON'
@@ -109,44 +104,33 @@ JSON
   {"place":"tab:deck","forward":0,"usable":1}]}
 ```
 
-`forward` 是关的。这几个工具本来就在本机 —— 它们连的是本机 9222 端口上的那个浏览器，
-没有什么要送到别处去。**`forward` 管的是「工具跑在哪台机器上」，地方名管的是
-「这一站在哪儿」，两件事。** 只有开了 `forward` 的地方，名字才得写成一串跳板
-（`wsl` / `ssh://box-7` / `wsl/docker:build-01`）；不转发的地方，名字就是个名字。
+`forward` is disabled. These tools are already local: they connect to the browser on local port 9222, so nothing needs forwarding elsewhere. **`forward` determines which machine executes tools; the place name determines where the station is.** Only places with `forward` enabled require a hop-chain name (`wsl` / `ssh://box-7` / `wsl/docker:build-01`). Without forwarding, a name is simply a name.
 
-引擎这边它叫 `tab:deck`，浏览器那边它是哪条链接由 server 的参数说了算。
-两边各认各的，中间靠这份声明对上。
+The engine calls it `tab:deck`; server arguments determine its browser URL. Each side uses its own identity, linked by this declaration.
 
-## 核这个地方还在不在
+## Check that the place still exists
 
-[`deck-contract.ts`](./deck-contract.ts) 就是上面那条规则。每次有执行单元落在这儿、
-开工之前，核两样：那条链接还开着，那四个工具还在表里。
+[`deck-contract.ts`](./deck-contract.ts) implements the rule above. Before each execution unit starts here, it checks that the URL is still open and all four tools remain in the table.
 
-齐的时候（引擎 stdout）：
+When all checks pass (captured engine stdout; the message says the four tools are present):
 
 ```
-[deck-contract] tab:deck 齐了：deck_goto、deck_next、deck_prev、deck_state｜t-deck 第 1 站
+[deck-contract] tab:deck complete: deck_goto, deck_next, deck_prev, deck_state | t-deck station 1
 ```
 
-把那个标签页导走，再发一个任务：
+Navigate the tab away, then submit another task. The captured error says the page is no longer open and reports its current URL:
 
 ```
-{"level":50,…,"msg":"规则 fn:rule.deck_contract 在 unit_start 这一刻炸了：tab:deck 这个地方不对劲（t-gone 第 8 站）：那一页没开着：file:///E:/…/deck.html（现在开着的是 about:blank）"}
+{"level":50,…,"msg":"Rule fn:rule.deck_contract failed at unit_start: place tab:deck is invalid (t-gone station 8): page is not open: file:///E:/…/deck.html (currently open: about:blank)"}
 ```
 
-**为什么这件事非得是规则**：声明那一刻能核的只是第一遍。标签页是活的 —— 人随手一关，
-库里那几行 `tool` 还好端端躺着，地方却已经空了。下一个执行单元照样把 `deck_next`
-摆给模型，模型照样调，然后拿一条 isError 回来。「登记」和「现在还在不在」是两回事，
-跟 `workplace.usable` 是登记不是探活一个道理 —— 所以核这件事得挂在**每次开工那一刻**，
-那正是时刻 + 规则。
+**Why this must be a rule**: declaration-time checks cover only that moment. Tabs are live objects: a user can close one while its `tool` rows remain intact in the database. The next execution unit still offers `deck_next` to the model, which calls it and receives isError. Registration and current availability are different, just as `workplace.usable` is a registration flag rather than a health probe. Check availability **whenever work starts**, using a moment and a rule.
 
-**它不拦。** 规则炸了只炸它自己，内核记一行日志，这一站照跑。钩子挂在主路上，
-让它把整步带停的话，一条写坏的规则能让所有任务都不动。所以它的作用是当场说清楚
-哪儿不对，不是把闸拉了。
+**The rule does not block execution.** Its failure affects only itself; the kernel logs one line and the station continues. Hooks run on the main path; allowing a hook to stop the entire step would let one broken rule stall every task. Its role is to explain the problem immediately, not close a gate.
 
-### 工具名撞了会怎样
+### What if tool names collide?
 
-`tool.name` 是模型看见的那个名字，**全系统唯一**。再接一个也报 `deck_state` 的 server：
+`tool.name` is the name shown to the model and is **globally unique**. Connect another server that also reports `deck_state`:
 
 ```bash
 curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<JSON
@@ -155,12 +139,12 @@ curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<JSON
 JSON
 ```
 ```json
-{"error":"工具名撞了：deck_state 已经是 mcp:deck/deck_state 的了，server deck2 也报了一个（要换的话先把旧那行删掉 —— 悄悄顶掉的话没人看得出来）"}
+{"error":"Tool-name collision: deck_state already belongs to mcp:deck/deck_state, and server deck2 also reports it (delete the old row before replacing it; silent replacement would be invisible)"}
 ```
 
-## 在这儿给不给
+## Is the tool available here?
 
-不用发任务就能问：
+Ask without submitting a task:
 
 ```bash
 curl -s -X POST $BASE/trigger/explain -H 'content-type: application/json' \
@@ -180,17 +164,17 @@ curl -s -X POST $BASE/trigger/explain -H 'content-type: application/json' \
 
 ---
 
-## 落在这儿的任务
+## A task at this place
 
 ```bash
 curl -s -X POST $BASE/tasks -H 'content-type: application/json' -d @- <<'JSON'
 { "id":"t-deck", "mode":"work", "agent":"bot", "place":"tab:deck", "source":"user",
   "solveSeconds": 300,
-  "description": "这份 deck 现在翻到第几张了？把它翻到讲「出了什么问题」的那一张，告诉我是第几张，然后结束" }
+  "description": "Which slide is this deck currently on? Navigate to 'What went wrong', tell me its slide number, then finish." }
 JSON
 ```
 
-这一站手上有哪些工具：
+Tools available to this station:
 
 ```bash
 curl -s "$BASE/tasks/t-deck/messages?kind=inject" | grep -o '"tools":\[[^]]*\]' | head -1
@@ -199,7 +183,7 @@ curl -s "$BASE/tasks/t-deck/messages?kind=inject" | grep -o '"tools":\[[^]]*\]' 
 "tools":["read","write","edit","glob","grep","bash","deck_goto","deck_next","deck_prev","deck_state"]
 ```
 
-前六个是 `system = 1` 的，哪儿都有；后四个是这个地方带来的。
+The first six have `system = 1` and are available everywhere; the last four come from this place.
 
 ```bash
 curl -s "$BASE/tasks/t-deck/messages?kind=call" | grep -o '"name":"deck[^}]*}'
@@ -207,7 +191,7 @@ curl -s "$BASE/tasks/t-deck/messages?kind=call" | grep -o '"name":"deck[^}]*}'
 ```
 "name":"deck_state","input":{}
 "name":"deck_next","input":{}
-…（一直翻）
+… (continues advancing)
 "name":"deck_state","input":{}
 "name":"deck_goto","input":{"page":9}
 ```
@@ -216,29 +200,28 @@ curl -s "$BASE/tasks/t-deck/messages?kind=call" | grep -o '"name":"deck[^}]*}'
 curl -s "$BASE/tasks/t-deck/messages?kind=tool" | grep -o '"value":{[^{}]*}'
 ```
 ```
-"value":{"page":1,"total":12,"title":"开场"}
-"value":{"page":2,"total":12,"title":"这一季干了什么"}
+"value":{"page":1,"total":12,"title":"Opening"}
+"value":{"page":2,"total":12,"title":"What we did this quarter"}
 …
-"value":{"page":9,"total":12,"title":"出了什么问题"}
+"value":{"page":9,"total":12,"title":"What went wrong"}
 ```
 
 ```bash
 curl -s "$BASE/tasks/t-deck/messages?kind=prompt" | grep -o '"body":"[^"]*"' | tail -1
 ```
 ```
-"body":"已结束。deck 现在停在**第 9 张，标题「出了什么问题」**（共 12 张）。"
+"body":"Finished. The deck is now on **slide 9, titled 'What went wrong'** (12 slides total)."
 ```
 
-浏览器里那一页这时候真停在第 9 张。任务完了它不回去 —— **页面的状态在页面上，
-不在库里。** 下一个落在这儿的执行单元接着从第 9 张开始。
+The browser really is now on slide 9. Completing the task does not reset it: **page state lives in the page, not the database**. The next execution unit at this place continues from slide 9.
 
-## 同一个任务，换个地方
+## The same task at another place
 
 ```bash
 curl -s -X POST $BASE/tasks -H 'content-type: application/json' -d @- <<'JSON'
 { "id":"t-deck-local", "mode":"work", "agent":"bot", "place":"local", "source":"user",
   "solveSeconds": 180,
-  "description": "这份 deck 现在翻到第几张了？把它翻到讲「出了什么问题」的那一张，告诉我是第几张，然后结束" }
+  "description": "Which slide is this deck currently on? Navigate to 'What went wrong', tell me its slide number, then finish." }
 JSON
 ```
 ```bash
@@ -248,48 +231,48 @@ curl -s "$BASE/tasks/t-deck-local/messages?kind=inject" | grep -o '"tools":\[[^]
 "tools":["read","write","edit","glob","grep","bash"]
 ```
 
-deck 那四个没上来。同一份描述、同一个智能体，只有地方不一样。模型于是拿
-`read` 去翻 `deck.html` 的源码，答的是**文件里写着什么**，不是**那一页现在在哪**：
+The four deck tools are absent. The description and agent are identical; only the place differs. The model therefore uses `read` to inspect `deck.html` and answers **what the file says**, rather than **the page's current position**:
 
 ```
 "body":"I've found the deck file. It's a JavaScript-powered presentation with 12 slides.
-The titles are: 1. 开场 … 12. 问答\n\nThe deck starts on page 1, and the slide …"
+The titles are: 1. Opening … 12. Q&A\n\nThe deck starts on page 1, and the slide …"
 ```
 
-「一开始在第 1 张」是源码里的初始值，不是那个标签页的现况 —— 它够不着。
+“Starts on page 1” is the initial value in source, not the current tab state, which the model cannot access.
 
 ---
 
-## 日志
+## Logs
+
+English rendering of the captured output; slide titles match the English labels in the current deck.
 
 ```
-[tab] 起来了，认 file:///E:/…/deck.html，调试端口 9222
-[tab] 接上了 Q3 Review — 1/12 开场｜file:///E:/sgu-bzhc/EACN_EX/TgEngin/examples/place/deck.html
-[tab] deck_state → {"page":1,"total":12,"title":"开场"}
-[tab] deck_next → {"page":2,"total":12,"title":"这一季干了什么"}
-[tab] deck_next → {"page":3,"total":12,"title":"收入"}
+[tab] Started, matching file:///E:/…/deck.html; debugging port 9222
+[tab] Connected to Q3 Review — 1/12 Opening｜file:///E:/sgu-bzhc/EACN_EX/TgEngin/examples/place/deck.html
+[tab] deck_state → {"page":1,"total":12,"title":"Opening"}
+[tab] deck_next → {"page":2,"total":12,"title":"What we did this quarter"}
+[tab] deck_next → {"page":3,"total":12,"title":"Revenue"}
 ```
 
-## 字段
+## Fields
 
 `places[]`
 
 | | |
 | --- | --- |
-| `place` | 名字。开了 `forward` 才必须是一串跳板 |
-| `forward` | 工具调用转不转发过去。默认不转 |
-| `runtime` | 转发时送过去的那个运行时（本机文件路径） |
-| `tools` | 转发白名单，每项 `{tool, policy}`，policy 是 `always` / `agent` |
-| `usable` | **登记**的可用性，不是探活 |
+| `place` | Name; a hop chain is required only with `forward` enabled |
+| `forward` | Whether to forward tool calls there; disabled by default |
+| `runtime` | Runtime sent when forwarding (local file path) |
+| `tools` | Forwarding allowlist; each entry is `{tool, policy}`, with policy `always` / `agent` |
+| `usable` | **Registered** availability, not a health probe |
 
-探活是现探的，不写回库：
+Health probes run on demand and do not write back to the database:
 
 ```bash
 curl -s -X POST $BASE/places/tab:deck/ping
 ```
 ```json
-{"place":"tab:deck","alive":true,"ms":0,"why":"这个地方不转发，没有连接可探"}
+{"place":"tab:deck","alive":true,"ms":0,"why":"This place does not forward; there is no connection to probe"}
 ```
 
-`when` 上的 `place` 这一维不看属性，`key` 留空。比的是**这个执行单元**的工作区 ——
-不是 `task.place`：树岔开之后同一个任务的两站可以落在不同地方。
+The `place` dimension in `when` does not inspect attributes; leave `key` empty. It compares **this execution unit's** workspace, not `task.place`: after branching, two stations of the same task may occupy different places.

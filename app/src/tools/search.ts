@@ -1,71 +1,49 @@
 /**
- * `web_search` —— **让它去查,而不是去回忆。**
+ * `web_search`: **let it look things up instead of recalling them.**
  *
- * ## 为什么要有这件工具
+ * ## Why this tool exists
  *
- * 一次真实的轨迹里，模型花了一万多个 token 在盲猜论文：
+ * In a real trajectory, a model spent over ten thousand tokens guessing a paper:
  *
- * > 我现在几乎可以肯定有一篇 2021–2023 年的论文，标题类似 "Emergent U(1) symmetry
- * > and two Kosterlitz-Thouless transitions..." —— 可能是 Moessner and Sondhi？
- * > 还是 Bo Yang？或者 Xue-Feng Zhang？
+ * > I am now almost certain there is a 2021–2023 paper titled something like "Emergent U(1) symmetry and two Kosterlitz-Thouless transitions...". Perhaps Moessner and Sondhi? Or Bo Yang? Or Xue-Feng Zhang?
  *
- * 它**知道该去找哪篇论文**，只是手上没有工具，只能一条条猜标题和作者。同一个问题
- * 挂上检索之后：83 秒，答案带着卷号页码年份（Isakov & Moessner, PRB 68, 104409,
- * 2003），而且**比不挂检索还快 41 秒** —— 输出 token 从 13,057 掉到 7,916，因为
- * 不用再摸黑了，而输出才是慢的那一头。
+ * It **knew which paper to look for** but lacked a tool, so it could only guess titles and authors. With search enabled, the same question took 83 seconds and yielded the volume, page, and year (Isakov & Moessner, PRB 68, 104409, 2003). It was **41 seconds faster than without search**: output fell from 13,057 to 7,916 tokens because it no longer had to guess, and output generation was the slow part.
  *
- * ## 为什么是嵌套一次调用，而不是加个参数
+ * ## Why a nested call rather than another parameter?
  *
- * 厂商跑的检索在 **`/responses`** 上，不在我们用的 `/chat/completions` 上 ——
- * 后者对 `tools[0].type` 只认 `function`（`unknown variant 'web_search',
- * expected 'function'`）。所以这件工具的实现就是**自己去打一次 `/responses`**：
- * 把问题递进去，它在那一端搜、开页、读，回来给一段带出处的话。
+ * Provider-hosted search uses **`/responses`**, not our `/chat/completions` endpoint. The latter accepts only `function` for `tools[0].type` (`unknown variant 'web_search', expected 'function'`). This tool therefore **makes its own `/responses` call**, passing a question for the provider to search, open pages, read, and return a cited answer.
  *
- * ## 用谁的账
+ * ## Whose account?
  *
- * **用这个智能体自己那家。** `agent.apis` 第一行是什么，就拿它的 `base_url` 和
- * `key_env`。不新开配置字段的理由很实在：新开一个就多一处要维护、要对齐、会漂的
- * 地方，而「跟你思考用的是同一家」本来就是最合理的默认。
+ * **The agent's own provider.** Use `base_url` and `key_env` from the first row in `agent.apis`. Another configuration field would create another value to maintain, synchronize, and potentially let drift. Using the same provider as reasoning is the natural default.
  *
- * ## 那一家不会搜，这件工具就不摆给它
+ * ## Do not offer the tool to a provider that cannot search
  *
- * **判据落进 `trigger`，跟别的工具走同一张表** —— 不在代码里 if 一下：
+ * **Store the criterion in `trigger`, alongside other tools**, not a code-level if:
  *
  * ```
  * dim=agent  key=apis  op=contains  value=DEEPSEEK_API_KEY
  * ```
  *
- * 会搜的每一家出一组（组之间是或），组里再跟「不在交卷站」那条与在一起。所以这是
- * **按智能体**判的，不是按整套部署判的：同一套库里，跑 deepseek 的那个有这件工具，
- * 跑别家的那个没有 —— 而这本来就是对的粒度。
+ * Each search-capable provider gets a group (OR between groups), ANDed with the condition that this is not a submission station. This is evaluated **per agent**, not per deployment: in one database, the deepseek agent receives the tool while an agent using another provider does not, which is the appropriate granularity.
  *
- * 哪一家算「会搜」写在 `VENDORS[…].searches` 上，那是实现真的试过、认得的那几家。
- * 值在代码里、条件在数据里，跟 `MODES` 是同一个分工。
+ * `VENDORS[…].searches` records providers whose search implementations have actually been tested. Values live in code; conditions live in data, the same division used by `MODES`.
  *
- * 摆一件「调用起来才报错」的工具是最坏的那一档：模型看得见它、会去用它、然后拿一条
- * 错误回来，而那一格已经花掉了。工具列表说的该是「这儿真有的能力」。
+ * A tool that fails only when called is the worst outcome: the model sees it, tries it, receives an error, and has already spent a slot. The tool list must describe capabilities that are actually available.
  *
- * ## 一次搜多深管不了，搜几次管得了
+ * ## We cannot bound one search's depth, but we can bound the number of searches
  *
- * **管不了的那半**：`/responses` 收 `max_tool_calls` 但不照办 —— 回执里那一栏原样是
- * `null`，给 2 搜 11 次，给 8 搜 13 次，一模一样。那个参数因此不发了：发一个不生效
- * 的参数比不发更坏，下一个人看见它会以为这儿有道闸。所以一次搜有多贵拦不住，实测
- * 中位 13 万 token、最多 25 万，还有**四成搜完一个字答案都没有**。
+ * **What we cannot control**: `/responses` accepts `max_tool_calls` but ignores it. Receipts report `null`; a limit of 2 still produced 11 searches, and 8 produced 13. Stop sending that parameter: an ineffective control is worse than none because the next reader assumes it works. Per-search cost is therefore unbounded by it: measured median 130,000 tokens, maximum 250,000, with **40% returning no answer at all**.
  *
- * **管得了的那半**：`task.max_searches` —— 一轮里准搜几次，跟 G 那个 `checks` 同一
- * 套规矩（一轮 = 一个节点，判死重来是新额度，被拒的不扣数）。
+ * **What we can control**: `task.max_searches`, the number allowed per round, following G's `checks` rules (one round = one node; restarting after marking a node dead gives a fresh allowance; rejected calls do not count).
  *
- * 为什么闸在「次数」上而不在「格子」上，是量出来的：实测一跑，超时那批把一小时里
- * 的**一半**花在检索上，而每站的格子额度**一次都没碰到**（用得最多的一站 30 格，
- * 上限 35）。检索花的是钟，不是格子 —— 放宽格子治不了，限次数才治得了。
+ * Measurements explain why the limit counts calls rather than slots: timed-out tasks spent **half** their hour searching, yet **never hit** a station's slot allowance (maximum used: 30; limit: 35). Search consumes wall time, not slots. More slots cannot fix this; limiting search calls can.
  *
- * 外加一道我们自己的钟：`SEARCH_WALL_MS`，单次到点就断。
+ * We also impose our own clock, `SEARCH_WALL_MS`, aborting each call at its deadline.
  *
- * ## 留痕
+ * ## Audit trail
  *
- * 它跑过的**查询串**和**开过的 URL** 一并回传。这些跟着工具结果落进
- * `agent_{}_msg`，不用新表 —— 事后查得出它到底摸到了什么。对评测尤其要紧：搜文献
- * 是本事，搜到这套题的答案册就不是了，而这两件事只有留了痕才分得开。
+ * Return both the **query strings** and **opened URLs**. They accompany tool results into `agent_{}_msg`, requiring no new table and allowing later inspection of what was accessed. This is especially important for evaluation: finding literature is a legitimate capability; finding this problem set's answer key is not. Only an audit trail distinguishes them.
  */
 
 import type { Conn } from "../H2H/db.ts";
@@ -78,33 +56,28 @@ import { tableNameOf } from "../install/index.ts";
 import { VENDORS } from "../llm/index.ts";
 
 /**
- * **这件工具背后那个智能体的名字。**
+ * **Name of the agent behind this tool.**
  *
- * 模型、端点、思考强度都是它那一行说了算（`agent.apis` → `api.base_url`，
- * `agent.knobs`）—— 不是调用方那一行。检索是一份固定的活：去查、把查到的说清楚。
- * 跟着调用方走的话，求解那边换个模型、调一档思考强度，检索会跟着变，而没有任何
- * 地方说得出为什么。
+ * Its own row determines the model, endpoint, and reasoning effort (`agent.apis` → `api.base_url`, `agent.knobs`), not the caller's row. Search is a fixed job: look up information and explain the findings clearly. Inheriting caller settings would make search change whenever the solver changes model or reasoning effort, without an explicit reason anywhere.
  *
- * 库里没有这一行 = 这件工具没配好，当场说清楚，别去猜一个。
+ * If the row is missing, the tool is unconfigured. Report that immediately instead of guessing.
  */
 export const SEARCHER = "searcher";
 
 /**
- * 单次调用的硬墙。**管的是一次搜能拖多久**，不是能搜几次 —— 后者是
- * `task.max_searches`，见文件开头。
+ * Hard wall-clock limit per call. **Controls how long one search can take**, not how many are allowed.
+ * The latter is `task.max_searches`; see the file header.
  *
- * 到点断掉，那一格拿一条错误继续走，不会挂到句柄的死期上。
+ * Abort at the deadline and return an error for the slot to continue, rather than waiting for the handle's death timeout.
  */
 export const SEARCH_WALL_MS = 240_000;
 
 /**
- * 摆给谁看。**一家一组，组之间是或；组里跟「不在交卷站」与在一起。**
+ * Who receives the tool. **One group per provider, OR between groups; each group is ANDed with "not a submission station".**
  *
- * 判据是 `agent.apis` 那一列里有没有这一家的 `key_env` —— 那一列存的就是
- * `[["DEEPSEEK_API_KEY","deepseek-v4-flash"], …]`，`contains` 一下就够。
+ * Check whether `agent.apis` contains the provider's `key_env`. That column stores `[["DEEPSEEK_API_KEY","deepseek-v4-flash"], …]`, so `contains` is sufficient.
  *
- * 会搜的一家都没有的话，这个数组是空的 —— 而「一条条件都没有 = 从不触发」正是
- * `trigger` 本来的语义，所以不用再写一句 if：**这件工具会注册进去，但谁也拿不到。**
+ * With no search-capable providers this array is empty. Since no conditions means never triggered in `trigger`, no extra if is needed: **the tool is registered, but no agent receives it.**
  */
 const OFFERED_TO = Object.values(VENDORS)
   .filter((v) => v.searches)
@@ -156,23 +129,22 @@ const SEARCH_TOOL = {
   concurrent: true,
   gives: "event",
   expectMs: SEARCH_WALL_MS + 30_000,
-  // **条件不写在这儿，在 `OFFERED_TO`** —— 「不在交卷站」那条也在那边，跟「这家会搜」
-  // 与在一起。两处各写一半的话，落库时后写的顶掉先写的，而先写的那半看着还在。
+  // **Conditions belong in `OFFERED_TO`, not here**. The non-submission-station condition is there too, ANDed with provider capability.
+  // Splitting the conditions across two places would make the later database write overwrite the earlier one while its code still appeared present.
 };
 
 interface Lane {
   base: string;
   model: string;
   keyEnv: string;
-  /** 它固定用的那几个模型参数（`agent.knobs`）。没有就是空的。 */
+  /** Its fixed model parameters (`agent.knobs`), or empty when absent. */
   knobs: Record<string, unknown>;
 }
 
 /**
- * 这个智能体拿哪一家去搜。**它自己那一家** —— `agent.apis` 第一行。
+ * Which provider this agent uses for search: **its own**, the first row in `agent.apis`.
  *
- * 取不到就抛，而且把原因说全：这件工具没配好的时候，模型手上只有这一句话，
- * 说得含糊它就只能瞎试。
+ * Throw if unavailable and explain the full cause. When configuration is missing, this message is all the model has; a vague explanation forces blind retries.
  */
 function laneOf(db: Conn, agent: string): Lane {
   const row = all(db, `select apis, knobs from agent where name = ?`, [agent])[0] as
@@ -196,15 +168,15 @@ function laneOf(db: Conn, agent: string): Lane {
   try {
     if (row.knobs) knobs = JSON.parse(row.knobs) as Record<string, unknown>;
   } catch {
-    // 那一列写坏了不该让这件工具用不了 —— 落回那一家的默认档照样能跑
+    // A malformed knobs column should not disable the tool; the provider's default settings still work.
   }
   return { base: String(api.base_url).replace(/\/+$/, ""), model, keyEnv, knobs };
 }
 
 /**
- * 这道题的发布方不许搜什么。取不到就是不限制。
+ * What this problem's publisher forbids searching for. Missing data means no restriction.
  *
- * 从 `task` 表读，不收调用方传的 —— 收的话，改一个参数就能把闸关掉。
+ * Read from `task`, not caller arguments; otherwise changing one parameter could disable the gate.
  */
 function forbidden(db: Conn, task: string): string[] {
   const row = all(db, `select no_search from task where id = ?`, [task])[0] as { no_search?: string } | undefined;
@@ -218,29 +190,23 @@ function forbidden(db: Conn, task: string): string[] {
 }
 
 /**
- * 这份检索结果里有没有踩到线。**整份都查，不只是网址。**
+ * Whether this search result crosses a restriction. **Inspect the whole result, not just URLs.**
  *
- * ## 一条项 = 一组词，**全都出现**才算命中
+ * ## One entry = a group of words; **all must appear** to match
  *
- * 不是拿它当一个连写的字面串去 `includes` —— 那样太松，实测漏得很具体：
+ * Do not apply `includes` to one contiguous literal string. That is too permissive; an observed miss was:
  *
  * ```
  * huggingface.co/datasets/Infektyd/syntra-evals-dataset/…/cmt-physics.jsonl
  * ```
  *
- * 这是第三方把同一批题另存了一份，名字完全不一样。列 `cmt_benchmark` 挡得住原版，
- * 挡不住它 —— 而它照样是答案册。可 `cmt` 和 `benchmark` 这两个词**在那份返回里
- * 都出现过**。所以判据是「这一项里的每个词都出现过」，中间隔着什么、顺序如何、
- * 是连字符还是下划线，一概不管。
+ * A third party had republished the same problems under a completely different name. Blocking `cmt_benchmark` catches the original but not this copy, which is still an answer key. Yet **both `cmt` and `benchmark` appeared in the returned content**. Therefore require every word in an entry to appear, regardless of intervening text, order, hyphens, or underscores.
  *
- * ## 为什么整份查，不只查网址
+ * ## Why inspect the whole result instead of only URLs?
  *
- * 同一跑里它绕了四条路：主站 → 镜像（`hf-mirror.com`）→ 文本代理（`r.jina.ai`）
- * → 存档站（`web.archive.org`），后来还试了两个跨域代理（`allorigins.win`、
- * `corsproxy.io`）。**按域名挡的话，每一条都得单列一遍，而下一条永远列不到。**
- * 查整份就没这问题：无论它从哪条路拿的，那份东西里总会出现那几个词。
+ * In one run the model tried the main site, a mirror (`hf-mirror.com`), a text proxy (`r.jina.ai`), and an archive (`web.archive.org`), then two cross-origin proxies (`allorigins.win`, `corsproxy.io`). **Domain blocking would require enumerating every route and could never anticipate the next one.** Whole-result inspection avoids that problem: the relevant words appear in the content regardless of its route.
  *
- * 大小写不敏感 —— 发布方没有义务把每种写法列一遍。
+ * Match case-insensitively; publishers need not enumerate every capitalization.
  */
 function tripped(got: unknown, banned: string[]): string | null {
   if (banned.length === 0) return null;
@@ -253,12 +219,12 @@ function tripped(got: unknown, banned: string[]): string | null {
 }
 
 /**
- * 这一轮已经搜了几次。**一轮 = 一个节点**，跟 G 那个 `checks` 是同一套规矩：
- * 判死重来是新的一轮、新的额度。
+ * Searches already performed this round. **One round = one node**, following G's `checks` rules:
+ * restarting after marking a node dead starts a new round with a fresh allowance.
  *
- * 数的是**真搜过的次数** —— 被拦下的那几次不算，它们什么都没查到。
+ * Count only **searches actually performed**. Blocked attempts retrieved nothing and do not count.
  *
- * 没有节点这一列的机制（不走树的那些）就按整条实例数：那种机制本来也只有一轮。
+ * For mechanisms without a node column (non-tree mechanisms), count the entire instance: they have only one round anyway.
  */
 function searchesIn(db: Conn, at: { sub: string; task: string }, agent: string, instance: string, unit: number): number {
   if (!agent || !instance) return 0;
@@ -273,7 +239,7 @@ function searchesIn(db: Conn, at: { sub: string; task: string }, agent: string, 
         : (all(db, `select unit from "${at.sub}" where task = ? and node = ?`, [at.task, me.node]) as { unit: number }[]);
     units = rows.map((r) => Number(r.unit));
   } catch {
-    return 0; // 子表还没长出来，那就还没搜过
+    return 0; // If the subtable does not exist yet, no search has occurred.
   }
   if (units.length === 0) return 0;
 
@@ -289,41 +255,39 @@ function searchesIn(db: Conn, at: { sub: string; task: string }, agent: string, 
     try {
       const v = JSON.parse(r.body) as { name?: string; value?: { error?: unknown; answer?: unknown } };
       if (v.name !== SEARCH_TOOL.name) continue;
-      // 拦下的、以及超额被拒的，都没查到东西 —— 不扣数。
+      // Blocked and over-quota attempts retrieved nothing; do not charge them against the allowance.
       if (typeof v.value?.answer !== "string") continue;
       n++;
     } catch {
-      // 读不出来的行不算
+      // Do not count unreadable rows.
     }
   }
   return n;
 }
 
 /**
- * 这道题的检索记在哪儿：**那个智能体自己的表，一道题一条实例。**
+ * Where to record this problem's searches: **the search agent's own table, one instance per problem.**
  *
- * 一道题一条，所以同一道题里的每一次检索都接得上，而不同的题互不相干。
+ * All searches for one problem share a conversation; different problems remain independent.
  */
 function deskOf(task: string): string {
   return `${task}#${SEARCHER}`;
 }
 
 /**
- * 把这一次的问和答**抄送一份回它自己的表**，顺带带上这边的任务信息。
+ * **Copy this exchange into the search agent's own table**, including the caller's task information.
  *
- * 形状就是一段普通对话，跟别的智能体没有两样：
+ * It has the shape of an ordinary conversation, like any other agent:
  *
- * | 行 | 是什么 |
+ * | Row | Meaning |
  * | --- | --- |
- * | `user` | 这次问它什么 |
- * | `call` | 它答了什么（`text`），外加它去搜过哪几次 |
- * | `tool` | 每一次搜的**原样记录**，一次一行 |
+ * | `user` | The question asked this time |
+ * | `call` | Its answer (`text`) and its search calls |
+ * | `tool` | An **unmodified record** of each search, one row per call |
  *
- * 那几条原样记录是关键：**下一次把它们塞回请求，那一端会把搜到的内容恢复出来**
- * （实测：第一发搜 4 次、输入 14,543；接上之后再问，一次没重搜、输入 5,429）。
- * 内容留在那一端，这边存的只有查询串和网址，三百来个 token。
+ * Those unmodified records matter: **including them in the next request lets the provider restore the retrieved content**. Measured example: the first request searched 4 times with 14,543 input tokens; a follow-up reused the records, performed no new searches, and used 5,429 input tokens. Content remains with the provider; only query strings and URLs, about three hundred tokens, are stored here.
  *
- * 走 `deliver` 那条唯一的投递管道 —— seq 怎么排、身份怎么定，只许有一处说了算。
+ * Use the sole `deliver` pipeline: sequence allocation and identity must each have one authority.
  */
 function ccBack(db: Conn, task: string, question: string, answer: string): void {
   const desk = deskOf(task);
@@ -334,25 +298,22 @@ function ccBack(db: Conn, task: string, question: string, answer: string): void 
       (all(db, `select coalesce(max(unit), 0) as m from "${t}" where instance = ?`, [desk])[0] as { m: number }).m,
     ) + 1;
 
-  // 这一格的账：**哪道题问的**。表里因此看得出这段对话是替谁查的。
+  // This slot's bookkeeping: **which problem asked**. The table thus identifies whose search this conversation serves.
   run(db, `insert into "${ctx}" (instance, task, unit, place, done) values (?, ?, ?, 'local', 1)`, [desk, task, unit]);
 
-  // **一次两条：问它的那句，和它答的那句。** 都是纯文本 —— 它那一端怎么搜、翻了哪几页，
-  // 在我们的对话模型里根本不是一次工具调用，所以这儿没有 call、没有工具结果行。
+  // **Two rows per exchange: the question and its answer.** Both are plain text. The provider's internal searches and page views are not tool calls in our conversation model, so there are no call or tool-result rows here.
   //
-  // 走 `deliver` 那条唯一的投递管道：身份、kind、seq 只许有一处说了算。
+  // Use the sole `deliver` pipeline: identity, kind, and seq must each have one authority.
   deliver(db, { agent: SEARCHER, instance: desk, unit, by: "world", body: question });
   deliver(db, { agent: SEARCHER, instance: desk, unit, by: "agent", body: answer });
 }
 
 /**
- * 这道题此前问过它什么、它答过什么 —— **一段普通对话，按顺序取回来。**
+ * Earlier questions and answers for this problem: **an ordinary conversation retrieved in order.**
  *
- * 带上它，下一次就不用把同一片地方再走一遍：**上一轮的答案本身就是材料**。
- * 不需要去保存那一端内部的检索状态 —— 它搜了什么是它自己的事，我们要的是它说了什么。
+ * Include it to avoid revisiting the same ground: **the previous answer is itself source material**. There is no need to preserve the provider's internal search state; how it searches is its concern, while we need what it said.
  *
- * 那张表还没长出来（这件工具从没用过）就当没有：那样这一次是全新一发，多花一点，
- * 但不会错；而在这儿抛的话，第一次检索就用不了。
+ * If the table does not exist (the tool has never been used), treat history as absent. The new request may cost slightly more but remains valid. Throwing here would break the very first search.
  */
 function deskTalk(db: Conn, task: string): { role: string; content: string }[] {
   const t = tableNameOf("agent_{}_msg", SEARCHER);
@@ -369,7 +330,7 @@ function deskTalk(db: Conn, task: string): { role: string; content: string }[] {
     .map((r) => ({ role: r.role, content: r.body }));
 }
 
-/** 钥匙只在这一刻取，不留。 */
+/** Read the credential only at this point; do not retain it. */
 function keyOf(keyEnv: string): string {
   const k = process.env[keyEnv];
   if (!k) throw new Error(`${keyEnv} is not set, so there is nothing to search with`);
@@ -388,10 +349,9 @@ interface Answer {
 }
 
 /**
- * 把回来的那一坨拆成三样：说了什么、搜了什么、开了哪些页。
+ * Split the response into three things: what it said, what it searched, and which pages it opened.
  *
- * **最后一条 `message` 才是答案**，前面那些是它边搜边说的过场话（「我先去查一下」）。
- * 全都拼起来的话，答案会被过场话淹掉。
+ * **Only the final `message` is the answer**. Earlier messages are search progress commentary (such as "I'll look this up"). Concatenating all of them would bury the answer in commentary.
  */
 function unpack(d: Answer): {
   answer: string;
@@ -407,12 +367,9 @@ function unpack(d: Answer): {
   for (const o of d.output ?? []) {
     if (o.type === "web_search_call") {
       searches++;
-      // **`ws_call_id=…` 不是它搜的东西，是那一端自己的记号。**
+      // **`ws_call_id=…` is a provider-side marker, not a search query.**
       //
-      // 它两处都会冒出来：挂在网址后面，也会自己占一个「查询串」的位置。实测一跑
-      // 里，每一次检索的 queries 末尾都多出这么一条 —— 留着的话，一份「它去查了
-      // 什么」的清单里每隔几行就有一行是编号，而事后拿这份清单去比对有没有摸到
-      // 不该摸的东西时，这些行只会碍事。
+      // It appears both appended to URLs and as a standalone query entry. In one measured run, every search's queries ended with such an entry. Keeping it would insert identifiers into the list of what was searched, adding noise to later checks for access to forbidden material.
       for (const q of o.action?.queries ?? []) if (!/^ws_call_id=/.test(q)) queries.push(q);
       if (o.action?.url) opened.push(o.action.url.replace(/#ws_call_id=.*$/, ""));
       continue;
@@ -420,14 +377,11 @@ function unpack(d: Answer): {
     if (o.type !== "message") continue;
     for (const c of o.content ?? []) if (c.type === "output_text" && c.text) said.push(c.text);
   }
-  // **这一次搜花了多少，也得记。**
+  // **Record the cost of this search too.**
   //
-  // 消息表上那几个计数列记的是**智能体自己**那次调用；而这件工具背地里还打了一次
-  // `/responses`，那一次的账不落在任何一行上。实测一次搜要 7 万到 18 万个 token，
-  // 三十次就盖过了整场可见开销 —— 不记的话，「这一跑花了多少」这个问题，快照
-  // 答出来的数会小一个数量级，而且看不出来它小。
+  // Message-table counters cover the **agent's own** call, while this tool makes an additional `/responses` call whose usage otherwise belongs to no row. Measured search calls used 70,000–180,000 tokens each; thirty could exceed the whole run's visible cost. Without recording them, a snapshot's total cost could be an order of magnitude too low without any indication.
   //
-  // 记在工具结果里，不另开列：它是**这一次调用的一部分**，跟着结果走才对得上号。
+  // Store usage in the tool result rather than new columns: it is **part of this call**, and belongs with the result it describes.
   const u = d.usage ?? {};
   return {
     answer: said.at(-1) ?? "",
@@ -443,9 +397,9 @@ function unpack(d: Answer): {
 }
 
 /**
- * 注册 `web_search`。摆给谁看由 `OFFERED_TO` 说了算，落进 `trigger`。
+ * Register `web_search`. `OFFERED_TO` determines visibility through `trigger`.
  *
- * 之后要临时关掉，是改 `tool.usable` 那一列 —— 数据的事，不改这个文件。
+ * To disable it temporarily, change `tool.usable`: a data change, not an edit to this file.
  */
 export function registerSearchTool(db: Conn, reg: Registry, log?: { warn(msg: string): void }): string {
   reg.register(db, `fn:tool.${SEARCH_TOOL.name}`, SEARCH_TOOL.expectMs, async (arg) => {
@@ -454,17 +408,15 @@ export function registerSearchTool(db: Conn, reg: Registry, log?: { warn(msg: st
     if (!question) return { error: "question is required - there is nothing to search for" };
     if (!a.agent) return { error: "the kernel did not say which agent is searching, so there is no api to use" };
 
-    // 哪道题**从库里问**，不收调用方传的 —— 收的话，改一个参数就能把闸关掉。
-    // 跟 `verify` 那儿是同一条理由、同一个办法。
+    // Identify the problem **from the database**, not caller arguments; otherwise one parameter could disable the gate.
+    // The rationale and method match `verify`.
     const at = whereAmI(db, String(a.instance ?? ""));
 
-    // ── 一轮里能搜几次 ──────────────────────────────────────────────────
+    // ── Searches allowed per round ────────────────────────────────────────
     //
-    // **这道闸管的是钟，不是格子。** 实测一跑：超时那批把一小时里的一半花在检索上，
-    // 而每站的格子额度**一次都没碰到**（用得最多的一站 30 格，上限 35）。所以放宽
-    // 格子治不了 —— 只有按次数限才治得了。
+    // **This gate controls wall time, not slots.** In one measured run, timed-out tasks spent half an hour of their one-hour limit searching and **never hit** the per-station slot allowance (maximum used: 30; limit: 35). More slots cannot fix that; a search-count limit can.
     //
-    // 一轮 = 一个节点，判死重来是新的额度。超了当场回绝，**不扣数**（本来也没查到）。
+    // One round = one node; restarting after marking it dead gives a fresh allowance. Reject over-quota calls immediately **without charging them**; they retrieved nothing.
     let left: number | undefined;
     if (at) {
       const cap = Number(
@@ -485,7 +437,7 @@ export function registerSearchTool(db: Conn, reg: Registry, log?: { warn(msg: st
       }
     }
 
-    // **轨从那个智能体来，不从调用方来。** 模型、端点、思考强度都是它那一行说了算。
+    // **The track comes from the search agent, not its caller.** Its own row determines model, endpoint, and reasoning effort.
     const lane = laneOf(db, SEARCHER);
     const wall = AbortSignal.timeout(SEARCH_WALL_MS);
     const res = await fetch(`${lane.base}/responses`, {
@@ -493,12 +445,11 @@ export function registerSearchTool(db: Conn, reg: Registry, log?: { warn(msg: st
       headers: { authorization: `Bearer ${keyOf(lane.keyEnv)}`, "content-type": "application/json" },
       body: JSON.stringify({
         model: lane.model,
-        // **先看表里有没有现成的。** 有就接在问题前面 —— 那一端据此把先前搜到的内容
-        // 恢复出来，同一片地方不用再走一遍。顺序是硬的：接在**问题前面**，反过来那一端
-        // 直接拒（`The reasoning_text in the thinking mode must be passed back to the API`）。
+        // **First check for existing records in the table.** Prepend them to the question so the provider can restore prior findings instead of searching the same ground again.
+        // Order is mandatory: history goes **before the question**. Reversing it causes rejection (`The reasoning_text in the thinking mode must be passed back to the API`).
         input: at ? [...deskTalk(db, at.task), { role: "user", content: question }] : question,
         tools: [{ type: "web_search" }],
-        // 它固定的那几个参数原样带上 —— 键名照那一端的写法（`reasoning_effort`）。
+        // Pass its fixed parameters unchanged, using the provider's key names (`reasoning_effort`).
         ...(lane.knobs.reasoningEffort ? { reasoning_effort: String(lane.knobs.reasoningEffort) } : {}),
         stream: false,
       }),
@@ -507,24 +458,22 @@ export function registerSearchTool(db: Conn, reg: Registry, log?: { warn(msg: st
 
     const d = (await res.json()) as Answer;
     if (!res.ok || d.error) {
-      // 原样交回去。**这一端不翻译供应商的错** —— 翻译过的错读起来像我们的毛病，
-      // 而查起来要去翻它那边的文档。
+      // Return the error unchanged. **Do not rewrite provider errors here**: rewritten errors look like our defects,
+      // although diagnosing them requires the provider's documentation.
       return { valid: false, outcome: "provider_error", httpStatus: res.status, error: `search failed (${res.status}): ${d.error?.message ?? "no message"}` };
     }
 
     const got = unpack(d);
 
-    // **踩线的整份丢掉，一个字都不回。**
+    // **Discard a restricted result completely; return none of its text.**
     //
-    // 这道闸在模型看见之前 —— 事后审计救不了：答案一旦进了上下文，那道题就已经废了，
-    // 作废它只是记下损失。所以连它搜了什么、开了哪些页都不回，那些本身就是线索。
+    // The gate must act before the model sees it. A later audit cannot undo contamination: once an answer enters context, that problem's evaluation is invalid, and invalidating it merely records the loss. Do not even return queries or opened pages; those are clues themselves.
     //
-    // `spent` 还是要报的：这次调用真的花了钱，不因为被拦下就当没花过。
+    // Still report `spent`: the call incurred real cost even though its result was blocked.
     const hit = tripped(got, at ? forbidden(db, at.task) : []);
     if (hit) {
-      // **踩线要在日志里喊一声。** 库里留下的只有那句拒绝 —— 那是给模型看的，
-      // 它说不出「踩的是哪一条、当时它在往哪儿去」。而这件事是运维要知道的：
-      // 一道题反复撞同一条线，说明那道题的题面本身在把它往那边引。
+      // **Log restriction violations.** The database retains only the model-facing refusal, which cannot explain
+      // which restriction matched or where the search was heading. Operators need that information: repeated violations for one problem suggest its statement itself points toward that source.
       log?.warn(
         `${at ? at.task : "?"}: a search tripped the publisher's no_search rule on "${hit}" - ` +
           `the whole result was dropped. queries: ${got.queries.join(" | ").slice(0, 300)}`,
@@ -539,9 +488,8 @@ export function registerSearchTool(db: Conn, reg: Registry, log?: { warn(msg: st
     }
 
     if (!got.answer) {
-      // 搜完了却一个字没说 —— 实测发生过：15 次动作、182,063 个 token、零答案。
-      // 这时候把它**做过什么**交回去，比回一句「失败了」有用：模型至少知道哪些路
-      // 已经走过，不必再走一遍。
+      // Search completed without saying anything: observed with 15 actions, 182,063 tokens, and zero answer.
+      // Returning **what it did** is more useful than a generic failure, because the model can avoid repeating paths already tried.
       return {
         ...got,
         answer: "",
@@ -550,9 +498,9 @@ export function registerSearchTool(db: Conn, reg: Registry, log?: { warn(msg: st
           `nothing to say; the queries it tried are listed, so try asking for something narrower`,
       };
     }
-    // **校验过了才抄送。** 走到这儿说明：那一端没报错、没踩黑名单、而且真给出了答案。
-    // 抄一份回它自己的表，带上这边是哪道题 —— 下一次同一道题里的检索就接得上。
-    // 这边照常把工具调用的结果写回去，一个字不改。
+    // **Copy the exchange only after validation.** Reaching here means no provider error, no blocklist match, and an actual answer.
+    // Copy it to the search agent's table with this problem's identity, so future searches for the same problem can continue the conversation.
+    // The caller's tool result is still written normally, unchanged.
     if (at) ccBack(db, at.task, question, got.answer);
     return left === undefined ? got : { ...got, left };
   });

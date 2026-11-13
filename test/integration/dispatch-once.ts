@@ -1,41 +1,43 @@
 /**
- * 例子：**一行只许派一次。**
+ * Example: **dispatch each row only once**.
  *
  * ```
  * bun test/integration/dispatch-once.ts
  * ```
  *
- * 内核挑活是这么挑的：库里那些「还没出站过」的行，全部当场发出去，`void` 掉不等。
- * 而「已经出站了」这个事实**也在库里** —— 于是有个窗口：
+ * The kernel dispatches every row that has not yet been sent, using `void` without
+ * waiting. The sent marker is **also stored in the database**, creating this race:
  *
- * 1. 这一圈挑中某一行，`void this.#advance(p)`，不等
- * 2. `#advance` 走到第一个 `await` 让出控制权，出站标记还没写
- * 3. 这中间任何一次写库都会把内核叫醒，下一圈开始
- * 4. 下一圈去库里一看「这行没派过」，于是**又派一次**
+ * 1. This iteration selects a row and calls `void this.#advance(p)` without waiting.
+ * 2. `#advance` yields at its first `await` before writing the sent marker.
+ * 3. A database write in this interval wakes the kernel and starts another iteration.
+ * 4. The next iteration sees the row as unsent and **dispatches it again**.
  *
- * 后果是同一格里落了两条模型应答：两条挨着的「我要调工具」，中间没有结果。模型那边
- * 不许这个形状，**整条对话从此发不出去**，那道题只能空转到超时。实测五百多格里中了
- * 四格，每中一格废一道题。
+ * Two model responses then occupy the same unit: adjacent tool-request messages
+ * without intervening results. Providers reject that shape, making **the entire
+ * conversation unsendable** until task timeout. Four of more than five hundred units
+ * hit this race in an observed run, each losing a task.
  *
- * 修法是「先占位再干活」：派发的**第一件事**就是把出站标记落库，任何 await 之前。
- * 内容（挂了哪些工具、哪些用法约定）等算出来再补进同一行。
+ * The fix is to reserve before working: **the first dispatch operation** persists
+ * the sent marker before any await. Tools and usage conventions are added to the
+ * same row once computed.
  *
- * 这个例子把那个窗口撑开：一个慢句柄让 `#advance` 停在半路，同时不停地写库把内核
- * 叫醒 —— 没占位的话，这一格会被派好几次。
+ * This example widens the race window with a slow handle inside `#advance` while
+ * repeatedly writing to the database. Without reservation, the unit is sent repeatedly.
  */
 
 import { done, machine, ok, outside, part, show, step, until } from "../_lib.ts";
 
 const m = await machine();
 
-/** 这一站故意慢：`#advance` 会停在这儿，窗口就撑开了。 */
+/** Deliberately slow station: `#advance` pauses here, widening the race window. */
 const out = await outside({
   "/slow": async () => {
     await Bun.sleep(4000);
     return { role: "assistant", kind: "prompt", body: "took a while" };
   },
   "/infer": () => null,
-  /** 这一站**永远不回话** —— 用来验「到点判死、另起一个节点」。 */
+  /** This station **never responds**, testing timeout death followed by a new node. */
   "/never": async () => {
     await Bun.sleep(600_000);
     return { role: "assistant", kind: "prompt", body: "unreachable" };
@@ -61,8 +63,8 @@ try {
   });
 
   step("2. keep the kernel waking up while that station is still out");
-  // **每次写库都会把内核叫醒。** 这儿一直戳它，正是要它在上一次派发还没落地的时候
-  // 再挑一次 —— 没占位的话，这一格就会被派好几次。
+  // **Every database write wakes the kernel.** Keep waking it while the previous dispatch is incomplete;
+  // without a reservation, the same unit would be dispatched repeatedly.
   const until_ = Date.now() + 4000;
   while (Date.now() < until_) {
     await m.api("POST", "/exec", { sql: "update task set domain = domain where id = 't-once-only'" });
@@ -97,9 +99,9 @@ try {
   ok("one dispatch, one answer", said.every((r) => Number(r.n) === 1), said);
 
   step("5. a station that never answers kills the attempt, and a new one starts");
-  // 「这一次调用没回来」跟「这道题做不出来」是两回事。以前到点就把这一行标成死的、
-  // 链路断在那儿、任务跟着收工 —— 一次抖动就让一道题颗粒无收，连第二次机会都没有。
-  // 现在判死之后另起一个节点，跟交卷判 0 之后重来是同一条路。
+  // "This call never returned" differs from "this task cannot be solved". Previously, timeout marked the row dead,
+  // broke the chain, and ended the task. One transient failure lost the task without a second chance.
+  // Now timeout death starts another node through the same path used after a rejected submission.
   await m.api("POST", "/declare", {
     handles: [{ name: out.url("/never"), expectMs: 4000 }],
     agents: [{ name: "ghost", apis: [], unit: out.url("/never") }],

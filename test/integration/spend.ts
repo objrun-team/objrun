@@ -1,29 +1,31 @@
 /**
- * 例子：**它想了什么、花了多少，都得留在库里。**
+ * Example: **persist both reasoning and usage in the database**.
  *
  * ```
  * bun test/integration/spend.ts
  * ```
  *
- * 快照里以前有一个洞：**一次调用的开销一个字都没记。** 实测一跑量出来「派发到应答」
- * 平均 174 秒，而可见输出平均才 350 个 token —— 每秒两个 token，没有哪个模型慢成
- * 这样。那两百多秒是它在想，可 `reasoning_content` 当时是**读完就扔**的，于是「时限
- * 够不够」这个问题永远只能靠反推，答不出读数。
+ * The snapshot once omitted **all per-call usage**. A real run averaged 174 seconds
+ * from dispatch to response but only 350 visible output tokens, apparently two
+ * tokens per second. No model was actually that slow: the long interval was spent
+ * reasoning, but `reasoning_content` was **discarded after reading**. Whether the
+ * deadline was sufficient could only be inferred, never measured directly.
  *
- * 思考不进 `body` 的那条老决定照旧成立，理由没变：`body` 是**重放要用的那一份**，
- * 而有的网关不认得带思考的助手消息。所以这两件事分开办 ——
+ * The existing decision to keep reasoning out of `body` remains: `body` is the
+ * **replay representation**, and some gateways reject assistant messages containing
+ * reasoning. These concerns are therefore stored separately:
  *
- * - `body`：一个字不动，重放照旧
- * - `thought` + 四个计数列：只进库、不回传
+ * - `body`: unchanged, preserving replay behavior.
+ * - `thought` and four counters: stored without being sent back.
  *
- * 这个例子把两边都钉住：账进了库，而 `body` 里没有混进思考。
+ * This test verifies both sides: usage is persisted, and reasoning does not leak into `body`.
  */
 
 import { done, machine, ok, outside, part, show, step, until } from "../_lib.ts";
 
 const m = await machine();
 
-/** 冒充适配器：既说话，也报账。真适配器报的是同样这几个字段。 */
+/** Mock the adapter: return both text and usage, using the same fields as the real adapter. */
 const out = await outside({
   "/say": () => ({
     role: "assistant",
@@ -97,14 +99,14 @@ try {
   ok("cached tokens are recorded", Number(said?.cached_tokens) === 300, said?.cached_tokens);
 
   step("3. and none of it leaked into body - that is the half that gets replayed");
-  // 思考混进 `body` 的话，重放时它会被当成模型说过的话原样发回去，而那正是有的
-  // 网关要拒的东西。这一条守的就是那条路。
+  // Reasoning mixed into `body` would be replayed verbatim as model speech, which some gateways reject.
+  // This assertion protects that replay path.
   ok("body is only what was spoken", said?.body === "the ground state energy is -U0/4", said?.body);
   ok("body carries no thinking", !(said?.body ?? "").includes("strong coupling"), said?.body);
 
   step("4. a row no model call produced keeps the columns empty");
-  // **不报的记 null，不记 0。** 记成 0 的话，它跟「真的一个 token 都没花」长得
-  // 一模一样，而那两件事差着一次调用。
+  // **Missing usage is null, not 0**. Zero would make an unreported call indistinguishable from
+  // a call that genuinely consumed no tokens.
   const others = (
     await m.api<{ rows: { kind: string; prompt_tokens: number | null; thought: string | null }[] }>("POST", "/query", {
       sql: "select kind, prompt_tokens, thought from agent_bot_msg where instance = 't-spend#1' and role <> 'assistant'",

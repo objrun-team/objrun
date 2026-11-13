@@ -8,6 +8,7 @@ from common import save,durable,digest,accounting
 def plan():return json.loads((CONTROL/'plan.json').read_text())
 def source_pins():return [{'path':p.relative_to(ROOT).as_posix(),'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in sorted(CONTROL.iterdir()) if p.name in ['runner.py','audit_exception.py','checks.py','launch.py','export.py','ops.py','plan.json','README.md']]
 def protect():
+    # Exact-match the historical approval: retain anomalies and resume only the 429 units.
     p=plan();assert p['authorization']['humanAnswer']=='保留异常，仅续跑429单元'
     assert core.sourcepins()==json.loads((OUT/'source-pins.json').read_text()),'FrozenV2PackageChanged'
     report=audit_exception.inspect(ROOT,False);assert report['approvedExceptionAuditPassed'],report['additionalIssues']
@@ -46,7 +47,7 @@ def final_analysis():
     provenance={'originalV1AuditPassed':False,'originalV2OfflineAuditPassed':False,'approvedExceptionAuditPassed':True,'unresolvedV2CostReserveUsd':plan()['approvedUnknown']['reservedUpperBoundUsd'],'v2Segments':{'initial':54,'approvedContinuation':429},'frozenV2SolverUnchanged':True}
     for directory in [OUT,ROOT/'analysis/outputs']:
         report=directory/'REPORT.md';shutil.copy2(report,directory/'REPORT.original-v2.md')
-        report.write_text(report.read_text()+'\n\n用户批准保留v2的一条未知费用异常后，仅续跑429个原未启动单元；最初54条记录未改动。冻结v2求解器不变，独立控制有单独哈希。原版v1审计及v2费用审计仍未通过；独立例外审计仅确认唯一已批准未知费用及其上界保持原样，所有其他检查通过，不代表全部费用已知。\n',encoding='utf8')
+        report.write_text(report.read_text()+'\n\nAfter the user approved preserving one v2 unknown-cost anomaly, only the 429 originally unstarted units continued; the first 54 records remain unchanged. The frozen v2 solver is unchanged, and independent controls have separate hashes. Original v1 and v2 financial audits still fail; the independent exception audit confirms only that the sole approved unknown charge and its bound remain unchanged, while all other checks pass. This does not mean every cost is known.\n',encoding='utf8')
         summary=directory/'summary.json';shutil.copy2(summary,directory/'summary.original-v2.json');v=json.loads(summary.read_text());v['auditProvenance']=provenance;save(summary,v)
     save(CONTROL/'final-provenance.json',provenance)
 def main():

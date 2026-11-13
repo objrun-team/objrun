@@ -97,25 +97,25 @@ def finish(root, archive=False):
     recovery_note = ''
     if lineage_path.exists():
         lineage = json.loads(lineage_path.read_text())
-        recovery_note = f"本报告累计首批与唯一一次工程恢复批：复用 {lineage['reusedValidResults']} 条有效终态，恢复 {len(lineage['retryGroups'])} 条接口异常。保留原候选、五轮上限、原始单题截止时间和全部既有费用；并发降为 1、请求间隔至少 10 秒、恢复传输最多三次（索引 3–5），失败后不再自动开新恢复批。模型、端点、温度、推理档、token 上限和反馈协议保持一致。\n\n"
-    text = f"""# miniF2F valid 12 题两组试跑结果
+        recovery_note = f"This report combines the initial batch with the sole engineering-recovery batch: {lineage['reusedValidResults']} valid terminal states reused and {len(lineage['retryGroups'])} interface anomalies recovered. Original candidates, five-round caps, original per-task deadlines, and all existing costs are retained. Concurrency is reduced to 1, request spacing is at least 10 seconds, and recovery permits at most three transports (indices 3–5), with no automatic new recovery batch after failure. Model, endpoint, temperature, reasoning level, token cap, and feedback protocol remain identical.\n\n"
+    text = f"""# miniF2F valid: 12-task, two-arm pilot results
 
-本轮仅运行开发集 12 题，使用 OpenRouter `{cfg['model']}`、`{cfg['providerTag']}`、medium、temperature=0、16384 tokens，每题最多五轮。正式 test 244 题尚未启动。
+This run covers only 12 development tasks, using OpenRouter `{cfg['model']}`, `{cfg['providerTag']}`, medium, temperature=0, 16384 tokens, and at most five rounds per task. The formal 244-task test run has not started.
 
-{recovery_note}| 组别 | 有效评分 | 通过 | 生成轮次 | 真实费用 USD |
+{recovery_note}| Arm | Valid grades | Passed | Generation rounds | Actual cost USD |
 | --- | ---: | ---: | ---: | ---: |
-| 独立采样 | {independent['valid']}/12 | {independent['passed']}/12 | {independent['samples']} | {independent['actualCostUsd']:.9f} |
-| 二值反馈 | {binary['valid']}/12 | {binary['passed']}/12 | {binary['samples']} | {binary['actualCostUsd']:.9f} |
+| Independent sampling | {independent['valid']}/12 | {independent['passed']}/12 | {independent['samples']} | {independent['actualCostUsd']:.9f} |
+| Binary feedback | {binary['valid']}/12 | {binary['passed']}/12 | {binary['samples']} | {binary['actualCostUsd']:.9f} |
 
-独立组首轮通过 {independent['firstAttemptPassed']}/12。两组请求合计 {summary['modelRequests']} 笔，已知实际费用 ${summary['actualCostUsd']:.9f}，未确定费用 {summary['unknownCostCount']} 笔；计入保守预留的预算占用 ${summary['budgetChargedUsd']:.9f}。长度截断回执 {summary['finishReasonLength']} 笔。
+Independent first-round passes: {independent['firstAttemptPassed']}/12. Both arms total {summary['modelRequests']} requests, ${summary['actualCostUsd']:.9f} known actual cost, and {summary['unknownCostCount']} unknown charges. Budget exposure including conservative reservations is ${summary['budgetChargedUsd']:.9f}. Length-truncated receipts: {summary['finishReasonLength']}.
 
-接口失败 {summary['transportFailures']} 笔，其中 HTTP429 {summary['upstream429']} 笔。组内终态基础设施异常：独立 {independent['infrastructureExceptions']}，二值 {binary['infrastructureExceptions']}；这些异常不视为证明失败。
+Interface failures: {summary['transportFailures']}, including {summary['upstream429']} HTTP429 responses. Terminal infrastructure anomalies: independent {independent['infrastructureExceptions']}, binary {binary['infrastructureExceptions']}; these do not count as proof failures.
 
-工程审计：{'通过' if audit['allPassed'] else '存在未通过项'}。错误列表：{json.dumps(errors, ensure_ascii=False)}。无模型控制 {len(controls['checks'])} 项，全部通过状态 {controls['allPassed']}。原始 API 请求响应、逐轮候选、Lean 原始输出、评分身份与环境、成本回执及源码均保留在完整归档中。
+Engineering audit: {'passed' if audit['allPassed'] else 'some checks failed'}. Errors: {json.dumps(errors, ensure_ascii=False)}. Model-free controls: {len(controls['checks'])}, all passed: {controls['allPassed']}. The complete archive retains raw API requests/responses, round-level candidates, raw Lean output, grading identities/environments, cost receipts, and source code.
 
-独立组每轮仅含固定 system 和公开题目；二值组只加入历史完整回答和 passed/failed。基础设施异常不进入 failed 历史。Lean 在新的网络、PID、挂载和用户 namespace 中执行，只读工具链，独立临时文件系统，不继承凭据。试跑题单在生成前确定；12 题不能代表完整 test 的成绩。
+Each independent round includes only the fixed system prompt and public task. Binary feedback adds only prior complete answers and passed/failed; infrastructure anomalies never enter failed history. Lean runs in fresh network, PID, mount, and user namespaces, with a read-only toolchain, independent temporary filesystem, and no inherited credentials. The pilot task list was fixed before generation; 12 tasks do not represent the full test set.
 
-逐题结果见 results.csv，审计见 audit.json，环境见 environment.json，真实控制见 controls.json。正式运行需要用户基于试跑结果另行决定；正式开始后每 15 分钟跟进并在完成后回传核验。
+Per-task results: results.csv; audit: audit.json; environment: environment.json; actual controls: controls.json. A formal run requires a separate user decision based on pilot results; once started, follow up every 15 minutes and retrieve/verify results on completion.
 """
     (out / 'REPORT.md').write_text(text)
     if archive:

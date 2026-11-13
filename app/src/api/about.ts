@@ -1,16 +1,18 @@
 /**
- * 这台机器认得什么。
+ * What this machine recognizes.
  *
- * ## 为什么要有这个口
+ * ## Why this endpoint exists
  *
- * **客户端不该把这些写死。** 写死的代价很具体：这边给消息类型加了一种 `voice`，
- * 客户端那边的 `switch` 没有这一支，于是现场说的话在界面上**显示成空白** ——
- * 不报错，就是没了。加一种状态、加一种调用形状，都是同一个下场。
+ * **Clients must not hard-code these definitions.** The failure is concrete: adding `voice`
+ * to message types without updating a client's switch makes live speech appear **blank** in
+ * the UI, without an error. New states or invocation shapes have the same failure mode.
  *
- * 所以客户端启动时拉一次这个口，把下面这些**当数据用**。这边加一种，那边自动就有。
+ * Clients should fetch this endpoint at startup and treat its definitions **as data**.
+ * A new server-side entry then becomes available automatically.
  *
- * 「人给的标记」那一条尤其是：库里人写的消息带着它，客户端显示时要么剥掉、
- * 要么据它标个样式。硬编码 `"【人】"` 的话，这边一改那边就全乱。
+ * The human-authored marker especially matters: human messages carry it, and clients must
+ * either remove it for display or style the message accordingly. Hard-coding `"[human]"` breaks
+ * clients as soon as the server changes that marker.
  */
 
 import { all, type Store } from "../H2H/db.ts";
@@ -19,7 +21,7 @@ import { MODES } from "../llm/index.ts";
 import { SOURCES, STATES } from "../tasks/publish.ts";
 import type { Route } from "./spec.ts";
 
-/** 任务四态各是什么意思。**跟 `STATES` 同源** —— 那是值域，这是给人看的注解。 */
+/** The four task states. **Derived alongside `STATES`**: those are allowed values; these are human-readable explanations. */
 const STATE_NOTE: Record<string, string> = {
   open: "Waiting to be picked up: not a single execution unit has been opened",
   claimed: "Someone is working on it: there are unfinished execution units",
@@ -34,7 +36,7 @@ const SOURCE_NOTE: Record<string, string> = {
   eacn: "Published by the system above",
 };
 
-/** 执行单元的终止状态。**出生即定，不回改。** */
+/** Execution-unit terminal states. **Fixed when the row is created; never changed afterward.** */
 const UNIT_STATUS: [string, string][] = [
   ["reached", "Claims to have arrived"],
   ["dead_failed", "Ruled out: this step did not work"],
@@ -61,8 +63,8 @@ export function aboutRoutes(prefix: string, store: Store, version: string, duple
         declared: { modes: ["dfs"], agents: ["solver"], places: ["local"], duplexHandles: [] },
       },
       handler: async () => {
-        // `human` 这一位从投递那张推断表推出来，**这儿不另留一份名单** ——
-        // 各留一份的话，加一种人类来源就会漏掉一处。
+        // Derive `human` from the delivery inference table. **Do not keep a second list here**:
+        // otherwise adding a human source would eventually leave one list outdated.
         return {
           version,
           prefix,

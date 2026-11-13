@@ -151,29 +151,29 @@ def main():
         results.append(report)
     json_path = ROOT / "docs/repair-2026-10-08/new-results.json"
     json_path.write_text(json.dumps(results, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    lines = ["# 修复后实际运行结果", "", "由 summarize_campaigns.py 从逐任务证据重建。全部分母在生成前固定；缺失或无效运行不删除。",
-        "当前 deepseek-flash 新基线与旧 0731 模型及工具协议不同，不能回填旧论文。小批用于验证链路，不能外推全量成绩。",
-        "R 的 any-of-5 是五次独立回答的事后覆盖数；没有向 R 反馈评分或挑选答案继续生成。", ""]
+    lines = ["# Actual run results after repair", "", "Reconstructed by summarize_campaigns.py from per-task evidence. All denominators were fixed before generation; missing or invalid runs are not removed.",
+        "The new deepseek-flash baseline differs from the old 0731 model and tool protocol and cannot be backfilled into the old paper. Small batches validate the execution path; they cannot be extrapolated to full-set results.",
+        "R any-of-5 is posthoc coverage across five independent answers; grading was not fed back to R, nor were answers selected for further generation.", ""]
     for report in results:
-        state_label = "稍后环境核验闭合" if report["deferredRuntimeClosing"] else "证据完整" if report["evidenceReady"] else "已失败，原记录保留" if report["originalFatal"] else "运行中或证据待核"
-        cost_label = f"已记录用量费用上界 ${report['recordedUsageUpperBoundUsd']:.6f}"
+        state_label = "closed by later environment verification" if report["deferredRuntimeClosing"] else "complete evidence" if report["evidenceReady"] else "failed; original records retained" if report["originalFatal"] else "running or evidence awaiting verification"
+        cost_label = f"recorded usage cost upper bound ${report['recordedUsageUpperBoundUsd']:.6f}"
         if report["unresolvedReservedUpperBoundUsd"] > 1e-8:
-            cost_label += f"，另有未闭合预留 ${report['unresolvedReservedUpperBoundUsd']:.6f}，完整实际费用未知"
-        lines += [f"## {report['campaign']}", "", f"状态：{state_label}；任务运行 {report['recordedTaskRuns']}/{report['plannedTaskRuns']}；供应商调用 {report['providerCalls']}；{cost_label}。", "",
-            "| 基准 | 臂 | 有效/预定题量 | 通过/预定题量 | 状态 | 输入/输出 token | 费用上界 USD |", "|---|---|---|---|---|---|---|"]
+            cost_label += f", plus unclosed reservations ${report['unresolvedReservedUpperBoundUsd']:.6f}; complete actual cost unknown"
+        lines += [f"## {report['campaign']}", "", f"State: {state_label}; task runs {report['recordedTaskRuns']}/{report['plannedTaskRuns']}; provider calls {report['providerCalls']}; {cost_label}.", "",
+            "| Benchmark | Arm | Valid/planned tasks | Passed/planned tasks | State | Input/output tokens | Cost upper bound USD |", "|---|---|---|---|---|---|---|"]
         for g in report["groups"]:
             arm = f"R{g['replica'] + 1}" if g["arm"] == "R" else g["arm"]
-            cost = f"{g['usageUpperBoundUsd']:.6f}" if "usageUpperBoundUsd" in g else "见五次 R 合计"
-            tokens = f"{g['inputTokens']}/{g['outputTokens']}" if "inputTokens" in g else "见五次 R 合计"
+            cost = f"{g['usageUpperBoundUsd']:.6f}" if "usageUpperBoundUsd" in g else "see total across five R runs"
+            tokens = f"{g['inputTokens']}/{g['outputTokens']}" if "inputTokens" in g else "see total across five R runs"
             valid_label = f"{g['validTasks']}/{g['expectedTasks']}"
             passed_label = f"{g['passedTasks']}/{g['expectedTasks']}"
             if g.get("pendingFinalGradingTasks"):
-                valid_label = f"原批未统一评分（{g['pendingFinalGradingTasks']}题有记录）" if report["originalFatal"] and not report["deferredRuntimeClosing"] else f"待统一评分（{g['pendingFinalGradingTasks']}题已生成）"
-                passed_label = "待判卷"
+                valid_label = f"original batch not jointly graded ({g['pendingFinalGradingTasks']} tasks recorded)" if report["originalFatal"] and not report["deferredRuntimeClosing"] else f"awaiting joint grading ({g['pendingFinalGradingTasks']} tasks generated)"
+                passed_label = "awaiting grading"
             lines.append(f"| {g['benchmark']} | {arm} | {valid_label} | {passed_label} | {g['scoreStatus']} | {tokens} | {cost} |")
-        lines += ["", f"源码执行摘要：`{report['sourceExecutionDigest']}`。原始 manifest/source/ledger/task JSON 与数据 SQLite 保留在该运行目录及 `.phase1-data/repair/`。", ""]
+        lines += ["", f"Source execution digest: `{report['sourceExecutionDigest']}`. Original manifest/source/ledger/task JSON and data SQLite are retained in this run directory and `.phase1-data/repair/`.", ""]
         if report["deferredRuntimeClosing"]:
-            lines += ["原 campaign 保留 `completed=false` 和 Docker 收尾查询超时；后续仅按原冻结合同核验同一容器/镜像、只读挂载和实际依赖摘要，未调用模型或重选候选。独立逐请求/候选/源码审计及稍后观察时间见 `independent-deferred-closing-audit.json`。表中结果采用这份单独闭合证据，未改写原失败边界。", ""]
+            lines += ["The original campaign retains `completed=false` and the Docker cleanup-query timeout. Later verification checked only the same container/image, read-only mounts, and actual dependency digests under the original frozen contract, without model calls or candidate reselection. See `independent-deferred-closing-audit.json` for the independent per-request/candidate/source audit and later observation time. Table results use this separate closure evidence without rewriting the original failure boundary.", ""]
     md_path = ROOT / "docs/repair-2026-10-08/new-results.md"
     md_path.write_text("\n".join(lines), encoding="utf-8")
     print(json.dumps({"campaigns": len(results), "evidenceErrors": {r['campaign']: r['evidenceErrors'] for r in results if r['evidenceErrors']}, "output": str(md_path)}, ensure_ascii=False))

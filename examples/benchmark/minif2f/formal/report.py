@@ -159,20 +159,20 @@ def finish(root,archive=False):
     save(out/'budget-curves.json',{'units':'settled costs plus conservative unknown reserves','unknownCostsAreNotZero':True,'curves':curves})
     with (out/'results.csv').open('w',newline='') as stream:
         writer=csv.DictWriter(stream,fieldnames=list(rows[0]));writer.writeheader();writer.writerows(rows)
-    text=f"""# miniF2F-test 244 题正式实验
+    text=f"""# miniF2F-test: 244-task formal experiment
 
-OpenRouter → DeepInfra / 0731，medium，T=0，16384 tokens，最多五轮。两组共享16个模型HTTP槽，Lean并发4；HTTP结束即事件驱动补位，无全局请求间隔，429有界退避。每题每组3600秒/$0.10，正式整批上限$48.80，pilot费用另列。
+OpenRouter → DeepInfra / 0731, medium, T=0, 16384 tokens, at most five rounds. Both arms share 16 model HTTP slots; Lean concurrency is 4. Event-driven replacement begins as HTTP calls finish, with no global request interval and bounded 429 backoff. Each task per arm has 3600 seconds/$0.10; formal batch cap $48.80, with pilot costs separate.
 
-| 组别 | 有效评分 | 通过 | 基础设施异常 | 已确认费用 USD |
+| Arm | Valid grades | Passed | Infrastructure anomalies | Confirmed cost USD |
 | --- | ---: | ---: | ---: | ---: |
-| 独立采样 | {a['valid']}/244 | {a['passed']}/244 | {a['infrastructureExceptions']} | {a['actualCostUsd']:.9f} |
-| 二值反馈 | {b['valid']}/244 | {b['passed']}/244 | {b['infrastructureExceptions']} | {b['actualCostUsd']:.9f} |
+| Independent sampling | {a['valid']}/244 | {a['passed']}/244 | {a['infrastructureExceptions']} | {a['actualCostUsd']:.9f} |
+| Binary feedback | {b['valid']}/244 | {b['passed']}/244 | {b['infrastructureExceptions']} | {b['actualCostUsd']:.9f} |
 
-独立组首轮通过 {a['firstAttemptPassed']}/244。合计HTTP请求{len(all_receipts)}笔，已确认费用 ${summary['actualCostUsd']:.9f}，未知费用{summary['unknownCostCount']}笔，含保守预留的预算占用 ${exposure:.9f}。HTTP429为{summary['http429Count']}笔，长度截断{summary['lengthTruncatedResponses']}笔。未知费用不记零，基础设施异常不记数学证明失败。
+Independent first-round passes: {a['firstAttemptPassed']}/244. Total HTTP requests: {len(all_receipts)}; confirmed cost ${summary['actualCostUsd']:.9f}; {summary['unknownCostCount']} unknown charges; budget exposure including conservative reservations ${exposure:.9f}. HTTP429 count: {summary['http429Count']}; length-truncated responses: {summary['lengthTruncatedResponses']}. Unknown costs are not zero, and infrastructure anomalies are not mathematical proof failures.
 
-实际HTTP重叠峰值{overlap['actualHttpPeak']}，已从逐请求开始/结束事件重放，全部槽位闭合。消息、评分身份、固定题单/源码与费用上限审计通过。两组每题都计入244的分母；异常的成功率范围见summary.json。完整配对统计与任务bootstrap区间见paired-comparison.json，美元观察点见budget-curves.json；bootstrap只描述题目构成不确定性。
+Actual peak overlapping HTTP calls: {overlap['actualHttpPeak']}, replayed from request start/end events; all slots closed. Audits passed for messages, grading identities, fixed task list/source, and cost caps. Every task counts toward each arm’s denominator of 244; see summary.json for success-rate bounds under anomalies. Full paired statistics and task-bootstrap intervals: paired-comparison.json; dollar checkpoints: budget-curves.json. Bootstrap describes task-composition uncertainty only.
 
-所有请求响应、generation ID、可见回答与reasoning原文、候选SHA、Lean原始输出、评分、公理判据、缓存身份、环境/源码、真实与未知费用、并发和异常日志均在完整归档中。使用全新test244轨迹；未混入pilot或历史成绩。
+The complete archive includes every request/response, generation ID, visible answer and original reasoning, candidate SHA, raw Lean output, grade, axiom criterion, cache identity, environment/source, actual/unknown costs, concurrency, and anomaly logs. These are fresh test244 trajectories; pilot and historical scores are not mixed in.
 """
     (out/'REPORT.md').write_text(text)
     if archive:

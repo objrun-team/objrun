@@ -1,20 +1,19 @@
 /**
- * 每隔一阵子打一轮，**看它们在干嘛** —— 不是看成绩单。
+ * Poll periodically to see **what running tasks are doing**, rather than waiting for a score report.
  *
  * ```
- * bun examples/benchmark/deepswe/pulse.ts [这一跑叫什么] [隔多少秒]
+ * bun examples/benchmark/deepswe/pulse.ts [run-name] [interval-seconds]
  * ```
  *
- * 成绩单要几个钟头才有第一个数，那时候该改的早来不及了。所以每一轮出的是**正在跑的
- * 每一道**：走到第几站、上一条消息多久以前、问过几次判卷、上下文多大。
+ * The first score can take hours, too late to correct problems. Each poll reports every active problem: current station, time since the last message, grading-query count, and context size.
  *
- * 一行前面挂 `!` 的是**可疑**，判据只有三条，都是撞过的：
+ * A leading ! marks a **suspicious** row using three previously observed conditions:
  *
- * | 挂了 `!` | 多半是什么 |
+ * | Condition | Likely cause |
  * | --- | --- |
- * | 静了超过 15 分钟 | 那一站卡在一个工具里（扫盘的 grep、跑不完的测试），或者模型那条轨断了 |
- * | 站数不动 | 同上，但更死 —— 连超时都没回来 |
- * | 站过了 150 还一次判卷都没问过 | 它不知道要交 sha，或者根本没往交卷那条路走 |
+ * | Silent for over 15 minutes | A tool is stuck (disk-wide grep or endless tests), or the model connection failed |
+ * | Station count does not advance | Similar, but even the timeout has not returned |
+ * | Over 150 stations without any grading query | The solver does not know to submit a SHA, or never follows the submission path |
  */
 
 const BASE = process.env.TGENGIN_BASE ?? "http://127.0.0.1:7801/api";
@@ -29,7 +28,7 @@ interface Row {
   bytes: number | null;
 }
 
-/** 引擎日志里那几件要紧的事。日志是一行一个 JSON，数行就够了。 */
+/** Important engine-log events. Logs contain one JSON object per line, so count matching lines. */
 async function fromLog(): Promise<string> {
   try {
     const text = await Bun.file(process.env.TGENGIN_LOG ?? "data/engine.log").text();
@@ -72,7 +71,7 @@ const COUNTS = `
     (select count(*) from task where run = '${RUN}' and state = 'done') as checks,
     (select count(*) from task where run = '${RUN}' and state = 'failed') as bytes`;
 
-// 一格一格地站着不动，就是卡住了 —— 所以上一轮的站数得记着。
+// An unchanged station count indicates a stall; retain the preceding poll's count.
 const was = new Map<string, number>();
 
 for (;;) {

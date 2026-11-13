@@ -79,15 +79,15 @@ $taskScript='{PS}'
 & $taskScript -Mode snapshot -Review $taskReview -ReviewSha $taskReviewSha -Receipt '{ROOT / 'docs/repair-2026-10-08/science-db-snapshots/root-snapshot-1.json'}'
 """
     command_pin = save(DOC/'root-commands.ps1.txt', commands.encode('utf-8'))
-    md = f"""已完成 F 盘自建原生控制，4 项通过、0 项失败，子进程退出 0。未执行 D 盘生产 Gate 或复制，未打开原 SQLite；模型、评分、锁操作均为 0。
+    md = f"""Self-created native controls on drive F are complete: 4 passed, 0 failed, subprocess exit 0. No production gate or copying on drive D was executed, and original SQLite was not opened; model, grading, and lock operations are all 0.
 
-原 12 个普通文件当前合计 {original_bytes:,} bytes；raw12 与 working12 两份真实字节副本预计 {2*original_bytes:,} bytes，硬限制 512 MiB，生产阶段每次复制前实时保留 D 盘 1 GiB。snapshot 仅写本 thread owner 下独立 fresh UUID sibling；F 收据不超过 300 KiB。Gate 只查元数据、确切 5 PID / 4 个记录端口及原 canonical lock Pin，不复制，也不打开原数据库。
+The original 12 regular files currently total {original_bytes:,} bytes; actual byte copies raw12 and working12 are expected to total {2*original_bytes:,} bytes. The hard limit is 512 MiB, and production must preserve 1 GiB of free space on drive D, checked immediately before each copy. Snapshots are written only to an independent fresh UUID sibling under this thread owner; the F receipt is at most 300 KiB. The gate checks only metadata, the exact 5 PIDs / 4 recorded ports, and the original canonical lock pin; it neither copies nor opens original databases.
 
-复制前同时取得 12 个 Windows GENERIC_READ / FILE_SHARE_READ 句柄，拒绝写入和删除共享；每个原件读前/读后 SHA 与文件身份一致，24 个新文件分别 CREATE_NEW、真实 FlushFileBuffers、关闭后读回 SHA。任何失败保留所属 partial、保存 invalid，不修改原件，不自动重试。
+Before copying, simultaneously acquire 12 Windows GENERIC_READ / FILE_SHARE_READ handles, denying write and delete sharing. Each original's SHA and file identity must match before and after reading. Each of the 24 new files uses CREATE_NEW, actual FlushFileBuffers, and a SHA reread after closing. On any failure, retain the owned partial files and save invalid; do not modify originals or retry automatically.
 
-控制含实际写入/删除 WinError32、真实 F junction 拒绝与复制第三个文件后故障保留。fixture 的进程守卫明确是替身，不证明生产 5 PID 已关闭；没有断电模拟。源码、控制、日志与成功 native receipt 均绑定在 review.json（SHA {review_pin['sha256']}）。具体 Root 命令见 root-commands.ps1.txt（SHA {command_pin['sha256']}），只能另行使用 fresh 收据路径，不能把这个准备件当已复制证书。
+Controls include actual write/delete WinError32, rejection of a real F junction, and preservation after a fault following the third copied file. The fixture process guard is explicitly a substitute, not proof that the 5 production PIDs have closed; no power-loss simulation was performed. Source, controls, logs, and the successful native receipt are bound in review.json (SHA {review_pin['sha256']}). Exact Root commands are in root-commands.ps1.txt (SHA {command_pin['sha256']}); they must run separately using fresh receipt paths. This preparation artifact is not a certificate of completed copying.
 
-761、771、775 均为 ChemBench F 缺少 published 记录，worker 归属仍未知；禁止借相邻 U 记录默认 worker0。后续仅在副本读取 api.base_url 一列与三个精确 taskId/trace。共享 proxy 须由副本唯一 localhost origin 与独立 Pin 建立，不能沿用猜测端口；本工具未建立其来源。原 1220 分母、789 原 candidate/acceptance、4 笔旧未知费用和 canonical 锁均保持原态，本收据不授权模型、计分或财务释放。
+761, 771, and 775 are all ChemBench F tasks missing published records, and worker ownership remains unknown; do not assume worker0 from adjacent U records. Subsequent reads on copies are limited to the api.base_url column and three exact taskId/trace values. The shared proxy must be established from a unique localhost origin in the copies and an independent pin, not a guessed port; this tool has not established its provenance. The original 1220 denominator, 789 original candidate/acceptance records, 4 earlier unknown costs, and canonical lock all remain unchanged. This receipt authorizes no model calls, scoring, or financial release.
 """
     md_pin = save(DOC/'review.md', md.encode('utf-8'))
     for p in source_pins:

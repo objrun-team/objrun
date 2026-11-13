@@ -4,6 +4,7 @@ from pathlib import Path
 spec=importlib.util.spec_from_file_location('mbpp_old_recovery',Path(__file__).with_name('prepare-mbpp-interface-recovery.py'))
 old=importlib.util.module_from_spec(spec);spec.loader.exec_module(old)
 ROOT=old.ROOT;MBPP=old.MBPP;OUT=old.OUT
+# Original authorization, retained verbatim. English: Try additional providers, excluding quantized ones; providers with unknown precision are allowed.
 AUTHORITY='2026-10-12 user: 供应商可以多换几个试下，不要换到有量化的就行了；精度未知的也能用'
 
 def process_snapshot():

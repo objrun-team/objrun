@@ -1,21 +1,23 @@
 /**
- * 执行链路串 —— 触发条件里 `dim=chain` 比的就是它。
+ * Execution-chain strings, compared by trigger conditions with `dim=chain`.
  *
- * # 这是协议，不是实现细节
+ * # This is a protocol, not an implementation detail
  *
- * 拼法一改，所有 `dim=chain` 的条件同时**静默失效** —— 不报错，只是再也不触发。
- * 所以拼法写死在这一个函数里，改它等于改协议：得连着把库里已有的条件一起改。
+ * Changing the format makes every `dim=chain` condition **silently stop matching**.
+ * Keep formatting in this one function. A format change is a protocol change and requires
+ * migrating existing database conditions too.
  *
- * ## 格式
+ * ## Format
  *
- * 从任务的头节点，沿着 `from_cycle` / `from_unit` 一路走到当前这个执行单元，
- * 每一段写成 `模式/周期#单位`，段与段之间用 ` > ` 连。
+ * Starting at the task's root node, follow `from_cycle` / `from_unit` to the current execution
+ * unit. Format each segment as `mode/cycle#unit` and join segments with ` > `.
  *
  * ```
  * dfs/open#1 > dfs/scope#1 > dfs/act#2
  * ```
  *
- * 段的顺序是**从头到当前**，不是倒着 —— `prefix` 这类比较才有意义。
+ * Segments run **from the root to the current unit**, never backward, so comparisons such
+ * as `prefix` have the intended meaning.
  */
 
 import type { Conn } from "../H2H/db.ts";
@@ -36,10 +38,10 @@ function seg(mode: string, u: { cycle: string; unit: number }): string {
 }
 
 /**
- * 拼当前这一行的链路串。
+ * Construct the chain string for the current row.
  *
- * 沿 `from` 指针往上走，走到没有前驱为止。**带环的话当场炸** —— 一个执行单元
- * 顺着 from 走回自己，那是数据坏了，静静地转下去只会挂死在这儿。
+ * Follow `from` pointers until there is no predecessor. **Fail immediately on a cycle**:
+ * returning to the same execution unit indicates corrupt data; silently continuing would hang.
  */
 export function chainOf(db: Conn, sub: string, mode: string, at: Unit): string {
   const segs: string[] = [seg(mode, at)];

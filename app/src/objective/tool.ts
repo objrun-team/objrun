@@ -1,38 +1,35 @@
 /**
- * `verify` —— **让模型自己去问 G**。
+ * `verify`: **let the model query G itself**.
  *
- * ## 为什么这是个真工具
+ * ## Why this must be an actual tool
  *
- * 判死之后，判决本来就会投进上下文（`msg/deliver.ts` 的 `deliverVerdict`），投的
- * 形状是「一次带结果的工具调用」，名字就叫 `verify`。可那之前它并**不是**一个注册
- * 过的工具 —— 于是上下文里躺着一条 `role: assistant` 的行写着「我调用了 verify」，
- * 而模型真去调就报「tool 表里没有 verify」。**看起来是工具，其实调不动**，
- * 那是在伪造它自己的轨迹。
+ * After a node is marked dead, `deliverVerdict` in `msg/deliver.ts` injects its verdict as a
+ * tool call and result named `verify`. Originally no such tool was registered: context said
+ * "I called verify" in an assistant row, but an actual call failed because verify was absent
+ * from the tool table. **An apparent tool that cannot be called fabricates the model's trajectory.**
+ * Registering it makes the recorded interaction real.
  *
- * 补上它，那条轨迹就名副其实了。
+ * ## Exposing the objective is not leaking the answer
  *
- * ## 让它看得见目标，不是漏题
+ * Only **ground truth** must remain hidden. Knowing acceptance criteria and whether a candidate
+ * meets them is part of doing the task. Hiding this can cause unnoticed formatting failures:
+ * in one observed set, two of five tasks failed at `parsed=False` because their formats did
+ * not satisfy the official parser, rather than because the model could not solve them.
  *
- * 要藏的只有一样：**GT**。至于「验收标准是什么」「我这份达标没有」——
- * 知道这两件事本来就是干活的一部分，藏起来只会让它在标准上翻车而不自知
- * （实测：五道里两道死在 `parsed=False`，是格式没合上官方 parser 的口径，
- * 不是不会做）。
+ * Return `{pass, why}`: **whether the candidate passed and why it failed**. Do not return
+ * per-node `trace` or the dataset answer; the grader never exposes `solution`.
  *
- * 所以这个工具回的是 `{pass, why}`：**过没过、为什么没过**。
- * 不回 `trace`（每个节点算出了什么），更不回题库里那份答案 —— 判卷台那一侧
- * 压根不往外发 `solution`。
+ * ## Limits are a budget concern, not a secrecy mechanism
  *
- * ## 次数由树管，不由保密管
+ * Unlimited checks would become best-of-N with a perfect oracle, but this is a **budget** issue.
+ * `max_branches` / `max_dead_siblings` / `solve_seconds` provide the relevant bounds.
+ * Hiding the grader cannot meaningfully enforce a limit when verdicts already arrive every round.
  *
- * 「无限刷就成了完美 oracle 下的 best-of-N」是真的，但那是**预算**问题：
- * `max_branches` / `max_dead_siblings` / `solve_seconds` 就是那几个闸。
- * 靠「它找不到判卷台」来限次数是幻觉 —— 判决本来每轮就送到它面前。
+ * ## Availability depends on whether the task has G
  *
- * ## 分发条件：这道题有没有 G
- *
- * 不按 mode 分（`task_tree` 那两个才是只有走树才有意义）。**有 G 就该能问 G**，
- * 单链机制也一样。条件落进 `trigger`，跟别的工具走同一张表：
- * `task.objective = 'sealed'`。
+ * Do not restrict by mode, unlike the two `task_tree` tools whose meaning depends on a tree.
+ * **A task with G should be able to query G**, including in a linear mode. Use the shared
+ * `trigger` table, with `task.objective = 'sealed'`.
  */
 
 import type { Conn } from "../H2H/db.ts";
@@ -70,15 +67,15 @@ const VERIFY_TOOL = {
   expectMs: 120_000,
 };
 
-/** 注册 `verify`。`sealed` 是封存区 —— G 的定义只在那儿，主库全接口开放也翻不出来。 */
+/** Register `verify`. `sealed` stores G definitions outside the reach of the fully exposed main database API. */
 export function registerVerifyTool(db: Conn, reg: Registry, sealed: Sealed): string {
   reg.register(db, `fn:tool.${VERIFY_TOOL.name}`, VERIFY_TOOL.expectMs, async (arg) => {
     const a = (arg ?? {}) as { args?: { answer?: unknown }; instance?: string; agent?: string; unit?: number };
     const answer = String(a.args?.answer ?? "");
     if (!answer.trim()) return { error: "answer is required - an empty one cannot be graded" };
 
-    // 哪道题**从库里问**，不收调用方传的 —— 收的话模型改一个参数就能拿别人那道
-    // 题的 G 来问自己这一道。
+    // Resolve the task **from the database**, not caller arguments. Otherwise a model could change
+    // one parameter and use another task's G to query its own candidate.
     const at = whereAmI(db, String(a.instance));
     if (!at) return { error: `cannot tell which task ${String(a.instance)} belongs to` };
     if (!sealed.has(at.task)) return { error: `${at.task} has no grading function, nothing to check against` };
@@ -86,20 +83,20 @@ export function registerVerifyTool(db: Conn, reg: Registry, sealed: Sealed): str
     const g = sealed.open(at.task)!;
     const task = all(db, `select * from task where id = ?`, [at.task])[0] as Record<string, unknown> | undefined;
 
-    // ── 一轮里只许验这么几次 ──────────────────────────────────────────────
+    // ── Per-attempt verification allowance ──
     //
-    // **没有上限的话，最省事的策略是把答案空间枚举一遍。** 实测过：一道选项题
-    // 被连着试了七十七个排列组合（`b;a` / `c;d` / `b;c;d` / `b;a;c;d` …），一次
-    // 推理都没有。那样得来的分数量的是答案空间有多大，不是它会不会做。
+    // **Without a limit, enumerating the answer space is the easiest strategy.** An observed
+    // multiple-choice task tried 77 combinations (`b;a` / `c;d` / `b;c;d` / `b;a;c;d` …) without
+    // reasoning. That measures answer-space size rather than problem-solving ability.
     //
-    // 而且**执行单元那个额度拦不住它**：一次请求可以带很多个工具调用，一格里
-    // 试二十次跟试一次一样贵。所以闸得按「问了 G 几次」来算，不是按走了几站。
+    // An **execution-unit limit cannot prevent this**: a single request can contain many tool calls,
+    // so twenty checks in one unit cost the same unit budget as one. Count queries to G instead.
     //
-    // 上限由**发布方**定（`task.max_checks`）。一轮 = 一个节点：判死之后开的新
-    // 节点是一次全新的尝试，额度也是新的。**交卷那一次不算** —— 那一次是内核
-    // 替它问的，落的是 `graded` 行，不是它自己调的 `call`。
-    // **额度是 G 的性质，不是任务的** —— 能问几次，问的是这个盒子经得起被问几次。
-    // 绑在任务上的话，同一个 G 换个发布方就能被问一百次，那道墙等于没有。
+    // The **publisher** chooses the limit (`task.max_checks`). A round is one node; a retry starts
+    // a new attempt with a fresh allowance. **Final submission is excluded** because the kernel
+    // requests it and records `graded`, rather than an agent-initiated `call`.
+    // **The allowance belongs to G, not the task**: otherwise another publisher could assign
+    // 100 checks to the same G and bypass the intended boundary.
     const here = numberOf(sealed.checksOf(at.task), 5);
     const spent = checksIn(db, {
       sub: at.sub,
@@ -118,34 +115,36 @@ export function registerVerifyTool(db: Conn, reg: Registry, sealed: Sealed): str
       };
     }
 
-    // 形状跟 `tree/dfs.ts` 里那次一致 —— 同一个 G，同一批句柄，喂进去的东西
-    // 不该因为「是谁问的」而变形。
+    // Use the same input structure as `tree/dfs.ts`. The same G and handles must receive the same
+    // input regardless of who requested the check.
     const v = await evaluate(g, reg, candidateInput(task ?? {}, answer));
     if (!v.valid) return { valid: false, outcome: "grader_error", error: v.why || "the grader did not complete", graded: answer, left: here - spent };
-    // **回执带上判的是哪一份。** 只回一个 1 的话，隔几轮它就对不上号了 ——
-    // 实测：模型验出过一份 equiv=True 的答案，后面又交了另一份。上下文里那条
-    // `{pass:1, why:""}` 没说过的是哪一段，等于验了个寂寞。
+    // **Identify the graded candidate in the receipt.** A bare 1 becomes ambiguous after several
+    // iterations. A model once verified an equiv=True answer, then submitted a different one;
+    // its `{pass:1, why:""}` record did not identify which candidate had passed.
     //
-    // `trace`（每个节点算出了什么）仍然不回，那是给我们排障看的。
+    // Continue withholding per-node `trace`, which is for internal diagnostics.
     return { pass: v.pass, valid: v.valid, outcome: v.outcome, why: v.why, note: v.note, graded: answer, left: here - spent - 1 };
   });
-  // **落库走同一条路。** 以前这儿是手写的一条 upsert 加两条 `insert into trigger`，
-  // 跟 `register.ts` 里那份各写各的 —— 而它们已经漂开了一列（那边更新
-  // `concurrent`，这边不更新）。现在两边都调 `declareTool`。
+  // **Use the same persistence path.** This previously duplicated an upsert and two trigger
+  // inserts from `register.ts`, and had already drifted: one updated `concurrent`, the other did
+  // not. Both paths now call `declareTool`.
   declareTool(db, {
     ...VERIFY_TOOL,
     concurrent: false,
-    // **判决拿不回来。** 再问一次 G 要 3–97 秒（五种语言各量了一道），而且那次调用
-    // 花的是这一轮的额度 —— 压上下文的时候它跟一次跑了四分钟的测试是一类东西。
+    // **Verdicts cannot simply be recovered.** Rechecking G costs 3–97 seconds, measured on one
+    // problem in each of five languages, and consumes this attempt's allowance. During context
+    // compression, treat it like a test run that took four minutes.
     gives: "event",
-    // 两条同一组 = AND：**这道题有 G，而且这一站不是交卷站。**
+    // Two conditions in one group mean AND: **the task has G and this is not the submission station**.
     //
-    // 第一条：有 G 就该能问 G，不按 mode 分 —— 单链机制也一样。
+    // The first permits any task with G to query it, including linear modes.
     //
-    // 第二条：跑工具的只有动作站（`api_mode` 为空、走 `agent.unit` 的那个），而交卷
-    // 站是模型站、它的下一站也是模型站 —— 模型在那儿请求的任何工具都没有人会去跑，
-    // 那次调用会一直挂着，直到补齐给它写一条「没跑成」。实测的样子：模型在交卷站调
-    // `submit`，拿回一句「没跑成」。而交卷本来就不需要工具：交的是它说的话。
+    // The second matters because only action stations execute tools (`api_mode` empty, using
+    // `agent.unit`). Submission is a model station followed by another model station, so tool
+    // calls requested there have no executor. They remain pending until completion repair writes
+    // a failure result. In practice, a model called `submit` there and received a failure message.
+    // Submission itself does not require tool execution; the submitted candidate is its text.
     when: [
       [
         { dim: "task", key: "objective", op: "eq", value: "sealed" },
@@ -162,21 +161,22 @@ function numberOf(v: unknown, fallback: number): number {
 }
 
 /**
- * 这一轮已经**用掉**几次检查。**一轮 = 一个节点。**
+ * Number of verification checks **consumed** in this attempt. **One attempt is one node.**
  *
- * 数的是**拿到过判决的次数**，不是它调了几次：
+ * Count **received verdicts**, not requested calls:
  *
- * - 一轮里那几个调用可能**在同一行里**（一次请求可以带很多个工具调用）。按行数的话，
- *   第一个执行的时候就已经看见五个了，于是五个全被拦 —— 而它其实一次都还没用过
- * - 被拦下的那几次**不该扣数**：它没拿到任何关于候选的信息，凭什么算一次
+ * - Multiple calls can share one message row. Counting requests would let the first call see
+ *   five requests already present and reject all five, despite no checks having been used.
+ * - Blocked checks **must not consume allowance**, since they reveal nothing about a candidate.
  *
- * 工具结果是一个一个落的，所以按判决数天然就对：前几个拿到判决，后面的看见额度
- * 用完了被拦，而拦下来的不产生判决、也就不占额度。
+ * Tool results are recorded individually, making verdict counts correct naturally: early
+ * calls receive verdicts; later ones observe the exhausted allowance. Blocked calls produce
+ * no verdict and consume nothing.
  *
- * **交卷那一次不算** —— 那是内核替它问的（id 以 `g-` 开头，落的是 `graded` 那一对），
- * 不是它自己调的检查。
+ * **Exclude final submission**, which the kernel requests with a `g-` id and records as a
+ * `graded` pair, rather than an agent-requested verification.
  *
- * 没有节点这一列的机制（不走树的那些）就按整条实例数：那种机制本来也只有一轮。
+ * Modes without a node column count the entire instance, because they have only one attempt.
  */
 function checksIn(db: Conn, at: { sub: string; task: string; agent: string; instance: string; unit: number }): number {
   const sub = at.sub;
@@ -193,7 +193,7 @@ function checksIn(db: Conn, at: { sub: string; task: string; agent: string; inst
         : (all(db, `select unit from "${sub}" where task = ? and node = ?`, [at.task, me.node]) as { unit: number }[]);
     units = rows.map((r) => Number(r.unit));
   } catch {
-    return 0; // 这张表还没长出来，那就还没用过
+    return 0; // If the table has not been created, no checks have been used.
   }
   if (units.length === 0) return 0;
 
@@ -209,12 +209,12 @@ function checksIn(db: Conn, at: { sub: string; task: string; agent: string; inst
     try {
       const v = JSON.parse(r.body) as { id?: string; name?: string; value?: { pass?: unknown; valid?: unknown; outcome?: unknown } };
       if (v.name !== VERIFY_TOOL.name) continue;
-      if (String(v.id ?? "").startsWith("g-")) continue; // 交卷那一次
+      if (String(v.id ?? "").startsWith("g-")) continue; // Final submission check.
       if (v.value?.valid === false || v.value?.outcome === "grader_error") continue;
       if (v.value?.pass !== 0 && v.value?.pass !== 1) continue;
       n++;
     } catch {
-      // 读不出来的行不算
+      // Do not count unreadable rows.
     }
   }
   return n;

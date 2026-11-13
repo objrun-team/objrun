@@ -1,5 +1,5 @@
 {
-  "_": "只为了声明这底下的 .ts 是 ESM —— 它们在 app/ 外面，继承不到那份 package.json。依赖仍然只有 app/package.json 一份。",
+  "_": "Declares the .ts files here as ESM because they are outside app/ and do not inherit its package.json. Dependencies remain defined only in app/package.json.",
   "type": "module",
   "private": true
 }

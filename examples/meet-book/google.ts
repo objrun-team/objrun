@@ -1,24 +1,20 @@
 /**
- * 开一个谷歌会议，拿预约链接。**两种写法共用这一个文件。**
+ * Create a Google Meet and obtain its booking link. **Both approaches share this file.**
  *
- * 两件事：`authStart` 发起授权，`book` 开会。授权不是拿脚本先跑一趟 ——
- * 它自己也是个工具，模型没授权的时候就调它，把链接给人，人点完接着干。
+ * Two operations: `authStart` starts authorization, and `book` creates a meeting. Authorization is itself a tool, not a separate preparatory script: when unauthorized, the model calls it, gives the user the link, then continues after the user clicks.
  *
- * ## 磁盘上要有的
+ * ## Required files
  *
  * | | |
  * | --- | --- |
- * | `~/.tgengin/client_secret.json` | Google Cloud 控制台下的**桌面应用**类型 OAuth 客户端 |
- * | `~/.tgengin/google.json` | 授权之后自己长出来的 |
+ * | `~/.tgengin/client_secret.json` | A **desktop application** OAuth client downloaded from Google Cloud Console |
+ * | `~/.tgengin/google.json` | Created automatically after authorization |
  *
- * 客户端那个躲不掉 —— 它是「哪个应用在要权限」，不是用户的东西。
+ * The client is unavoidable: it identifies the application requesting permission, not the user.
  *
- * ## 为什么要留个 pending
+ * ## Why keep pending state?
  *
- * 授权中间隔着一次真人点击。工具调用是一来一回的，等不了人。所以 `authStart`
- * 起个回调监听就**马上回链接**，人什么时候点完，`authWait` 什么时候醒 ——
- * 这份 pending 活在进程内存里，进程内写法在 Worker 里，进程外写法在子进程里，
- * 两边各有各的，谁也不用落库。
+ * Authorization requires a human click. A tool call is a request/response exchange and cannot wait for a person indefinitely. `authStart` starts a callback listener and **immediately returns the link**; `authWait` wakes when the user completes the flow. This pending state lives in process memory: the Worker for the in-process approach, the child process for the external approach. Each owns its state; neither needs database storage.
  */
 
 import { homedir } from "node:os";
@@ -29,7 +25,7 @@ const CLIENT_FILE = process.env.TGENGIN_GOOGLE_CLIENT ?? join(homedir(), ".tgeng
 const TOKEN_FILE = process.env.TGENGIN_GOOGLE_TOKEN ?? join(homedir(), ".tgengin", "google.json");
 const CAL = "https://www.googleapis.com/calendar/v3";
 
-/** 建会要写日历，光 readonly 不够。 */
+/** Creating meetings writes to the calendar; readonly access is insufficient. */
 export const SCOPE = "https://www.googleapis.com/auth/calendar.events";
 
 interface Creds {
@@ -64,7 +60,7 @@ async function creds(): Promise<Creds | null> {
   return c as Creds;
 }
 
-/** `token`（access token）一小时就过期，所以每次现换一个，不缓存 —— 少一份会过期的状态。 */
+/** The `token` (access token) expires after one hour. Obtain a fresh one each time instead of caching, removing one piece of expiring state. */
 async function accessToken(): Promise<string> {
   const c = await creds();
   if (!c) throw new Error("not authorised yet");
@@ -85,11 +81,11 @@ async function accessToken(): Promise<string> {
   return got.access_token;
 }
 
-// ── 授权 ──────────────────────────────────────────────────────────────
+// ── Authorization ──
 
 let pending: { url: string; done: Promise<void> } | null = null;
 
-/** 授权过没有 —— 拿 refresh_token 真换一次，换不动就当没授权。 */
+/** Check authorization by actually exchanging refresh_token; if the exchange fails, treat it as unauthorized. */
 export async function authed(): Promise<boolean> {
   try {
     await accessToken();
@@ -100,10 +96,9 @@ export async function authed(): Promise<boolean> {
 }
 
 /**
- * 发起授权。**马上回**，不等人点。
+ * Start authorization. **Return immediately**, without waiting for the user to click.
  *
- * 端口给 0，让系统挑一个空的 —— 两种写法同时跑也不会撞。桌面类型的客户端
- * 回环地址上什么端口都收，所以不用提前登记。
+ * Use port 0 so the OS chooses a free port, allowing both approaches to run without collisions. Desktop clients accept any loopback port, so preregistration is unnecessary.
  */
 export async function authStart(): Promise<{ ok: boolean; authUrl?: string; note: string }> {
   if (await authed()) return { ok: true, note: "already authorised - go ahead and book" };
@@ -115,8 +110,8 @@ export async function authStart(): Promise<{ ok: boolean; authUrl?: string; note
 
   const server = Bun.serve({
     port: 0,
-    // 返回类型得写出来 —— 这个方法自己就叫 fetch，里面又调全局 fetch，不标的话
-    // TS 认为它在推自己的类型。
+    // Specify the return type: this method is named fetch and calls global fetch inside. Without the annotation,
+    // TypeScript thinks it is inferring its own type recursively.
     async fetch(req: Request): Promise<Response> {
       const u = new URL(req.url);
       const code = u.searchParams.get("code");
@@ -161,14 +156,14 @@ export async function authStart(): Promise<{ ok: boolean; authUrl?: string; note
     response_type: "code",
     scope: SCOPE,
     access_type: "offline",
-    prompt: "consent", // 不加的话第二次授权不给 refresh_token
+    prompt: "consent", // Without this, the second authorization does not return a refresh_token.
   }).toString();
 
   pending = { url: auth.toString(), done };
   return { ok: false, authUrl: pending.url, note: "hand this link to the user; once clicked, it is done" };
 }
 
-/** 等人点完。已经授权的话立刻回 true；根本没发起过回 false。 */
+/** Wait for the user to finish. Return true immediately if already authorized, or false if authorization was never started. */
 export async function authWait(ms: number): Promise<boolean> {
   if (await authed()) return true;
   const p = pending;
@@ -177,7 +172,7 @@ export async function authWait(ms: number): Promise<boolean> {
   return raced;
 }
 
-// ── 开会 ──────────────────────────────────────────────────────────────
+// ── Create a meeting ──
 
 interface Event {
   id?: string;
@@ -190,12 +185,11 @@ interface Event {
 }
 
 /**
- * 开会。`minutesFromNow` 是几分钟之后开，`minutes` 是开多久。
+ * Create a meeting. `minutesFromNow` is the delay before it starts; `minutes` is its duration.
  *
- * `waitAuthMs`：没授权但有人正在点的时候等多久。等不到就报错让模型去调授权那个。
+ * `waitAuthMs` sets how long to wait if authorization is pending. On timeout, raise an error so the model calls the authorization tool.
  *
- * `conferenceDataVersion=1` 少一个，谷歌就把 `conferenceData` 整段吞了 ——
- * 事件建出来但没有会议链接，而且不报错。
+ * Without `conferenceDataVersion=1`, Google silently drops the entire `conferenceData`: the event is created without a meeting link and no error is reported.
  */
 export async function book(
   a: { summary?: string; minutesFromNow?: number; minutes?: number; attendees?: string[] },
@@ -228,7 +222,7 @@ export async function book(
   const body = (await res.json()) as Event & { error?: { message?: string } };
   if (!res.ok) throw new Error(`Google refused to create it: ${body.error?.message ?? res.status}`);
 
-  // 会议链接是异步长出来的。多数时候当场就有，pending 的话回头再问几次。
+  // The meeting link is created asynchronously. Usually it is available immediately; if pending, query again a few times.
   let e = body;
   for (let i = 0; i < 5 && !e.hangoutLink; i++) {
     await Bun.sleep(600);
@@ -253,7 +247,7 @@ export async function book(
   };
 }
 
-// ── 给模型看的那几份 schema。两种写法报的是同一份。 ──────────────────────
+// ── Schemas shown to the model. Both approaches expose the same schemas. ──
 
 export const LOGIN_DOES = "Start Google authorisation. Returns a link for the user to click in a browser";
 export const LOGIN_PARAMS = { type: "object", properties: {} } as const;

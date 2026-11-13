@@ -224,22 +224,22 @@ def main():
     raw = (json.dumps(report, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     json_pin = write_new(OUT_JSON, raw)
     lines = [
-        "JPG 最终独立源码复核已闭合。当前四源与审核件匹配，80 个 JPG 执行源、81 个科学保护源和 184 个旧版本归档文件逐项 SHA/长度一致；未发现新的源码阻挡。formalPaidReady 仍为 false。",
+        "Final independent JPG source review is closed. The current four sources match the review artifacts; all 80 JPG execution sources, 81 protected scientific sources, and 184 archived old-version files match individually by SHA/length. No new source blocker was found. formalPaidReady remains false.",
         "",
-        "| 已确认问题 | 当前状态 | 证据与边界 |",
+        "| Confirmed issue | Current state | Evidence and boundary |",
         "| --- | --- | --- |",
-        "| 原容器数量 >=4 导致合法负例无法闭合 | 已修复，最终修订保留 | owned_graph/owned_probe、入口收据和容器集合输入与已审 exact-owned-v2 逐字相同。原 7 项 / 19 断言只属于其原源码；本次未重跑。 |",
-        "| Windows 只读句柄 fsync 报 EBADF/EPERM | 已修复 | 新建自有普通输出使用 r+/r+b；原始三项实际 F-native 控制 3 pass、0 fail、14 断言、子进程退出 0。源码、目录及真实 junction 拒绝，文件长度/SHA 保持。未声称断电持久性。 |",
+        "| Original container count >=4 prevented closure for valid negative cases | Fixed; final revision retained | owned_graph/owned_probe, entry receipt, and container-set inputs are byte-identical to reviewed exact-owned-v2. Original 7 checks / 19 assertions apply only to their original source; they were not rerun here. |",
+        "| Windows read-only-handle fsync raised EBADF/EPERM | Fixed | Newly created owned regular outputs use r+/r+b; original three actual F-native controls: 3 pass, 0 fail, 14 assertions, subprocess exit 0. Source, directory, and real junction are rejected; file lengths/SHAs are preserved. No power-loss durability claim is made. |",
         "",
-        "最终源：入口 a03704a6…、审计器 cb33c62c…；factory f815f002…、contract b15a108e…未变。控制记录对应这四个完整 SHA，实际结果文件和原日志再次只读核验通过。类型检查仍退出 1，五条诊断全部来自被冻结的 scientific-journal-plan.ts；没有把它改写为全绿。",
+        "Final sources: entry a03704a6…, auditor cb33c62c…; factory f815f002… and contract b15a108e… are unchanged. Control records correspond to these four complete SHAs; actual result files and original logs passed another read-only verification. Type checking still exits 1, with all five diagnostics from frozen scientific-journal-plan.ts; this was not rewritten as all-green.",
         "",
-        "私有评分仍只转移固定 stat_ocr.xlsx（或已捕获的缺失/格式失败），使用完整固定任务镜像中的干净原解释器和私有官方测试。CNY、durable raw、晚回留证、封口、精确 owned nonce 和跨家族拒绝合同保持；本次没有运行 Docker、模型、网络或生产锁，也没有读取凭证。CHECKS=6 仅限制显式 verify，自动物理判卷及最终独立判卷另计。",
+        "Private grading still transfers only pinned stat_ocr.xlsx (or a captured missing/format failure), using the clean original interpreter and private official tests in the complete pinned task image. CNY, durable raw data, late-response evidence, sealing, exact owned nonce, and cross-family rejection contracts are preserved. No Docker, model, network, or production-lock operations ran here, and no credentials were read. CHECKS=6 limits only explicit verify; automatic physical grading and independent final grading are counted separately.",
         "",
-        "下一条件是由 root 对这套最终源码执行一次新的冷容器 U/F 零付费 mock 并独立审计实际工件，然后才可在科学付费家族闭合、余额/价格 TTL、显式现金预算与资源门均满足时评估真实单题运行。87/1/86 口径保留；本次不是模型成绩，也不认证旧 85.1%。",
+        "The next requirement is for root to execute one fresh cold-container U/F zero-cost mock with these final sources and independently audit the actual artifacts. Only then, after scientific paid-family closure, balance/price TTL, explicit cash budget, and resource gates are satisfied, may a real single-task run be assessed. The 87/1/86 scope is retained; this is not a model result and does not certify the old 85.1%.",
         "",
-        f"[独立 JSON]({str(OUT_JSON).replace(chr(92), '/')})，SHA `{json_pin['sha256']}`。源码、控制、历史失败和逐项观测 Pin 均在其中，原工件未改。",
+        f"[Independent JSON]({str(OUT_JSON).replace(chr(92), '/')}), SHA `{json_pin['sha256']}`. It contains sources, controls, historical failures, and individual observation pins; original artifacts are unchanged.",
         "",
-        "审核期间曾因 PowerShell 只读 HOME 变量误用而列出用户目录文件名，随后退出 1；未读取这些文件内容、凭证或修改文件。该元数据读取范围偏差已单独记录，不作为实验数据或源码不一致。",
+        "During review, misuse of the read-only PowerShell HOME variable caused user-directory filenames to be listed, followed by exit 1. No file contents or credentials were read, and no files were modified. This metadata-read scope deviation is recorded separately; it is not treated as experimental data or a source inconsistency.",
         "",
     ]
     md_pin = write_new(OUT_MD, "\n".join(lines).encode("utf-8"))

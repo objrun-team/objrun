@@ -1,8 +1,7 @@
 /**
- * 进会。一个 MCP server，只有一个工具：`meet_join`。
+ * Join a meeting. An MCP server with one tool: `meet_join`.
  *
- * 进会成功之后它**再注册一个 server**（`meet-live`），把会里才有的那两样接进来。
- * 走的是 `/declare`，跟你在终端里打的是同一个口。
+ * After joining successfully, it **registers another server** (`meet-live`) to expose the two tools available only inside the meeting. It uses `/declare`, the same endpoint used from the terminal.
  */
 
 const BASE = process.env.TGENGIN_BASE ?? "http://127.0.0.1:7801/api";

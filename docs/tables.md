@@ -1,675 +1,675 @@
-# 表 —— 记录稿
+# Tables: design notes
 
-> 口述记录，还没定型。定完才变成 `install/` 那边的声明。
+> Notes transcribed from discussion; the design is not yet final. Once settled, it becomes declarations in `install/`.
 
-## handle —— 一行 = 一个可调用的东西
+## handle: one row per callable
 
-**集中管，不分散。** 库里凡是「一个能被调起来的东西」，身份都登记在这儿，别的表
-只引用它。
+**Manage callable identities centrally.** Every callable in the database is registered here;
+other tables only reference it.
 
-| 列 | 说明 |
+| Column | Description |
 | --- | --- |
-| `name` | 身份，主键。系统内是句柄名（`fn:chat.deepseek`），系统外是接口（`http://…`） |
-| `expect_ms` | **预期要花多少时间**。超过了就判死 |
+| `name` | Identity and primary key. An in-process handle name (`fn:chat.deepseek`) or an external endpoint (`http://…`) |
+| `expect_ms` | **Expected duration.** Mark the unit dead when this is exceeded |
 
-引用它的六处：
+Six references point to this table:
 
-| 表 | 那一列 |
+| Table | Referencing column |
 | --- | --- |
 | `api` | `handle` |
 | `agent` | `unit` |
-| 任务周期表 | `infer` |
-| 规则表 | `identity` |
+| Task cycle table | `infer` |
+| Rule table | `identity` |
 | `tool` | `identity` |
 | `skill` | `identity` |
 
-不设「这是哪一类句柄」的列 —— 谁引用它，谁就知道它是干嘛的，再存一遍就是两处
-说同一件事，会漂。
+There is no handle-category column: the referencing component already knows its purpose. Storing it again
+would duplicate the same fact and allow the two copies to drift.
 
-**两层核对**（装表时 + 开机时）：引用到的句柄必须①在这张表里登记过，②`fn:` 的还得
-在进程内的注册表里真有那个函数。少一层，写错的名字就要等到真调它那一刻才炸。
+**Two validation layers** (installation and startup): every referenced handle must be registered here, and a `fn:` handle
+must also resolve to an actual function in the process registry. Without either layer, a typo fails only when called.
 
 ## api
 
-**干什么的**：一个模型能怎么用、从哪儿调它。
+**Purpose:** how a model can be used and where to call it.
 
-**一行由「读哪个环境变量名上的 key」+「调用的模型」定。这两样就是主键。**
-密钥本身不进库 —— 库会被到处读。
+**A row is identified by the environment-variable name holding the key plus the model name. Together they form the primary key.**
+The key itself is never stored in the database, which is readable throughout the system.
 
-| 列 | 类型 | 说明 |
+| Column | Type | Description |
 | --- | --- | --- |
-| `key_env` | text not null | 钥匙在哪个环境变量里，比如 `DEEPSEEK_API_KEY` |
-| `model` | text not null | 调用的模型名，比如 `deepseek-chat` |
-| `handle` | text not null | 进程内的函数句柄名 → `handle.name`。**只管进程内，不给进程外的地址** |
-| `modes` | text not null | 这个模型适配什么调用形状，逗号分隔。取值见 `mode` 表 |
-| `base_url` | text not null | 调用打到哪儿。**在表里不在代码里**：只活在代码里的地址，快照上看不见 |
-| `retry_on` | text not null | 哪些失败值得再来一次：HTTP 状态码的 JSON 列表，外加 `network` 表示压根没回话。没列上的原样交回去 |
-| `compress_at` | integer | 上下文到多少 token 就先压再发。空 = 不压 |
+| `key_env` | text not null | Environment variable containing the key, such as `DEEPSEEK_API_KEY` |
+| `model` | text not null | Model name, such as `deepseek-chat` |
+| `handle` | text not null | In-process function handle → `handle.name`. **Only in-process handles; no external addresses** |
+| `modes` | text not null | Comma-separated supported calling shapes. See the `mode` table for values |
+| `base_url` | text not null | Request destination. **Stored in the table, not in code**: an address existing only in code is invisible in a snapshot |
+| `retry_on` | text not null | Retryable failures: a JSON list of HTTP status codes, plus `network` for no response. Other failures are returned unchanged |
+| `compress_at` | integer | Context token threshold above which compression precedes a call. Empty disables compression |
 
-主键：`(key_env, model)`
+Primary key: `(key_env, model)`
 
-### `compress_at` 为什么在这一行上
+### Why `compress_at` belongs to this row
 
-那个天花板是**这把钥匙这个模型**的属性，不是内核的。实测一趟：一次请求
-1033906 token 对着 1048576 的上限，撞顶的三站分别超了 738 / 1714 / 4150 ——
-是压线，不是失控。
+The ceiling belongs to **this key and this model**, not to the kernel. In one measured run, a request used
+1033906 tokens against a 1048576-token limit; three units exceeded the limit by 738 / 1714 / 4150 tokens.
+This was a small overrun near the limit, not uncontrolled growth.
 
-**内核没有分词器**，所以它数的是「这一份马上要发出去的字节」再除：量过一道题，
-4234989 字节对着模型报的 1033906 token，四个字节一个 token。
+**The kernel has no tokenizer.** It estimates tokens from the bytes about to be sent: in one task,
+4234989 bytes corresponded to the model's reported 1033906 tokens, approximately four bytes per token.
 
-### 一行只有一个 `handle`，所以 `modes` 必须全是它接得住的
+### One `handle` per row means it must support every value in `modes`
 
-主键是 `(key_env, model)` —— 一个模型只有一行，一行只有一个句柄。于是：
+The primary key is `(key_env, model)`: one row per model, one handle per row. Therefore:
 
-**`modes` 里写的每一种，那个 `handle` 都得真接得住。** 手写一行
-`modes = "chat,duplex"` 而 `handle` 是 chat 那条的话，内核照 `duplex` 挑中它，
-然后调进 chat 适配器 —— **不报错，只是那一站的行为完全不是你想的那样**。
-这是这张表最阴的一种写错法，所以 `GET {prefix}/check` 专门查它
-（注册的时候记下「哪个句柄接得住哪几种」，拿它对）。
+**The handle must support every value in `modes`.** If a row declares
+`modes = "chat,duplex"` but its handle only supports chat, the kernel can select it for `duplex`
+and invoke the chat adapter. **No error occurs; the unit simply behaves differently from what was intended.**
+This particularly subtle configuration error is checked by `GET {prefix}/check`,
+using the supported shapes recorded for each handle at registration.
 
-一个模型要是既能一问一答又能实时，那是**两行**：两个不同的 model 名、
-两个不同的句柄。挤在一行里表达不了。
+A model supporting both request/response and real-time interaction needs **two rows**, with different model names
+and handles. One row cannot represent both.
 
-> 函数句柄本身存不进 SQLite，库里存的是**句柄的名字**，进程内拿它去内存里的
-> 注册表换出真函数。外面（TUI / 桌面 / 安卓）拿不到也用不上这一列 —— 它们走
-> H2H 的接口，模型调用一律发生在进程内。
+> A function handle cannot be stored in SQLite. The database stores its **name**, which the process resolves
+> through an in-memory registry. External clients (TUI / desktop / Android) cannot use this column directly:
+> they call the H2H API, while model invocations happen inside the process.
 
 ## mode
 
-**干什么的**：登记有哪些**调用形状**。
+**Purpose:** register the supported **calling shapes**.
 
-| 列 | 类型 | 说明 |
+| Column | Type | Description |
 | --- | --- | --- |
 | `name` | text not null | `chat` / `tools` / `vision` / `duplex` |
-| `note` | text | 这个形状是什么意思 |
+| `note` | text | Meaning of this shape |
 
-主键：`name`
+Primary key: `name`
 
-### 这张表是灌进来的，不是填的
+### This table is populated from the implementation, not edited manually
 
-跟 `msg_kind` 同一个套路：**取值就是实现认得的那几个**，开机时灌一遍
-（`调用形状：…` 那行日志），为的是让人和 `check` 都查得到。
+As with `msg_kind`, **the values are exactly those supported by the implementation**. They are loaded at startup
+and logged as the supported calling shapes, so users and `check` can inspect them.
 
-**不是让谁去填的。** 反过来的话，往这儿手插一行 `duplx` 就成了「合法」，
-而实现照样不认 —— 那条轨永远挑不中，系统照常跑，零报错。所以 `check` 比的是
-实现认得什么，不是这张表里躺着什么。
+**This is not a user-editable registry.** Otherwise, manually inserting `duplx` would make it appear valid
+even though the implementation cannot recognize it. That lane would never be selected, with no error.
+Therefore `check` compares against what the implementation supports, not merely against stored rows.
 
-| 形状 | 是什么 |
+| Shape | Meaning |
 | --- | --- |
-| `chat` | 一问一答。**一次调用 = 一个执行单元** |
-| `tools` | 这条轨挂得了工具 |
-| `vision` | 看得了图 |
-| `duplex` | 实时双向。**不是一次调用，是一条会话**；一个执行单元 = 会话里的一个来回 |
+| `chat` | Request/response. **One invocation = one execution unit** |
+| `tools` | This lane supports tools |
+| `vision` | This lane accepts images |
+| `duplex` | Real-time, bidirectional interaction. **A session, not a single call**; one execution unit is one exchange in the session |
 
-## 定了的规矩
+## Agreed rules
 
-- **主键就是 `(key_env, model)`。** 不加代理键。
-- **`handle` 只管进程内。**
-- **密钥不进库。**
+- **The primary key is `(key_env, model)`.** No surrogate key.
+- **`handle` refers only to in-process functions.**
+- **Keys never enter the database.**
 
-## 任务周期表
+## Task cycle table
 
-**干什么的**：系统内的执行模式。一行 = 一个模式里的一个周期。流转由内核那边的
-循环推动，这张表是它流转的依据。
+**Purpose:** define execution modes. One row represents one cycle in a mode. The kernel loop drives
+transitions according to this table.
 
-| # | 列 | 说明 |
+| # | Column | Description |
 | --- | --- | --- |
-| 1 | `mode` | 是哪个模式 |
-| 2 | `cycle` | 这个模式里面的哪个周期 |
-| — | `api_mode` | **这个周期要 api 的哪个 mode**（`chat` / `duplex` / ……）。留空 = 这一站不用模型 |
-| 3 | `max_units` | 这个周期最大允许执行单位是多少个 |
-| 4 | `from` | 这个周期一般从这个表里哪几行转换过来 —— 一格存一个列表 |
-| 5 | `next` | 这个周期一般下一个周期是表里哪几行 —— 一格存一个列表 |
-| 6 | `infer` | 这个周期的推断函数的句柄 → `handle.name` —— 用来推断具体下一个周期是表里哪一行 |
+| 1 | `mode` | Execution mode |
+| 2 | `cycle` | Cycle within this mode |
+| — | `api_mode` | **The API mode needed by this cycle** (`chat` / `duplex` / …). Empty means the unit does not use a model |
+| 3 | `max_units` | Maximum execution units allowed in this cycle |
+| 4 | `from` | Rows in this table from which this cycle normally transitions; one list per cell |
+| 5 | `next` | Rows in this table to which this cycle normally transitions; one list per cell |
+| 6 | `infer` | Inference-function handle → `handle.name`, selecting the actual next cycle row |
 
-### 一个智能体挂两条轨
+### One agent with two lanes
 
-`api_mode` 这一列是后来补的，因为撞上了真事：汇报那类智能体**同时挂两个模型**，
-而且不是同一类 —— 一个 `chat`（想和写），一个 `duplex`（会上的实时听说）。
-没有这一列的话，「这一站走哪条轨」就没地方说，两条轨分不开。
+`api_mode` was added after a real use case: a reporting agent attaches **two models at once**,
+one for `chat` (reasoning and writing), another for `duplex` (live listening and speaking in meetings).
+Without this column, there was nowhere to specify the lane for a unit.
 
-内核照它挑句柄：
+The kernel selects a handle as follows:
 
-- `api_mode` 非空 → 从 `agent.apis` 里挑一个 `modes` 含它的，调那一行的 `api.handle`
-- `api_mode` 留空 → 调 `agent.unit`（这一站不用模型，比如把上一步请求的工具跑掉）
+- Nonempty `api_mode`: select an entry in `agent.apis` whose `modes` includes it, then call that row's `api.handle`.
+- Empty `api_mode`: call `agent.unit`, for a unit not using a model, such as running tools requested in the preceding step.
 
-**挑是内核挑的，适配器只管调。** 适配器再去挑一次的话，「这一站该用哪条轨」
-就有两个地方说了算，早晚漂。
+**The kernel selects; the adapter invokes.** Repeating selection in the adapter would give two places
+authority over the same decision and eventually cause drift.
 
-### 实时轨（`duplex`）：一条会话，好几个来回
+### Real-time lane (`duplex`): one session, multiple exchanges
 
-chat 是「一次调用 = 一个执行单元」，调完连接就没了。duplex **不是一次调用，
-是一条会话**：一个执行单元对应会话里的**一个来回**，会话跨着好几个单元活着。
+In chat, one call is one execution unit and the connection ends with the call. In duplex, **the connection is a session**,
+and one execution unit is **one exchange** within a session that spans multiple units.
 
-但**句柄签名跟 chat 一模一样** —— 内核递一个单元过去，收回该落库的那一行。
-所以这条轨落地的时候**内核一个字没动**：它不认得「会话」这回事，认得了的话
-`api_mode` 这一列就白设了。
+The **handle signature is identical to chat**: the kernel supplies one unit and receives the row to persist.
+The duplex implementation therefore required **no kernel changes**. The kernel has no concept of a session;
+if it did, the abstraction provided by `api_mode` would be ineffective.
 
-会话按 `(vendor, instance)` 存活在进程内的池子里：
+Sessions live in an in-process pool keyed by `(vendor, instance)`:
 
-- **会话是连接，不是状态，不进库** —— 跟 `workplace.usable` 是登记不是探活
-  一个道理。写回去的话，崩了重启读到的就是过期的谎话
-- **库里丢不了的是每一个来回**：讲了什么、谁说了什么、请求了哪个工具，
-  全落 `agent_<name>_msg`。所以崩了重启会话没了、账还在，「库 = 快照」不破
-- 闲太久的自己关掉。回收是**算**出来的（上次用到现在多久），不另起定时器
+- **A session is a connection, not state, and is not stored in the database.** As with `workplace.usable`, a registry
+  is not a liveness check. Persisting connection state would produce stale claims after a restart.
+- **Every exchange is persisted**: what was said, who said it, and requested tools all enter
+  `agent_<name>_msg`. After a crash the session is gone, but its record remains, preserving database snapshots.
+- Idle sessions close automatically. Reclamation is derived from elapsed time since last use, without a separate timer.
 
-`instructions` 只在**开会话那一刻**发一次 —— 会话记得住，这正是它跟 chat
-最实在的一处分别（chat 每个单元都得重发，因为那边压根没有「上一轮」）。
-同理，它自己上一轮请求工具的那条不重发：重发等于让它把自己的话又听一遍。
+`instructions` is sent **once when the session opens**. The session remembers it, unlike chat,
+which must resend instructions for every unit because the provider retains no prior turn.
+Likewise, the previous tool request is not resent; doing so would make the model hear its own words again.
 
-树开了兄弟之后，同一个 instance 底下会有好几个单元同时该动，内核会并排推它们。
-**一条会话是一根线**，所以来回在会话里排队 —— 并发发进去的话两个来回的事件会
-混在一起，而**混了不报错**，只是两边各拿到对方的半句话。
+After the tree creates siblings, several units of one instance may be ready simultaneously and the kernel advances them concurrently.
+**A session is a single stream**, so exchanges queue within it. Sending them concurrently would mix their events,
+and **this would not raise an error**: each exchange could receive part of the other's response.
 
-#### 音频到哪儿为止
+#### Scope of audio support
 
-这一轮**只做协议层：文本进，文本 + 转写出**。
+This implementation covers **the protocol only: text input, text and transcripts as output**.
 
-采音频、放音频是设备的事，而音频 IO 库全是 native 依赖 —— 那道闸不许过
-（零 native、能交叉编译）。音频腿等它落地时接在这一层上面。
+Recording and playback belong to the device. Audio I/O libraries have native dependencies, which violate
+the zero-native-dependency, cross-compilation constraint. Device audio can be attached above this layer later.
 
-出站音频**收到就丢，只计数不落库**：字节流落进 `agent_<name>_msg` 会把快照
-撑成几百 MB，而且没有一个人读得懂那一列。**转写才是那条轨迹。**
+Outbound audio is **discarded after receipt; only its size is counted**. Persisting byte streams in `agent_<name>_msg`
+would inflate snapshots to hundreds of MB and leave unreadable columns. **The transcript is the trace.**
 
-#### 事件名：beta 和 GA 对不上
+#### Event names differ between beta and GA
 
-DashScope 的实时端点走 OpenAI 的 *beta* 事件 schema，现在通行的是 *GA* 那套。
-**名字对不上的后果不是报错，是什么都收不到**：连接建着、事件在流、每一条都
-没人认领，于是一个来回永远等不到头。所以入站事件名先映射回 GA 再分派
-（只映射入站 —— 出站发的仍是 beta 名，那边只认那个）。
+DashScope's real-time endpoint uses OpenAI's *beta* event schema, while *GA* is now the common schema.
+**Mismatched event names do not produce errors; they produce no usable events.** The connection remains open and events arrive,
+but none are handled, so an exchange never completes. Incoming event names are mapped to GA before dispatch.
+Only inbound events are mapped; outbound events keep beta names because the endpoint requires them.
 
-老代码在这儿踩了三次，每次的表现都是**静默**，没有一次是报错：
+Three failures in the old code were all **silent**:
 
-1. beta 的 `response.done` 不带 usage，读统计字段当场崩 → **接收协程整个死掉**
-   → 从那一刻起全静默
-2. 事件解不了被跳过 → 当前响应态不清 → 「还在讲」永远为真 → 讲一段就哑
-3. 参会者转写那条是 beta schema，解不了被整条跳过 → 永远拿不到「别人说了什么」
+1. Beta `response.done` had no usage field. Reading it crashed the **entire receive coroutine**,
+   leaving all subsequent activity silent.
+2. An undecodable event was skipped without clearing response state. The session remained permanently marked as speaking and stopped after one utterance.
+3. Participant transcripts used the beta schema; decoding failed and the whole event was skipped, so other participants' words were never received.
 
-踩出来的通则一条：**一条事件解不了只丢这一条，绝不带倒整条连接**；而且把丢掉的
-**数出来**。不数的话，事件名哪天漂了没人看得出来 —— 只会觉得「这模型今天不说话」。
-所以认得但不用管的事件（`session.updated` 那类）也得一条条列在分派表里：
-掉进「没见过」那一档会把这个数字顶高，而它是漂移的**唯一**线索，被正常事件
-污染了就等于没有。
+The resulting rule is: **failure to decode one event discards only that event, never the connection**. Discarded events
+must also be **counted**. Otherwise schema drift appears only as a model that has stopped speaking.
+Known events requiring no action, such as `session.updated`, must still be listed explicitly in the dispatcher.
+Treating them as unknown inflates the unknown-event counter, which is the **only** signal of schema drift;
+normal events would make that signal unusable.
 
-**第 4、5 列决定第 6 列**，不是反过来。从哪几行来、去哪几行，这两样定下来了，
-推断函数就是跟着它们来的。
+**Columns 4 and 5 determine column 6**, not the reverse. Once the possible incoming and outgoing rows are known,
+the inference function follows those transitions.
 
-4、5 一格存一个列表，JSON 数组。SQLite 自带 json 函数，查的时候
-`json_each` 能把它摊开，不用另开一张表。
+Columns 4 and 5 store lists as JSON arrays. SQLite's built-in JSON functions allow
+`json_each` to expand them at query time without an extra table.
 
-## 任务表（套表）
+## Task tables (a table family)
 
-一张主表 + 每个执行模式一张子表。
+One main table plus one subtable per execution mode.
 
-### 主表 `task` —— 一行 = 一个任务的头节点
+### Main table `task`: one row per task root
 
-分两半：**身份出生即定、永不重写**；**状态是快照**。
+Two groups of fields: **identity is fixed at creation and never rewritten**; **state is a snapshot**.
 
-| 列 | 哪一半 | 说明 |
+| Column | Group | Description |
 | --- | --- | --- |
-| `id` | 身份 | 头节点标识 |
-| `mode` | 身份 | 走哪个执行模式 → 任务周期表第 1 列。**同时决定明细在哪张子表** |
-| `place` | 身份 | 在哪儿干 → `workplace.place`。**每个任务都有一个** |
-| `run` | 身份 | 属于哪一跑（bench）。空 = 不属于任何一跑 |
-| `source` | 身份 | 谁发的：`user` / `agent` / `world` / `eacn`。**这是准入判据，不是元数据** |
-| `description` | 身份 | 自然语言的任务描述。内核透明，怎么解读是智能体的事 |
-| `created_at` | 身份 | 创建挂钟 |
-| `workdir` | 身份 | 那个场所里的落脚路径。空 = 那台机器上的 cwd |
-| `max_branches` | 身份 | 同时最多开几条分支（并发闸） |
-| `max_dead_siblings` | 身份 | 同一个父底下判死几个兄弟就回退到更上层（换方向） |
-| `solve_seconds` | 身份 | 求解时长上限，秒 |
-| `objective` | 身份 | 这个任务有没有验证函数 `G`。**定义不在这儿**，见下 |
-| `readable` | 身份 | 能不能直接读到 `G` 的定义。**带 G 就必须显式给，没有默认值** |
-| `claimed_by` | 状态 | 当前持有者。空 = 无主 |
-| `result` | 状态 | 收尾答案。`done` / `failed` 的时候才有 |
-| `state` | 状态 | `open` / `claimed` / `done` / `failed`。**从子表推出来再更新** |
+| `id` | Identity | Root node identifier |
+| `mode` | Identity | Execution mode → column 1 of the task cycle table. **Also determines the detail subtable** |
+| `place` | Identity | Execution location → `workplace.place`. **Required for every task** |
+| `run` | Identity | Benchmark run membership; empty means no run |
+| `source` | Identity | Publisher: `user` / `agent` / `world` / `eacn`. **An admission criterion, not merely metadata** |
+| `description` | Identity | Natural-language task description. Opaque to the kernel; interpreted by the agent |
+| `created_at` | Identity | Wall-clock creation time |
+| `workdir` | Identity | Working path at the selected location; empty means that machine's cwd |
+| `max_branches` | Identity | Maximum simultaneous branches (concurrency limit) |
+| `max_dead_siblings` | Identity | Dead siblings under one parent before backtracking to a higher level and changing direction |
+| `solve_seconds` | Identity | Maximum solution time, in seconds |
+| `objective` | Identity | Whether the task has objective `G`. **Its definition is stored elsewhere**, as described below |
+| `readable` | Identity | Whether G's definition can be read directly. **Must be explicit when G is attached; there is no default** |
+| `claimed_by` | State | Current owner; empty means unclaimed |
+| `result` | State | Final answer, present only when `done` or `failed` |
+| `state` | State | `open` / `claimed` / `done` / `failed`. **Derived from subtables, then updated** |
 
-主键 `id`
+Primary key: `id`
 
-四态是最薄的一套；`blocked` / `cancelled` / `paused` 之类按需再扩，不预设。
+These four states are the minimal set. Add `blocked`, `cancelled`, or `paused` only when required.
 
-`failed` **推不出来** —— 它是判定的结果，不是数出来的。等验证函数那一块落地了
-由它显式写；现在硬凑一个的话，那一列就开始说谎。
+`failed` **cannot be inferred by counting rows**: it is a verdict. The objective component writes it explicitly
+when implemented; inventing an interim derivation would make the field unreliable.
 
-### 发任务：唯一入口
+### Task publication: the single entry point
 
-`POST {prefix}/tasks`。**外面往系统里放活只走这一个口** —— 不用进代码 import 库。
+`POST {prefix}/tasks` is **the only external entry point for work**. Clients need not import an internal library.
 
-一次调用把该建的都建了：`task` 一行 + 首个执行单元 + 智能体那边对咬的一行 +
-任务描述作为上下文第一条。**要么全建，要么一行都不留**：中间断了会留下建了行
-没建单元的任务，那种任务库里看着存在、永远不动，而且不报错。
+One call creates the task row, first execution unit, matching agent-side row, and task description as the first context message.
+**Either all are created or none remain.** A partial operation could leave a task row without an execution unit,
+appearing in the database but never progressing and never reporting an error.
 
-**准入的闸设在这儿，因为这是唯一入口。** 老代码那边的教训是：闸靠「某个调用方
-恰好没传那个参数」是守不住的 —— 签名一改、或多一条派生路径，闸就没了。所以按
-`source` 判，判在入口。
+**Admission is enforced here because this is the single entry point.** Relying on one caller to omit a forbidden
+parameter is not reliable: a signature change or new derivation path can remove that protection.
+Admission therefore checks `source` at the entry point.
 
-灌完新模式 / 新智能体不用重启：发任务时发现子表还没长，就现装一次（幂等）。
-也可以自己打 `POST {prefix}/install`。
+New modes or agents require no restart. Publication installs missing subtables on demand, idempotently.
+Clients may also call `POST {prefix}/install` explicitly.
 
 ## press / press_l1..l4 / press_how / msg_part
 
-**干什么的**：一段上下文压过之后放在哪儿，以及**哪一部分在哪一级怎么办**。
-分级缓存，跟 CPU 那套一个意思 —— `l1` 压得最轻、离原文最近，越往下越狠。
+**Purpose:** store compressed context and define **how each message part is handled at each compression level**.
+This is a tiered cache: `l1` is closest to the original, while lower levels apply stronger compression.
 
 ```
 task_{mode}.press ──→ press.id
                        ├─ l1 ──→ press_l1.id ──→ body
                        ├─ l2 ──→ press_l2.id ──→ body
                        ├─ l3 ──→ press_l3.id ──→ body
-                       └─ l4 ──→ press_l4.id ──→ body   ← 列在，还没设
+                       └─ l4 ──→ press_l4.id ──→ body   ← column exists, not configured yet
 
-msg_part.name ──→ 每一级填一个 press_how.name ──→ press_how.identity ──→ handle
+msg_part.name ──→ one press_how.name per level ──→ press_how.identity ──→ handle
 ```
 
-**四列，设好了的是前三级。** 一级算不算设好，看 `msg_part` 那一列**是不是每行都填了**
-（`readyLevels`）。`l4` 现在整列是空的：不写、不发，降级降到 `l3` 为止。列先留着，是因为
-下一级要来的那种压法（把一段丢给模型换一句话）从外面声明进来，而声明发生在一个正在跑的
-库上 —— 那时候再加列就是一次迁移。
+**Four columns exist; the first three levels are configured.** A level is ready only when **every row fills that column**
+in `msg_part` (`readyLevels`). `l4` is currently empty throughout: it is neither written nor sent, and degradation stops at `l3`.
+The column is reserved because a future model-based summarizer will be declared externally against a running
+database; adding a column at that point would require a migration.
 
-**空着跟填 `keep` 不是一回事**：前者是「别走这一级」，后者是「走，什么都别压」。
+**Empty differs from `keep`**: empty disables the level; `keep` enables it without compressing the part.
 
 ### press
 
-| 列 | 类型 | 说明 |
+| Column | Type | Description |
 | --- | --- | --- |
-| `id` | text not null | `task_{mode}.press` 指的就是它 |
-| `l1` | text | → `press_l1.id`。空 = 这一级还没做 |
+| `id` | text not null | Referenced by `task_{mode}.press` |
+| `l1` | text | → `press_l1.id`. Empty means this level has not been computed |
 | `l2` | text | → `press_l2.id` |
 | `l3` | text | → `press_l3.id` |
-| `l4` | text | → `press_l4.id`。只要 `msg_part.l4` 还空着，这一列就一直是空的 |
+| `l4` | text | → `press_l4.id`. Remains empty while `msg_part.l4` is unconfigured |
 
-主键：`id`
+Primary key: `id`
 
-**级别是列不是行。** 一格同时有三级，写成行的话「取这一格的 l2」就得多一次扫描 ——
-而那条路是所有路里最热的一条。
+**Levels are columns, not rows.** A slot holds three levels simultaneously. Representing levels as rows would require
+another scan to retrieve that slot's l2 on the hottest lookup path.
 
-**id 内核不发。** 谁写这一级谁定；拿内容的哈希当 id，两格压出同样的东西就自然落在
-同一行上，不用谁去比对。
+**The kernel does not assign IDs.** The writer of a level chooses its ID. A content hash naturally makes identical compressed results
+share one row, without an extra comparison step.
 
 ### press_l1 / press_l2 / press_l3 / press_l4
 
-四张一个形状：
+All four tables have the same shape:
 
-| 列 | 类型 | 说明 |
+| Column | Type | Description |
 | --- | --- | --- |
-| `id` | text not null | `press.l1` / `.l2` / `.l3` / `.l4` 指的就是它 |
-| `body` | text not null | 替那几条消息出场的正文 |
-| `bytes` | integer not null | `body` 多大。**记下来**是因为「要不要再降一级」是把这些加起来算的，而为了量它去读一遍每段正文，正是想省掉的那件事 |
+| `id` | text not null | Referenced by `press.l1` / `.l2` / `.l3` / `.l4` |
+| `body` | text not null | Text replacing the original messages |
+| `bytes` | integer not null | Size of `body`. **Persist it** so the next compression level can be selected by summing sizes without rereading every body |
 
-主键：`id`
+Primary key: `id`
 
-**`press` 里好几行指着这儿同一行是正常的** —— 那正是要的：一段话顶好几格。读的人
-按 id 去重，那一行出一次，不是每格出一次。
+**Several `press` rows may reference the same row here.** That is intentional: one passage can replace multiple slots.
+Readers deduplicate by ID and emit the passage once, rather than once per slot.
 
-**一级一张表**，不是一张表加一列级别：一段在某一级上压出来的东西就是一行，几个级别
-的行数本来也对不齐。
+**One table per level**, rather than one table with a level column. A passage compressed at a particular level is one row;
+different levels need not have matching row counts.
 
-### press_how —— 一行 = 一种压法
+### press_how: one row per compression method
 
-跟 `tool` 一个形状：一个名字 + 干这件事的句柄 + 两个 schema。所以**随二进制发的那几种，
-和外面 `/declare` 送进来的，是同一种行** —— 换一种压法不用改内核。
+Like `tool`, each row has a name, a handle, and two schemas. **Built-in methods and methods declared externally
+through `/declare` use the same row format.** Changing compression methods requires no kernel change.
 
-| 名字 | 留什么 | 量法 |
+| Name | Retained content | Unit |
 | --- | --- | --- |
-| `keep` | 全留 | —— |
-| `drop` | 不出现。**也不留一句「这里省略了什么」** —— 那句话要花 token，而它说的事这一级本身已经说了 | —— |
-| `cut` | 头 2000 | 字节 |
-| `top` | 头 20 行 | **行** |
-| `tail` | 尾 20 行，说明挂**开头** —— 挂末尾会被读成那份输出最后说的一句话 | **行** |
-| `sample` | 头 3 行 + 尾 3 行 | 行 |
-| `ask` | 丢给模型换一句话。**`identity` 是空的：没有实现** —— 它得有个模型，而挑哪个模型是外面的事 | —— |
+| `keep` | Everything | — |
+| `drop` | Nothing, **not even an omission notice**: a notice costs tokens and repeats what the chosen level already implies | — |
+| `cut` | First 2000 | Bytes |
+| `top` | First 20 lines | **Lines** |
+| `tail` | Last 20 lines, with the notice **at the beginning**; a trailing notice could be mistaken for the output's final statement | **Lines** |
+| `sample` | First 3 lines + last 3 lines | Lines |
+| `ask` | Ask a model for a one-sentence summary. **Empty `identity`: not implemented here**; model selection belongs outside the kernel | — |
 
-`identity` 空 = 注册了但这儿没人实现，填到 `msg_part` 里的话，压到那一级当场报错，
-不会悄悄按原文放过去。
+Empty `identity` means the method is registered but not implemented here. Assigning it to `msg_part` raises an error
+when that level is reached, rather than silently passing the original text through.
 
-### msg_part —— 一行 = 消息里的一部分，以及每一级拿它怎么办
+### msg_part: one row per message part and its treatment at each level
 
-认哪一部分**只看消息本来就得有的形状**（`thought` 那一列、`body.text`、`body.calls[]`、
-`kind`、`role`）；工具返回算哪一类，看那件工具自己填的 `tool.gives`（`look` /
-`event` / `receipt` / `recall`，不填 = `event`）。**这张表里一个工具名都没有。**
+Parts are identified **only through existing message structure**: the `thought` column, `body.text`, `body.calls[]`,
+`kind`, and `role`. A tool result is classified through the tool's own `tool.gives` value (`look` /
+`event` / `receipt` / `recall`, defaulting to `event`). **This table contains no tool names.**
 
-| 列 | 类型 | 说明 |
+| Column | Type | Description |
 | --- | --- | --- |
-| `name` | text not null | 哪一部分 |
+| `name` | text not null | Message part |
 | `note` | text | |
 | `l1` / `l2` / `l3` | text not null | → `press_how.name` |
-| `l4` | text | → `press_how.name`。**唯一可以是空的一列** |
+| `l4` | text | → `press_how.name`. **The only nullable level column** |
 
-主键：`name`
+Primary key: `name`
 
-三列是**默认值不是规矩**：冲突时只更新 `note`，改过的策略不会被下次启动盖回去。
+The three configured columns hold **defaults, not enforced policies**. On conflict, only `note` is updated, so startup does not overwrite customized strategies.
 
-## 树怎么长
+## How the tree grows
 
-`task_<mode>` 的父指针本来就是一棵树。怎么在这棵树上走 —— 派生 / 判死开兄弟 /
-回退 —— 是**一个推断函数**（`cycle.infer`）的事，**不在内核里**。换一种搜索策略
-就是换一个句柄。
+Parent pointers in `task_<mode>` already form a tree. Traversal—derivation, creating siblings after failure,
+and backtracking—belongs to **one inference function**, `cycle.infer`, **not the kernel**. Replacing a search strategy
+means replacing a handle.
 
-### 两个判据管的不是一件事
+### Two criteria serve different purposes
 
-- **ĝ（自评 / 启发式）**：这一步做完了没有 → 没完就接着往下派生。绿度、打分、
-  信心分级都属于这一档，是模型对目标的**估计**
-- **G（验证函数）**：只回 0/1，**在节点自称到达终点那一刻才调**。说 1 → 真的
-  `reached`；说 0 → 它以为到了其实没到 → 判死开兄弟
+- **ĝ (self-evaluation / heuristic):** is this step complete? If not, derive another step. Greenness, scores,
+  and confidence categories are model **estimates** of progress toward the objective.
+- **G (objective):** returns only 0/1 and is **called when a node claims to have reached the goal**. A 1 means truly
+  `reached`; a 0 rejects that claim and marks the node dead before trying a sibling.
 
-混用会让树永远走不到第二层（每一步都问 G，中间步全被判死）。**verifier-guided
-的意思不是「每步都验」，是「不许它自己说了算」。**
+Conflating them prevents the tree from reaching a second level: checking G at every intermediate step marks every step dead.
+**Verifier-guided means that the agent cannot certify its own success, not that every step is verified.**
 
-### 判死之后
+### After a node is marked dead
 
-1. 数同一个父底下判死了几个兄弟
-2. 没到 `max_dead_siblings` → 在**同一个父**底下开一个兄弟，换方向再试
-3. 到了 → 回退到**更上层**，从祖父那儿另开
-4. 爬到根还没路 → 到此为止
+1. Count dead siblings under the same parent.
+2. Below `max_dead_siblings`: create a sibling under **the same parent** and try a different direction.
+3. At the limit: backtrack **one level higher** and create another child of the grandparent.
+4. If no path remains after reaching the root, stop.
 
-并发闸另算：同一个父底下**没干完的**到了 `max_branches` 就不再开。「同时几条」
-跟「判死几个」不是一回事。
+Concurrency is a separate limit: no new child is created when **unfinished** children under the same parent reach `max_branches`.
+The number running concurrently and the number marked dead measure different things.
 
-### 走法必须在候选之内
+### A transition must remain within its declared candidates
 
-内核只让推断函数在 `cycle.next` 里挑，挑到候选之外当场炸。所以**要让这一层能开
-兄弟，这个周期的 `next` 里得列上它自己**；要能回退，得列上要退回去的那个周期。
+The kernel only allows the inference function to choose from `cycle.next`; any other choice fails immediately. **To create a sibling
+at this level, the cycle must list itself in `next`.** To backtrack, it must list the destination cycle.
 
-这不是限制，是把「这道题允许怎么走」写在数据里 —— 周期表没说能开兄弟，那这棵树
-就不该开兄弟，而不是让推断函数自己决定。
+This records permitted traversal in data. If the cycle table does not permit siblings, the tree must not create them;
+the inference function cannot grant itself that permission.
 
-### 两层时限
+### Two time limits
 
-- **单元级**：`now - at > expect_ms`，这一步卡住了
-- **任务级**：`now - created_at > solve_seconds`，整道题超时 → 收工。没有这一层
-  的话，一棵不停开兄弟的树能一直长下去
+- **Unit level:** `now - at > expect_ms` means this step is stuck.
+- **Task level:** `now - created_at > solve_seconds` means the whole task has timed out and must stop.
+  Without it, a tree that continually creates siblings could grow forever.
 
-## 跑 bench
+## Running benchmarks
 
-老代码那份协议就三步：给每个样本造一个 `G` → 训练模式逐个求解（**第一个数：
-`G=1` 的道数**）→ 降解后不带 `G` 重跑（第二个数）。
+The old protocol had three steps: create a `G` for each sample, solve samples in training mode (**first result:
+the number with `G=1`**), then rerun without G after degradation to obtain the second result.
 
-到我们这儿，一次 bench 就是**一批任务，每道自带一个 G**，靠 `task.run` 认。
+Here, a benchmark run is **a batch of tasks, each with its own G**, grouped by `task.run`.
 
-- `POST {prefix}/bench` —— 发一批。**一道不过就整批不发**：发一半的话成绩单的
-  分母是错的，而且没人看得出来少了哪几道
-- `GET {prefix}/bench/:run` —— 成绩。**数出来的，不是存着的**；存一份会跟真相漂，
-  而且漂了不报错
-- `GET {prefix}/bench` —— 有哪几跑
+- `POST {prefix}/bench`: submit a batch. **Reject the entire batch if any task is invalid.** A partially submitted batch
+  would give the wrong denominator without clearly identifying the omitted tasks.
+- `GET {prefix}/bench/:run`: results. **Computed, not stored**; a stored copy could silently diverge from the records.
+  Such drift would not necessarily raise an error.
+- `GET {prefix}/bench`: list runs.
 
-同名重发会被挡住 —— 两次的成绩混在一起，那份成绩单就没意义了。
+Resubmitting a run name is rejected: mixing two executions would invalidate their results.
 
-**不另开一张 bench 表。** 成绩按 `run` 一数就有；`state` 本来就是 G 判出来的，
-不需要第二套统计。
+**No separate bench table is needed.** Results are obtained by grouping on `run`; G already determines `state`,
+so a second set of statistics is unnecessary.
 
-### 纯 HTTP 就能造一道带 G 的题
+### Publishing a task with G over HTTP alone
 
-G 的节点句柄可以写成 `http://…` —— 外部句柄往 `handle` 表写一行就算注册，内核
-自己合成调用器。所以**外面不碰一行代码就能造样本、跑 bench、拿成绩**：执行单元
-和 G 的每个节点都可以是外面起的服务。
+G node handles may be `http://…` addresses. Register an external handle by inserting a row in `handle`; the kernel
+constructs its caller. Thus **external clients can create samples, run benchmarks, and retrieve results without changing code**:
+execution units and every node of G can be externally hosted services.
 
-## 验证函数 G
+## Objective G
 
-**一个任务算不算做成了。** 一张有向无环图：节点是一段算得出布尔的东西，
-边是接线，整张图算出一个 `{0,1}`。
+**The criterion for whether a task is complete.** G is a directed acyclic graph: nodes compute Boolean values,
+edges connect them, and the graph returns one value in `{0,1}`.
 
-### 定义不在主库里
+### The definition is not stored in the main database
 
-红线只有两条：**不许直接读到 G 的定义**、**不许改它**。查询自由 —— 想调多少次
-都行，反推出这个黑盒的形状不是漏洞，那正是 test-time scaling 本体。
+The two boundaries are **no direct access to G's definition** and **no modification of it**. Queries are unrestricted in this design note:
+callers may query as often as desired. Inferring the black box through queries is the intended test-time scaling mechanism, not itself a vulnerability.
 
-而强制方式**不是「规定不许」，是「够不着」**。主库是全接口开放的，一条 `/query`
-就能读任意表 —— **G 存主库就等于没有墙**。所以定义落在**单独一个库文件**里
-（`db.sealed`），H2H 不开它。主库上只留 `objective`（有没有）和 `readable`（策略位）。
+Enforcement relies on **inaccessibility, not convention**. The main database exposes its full API, and `/query` can read any table.
+**Putting G there would remove the boundary.** Definitions therefore live in a **separate database file**,
+`db.sealed`, which H2H does not open. The main database stores only `objective` (presence) and `readable` (policy).
 
-`readable=true` 的不用躲：验收标准本来就是需求的一部分，直接**并进任务描述** ——
-它就是需求文本本身，连「读 G」这个动作都不存在。benchmark 样本才需要封。
-墙只有一道，逻辑不分叉：定义一律进封存区，`readable` 只决定要不要另抄一份进描述。
+With `readable=true`, the acceptance criterion is part of the requirements and is **included directly in the task description**.
+There is no separate read-G action. Benchmark samples are the cases requiring sealing.
+There remains one storage boundary: every definition is sealed; `readable` only controls whether a copy enters the description.
 
-### 值域是封闭的
+### The value domains are closed
 
-只有 `bool` 和 `bool[n]`，作者只能选、不能自定义 —— 封闭之后**定义期的类型检查
-完全可判定**。`n` 定义期写死，所以边的下标越界能完全静态检出。
+Only `bool` and `bool[n]` are allowed. Authors choose one rather than defining arbitrary domains, making **definition-time type checking
+fully decidable**. Because `n` is fixed at definition time, edge-index bounds can be checked entirely statically.
 
-### 违约一律归 0，不引入第三个值
+### Every contract violation maps to 0; there is no third value
 
-脚本返回的东西不落值域、算不出来、跑挂了、句柄没注册 —— **全是 0**。加一个
-「未知」档的话，上面每一处都要处理三态，而三态会一路渗到根。归 0 时把原因带出来，
-但那是**给我们看的**，判决本身只有 0/1。
+Out-of-domain returns, evaluation failures, crashes, and unregistered handles **all map to 0**. An unknown state
+would force every upstream component to handle a third value, propagating it to the root. A failure includes its reason,
+but that is **diagnostic information for us**; the verdict itself remains 0/1.
 
-### 发布那道闸
+### Admission at publication
 
-- **智能体在树内派生的任务不许带 G**（`source=agent` 带 G 直接拒）—— 放行就是
-  智能体给自己设定成功标准，**自提权**，判据不再是判据
-- **带 G 就必须显式给 `readable`**；没带 G 就不该给
-- **定义期检测过不了 → 拒收整个任务**，在动库之前拒
+- **Tasks derived by agents inside the tree cannot attach G**: reject `source=agent` with G. Allowing this would let
+  agents define their own success criterion, an **escalation of authority** that invalidates the criterion.
+- **G requires an explicit `readable` value.** Tasks without G should not provide it.
+- **Definition-time validation failure rejects the entire task**, before any database modification.
 
-检测这些：节点名重复 / 缺时刻 / 缺脚本句柄 / 边引用不存在的节点 / 边下标越界 /
-回环 / 唯一输出节点 / 全消费（除根外每个输出都得被用上）/ 根的值域必须 bool /
-根没有入边（G 恒定 = 无效目标）。
+Validation covers duplicate node names, missing moments or script handles, references to nonexistent nodes, out-of-bounds edge indexes,
+cycles, a unique sink, full consumption of every non-root output, a Boolean root domain,
+and a root without incoming edges (a constant G is an invalid objective).
 
-**有一条故意没装**：「时刻与拓扑序相容」。生命周期时刻不是全序（同一个时刻一次
-任务能发很多遍），「A 不晚于 B」在重复时刻上没有确切含义 —— 写一个语义不明的检查
-反而会挡住合法的 G。
+**One check is deliberately absent:** compatibility between moments and topological order. Lifecycle moments are not totally ordered,
+since the same moment may recur within a task. “A is no later than B” has no precise meaning for repeated moments;
+a check with unclear semantics could reject a valid G.
 
-### 两个调用面
+### Two calling interfaces
 
-- **内核侧**：一个任务的执行单元全干完了，内核喊一声（`onDone`），那一刻跑 G，
-  判决写回 `state` / `result`。**内核不认得 G** —— 它只报告「跑完了」
-- **智能体侧**：一个普通工具，回值**只有判决**，不含 G 的任何内容。还没接 ——
-  等那个「把模型请求的工具跑掉」的执行单元
+- **Kernel side:** when all execution units finish, the kernel invokes `onDone`; G runs and its verdict updates
+  `state` / `result`. **The kernel does not know G**; it only reports completion of execution.
+- **Agent side:** an ordinary tool returning **only the verdict**, with no G definition. Not yet connected in this note;
+  it awaits the execution unit that runs model-requested tools.
 
-主表这个 `place` 是这个任务**一般**在哪儿干。子表每行也有 `place`，一般就跟它一样；
-不一样是特例（某个执行单位跑去别的地方干），所以两处都要有，不能只留一处。
+The main table's `place` is the task's **usual** execution location. Each subtable row also has a `place`, normally matching it.
+A different value is a per-unit exception, so both fields are necessary.
 
-### 子表 `task_<mode>` —— 一行 = 这个任务的一个执行单位
+### Subtable `task_<mode>`: one row per execution unit of a task
 
-每个执行模式一张：`task_dfs`、`task_react`、`task_dfs_obj`……
+One subtable per execution mode: `task_dfs`, `task_react`, `task_dfs_obj`, and so on.
 
-| 列 | 说明 |
+| Column | Description |
 | --- | --- |
 | `task` | → `task.id` |
-| `cycle` | 这个单位属于哪个周期 → 任务周期表第 2 列 |
-| `unit` | 这个周期里的第几个执行单位 |
-| `node` | 这一格属于树上哪个节点。**只有会分叉的机制才有节点**：一个节点是一次完整的尝试。单链机制每一格都是 1 —— 列在那儿，只是没什么可说 |
-| `from_cycle` | 它从哪一行来 —— 那行的周期 |
-| `from_unit` | 它从哪一行来 —— 那行的执行单位 |
-| `agent` | 哪个智能体在干 → `agent.name`。也就定了对面是哪张 ctx 表 |
-| `instance` | 哪个实例在干 |
-| `place` | 在哪儿干 → `workplace.place` |
-| `at` | 这一行建立/开始的时刻 |
-| `status` | 终止状态：`reached` / `dead_failed` / `dead_below_bar`。**出生即定不回改**；空 = 还在跑 |
-| `press` | → `press.id`：这一格的**压缩表示**在哪儿（三个级别各一份）。空 = 没压过，照原消息发 |
-| `done` | 这个单位是否结束 |
+| `cycle` | This unit's cycle → column 2 of the task cycle table |
+| `unit` | Execution-unit sequence number |
+| `node` | Tree node containing this slot. **Only branching mechanisms use distinct nodes**: a node is a complete attempt. A single-chain mechanism uses 1 in every row |
+| `from_cycle` | Predecessor row's cycle |
+| `from_unit` | Predecessor row's execution unit |
+| `agent` | Agent performing the work → `agent.name`; also determines the corresponding ctx table |
+| `instance` | Agent instance performing the work |
+| `place` | Execution location → `workplace.place` |
+| `at` | Time this row was created / started |
+| `status` | Terminal status: `reached` / `dead_failed` / `dead_below_bar`. **Immutable once written**; empty means still running |
+| `press` | → `press.id`: this slot's **compressed representation**, with one version per configured level. Empty means uncompressed original messages |
+| `done` | Whether the unit has finished |
 
-主键 `(task, cycle, unit)`
+Primary key: `(task, cycle, unit)`
 
-**`press` 按格记，不按节点记。** 长的是**链**：一格的消息，会出现在它后面每一格
-的上下文里。量过一条链 4136k 字节，其中 65–86% 是被重放的思考。
+**Compression is recorded per slot, not per node.** Context grows along a **chain**: each slot's messages appear in every later slot's context.
+One measured chain contained 4136k bytes, with replayed reasoning accounting for 65–86%.
 
-**存的是引用不是正文**，这样几格可以合起来共用一段话（见 `press`）。
+**Store references, not text**, so several slots can share one compressed passage (see `press`).
 
-**而且是写下来的，不是发的时候现算。** 现算的话同一格每次请求压出来的都不一样，
-而一份在模型底下自己会变的上下文，出了问题谁也复现不了。
+**Persist compression results instead of recomputing them when sending.** Otherwise the same slot could compress differently
+on every request, producing context that changes under the model and cannot be reproduced during debugging.
 
-**`unit` 在一个任务里单调递增，不按周期重新数。** 智能体那边 ctx 表的主键是
-`(instance, unit)`，不带周期 —— 每个周期重数的话，`think#1` 和 `act#1` 会在那张
-表里撞成一行。`max_units` 限的是「这个周期名下有几行」，跟编号无关。
+**`unit` increases monotonically within a task; it does not restart per cycle.** The agent ctx table's key is
+`(instance, unit)`, without cycle. Restarting the counter would make `think#1` and `act#1` collide.
+`max_units` limits the number of rows belonging to a cycle, independently of their sequence numbers.
 
-**`at` 和 `expect_ms` 配起来才能判死**：`done=0` 本来混着「还没开始 / 正在跑 / 已经
-卡死」三种，光看这一列分不出来。拿 `at` 加上那个句柄登记的 `expect_ms`——
-`now - at > expect_ms` 就是死了。分不出来的话，崩了重启就不知道那个请求
-该不该重发：重发是重复扣费和重复副作用，不重发是永远卡住。
+**`at` and `expect_ms` together identify timed-out units.** `done=0` includes not started, running, and stuck units;
+that column alone cannot distinguish them. Combine `at` with the handle's registered `expect_ms`:
+`now - at > expect_ms` means dead. Without this distinction, restart cannot determine whether to resend a request:
+resending risks duplicate charges and side effects; not resending risks waiting forever.
 
-**每新加一行都要记好它从哪行来的**（`from_cycle` / `from_unit`）。前驱在同一个
-`task` 里，不用再存一遍 task；头一行没有前驱，两列留空 —— 它接的是主表那个头节点。
-一个父可以有多个子（分叉出兄弟），一个子只有一个父，所以父是单值一列不是列表。
-有了这两列，执行单元之间的联系（顺序、分叉、回溯）从表里就能推出来，不用另存。
+**Every new row records its predecessor** through `from_cycle` / `from_unit`. The predecessor belongs to the same
+`task`, so its task ID need not be repeated. Both fields are empty for the first row, which attaches to the main table's root.
+A parent may have multiple children, while a child has one parent; parent pointers are scalar columns, not lists.
+These pointers derive execution order, branching, and backtracking directly from the table without separate records.
 
-以上是每张子表都有的骨架，**各模式可以再往后加自己的列** —— 不同模式的执行单位
-要记的东西本来就不一样，这也正是它们各占一张表的理由。
+This is the shared subtable structure. **Each mode may append its own columns** because different modes need
+different execution-unit records, which is why they have separate tables.
 
-### 子表是长出来的
+### Subtables are generated
 
-**任务周期表里有几个 `mode`，install 就建几张子表**，表名按 `task_<mode>`。
-加一个执行模式 = 任务周期表加行 + 重装一次，子表自己出来，不用写 DDL。
-主表不存「我的子表叫什么」—— 存了会跟实际漂，靠 `mode` + 命名规则现算。
+**Installation creates one `task_<mode>` subtable for each mode in the cycle table.**
+Add rows for a mode and reinstall; its subtable is generated without handwritten DDL.
+The main table does not store the subtable name, which could drift. Derive it from `mode` and the naming convention.
 
-### 检查
+### Checks
 
-1. `task.mode` 必须在任务周期表里有
-2. 子表的 `cycle` 必须是那个 mode 底下真有的周期
-3. `unit` 的个数不超过那个 `(mode, cycle)` 的 `max_units` —— 第 3 列在这儿才起作用
-4. `from_cycle` / `from_unit` 指的那一行必须在同一个 task 里真的存在（除非两列都空）
-5. **两边对咬**：子表每行的 `(agent, instance, unit)` 拿去 `agent_<agent>_ctx`
-   查 `(instance, unit)`，那行的 `task` 必须等于这行的 `task`，`place` 和 `done`
-   也该一致。
-   智能体那边记着「我在干哪个任务」，任务这边记着「谁在干我」——
-   **不咬一遍，双重记录等于白记。**
+1. `task.mode` must exist in the task cycle table.
+2. A subtable's `cycle` must exist under its mode.
+3. The number of units must not exceed `(mode, cycle).max_units`; this is where column 3 is enforced.
+4. `from_cycle` / `from_unit` must identify an existing row in the same task, unless both are empty.
+5. **Cross-check both sides:** look up a task row's `(agent, instance, unit)` in `agent_<agent>_ctx`
+   using `(instance, unit)`. The resulting row must have the same `task`, `place`, and `done`
+   values.
+   The agent records its current task, and the task records its executing agent.
+   **Without cross-validation, the duplicate records provide no assurance.**
 
 ---
 
-## 智能体表（套表）
+## Agent tables (a table family)
 
-三层：外层一个智能体，展开成上下文表，上下文表再展开成消息表。
+Three layers: the agent, its context table, and the messages underlying each context row.
 
-### `agent` —— 一行 = 一个智能体（爆炸开的 agent card）
+### `agent`: one row per agent (an expanded agent card)
 
-| 列 | 说明 |
+| Column | Description |
 | --- | --- |
-| `name` | 主键 |
-| `config` | 它的配置在哪儿 —— 配置文件地址 |
-| `apis` | 主要用哪几个模型的 api。一格一个列表，每项指向 `api` 表的 `(key_env, model)` |
-| `unit` | 它的执行单元的句柄 → `handle.name`，跟前面执行单元一个定义 |
-| `state` | 可用状态 |
+| `name` | Primary key |
+| `config` | Configuration file location |
+| `apis` | Main model APIs: a list of references to `(key_env, model)` in the `api` table |
+| `unit` | Execution-unit handle → `handle.name`, using the same execution-unit definition as above |
+| `state` | Availability state |
 
-### `agent_<name>_ctx` —— 每个智能体一张，一行 = 一个执行单元
+### `agent_<name>_ctx`: one table per agent, one row per execution unit
 
-从它实例化出来的智能体，在执行哪个任务。一个实例一份上下文。
+Records which task an agent instance is executing. Each instance has its own context.
 
-| 列 | 说明 |
+| Column | Description |
 | --- | --- |
-| `instance` | 哪个实例 |
-| `task` | 它在执行哪个任务 → `task.id` |
-| `unit` | 哪个执行单元 |
-| `place` | 在哪儿干 → `workplace.place` |
-| `done` | 是否结束 |
+| `instance` | Instance identifier |
+| `task` | Task being executed → `task.id` |
+| `unit` | Execution unit |
+| `place` | Execution location → `workplace.place` |
+| `done` | Whether execution has finished |
 
-主键 `(instance, unit)`
+Primary key: `(instance, unit)`
 
-**一个执行单元的 `place` 是固定的** —— 定了就不变，所以它是这一行上的一列，
-不用另记变更。
+**An execution unit's `place` is fixed.** Once selected it does not change, so it belongs on this row,
+without a separate change history.
 
-### `agent_<name>_msg` —— 从上下文表展开，一行 = 上下文里的一条消息
+### `agent_<name>_msg`: messages expanded from context rows, one row per message
 
-| 列 | 说明 |
+| Column | Description |
 | --- | --- |
-| `instance` | ┐ 指回上下文表那一行 |
+| `instance` | ┐ Reference back to the context row |
 | `unit` | ┘ |
-| `seq` | 在这个单元里压进去的顺序 |
-| `role` | **给模型看的**：`user` / `assistant` / `system`，就这几个 |
-| `kind` | **给我们看的**：这条实际是什么 → `msg_kind` |
-| `body` | 内容 |
-| `at` | 这一行落库的时刻 |
+| `seq` | Insertion order within the execution unit |
+| `role` | **For the model:** `user` / `assistant` / `system`; only these roles |
+| `kind` | **For us:** the message's actual origin or function → `msg_kind` |
+| `body` | Content |
+| `at` | Time the row was persisted |
 
-主键 `(instance, unit, seq)`
+Primary key: `(instance, unit, seq)`
 
-**顺序是死的：先落库，再发出去。** 内核拿到事务、组装出一个执行单元 —— 也就是
-智能体读出来要转发的那份上下文 —— **先写进这张表，然后才发**；返回回来再落一行。
+**The order is fixed: persist first, then send.** The kernel obtains a transaction and assembles an execution unit,
+including the context the agent will forward. **Write it to this table before sending**, then persist the response as another row.
 
-反过来（先发后落库）的话，崩在中间就有「已经发出去、库里没有」的调用，那种状态
-恢复不了。按这个顺序落，加上 `at`，**半天不返回的当场逮得到**：出站那行在、
-回来那行不在、时间差超了，就是它。
+Sending first could leave a request that was sent but never recorded if the process crashes between the two operations.
+That state is unrecoverable. Persisting in order, together with `at`, makes **requests that never return detectable**:
+the outgoing row exists, the response row does not, and the elapsed time exceeds the limit.
 
-**这张表装的是这个实例的完整上下文**，不只是「准备压进去的」那半边：模型吐回来的
-那条、它请求工具的那条，也都是这张表的行，靠 `role` 区分谁说的。不存模型说过的话，
-下一轮就没东西可压。
+**This table holds the instance's complete context**, not only messages queued for insertion. Model responses
+and tool requests are also rows, with `role` identifying the speaker. Without model-output records,
+the next round would have no history to include.
 
-`role` 和 `kind` 必须是两列。压给模型时系统注入的消息也是一条 `user`，**光看消息
-列表分不出它是不是真用户讲的** —— 模型只支持那几个 role、没有额外字段可放，所以
-这件事只能在库里额外标着。不标就是永远分不出来。
+`role` and `kind` must be separate columns. System-injected messages are also sent to the model as `user` messages.
+**The transmitted list alone cannot distinguish them from real user input.** Models support only those roles, with no extra origin field,
+so the database must retain the distinction; otherwise it is permanently lost.
 
-### `msg_kind` —— 登记消息类型
+### `msg_kind`: message-kind registry
 
 | name | note |
 | --- | --- |
-| `user` | 真人**写**的 |
-| `voice` | 真人**说**的，实时轨转写来的 |
-| `prompt` | 提示词 |
-| `inject` | 系统注入的 —— 压出去也是 `role=user`，靠 `kind` 才分得出来 |
-| `skill` | skill 临时放的提示词 |
-| `tool` | 工具的返回结果 |
-| `intervene` | 用户看着它执行时施加的干预标记 |
+| `user` | **Written** by a human |
+| `voice` | **Spoken** by a human; transcribed by the real-time lane |
+| `prompt` | Prompt |
+| `inject` | System-injected; sent as `role=user`, distinguishable only through `kind` |
+| `skill` | Temporary prompt supplied by a skill |
+| `tool` | Tool result |
+| `intervene` | Marker for a user intervention while observing execution |
 
-**加一种类型 = 这张表加一行，别的表一个字不动。** 类型还会继续补。
+**Adding a kind adds a row here without changing other tables.** More kinds may be added.
 
-### `kind` 是**推**出来的，不是填的
+### `kind` is **derived**, not supplied
 
-这是这一块最要紧的一条。老代码的原话：
+This is the central rule for this part of the design. The old implementation stated:
 
-> 标记的**依据必须是系统已有的事实，不能是一条纪律** —— 靠人记得在消息前面加个
-> 前缀，漏一次就静默失效，而且没人查得出来。
+> A marker must be **based on facts the system already knows, not on user discipline**. Depending on a person
+> to remember a prefix fails silently when they omit it, without leaving a detectable error.
 
-所以投消息的时候说的是「**谁放的**」，`kind` 和 `role` 由它推出来：
+Message delivery therefore specifies **who inserted it**, and derives `kind` and `role`:
 
-| 谁放的 | `kind` | `role` | |
+| Inserted by | `kind` | `role` | Meaning |
 | --- | --- | --- | --- |
-| `user` | `user` | `user` | 真人写的。**有意图有责任**，前缀 `【人】` |
-| `voice` | `voice` | `user` | 真人说的（实时轨转写）。同样有意图有责任，同样前缀 `【人】` |
-| `world` | `inject` | `user` | 机械的确定性产出（规则投的知识）。无意图无责任 |
-| `skill` | `skill` | `user` | skill 临时放的提示词 |
-| `tool` | `tool` | `tool` | 工具的返回 |
-| `agent` | `prompt` | `assistant` | 智能体自己的轨迹 —— **不走这条管道** |
-| `kernel` | `inject` | `system` | 内核记账，不当内容发给模型 |
+| `user` | `user` | `user` | Human-written, with **intent and responsibility**; protocol prefix `[human] ` |
+| `voice` | `voice` | `user` | Human speech transcribed by the real-time lane; the same intent, responsibility, and prefix `[human] ` |
+| `world` | `inject` | `user` | Deterministic mechanical output, such as rule-injected knowledge; no intent or responsibility |
+| `skill` | `skill` | `user` | Temporary prompt supplied by a skill |
+| `tool` | `tool` | `tool` | Tool result |
+| `agent` | `prompt` | `assistant` | The agent's own trace; **does not use this delivery pipeline** |
+| `kernel` | `inject` | `system` | Kernel bookkeeping, not sent to the model as content |
 
-**人写的和系统注入的，压出去之后都是一条 `user`，拼完就分不开了** —— 除非库里
-标着。那个标记（`HUMAN_MARK`）定义在一处，下游读同一个常量，不各写各的字面量。
-缀不缀的判据也是一处：「哪几种算人给的」是个集合，不是 `by === "user"` 这种
-写法 —— 后者在加进 `voice` 的时候会**悄悄漏掉标记**，而压出去之后再也分不出来。
+**Human-written and system-injected content both become `user` messages after assembly**; only their database markers distinguish them.
+The marker, `HUMAN_MARK`, is defined once and read by downstream components instead of duplicating its literal value.
+The prefix rule is also centralized: a set identifies human-origin sources rather than checking only `by === "user"`.
+That single-value check would **silently omit the marker for `voice`**, after which transmitted messages could not be distinguished.
 
-`voice` 跟 `user` **分开记**，虽然两者都是人、都缀标记：转写是**说**的，不是
-**打**的。混成一种的话，回放这段上下文会把现场那句话当成人敲进来的字重新发一遍。
+`voice` and `user` are **recorded separately** despite both being human and receiving the prefix: speech transcripts
+are not typed messages. Conflating them would resend live speech as if it had been typed when replaying context.
 
-### 投递只有一处实现
+### One delivery implementation
 
-老代码那边曾经有两份一模一样的投递代码（智能体侧、内核侧），注释自己写着「这段
-是同一段代码的两份拷贝」。**两份拷贝意味着同一个 bug 有两份副本，而修的时候多半
-只修一份。** 所以内核、发布口、规则、skill 全走同一个 `deliver`。
+The old implementation duplicated delivery code on the agent and kernel sides, even documenting the duplication.
+**Two copies duplicate each bug, while a fix often reaches only one.** The kernel, publication route,
+rules, and skills therefore all use the same `deliver` function.
 
-唯一不走的是**模型自己说的那条** —— 那是它的轨迹，而且 `kind` 得由适配器说
-（`prompt` 还是 `call`），推不出来。
+The sole exception is **the model's own output**: that is its trace, and the adapter must specify its `kind`
+(`prompt` or `call`), which cannot be inferred by the common delivery path.
 
-## 钩子
+## Hooks
 
-**钩子 = 一条规则 + 一条 `dim=moment` 的触发条件**，不另开表。
+**A hook is a rule plus a trigger condition with `dim=moment`.** No extra table is needed.
 
-内核会喊到这几刻：`unit_start` / `pre_send` / `post_send` / `task_done`。
-它不认得任何一条规则叫什么 —— 只报「现在是哪一刻」，谁挂在这一刻上由 `trigger`
-说了算。老代码那边钩子是一个目录一个时刻（`hooks/<event_type>/*.py`）；我们这儿
-时刻是数据里的一个值。
+The kernel announces these moments: `unit_start` / `pre_send` / `post_send` / `task_done`.
+It does not know specific rule names; it reports the current moment, and `trigger` determines which rules apply.
+The old implementation used one directory per moment (`hooks/<event_type>/*.py`); here,
+a moment is simply a data value.
 
-**一条规则炸了只炸它自己。** 钩子挂在主路上，让它把整步带停的话，一条写坏的规则
-能让所有任务都不动。
+**A failing rule fails only itself.** Hooks are on the main execution path; allowing one bad rule to abort
+the entire step could stop every task.
 
-### 子表是长出来的
+### Subtables are generated
 
-跟周期表同一个路子：`agent` 表里有几个智能体，install 就建几对子表，名字按
-`agent_<name>_ctx` / `agent_<name>_msg`，不手写 DDL。
+As with cycles, installation creates one pair of subtables for each agent in `agent`, named
+`agent_<name>_ctx` and `agent_<name>_msg`, without handwritten DDL.
 
 ---
 
-## workplace 登记表
+## workplace registry
 
-**不是套表，就一张。** 登记干活的地方。
+**One table, not a table family**, registering execution locations.
 
-| # | 列 | 说明 |
+| # | Column | Description |
 | --- | --- | --- |
-| 1 | `place` | 这个位置在哪：本地 / WSL 里 / WSL 里的 docker 容器里 / 远程服务器 / 远程服务器的容器 / …… |
-| — | `identity` | **谁把工具调用送到这个位置去** → `handle.name`。转发的话必须有 |
-| — | `runtime` | **建立连接时送过去的那个运行时**（本机文件路径）。`local` 留空 |
-| 2 | `forward` | 是否会把工具转发到对应位置 |
-| 3 | `tools` | 白名单：哪些工具**一定**转发、哪些**由智能体控制**要不要转发、…… |
-| 4 | `usable` | 可不可用 |
+| 1 | `place` | Location: local / WSL / a Docker container in WSL / remote host / a container on a remote host / … |
+| — | `identity` | **Handle that forwards tool calls to this location** → `handle.name`; required for forwarding |
+| — | `runtime` | **Runtime sent when establishing the connection**, as a local file path; empty for `local` |
+| 2 | `forward` | Whether tools are forwarded to this location |
+| 3 | `tools` | Allowlist specifying tools that **always** forward, tools whose forwarding is **agent-controlled**, and other policies |
+| 4 | `usable` | Registered availability |
 
-主键 `place`
+Primary key: `place`
 
-第 1 列写成**带层级的地址串** —— 位置本身是嵌套的（WSL 里面的容器、远程服务器上面的
-容器），一层一层写才装得下：
+Column 1 is a **hierarchical address string**. Locations may be nested, such as a container inside WSL
+or on a remote host, so each hop is represented explicitly:
 
 ```
 local
@@ -679,142 +679,142 @@ ssh://box-7
 ssh://box-7/docker:build-01
 ```
 
-第 3 列**一格存一个列表**（跟任务周期表 4、5 列同一个做法）。白名单不是「在不在里面」
-两态，每项要带自己的策略，而且策略还会加：
+Column 3 stores **one list per cell**, like columns 4 and 5 of the cycle table. It is not a binary membership list:
+each entry has its own policy, and more policies can be added.
 
 ```json
 [{"tool":"bash","policy":"always"},
  {"tool":"read","policy":"agent"}]
 ```
 
-### 「怎么到那个位置」是一条句柄
+### Reaching a location is handled by a registered handle
 
-**位置曾经是这个系统里唯一一样不走句柄注册表的东西。** 工具是 `fn:tool.bash`，
-G 的节点是一个 `http://` 的地址，推断函数是 `fn:infer.dfs` —— 只有位置不是：
-「怎么到那儿」编译在 `place/index.ts` 里，`hops` 认得的是一个封闭集合
-（`wsl` / `ssh` / `docker`），命令怎么拼、运行时送到哪个路径，也都写死。
+**Locations used to be the only component outside the handle registry.** Tools used `fn:tool.bash`,
+G nodes used `http://` endpoints, and inference used `fn:infer.dfs`, while location handling
+was compiled into `place/index.ts`. `hops` recognized only a closed set
+(`wsl` / `ssh` / `docker`), with hard-coded command construction and runtime destination paths.
 
-于是**一台机器自己的性质没地方安放**。实测三条，全在同一台机器上：
+This left **nowhere to express machine-specific properties**. Three observed failures occurred on one machine:
 
-| 撞到的 | 是谁的性质 |
+| Failure | Property of |
 | --- | --- |
-| `wsl.exe -- docker` 找不到 docker（snap 装的，只在登录 shell 的 PATH 上） | 这台机器 |
-| 嵌套位置只送到最外一跳，运行时落在 WSL 的 `/tmp`，不在容器里 | 这套实现 |
-| snap 封装的 docker 够不着 `/tmp`（只到 `$HOME` 和 `/media`） | 这台机器 |
+| `wsl.exe -- docker` could not find Docker because its snap installation was only on the login shell's PATH | That machine |
+| Nested-location transfer stopped at the outermost hop, placing the runtime in WSL's `/tmp` rather than the container | That implementation |
+| Snap-packaged Docker could not access `/tmp`, only `$HOME` and `/media` | That machine |
 
-三条都不是「位置」这个概念的性质，可唯一的落点是改内核那三个函数。
+None is an inherent property of an execution location, but the only available fix was to change three kernel functions.
 
-所以 `forward = 1` 的行**必须给一条句柄**（`identity`），由它**解析地址、
-把调用送过去**。契约是一个函数，进出都过 JSON：
+Rows with `forward = 1` therefore **must supply an `identity` handle** that **parses the address and forwards calls**.
+Its contract is one function with JSON input and output:
 
 ```
-fn:place.*  ({ place, op, tool, args })  →  那件工具的返回
+fn:place.*  ({ place, op, tool, args })  →  tool result
 ```
 
-`op: "call"` 转发一次工具调用，`op: "ping"` 探一次活。两个动作归同一条句柄 ——
-分成两条的话，写自定义转发的人得实现两个契约，而这两件本来是同一件事的两面：
-**够得着才转得过去**。
+`op: "call"` forwards one tool call; `op: "ping"` checks reachability. Both use the same handle.
+Splitting them would require custom forwarders to implement two contracts for the same underlying connection:
+**a reachable location is a prerequisite for forwarding to it**.
 
-内置那条叫 `fn:place.hops`，就是上面说的那套命令前缀，行为一个字没变。
-**跳板写法和「要送运行时过去」这两条检查只问它** —— 换一条句柄，地址就该按它
-自己的写法读（`modal:sandbox-7` 在它那儿合法），送不送东西过去也是它自己的事。
+The built-in handle, `fn:place.hops`, retains the existing command-prefix behavior.
+**Only this handle receives hop-syntax and runtime-transfer validation.** A different handle uses its own address syntax
+(for example, `modal:sandbox-7`) and decides for itself whether anything must be transferred.
 
 ---
 
-### 转发是怎么发生的
+### How forwarding works
 
-**建立连接的时候把运行时送过去、起起来；之后每一次工具调用都是转发给它。**
-不是每次调用现拼一条命令 —— 那样每次都要重新建立环境，而且工具的行为会跟本机不一致。
+**Transfer and start the runtime when connecting; forward subsequent tool calls to it.**
+Do not construct a fresh shell command for every call: that would recreate the environment each time and could change tool behavior.
 
-运行时里装的就是本机那一批工具实现，**一份实现两边通用**，所以 `local` 和转发出去
-的结果一样。`local` 是特例：不用送，同进程直接调。
+The remote runtime contains the same tool implementations as the local process: **one implementation shared by both sides**.
+`local` is the special case that needs no transfer and calls the implementation directly in-process.
 
-**连上没连上不进库。** `usable` 是登记，不是探活；远端断没断、容器还在不在是活状态，
-每次现探。写回库的话，崩了重启读到的那一列就是句过期的谎话。
+**Connection liveness is not persisted.** `usable` is registration, not a probe. Check live conditions, such as a dropped connection
+or a missing container, on demand; persisted liveness would be stale after a restart.
 
-字段是「至少这些」，后面还要补。
+These are the minimum fields; more may be added.
 
 ---
 
-## 规则表
+## Rule table
 
-**跟前面几张不一样：它可能是外部注册进来的**，所以行是随时会加的。
+**Unlike the earlier tables, rules may be registered externally**, so rows may be added at any time.
 
-| 列 | 说明 |
+| Column | Description |
 | --- | --- |
-| `identity` | 身份 → `handle.name`。**系统内给句柄，系统外给接口** |
-| `does` | 它是干嘛的 |
-| `params` | 接收什么参数 |
-| `writes` | 会在数据库里做出什么样子的改动 |
-| `access` | 数据库的访问方法 —— 外面的规则靠它够得着库 |
-| `scope` | 白名单：它能操作**具有哪些特点的条目** |
+| `identity` | Identity → `handle.name`: **an internal handle or an external endpoint** |
+| `does` | Purpose |
+| `params` | Accepted parameters |
+| `writes` | Declared database modifications |
+| `access` | Database access details, allowing external rules to reach it |
+| `scope` | Allowlist describing **which rows** the rule may operate on |
 
-主键 `identity`
+Primary key: `identity`
 
-**什么时候触发不在这张表里**，在 `trigger` 表，靠 `(owner_kind='rule', owner=identity)`
-关联过来。
+**Trigger timing is not stored here.** It lives in `trigger`, associated through
+`(owner_kind='rule', owner=identity)`.
 
-`identity` 带协议头，一列同时装进程内和进程外 —— 这张表**外面的要给**：
+The protocol prefix in `identity` distinguishes internal and external handles in one column. **External registrations must supply it**:
 
 ```
-fn:rule.route                          系统内 —— 拿名字去注册表换出函数
-http://127.0.0.1:9000/rules/route      系统外 —— 外部注册进来的
+fn:rule.route                          Internal: resolve the name through the function registry
+http://127.0.0.1:9000/rules/route      External: registered by an external service
 ```
 
-`params` 一格一个列表：
+`params` stores one list per cell:
 
 ```json
 [{"name":"task","type":"text","required":true},
  {"name":"limit","type":"integer","required":false}]
 ```
 
-`writes` 声明它会动哪张表、怎么动。**这不是注释** —— 声明了只动这两张，真去动第三张
-就是违约，当场能抓。外部注册的尤其要这个：注册时先声明，跑的时候按声明卡住。
+`writes` declares which tables may change and how. **It is not a comment**: declaring two tables and modifying a third
+is an immediately detectable contract violation. External rules especially need declaration-time limits enforced during execution.
 
 ```json
 [{"table":"task_dfs","op":"insert"},
  {"table":"task","op":"update"}]
 ```
 
-`access` = 地址 + 凭证从哪儿来。**密钥不进库，存的是环境变量名。** 进程内的留空，
-它本来就在库跟前：
+`access` combines an address with the credential source. **Store environment-variable names, never secrets.**
+In-process rules leave it empty because they already have database access:
 
 ```json
 {"endpoint":"http://127.0.0.1:7801/api","token_env":"H2H_TOKEN"}
 ```
 
-`scope` 跟 `writes` 是两层：一个管「动哪张表怎么动」，一个管「只能动哪些行」。
-用**结构化匹配式，不用 SQL 片段** —— 白名单得能机械卡住，SQL 片段卡不住，
-写进去就只是句注释。
+`scope` and `writes` are separate constraints: the latter specifies tables and operations, the former eligible rows.
+Use **structured matching expressions, not SQL fragments**. The allowlist must be mechanically enforceable;
+an arbitrary SQL fragment would reduce it to an unenforced annotation.
 
 ```json
 [{"table":"task_dfs","match":{"mode":"dfs","done":0}}]
 ```
 
-字段还不够，后面补。
+The field set is incomplete and will be extended.
 
 ---
 
-## `trigger` —— 什么时候轮到我
+## `trigger`: when a component applies
 
-**不只给规则用。** skill、tool 以后都接这张表 —— `owner_kind` 加个值就行，
-表一个字不改。
+**Triggers are not limited to rules.** Skills and tools also use this table by adding an `owner_kind` value
+without changing the schema.
 
-一行 = **一个条件项**。格子里不塞列表，全化成行。
+One row is **one condition**. Lists are expanded into rows rather than embedded in cells.
 
-| 列 | 说明 |
+| Column | Description |
 | --- | --- |
-| `owner_kind` | 谁的条件：`rule` / `skill` / `tool` / …… |
-| `owner` | 那个东西的身份（规则就是 `identity`） |
-| `group` | 第几组。**同组之间 and，组和组之间 or** |
-| `dim` | 在哪个维度上看：`agent` / `task` / `cycle` / `chain` |
-| `key` | 看这个维度的哪个属性（`chain` 维度留空） |
-| `op` | 怎么比：`eq` / `in` / `contains` / `prefix` / …… |
-| `value` | 比什么 |
+| `owner_kind` | Condition owner type: `rule` / `skill` / `tool` / … |
+| `owner` | Owner identity (`identity` for a rule) |
+| `group` | Group number. **AND within a group; OR between groups** |
+| `dim` | Dimension: `agent` / `task` / `cycle` / `chain` |
+| `key` | Attribute in that dimension; empty for `chain` |
+| `op` | Comparison: `eq` / `in` / `contains` / `prefix` / … |
+| `value` | Comparison value |
 
-主键 `(owner_kind, owner, group, dim, key, value)`
+Primary key: `(owner_kind, owner, group, dim, key, value)`
 
-填一遍：
+Example:
 
 ```
 owner_kind  owner           group  dim    key    op        value
@@ -822,198 +822,198 @@ rule        fn:rule.retry   1      agent  role   eq        solver
 rule        fn:rule.retry   1      task   kind   eq        swe
 rule        fn:rule.retry   1      cycle  mode   eq        dfs
 rule        fn:rule.retry   1      cycle  cycle  eq        act
-rule        fn:rule.retry   1      chain         contains  编译失败
-rule        fn:rule.retry   2      chain         contains  需要联网
+rule        fn:rule.retry   1      chain         contains  compilation-failed
+rule        fn:rule.retry   2      chain         contains  network-required
 ```
 
-第 1 组：solver 在 swe 任务的 `dfs/act` 周期上、链路串里出现「编译失败」，
-四条全中才触发。第 2 组：链路串里出现「需要联网」，也触发。两组是 or。
+Group 1 requires all four conditions: solver, a swe task, the `dfs/act` cycle, and `compilation-failed` in the chain string.
+Group 2 matches `network-required` in the chain. The groups are combined with OR.
 
-**多个子串是「都要」还是「任一」，不用另立规矩** —— 写成同一组就是都要，
-写成不同组就是任一，由数据说了算。
+**Multiple substrings need no separate all-versus-any policy**: put them in one group for AND,
+or different groups for OR. The data determines the rule.
 
-### 活库检查：`GET {prefix}/check`
+### Live database checks: `GET {prefix}/check`
 
-条件写得对不对（`trigger`）+ 数据互相对不对得上（`data`），一次问完。**开机也
-自动跑一遍**，有问题打警告不拦启动。
+One request checks condition validity (`trigger`) and data consistency (`data`). **The same check also runs at startup**;
+problems generate warnings without blocking startup.
 
-数据这一半查的是：任务走的模式在不在、干活的地方登没登记、**一个执行单元都没有**
-（多半是绕过发布口直接插的 task 行）、周期不在那个模式底下、父指的那一行在不在、
-**两边咬不上**（任务说谁在干我 ↔ 智能体说我在干谁）、`done` 两边不一致、
-超过 `max_units`、智能体的 `apis` 指向没登记的模型、**句柄两层核对**（库里登记了
-进程没注册 / 被引用了库里没登记）、`result` 写在了非终止状态上。
+Data checks cover task modes, registered workplaces, tasks with **no execution units**
+(often inserted directly instead of through publication), cycles outside their modes, missing parents,
+**mismatched task and agent records**, inconsistent `done` values,
+exceeded `max_units`, agent APIs referencing unregistered models, **two-layer handle validation**
+(registered handles without an in-process implementation, and referenced handles absent from the database), and `result` on a nonterminal task.
 
-**轨对不对得上**也在这一半里，三条，全是静默的：
+This includes three silent **lane compatibility** errors:
 
-| 写错法 | 后果 |
+| Configuration error | Consequence |
 | --- | --- |
-| `api.modes` 里写错一个字母（`duplx`） | 那条轨永远挑不中 |
-| `api.modes` 说能走某种形状，`handle` 却接不住 | **挑中了，然后调进另一种适配器** —— 行为完全不是你想的那样 |
-| `cycle.api_mode` 要一种没人支持的形状 | 那个周期的每一行都走不了 |
+| A typo in `api.modes`, such as `duplx` | The lane is never selected |
+| `api.modes` declares a shape its `handle` cannot support | **Selection succeeds but invokes the wrong adapter**, producing unintended behavior |
+| `cycle.api_mode` requests an unsupported shape | No unit in that cycle can run |
 
-中间那条最阴：它连「挑不中」都不是，是**挑中了走错门**。判据是注册那一刻记下的
-「哪个句柄接得住哪几种」—— 外面注册进来的 `http://` 句柄接得住什么我们不知道，
-跳过不查。
+The middle case is especially subtle: selection succeeds but routes to the wrong implementation. Validation uses
+the supported shapes recorded at handle registration. The capabilities of externally registered `http://` handles
+are unknown, so this particular compatibility check skips them.
 
-这几条来自老代码降解模块留下的「别再犯的」，而它们**根本不是降解专有的**：
+These checks came from lessons recorded by the old degradation module, but **are not specific to degradation**:
 
-> `task_prefix` 落进 `**kw` 会被基类吞掉，于是**这批任务谁都不接，而且不报错**。
+> If `task_prefix` falls into `**kw`, the base class can swallow it; **no agent accepts the batch and no error is raised**.
 
-「谁都不接而且不报错」是这一整类问题的通名 —— 任务躺在库里，状态永远是 `open`，
-没人知道为什么。所以要有一条检查专门问「这个任务真有人能接吗」。
+No handler and no error describes this entire class of problems: tasks remain `open` in the database indefinitely
+without an explanation. A dedicated check must ask whether any agent can actually accept a task.
 
-> `result` 只能写在终止节点上。
+> `result` belongs only on terminal nodes.
 
-半路写 result 的任务，事后没人说得清那个答案是哪一步给的。
+If a task records a result halfway through execution, later readers cannot determine which step produced it.
 
-### 防「静默不生效」的两件工具
+### Two tools against silent non-application
 
-条件写错了**不会报错** —— 那条规则只是永远不触发，而系统照常跑。老代码那边的
-原话：「写错的典型后果是静默不生效，跑一遍系统也看不出来」。所以这两件不是调试
-功能，是这张表能不能用的前提。
+A malformed condition **need not raise an error**: its rule may simply never fire while the system runs normally.
+The old implementation described this as a typical silent failure that an ordinary run does not reveal.
+These tools are therefore prerequisites for using the table, not merely debugging conveniences.
 
-**`GET {prefix}/trigger/check`** —— 不跑系统就把全部条件过一遍：认不得的维度 /
-比法、维度上没有那个属性、`chain` 却给了 key、`in` 的值不是列表、值里带空格、
-owner 指的东西不存在、一条条件都没有。**开机也自动跑一遍**，有问题打警告但不拦
-启动 —— 条件写错不该让整台机器起不来，但也不能不吭声。
+**`GET {prefix}/trigger/check`** validates every condition without running the system: unknown dimensions or
+operators, nonexistent attributes, a key on `chain`, a non-list value for `in`, whitespace in a value,
+missing owners, and owners without any conditions. **It also runs at startup**, warning about problems without blocking
+startup. A malformed condition should neither stop the entire application from starting nor fail silently.
 
-**`POST {prefix}/trigger/explain`** —— 没命中的时候逐条说清哪一条没过，
-**带上实际取到的值**：
+**`POST {prefix}/trigger/explain`** explains each unmatched condition,
+**including the actual observed value**:
 
 ```
 fired = false
-第 1 组：没中
-  [y] agent.name eq a1              实际取到：a1
-  [n] chain.(整串) contains compile-fail   实际取到：m/act#1
+Group 1: not matched
+  [y] agent.name eq a1                   actual: a1
+  [n] chain.(whole string) contains compile-fail   actual: m/act#1
 ```
 
-只说「没匹配」的话，人得自己猜是词写错了还是那段文本里根本没有。
+Reporting only “not matched” leaves users guessing whether the keyword is misspelled or absent from the text.
 
-### `dim` / `op` 不另开登记表
+### No separate registry for `dim` / `op`
 
-一度想给它们建一张登记表。**不建**：合法取值就是代码里那个 `switch` 认得的那几个，
-另立一张表只会跟实现漂 —— 表里写着 `contains` 而代码改了名，或者反过来，两边都
-以为自己对。`check` 直接对着实现认得的那一组查，最硬。
+A separate registry was considered and rejected. **Supported values are those recognized by the implementation's `switch`.**
+Another table could drift: it might still list `contains` after the code renames it, or the reverse,
+with each side appearing correct. `check` validates directly against the implemented set.
 
-### 关键词的规矩（抄的）
+### Keyword rules inherited from the earlier implementation
 
-- **值里不许带空格**：有空格说明把几个词写一起了。系统不替你猜要的是相邻还是有序 ——
-  拆成同一组的两条
-- **大小写敏感**：`NotImplemented` 的大小写本身是信息
-- **「或」不往条件里塞**：写成不同的 `group`。老代码那边把 `"A|B"` 当字面量、
-  永远命中不了，加载期就拒；我们这儿 `group` 本来就是 or，不会有这个坑
-- **值要带字段名**这条我们天然满足 —— 字段名在 `key` 那一列，不用往值里拼
+- **Values cannot contain spaces.** A space suggests multiple terms; the system does not guess adjacency or ordering.
+  Express them as two conditions in the same group.
+- **Matching is case-sensitive.** The capitalization of `NotImplemented` carries information.
+- **Do not embed OR in a condition.** Use separate groups. The old implementation treated `"A|B"` as a literal
+  that never matched and rejected it during loading; here, groups already express OR.
+- The requirement to include a field name is inherent: the `key` column supplies it without embedding it in `value`.
 
-### 链路串的拼法（已经定死，当协议管）
+### Chain-string format (fixed protocol)
 
-`chain` 维度比的是「当前执行单元所处的完整任务执行链路拼出来的那个字符串」。
-拼法写死在 `app/src/engine/chain.ts` 一个函数里：
+The `chain` dimension matches the string representing the full task-execution chain leading to the current unit.
+One function in `app/src/engine/chain.ts` defines the format:
 
 ```
 dfs/open#1 > dfs/scope#1 > dfs/act#2
 ```
 
-从头节点沿 `from_cycle` / `from_unit` 走到当前单元，每段 `模式/周期#单位`，
-段间用 ` > ` 连，顺序是**从头到当前**（倒着的话 `prefix` 就没意义了）。
+Follow `from_cycle` / `from_unit` from the root to the current unit. Each segment is `mode/cycle#unit`,
+joined by ` > ` in **root-to-current order**; reversing the order would make `prefix` meaningless.
 
-**改它等于改协议**：拼法一改，所有 `dim=chain` 的条件同时静默失效 —— 不报错，
-只是再也不触发，所以得连着把库里已有的条件一起改。
-
----
-
-## `tool` —— 一行 = 一个工具
-
-| 列 | 说明 |
-| --- | --- |
-| `name` | **给模型看的名字**，模型按这个名字调它 |
-| `identity` | 身份 → `handle.name`。系统内给句柄，系统外给接口 |
-| `does` | **给模型看的描述** —— 模型靠它决定用不用 |
-| `params` | **给模型看的参数** schema |
-| `output` | **给模型看的返回值** schema |
-| `prompt` | 这个工具要往系统提示里加的一段用法约定（可空） |
-| `concurrent` | 能不能跟别的工具同时跑 |
-| `system` | **系统工具**：所有智能体一开始就有，不看 `trigger` |
-| `access` | 要够着库的话，访问方法（不用就留空） |
-| `usable` | 可不可用 |
-
-主键 `name`，`identity` 唯一。
-
-**`name` 和 `identity` 必须是两列。** 前者是模型那边的名字空间，后者是我们这边怎么
-调它 —— 跟 `agent_<name>_msg` 里 `role` 和 `kind` 分开是同一个道理。而且
-**workplace 表 `tools` 白名单里写的就是这个 `name`**，两处得是同一个名字空间，
-不然白名单永远匹配不上，还不报错。
-
-**转发策略不在这张表里**，在 workplace 那边（`forward` + `tools`）。同一件事存两处，
-漂了没人能仲裁 —— 跟任务/智能体那种「两边各记自己的视角、能对咬」不是一回事。
-
-**工具体一律走转发，不直接碰本机。** 工具拿到的是一个「在哪儿干」的接缝，
-`place` 是 `local` 就在本机做，是 WSL / 容器 / 远程就转过去 —— 工具自己不知道
-差别。直接写 `node:fs` 的话，这个工具就永远只能在本机跑，而 `workplace`
-那张表就白登记了。
-
-`prompt` 那一列是给模型的**用法约定**（比如「edit 之前必须先 read」），
-跟 `does` 不是一回事：`does` 说这个工具是什么，`prompt` 说该怎么用它才不出错。
+**Changing the format changes the protocol.** Existing `dim=chain` conditions would silently stop matching,
+so a format change requires migrating those conditions at the same time.
 
 ---
 
-## `skill` —— 一行 = 一个 skill
+## `tool`: one row per tool
 
-| 列 | 说明 |
+| Column | Description |
 | --- | --- |
-| `identity` | 身份 → `handle.name`。系统内给句柄，系统外给接口 |
-| `does` | 干嘛的 |
-| `params` | 接收什么参数 |
-| `body` | 它要临时放进上下文的提示词。**动态生成的留空，由 `identity` 那个句柄现给** |
-| `role` | 压进去时用哪个 role |
-| `usable` | 可不可用 |
+| `name` | **Model-visible name**, used by the model to invoke the tool |
+| `identity` | Identity → `handle.name`: internal handle or external endpoint |
+| `does` | **Model-visible description**, used to decide whether to call the tool |
+| `params` | **Model-visible parameter schema** |
+| `output` | **Model-visible result schema** |
+| `prompt` | Optional usage convention appended to the system prompt |
+| `concurrent` | Whether it may run alongside other tools |
+| `system` | **System tool:** available to every agent initially, independently of `trigger` |
+| `access` | Database access details if needed; otherwise empty |
+| `usable` | Availability |
 
-主键 `identity`
+Primary key: `name`; `identity` is unique.
 
-skill 没有「给模型看的名字和描述」—— **模型不挑它，是我们按条件塞进去的**。它塞进去
-的那条就是 `agent_<name>_msg` 里 `kind=skill` 的行；工具的返回是 `kind=tool` 的行。
+**`name` and `identity` must remain separate.** The former belongs to the model's namespace; the latter specifies
+how the runtime calls it, like the role/kind distinction in `agent_<name>_msg`.
+**The workplace `tools` allowlist uses this `name`**, so both must share the same namespace;
+otherwise the allowlist silently fails to match.
 
-### 改之前先读：不拒，回一个操作单元
+**Forwarding policy belongs to workplace**, through `forward` and `tools`, not to the tool table. Two copies of the same
+policy could drift without an authority to resolve them, unlike task/agent records with distinct, cross-checkable perspectives.
 
-「改文件之前必须先读过它」这条，**不靠拦截**。没读过就调 `edit` / `write` 的时候，
-回的不是一个错，是**一个操作单元**：
+**Tool implementations use the execution-location interface instead of directly accessing the host.**
+A `local` place executes locally; WSL, container, and remote places forward the call. Tools do not distinguish them.
+Calling `node:fs` directly would permanently restrict a tool to the local machine,
+making its workplace registration ineffective.
+
+`prompt` specifies **usage conventions**, such as reading a file before editing it.
+It differs from `does`: the description explains what the tool does; the prompt explains how to use it correctly.
+
+---
+
+## `skill`: one row per skill
+
+| Column | Description |
+| --- | --- |
+| `identity` | Identity → `handle.name`: internal handle or external endpoint |
+| `does` | Purpose |
+| `params` | Accepted parameters |
+| `body` | Temporary context prompt. **Leave empty for dynamic content generated by the `identity` handle** |
+| `role` | Role assigned when inserting the content |
+| `usable` | Availability |
+
+Primary key: `identity`
+
+A skill has no model-visible name and description for selection: **the runtime inserts it when conditions match; the model does not choose it**.
+Its inserted message has `kind=skill` in `agent_<name>_msg`, while tool results have `kind=tool`.
+
+### Read before editing: return an operation rather than a rejection
+
+The read-before-editing rule **does not rely on interception**. When `edit` or `write` is called without a prior read,
+return **an execution operation**, not just an error:
 
 ```json
 {"unit": {"tool": "read", "args": {"file_path": "…"}},
- "why": "改 … 之前先读一遍它 —— 读完再来调 edit"}
+ "why": "Read … before changing it, then call edit again."}
 ```
 
-拒只是告诉它「不行」，交回一个单元是告诉它「这么办」—— 后者模型接得住。
-我们手上本来就有执行单元这个东西，不用再造一层策略。
+A rejection only says no; returning an operation explains what to do next, in a form the model can follow.
+Execution units already exist, so no additional policy layer is needed.
 
-判据是**库**：这个执行单元的消息里有没有一条 read 的返回落在这个路径上。
-不是问工具、不是问内存 —— 工具跑在别的位置上，内存崩了就没了，只有库两边都算数。
+The criterion is **the database**: does this execution unit contain a recorded read result for this path?
+Do not ask the tool or consult memory. Tools may run elsewhere and memory is lost on crashes; the database is authoritative for both sides.
 
-### 什么时候轮到它们
+### When tools and skills apply
 
-走 `trigger`，`owner_kind` 填 `skill` / `tool`，`owner` 填各自的主键。
+Use `trigger` with `owner_kind` set to `skill` or `tool` and `owner` set to the corresponding primary key.
 
-**但 `tool.system = 1` 的不看 `trigger`** —— 读写那一组（read / write / edit /
-glob / grep / bash）是系统工具，谁一上来都有。不这么区分的话，按
-「一条条件都没有 = 从不触发」那条语义，它们谁也拿不到。
+**Tools with `tool.system = 1` bypass `trigger`.** The read/write group (read / write / edit /
+glob / grep / bash) consists of system tools available to every agent initially. Without this distinction,
+the rule that no conditions means never triggered would make them unavailable to everyone.
 
-一个单元实际拿到的工具 = **系统工具 ∪ trigger 命中的**。转发不转发另说，
-那是 `workplace` 的事。
+The tool set for a unit is **system tools ∪ matched trigger tools**. Forwarding remains a separate decision
+owned by `workplace`.
 
 ```
 owner_kind  owner             group  dim    key   op        value
-tool        web.search        1      chain        contains  需要联网
+tool        web.search        1      chain        contains  network-required
 skill       fn:skill.swe-pre  1      task   kind  eq        swe
 ```
 
 ---
 
-## 关于字段
+## Field coverage
 
-**上面这些表的字段几乎都还不够。** 现在不去猜要补什么 —— 到下一个流程，
-说要补的时候再想，那会儿事半功倍。
+**Most of these tables still need additional fields.** Do not speculate about them now. Add fields when the next
+workflow establishes a concrete requirement.
 
-### 还没落地的两处引用
+### Two references not yet implemented in this design note
 
-1. `trigger` 的 `dim` 和 `op` **没有登记表**。`contains` 打成 `contain` 不报错，
-   只是那条规则永远不触发。
-2. `agent.config` 指向的配置 —— 那张表还没定。
+1. `trigger.dim` and `trigger.op` **have no registry tables**. A typo such as `contain` instead of `contains` raises no error
+   but prevents the rule from ever firing.
+2. The configuration referenced by `agent.config` does not yet have a defined table.

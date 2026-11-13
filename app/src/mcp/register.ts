@@ -1,23 +1,22 @@
 /**
- * 把一个 MCP server 接进来。
+ * Connect an MCP server.
  *
  * ```
- * 声明一个 server ──→ 连上、握手 ──→ tools/list ──→ 每个工具长一行
+ * Declare a server → connect and handshake → tools/list → one row per tool
  * ```
  *
- * **工具不用你一个个写。** 你写的是「有这么一个 server」，它有哪些工具是它自己
- * 说的 —— 名字、描述、参数 schema 全从 `tools/list` 来。你只补那几样 MCP 里没有、
- * 而这台机器需要的：
+ * **Tools need not be declared individually.** Declare the server; its own `tools/list` supplies
+ * names, descriptions, and parameter schemas. Add only the engine-specific fields MCP lacks:
  *
- * | 我们加的 | |
+ * | Added field | Meaning |
  * | --- | --- |
- * | `when` | 什么时候把它摆给模型（MCP 里这件事由 client 自己定） |
- * | `expectMs` | 调多久算死 |
- * | `system` | 谁都有，不看 `when` |
- * | `usable` | 登记着但不挂 |
+ * | `when` | When the tool is offered to the model; MCP leaves this to clients |
+ * | `expectMs` | Timeout after which the invocation is marked dead |
+ * | `system` | Available to everyone, regardless of `when` |
+ * | `usable` | Whether a registered tool is enabled |
  *
- * 句柄名是 `mcp:<server>/<tool>` —— 一个工具一条，跟别的句柄一样能被判死、
- * 能在 `handle` 表里查得到。
+ * Handle names use `mcp:<server>/<tool>`, one per tool. Like other handles, they have timeouts
+ * and appear in the `handle` table.
  */
 
 import type { Conn } from "../H2H/db.ts";
@@ -25,14 +24,14 @@ import { all, run } from "../H2H/db.ts";
 import type { Registry } from "../engine/registry.ts";
 import { McpClient, transportOf, type McpTool, type ServerSpec, type Servers } from "./client.ts";
 
-/** 句柄名的拼法。**改它等于改协议** —— 库里已有的行会对不上。 */
+/** Handle-name format. **Changing it changes the protocol** and invalidates existing database rows. */
 export const MCP = "mcp:";
 
 export function handleName(server: string, tool: string): string {
   return `${MCP}${server}/${tool}`;
 }
 
-/** 从句柄名拆回来。不是 mcp 句柄就回 null。 */
+/** Parse a handle name; return null if it is not an MCP handle. */
 export function splitHandle(name: string): { server: string; tool: string } | null {
   if (!name.startsWith(MCP)) return null;
   const rest = name.slice(MCP.length);
@@ -41,29 +40,29 @@ export function splitHandle(name: string): { server: string; tool: string } | nu
   return { server: rest.slice(0, slash), tool: rest.slice(slash + 1) };
 }
 
-/** 库里登记的一个 server。 */
+/** A server registered in the database. */
 export interface ServerRow extends ServerSpec {
   name: string;
 }
 
-/** 库里现在登记了哪些 server。存在 `mcp_server` 表里。 */
+/** Currently registered servers, stored in `mcp_server`. */
 export function serversIn(db: Conn): ServerRow[] {
   return (all(db, `select name, spec from mcp_server order by name`) as { name: string; spec: string }[]).map((r) => {
     let spec: ServerSpec = {};
     try {
       spec = JSON.parse(r.spec) as ServerSpec;
     } catch {
-      // 存坏了当没配 —— `checkData` 会把它报出来
+      // Treat corrupt configuration as missing; `checkData` reports it.
     }
     return { name: r.name, ...spec };
   });
 }
 
 /**
- * 把进程内的调用器给这些 server 的工具装上。
+ * Attach in-process invokers for these servers' tools.
  *
- * **每一圈都调一次**（跟 `Registry.sync` 一样）：库里新登记了一个 server，
- * 下一圈就有了，不用重启。
+ * **Call this every iteration**, like `Registry.sync`. A newly registered server becomes
+ * available on the next iteration without restarting the engine.
  */
 export function attach(db: Conn, reg: Registry, pool: Servers): string[] {
   const attached: string[] = [];
@@ -77,7 +76,7 @@ export function attach(db: Conn, reg: Registry, pool: Servers): string[] {
     const at = splitHandle(h.name);
     if (!at) continue;
     const spec = specs.get(at.server);
-    // server 那一行没了而句柄还在 —— 让它留着「没注册」，`Registry.sync` 会喊。
+    // The server row is gone but its handle remains. Leave it unregistered so `Registry.sync` reports the inconsistency.
     if (!spec) continue;
     reg.adopt(h.name, h.expect_ms, async (arg) => {
       const a = (arg ?? {}) as { args?: unknown };
@@ -89,10 +88,10 @@ export function attach(db: Conn, reg: Registry, pool: Servers): string[] {
 }
 
 /**
- * 连上一个 server，把它报的工具全长出来。
+ * Connect to a server and create rows for all advertised tools.
  *
- * 回「长出了哪些工具」。连不上就抛 —— **声明一个连不上的 server 是错**，
- * 而且要当场说：留到某个任务真去调它才发现，那时候已经在半路上了。
+ * Return the tools created. **An unreachable declared server is an error** and must fail now,
+ * rather than halfway through a task's first invocation.
  */
 export async function pull(
   db: Conn,
@@ -114,10 +113,10 @@ export async function pull(
     const o = overlay?.[t.name] ?? {};
     const identity = handleName(s.name, t.name);
 
-    // **重名当场拒。** `tool.name` 是模型看见的那个名字，全系统唯一；两个 server
-    // 都报 `deck_state` 的话，后来的那个会把前一个的 identity 顶掉 —— 库里还是
-    // 一行，看着一切正常，可它已经指到另一个 server 上去了。模型照调，调到的是
-    // 别人。这种错从外面一点都看不出来，所以只能在写进去之前拦。
+    // **Reject name collisions immediately.** `tool.name` is the model-visible, globally unique
+    // name. If two servers advertise `deck_state`, the later registration could overwrite the
+    // first tool's identity while leaving one apparently valid row. The model would silently
+    // invoke a different server. Prevent this before writing anything.
     const had = all(db, `select identity from tool where name = ?`, [t.name])[0] as
       | { identity: string }
       | undefined;
@@ -141,7 +140,7 @@ export async function pull(
       [
         t.name,
         identity,
-        // MCP 的 description 就是我们的 does；title 更像给人看的，拼在后面。
+        // MCP description maps to `does`; title is more human-oriented and is appended.
         t.description ?? t.title ?? "",
         JSON.stringify(t.inputSchema ?? { type: "object" }),
         JSON.stringify(t.outputSchema ?? {}),
@@ -156,7 +155,7 @@ export async function pull(
   return names;
 }
 
-/** 我们在 MCP 的工具之上补的那几样。**都是可选的**，一样不给也能跑。 */
+/** Engine-specific additions to MCP tools. **All are optional**; defaults remain usable. */
 export interface ToolOverlay {
   when?: unknown;
   expectMs?: number;
@@ -166,14 +165,14 @@ export interface ToolOverlay {
   usable?: boolean;
 }
 
-/** 一个 server 的声明：MCP 那份形状 + 每个工具的补充。 */
+/** A server declaration combines the MCP configuration with per-tool additions. */
 export interface ServerDecl extends ServerSpec {
   name: string;
-  /** 按工具名给补充。没提到的工具照 MCP 报的原样收下。 */
+  /** Additions keyed by tool name. Unmentioned tools retain their advertised MCP definitions. */
   tools?: Record<string, ToolOverlay>;
 }
 
-/** 声明期就能看出来的毛病。连不连得上要真去连，那在 `pull` 里。 */
+/** Problems detectable at declaration time. Actual connectivity is checked by `pull`. */
 export function inspectServer(s: ServerDecl): string[] {
   const bad: string[] = [];
   const at = `server ${s.name || "(unnamed)"}`;

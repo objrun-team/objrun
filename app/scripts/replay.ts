@@ -1,11 +1,11 @@
 /**
- * 把重建出来的那一发**原样打回去**，看能不能复现 `Failed to process successful response`。
+ * Replay the reconstructed request **unchanged** to reproduce `Failed to process successful response`.
  *
- * 跟内核那条路一样：同一个 provider、同一套工具、同一个 toolChoice、同样的采样参数。
- * 两处不同，都是**故意**的：
+ * Use the same provider, tools, toolChoice, and sampling parameters as the kernel.
+ * Two differences are **intentional**:
  *
- * - `maxRetries: 0` —— 要看的是第一次的真样子，不是重试之后的结论
- * - 把 `cause` 整条链打出来 —— 内核那边只打了外层那句，真正的原因一直没人看见
+ * - `maxRetries: 0`: inspect the actual first response, not the outcome after retries.
+ * - Print the entire `cause` chain. The kernel logged only the outer message, hiding the underlying cause.
  */
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText, dynamicTool, jsonSchema, type ModelMessage } from "ai";
@@ -29,12 +29,12 @@ const key = (await Bun.file("E:/sgu-bzhc/EACN_EX/TgEngin/.env").text())
   .split("\n").find((l) => l.startsWith("DEEPSEEK_API_KEY"))!.split("=")[1].trim().replace(/^"|"$/g, "");
 
 /**
- * 交卷站钉死了工具 → **思考关掉**。
+ * The submission station requires a specific tool, so **disable thinking**.
  *
- * 内核那边是 `effort = u.mustCall ? "none" : knobs.reasoningEffort`，而 `"none"` 是真值，
- * 所以它照样走 `withExtra` 把 `reasoning_effort: "none"` 塞进 body。第一次重放我漏了这一层，
- * 那一端当场 400：`Thinking mode does not support this tool_choice` —— 少一个字段就不是
- * 同一发了。
+ * The kernel uses `effort = u.mustCall ? "none" : knobs.reasoningEffort`. Since `"none"` is truthy,
+ * it still calls `withExtra` to add `reasoning_effort: "none"` to the body. The first replay omitted
+ * this step and immediately received a 400: `Thinking mode does not support this tool_choice`.
+ * Omitting even one field means this is no longer the same request.
  */
 const withExtra = (extra: Record<string, unknown>) => {
   const wrapped = async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {

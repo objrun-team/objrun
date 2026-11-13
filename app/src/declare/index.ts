@@ -1,27 +1,19 @@
 /**
- * 声明这一层 —— **外面把一台机器配起来，只走这一个口。**
+ * The declaration layer: **external callers configure an engine through this one endpoint.**
  *
- * ## 为什么不是让人去插表
+ * ## Why not ask users to insert rows?
  *
- * 库是全接口开放的，`/exec` 一句 `insert into cycle …` 就能灌。但那是给认得表的人
- * 用的，不是给用户的：**给他一个自由接口，等于把表结构甩给他**，而且写错了还不报错。
+ * The database exposes a full interface: `/exec` can insert rows with `insert into cycle …`. That is for people who know the tables, not ordinary users. **An unrestricted interface hands the schema to the user**, and incorrect writes may produce no error.
  *
- * 更要命的是**模式是一张图，而 insert 是一行一行的**。写第三行的时候没人知道第一行的
- * `next` 指错了地方 —— 图的完整性只有在全部写完之后才成立，那时候已经写进库了。
- * 于是得到一台看着像好的、实际走不通的机器：任务发得出去，走到某一步停住，
- * 状态永远是 `claimed`，零报错。
+ * Worse, **a mode is a graph, while insert operates one row at a time**. When writing the third row, nobody knows that the first row's `next` points to the wrong place. Graph integrity can only be established after all rows exist, by which time they have been written. The result looks like a working engine but has no valid path: a task starts, stops partway through, and stays `claimed` forever without an error.
  *
- * ## 所以：一整份收，整份验，一处不过整份不写
+ * ## Accept and validate a complete declaration; one failure prevents every write
  *
- * 跟 `/bench` 那条「一道不过就整批不发」是同一个道理。发一半的话，
- * 用户手上那台机器的毛病要等到跑任务那一刻才露出来，而且露出来的样子跟
- * 「模型不听话」分不开。
+ * This follows `/bench`'s rule that one invalid problem prevents the entire batch from being dispatched. With a partial declaration, configuration faults appear only when a task runs, and look indistinguishable from an uncooperative model.
  *
- * 三样一起收，因为**它们互相依赖**：智能体的轨要 `api` 表有那一行，周期要的调用
- * 形状得有句柄接得住，任务要三样齐全。拆成三个口的话，用户可以合法地把系统灌成
- * 「一半声明」，而那正是这个文件要防的东西。
+ * Accept all three together because **they depend on one another**: agent tracks require matching `api` rows, cycle call shapes require compatible handles, and tasks require all three. Separate endpoints would allow a legally accepted "half declaration", precisely what this file prevents.
  *
- * 验完在一个事务里写，然后把子表现长出来 —— 灌完直接 `POST /tasks`，不用重启。
+ * After validation, write in one transaction and create the subtables immediately. Call `POST /tasks` as soon as declaration finishes; no restart is needed.
  */
 
 import type { Conn } from "../H2H/db.ts";
@@ -35,78 +27,73 @@ import { MODE_NAMES } from "../llm/index.ts";
 import { HOPS_HANDLE, hops } from "../place/index.ts";
 import { withSubmit } from "../tree/dfs.ts";
 
-/** MCP 工具没说多久算死时给多少。一次工具调用，不是一次求解。 */
+/** Default lifetime when an MCP tool does not specify when to mark it dead. This covers one tool call, not an entire solve. */
 export const MCP_EXPECT_MS = 120_000;
 
-/** 一个能干活的地方。 */
+/** A location where work can run. */
 export interface PlaceDecl {
-  /** 带层级的地址串：`local` / `wsl` / `ssh://box-7` / `wsl/docker:build-01` …… */
+  /** A hierarchical address: `local` / `wsl` / `ssh://box-7` / `wsl/docker:build-01` … */
   place: string;
   /**
-   * **谁把工具调用送到这个位置去** → `handle.name`。
+   * **Who forwards tool calls to this location** → `handle.name`.
    *
-   * 转发的话必须给（下面那道闸）。内置那条是 `fn:place.hops`（`wsl` / `ssh` /
-   * `docker` 那套命令前缀）；写 `http://…` 或者一条带 `module` 的 `fn:`，
-   * 就是那台机器自己说了算 —— 「怎么到那个位置」是句柄的事，不是内核的事。
+   * Required when forwarding is enabled (validated below). The built-in handle is `fn:place.hops` (the `wsl` / `ssh` / `docker` command prefixes). An `http://…` handle or an `fn:` handle with a `module` lets that machine supply its own implementation: reaching a location is the handle's responsibility, not the kernel's.
    */
   identity?: string | null;
-  /** 要送过去的那个运行时（本机文件路径）。`local` 留空。 */
+  /** The runtime to transfer (a local file path). Leave empty for `local`. */
   runtime?: string | null;
-  /** 工具调用转不转发过去。默认不转。 */
+  /** Whether to forward tool calls there. Disabled by default. */
   forward?: boolean;
-  /** 白名单：哪些工具能转发过去，各自什么细则（`always` / `agent`）。 */
+  /** Allowlist: tools that may be forwarded, with their individual policies (`always` / `agent`). */
   tools?: { tool: string; policy: string }[];
-  /** 登记的可用性。**是登记不是探活**，默认可用。 */
+  /** Declared availability. **A declaration, not a health probe**; available by default. */
   usable?: boolean;
 }
 
-/** 一个模式里的一个周期。 */
+/** One cycle in a mode. */
 export interface CycleDecl {
   cycle: string;
-  /** 这一站要哪种调用形状（`chat` / `duplex` / ……）。**留空 = 这一站不用模型**。 */
+  /** The call shape required at this station (`chat` / `duplex` / …). **Empty = no model at this station**. */
   apiMode?: string | null;
   mustCall?: string | null;
-  /** 这个周期最多开几个执行单位。默认 1。 */
+  /** Maximum execution units to open in this cycle. Defaults to 1. */
   maxUnits?: number;
-  /** 一般从这个模式里哪几个周期转过来。**空 = 它是入口**。 */
+  /** Cycles in this mode that normally lead here. **Empty = an entry point**. */
   from?: string[];
-  /** 一般下一个是哪几个周期。**空 = 到此为止**。 */
+  /** Normal successor cycles. **Empty = stop here**. */
   next?: string[];
-  /** 推断函数的句柄名 —— 在候选（`next`）里挑一个。 */
+  /** Inference-function handle name: chooses one candidate from `next`. */
   infer: string;
 }
 
-/** 一个模式 = 一组周期连成的图。 */
+/** A mode = a graph of connected cycles. */
 export interface ModeDecl {
   mode: string;
   cycles: CycleDecl[];
   note?: string;
 }
 
-/** 一个智能体。 */
+/** An agent. */
 export interface AgentDecl {
   name: string;
-  /** 挂哪几条轨，每项 `[key_env, model]` —— 要在 `api` 表里真有那一行。 */
+  /** Tracks to attach, each `[key_env, model]`; the corresponding row must exist in `api`. */
   apis: [string, string][];
-  /** 执行单元句柄：这一站不用模型的时候调它。 */
+  /** Execution-unit handle: called when this station does not use a model. */
   unit: string;
   config?: string | null;
   state?: string;
   /**
-   * 这个智能体**固定用哪几个模型参数**。不给的那几个落回整跑的配置。
+   * Model parameters **fixed for this agent**. Unspecified parameters fall back to the configuration for the whole run.
    *
-   * 放在智能体身上，是因为它本来就是智能体的性质，不是这一跑的性质：一个「去查、
-   * 把查到的说清楚」的智能体不需要思考，而它服务的那个求解者要想得越多越好 ——
-   * 一个旋钮当不了两件事。实测同一个问题 `none` 是 14.5 秒、`low` 是 113 秒。
+   * These belong to the agent because they describe the agent, not the run. An agent that looks up information and reports it clearly does not need reasoning, while the solver it serves should reason as much as possible: one knob cannot control both. In measurements on the same question, `none` took 14.5 seconds and `low` took 113 seconds.
    */
   knobs?: Record<string, unknown>;
 }
 
 /**
- * 一条触发条件项。
+ * One trigger condition.
  *
- * `dim` 是在哪一维上问（`agent` / `task` / `cycle` / `chain` / `moment` / `place`），
- * `key` 是那一维上的哪个属性 —— **`chain`、`moment`、`place` 不看属性，留空**。
+ * `dim` identifies the dimension (`agent` / `task` / `cycle` / `chain` / `moment` / `place`), and `key` identifies its property. **`chain`, `moment`, and `place` do not inspect properties; leave it empty**.
  */
 export interface TermDecl {
   dim: string;
@@ -116,52 +103,49 @@ export interface TermDecl {
 }
 
 /**
- * 什么时候轮到它。**外层是组，组间 or；组内 and。**
+ * When this item applies. **The outer array contains groups: OR between groups, AND within each group.**
  *
- * 组号由这边按下标算，客户端不用管 —— 让客户端自己编组号的话，它得先知道
- * 「同组 and、组间 or」这条语义，还得保证不跟已有的组撞号。
+ * Group numbers are derived here from array indexes; clients need not manage them. Otherwise clients would need to know the AND/OR semantics and avoid collisions with existing group numbers.
  *
- * **一条都不给 = 永远不触发**，不是「总是触发」。反过来定的话，忘了写条件的
- * 东西会到处乱开。（系统工具 `system: true` 例外，它不看条件。）
+ * **No conditions = never triggered**, not always triggered. The opposite convention would activate items everywhere when their conditions were accidentally omitted. (System tools with `system: true` are the exception: they ignore conditions.)
  */
 export type WhenDecl = TermDecl[][];
 
-/** 外面注册进来的句柄。 */
+/** An externally registered handle. */
 export interface HandleDecl {
   name: string;
-  /** 调它多久算死。超过这个时间内核判死，**内外一视同仁**。 */
+  /** Time after which a call is considered dead. The kernel marks it dead beyond this limit, **equally for internal and external handles**. */
   expectMs: number;
   /**
-   * `fn:` 的实现从哪儿来：`路径#导出名`（导出名不给就取 `default`）。
+   * Where an `fn:` implementation comes from: `path#exportName` (defaults to `default` if the export name is omitted).
    *
-   * **给了它，`fn:` 就能从外面注册** —— 那个模块在内核进程里跑，调用没有 IPC。
-   * 传不过来的是函数对象，不是函数在哪儿。进程外的句柄用不到这一项。
+   * **With this field, `fn:` can be registered externally**: the module runs in the kernel process, with no IPC per call. A function object cannot be transferred, but its location can. Out-of-process handles do not use this field.
    */
   module?: string | null;
 }
 
-/** 一个工具。`identity` 指向一个句柄 —— 进程内的 `fn:` 或外面的 `http://`。 */
+/** A tool. `identity` points to a handle: an in-process `fn:` or an external `http://`. */
 export interface ToolDecl {
-  /** 给模型看的名字，也是 `workplace` 白名单引用的那个。 */
+  /** The model-facing name, also referenced by the `workplace` allowlist. */
   name: string;
   identity: string;
-  /** 给模型看的描述。 */
+  /** The model-facing description. */
   does: string;
-  /** 给模型看的参数 schema。 */
+  /** The model-facing parameter schema. */
   params: unknown;
-  /** 返回值的 schema，也是给模型看的。 */
+  /** The return-value schema, also shown to the model. */
   output: unknown;
-  /** 要往系统提示里加的一段用法约定。 */
+  /** A usage convention to append to the system prompt. */
   prompt?: string | null;
-  /** 能不能跟别的工具同时跑。 */
+  /** Whether it may run concurrently with other tools. */
   concurrent?: boolean;
-  /** 系统工具：所有智能体一上来就有，**不看 `when`**。 */
+  /** A system tool: available to all agents from the start, **ignoring `when`**. */
   system?: boolean;
   /**
-   * 它的返回是哪一类东西 → `msg_part.name`。压上下文的时候按这个决定丢得起什么。
+   * The kind of content it returns → `msg_part.name`. Context compression uses this to decide what can be discarded.
    *
-   * `look` 再看一眼就有、而且会过期；`event` 拿不回来了；`receipt` 一行账。
-   * 不填 = `event`：把拿不回来的当成能再拿一次，是唯一赔不起的那个方向。
+   * `look` can be observed again and becomes stale; `event` cannot be recovered; `receipt` is a bookkeeping line.
+   * Omitted = `event`: treating irrecoverable information as recoverable is the one direction of error we cannot afford.
    */
   gives?: string | null;
   access?: string | null;
@@ -170,42 +154,41 @@ export interface ToolDecl {
 }
 
 /**
- * 一种压法。**跟工具同一个形状** —— 名字、干这件事的句柄、收什么、回什么。
+ * A compression method. **The same shape as a tool**: a name, a handle that performs it, inputs, and outputs.
  *
- * 声明进来的和内置的那几种是同一种行（`press_how`），所以「需要一个模型才做得了的
- * 压法」不用进内核：在外面实现，声明一下就是了。
+ * Declared and built-in methods are the same kind of row (`press_how`), so a method requiring a model need not enter the kernel: implement it externally and declare it.
  */
 export interface HowDecl {
-  /** `msg_part` 的 l1/l2/l3 三列填的就是这个名字。 */
+  /** The name stored in the l1/l2/l3 columns of `msg_part`. */
   name: string;
   identity: string;
-  /** 收什么，JSON schema。 */
+  /** Input JSON schema. */
   params: unknown;
-  /** 回什么，JSON schema。 */
+  /** Output JSON schema. */
   output: unknown;
   note?: string | null;
 }
 
-/** 一条规则。挂在时刻上就是钩子（`dim: "moment"`）。 */
+/** A rule. Attached to a moment, it acts as a hook (`dim: "moment"`). */
 export interface RuleDecl {
   identity: string;
   does: string;
   params: unknown;
-  /** 声明它会动哪几张表怎么动。 */
+  /** Declare which tables it changes and how. */
   writes: unknown;
-  /** 能动哪些行。结构化匹配式，不用 SQL 片段。 */
+  /** Rows it may modify. Structured matching expressions, not SQL fragments. */
   scope: unknown;
-  /** 外部规则够着库的办法。**密钥只存环境变量名。** */
+  /** How an external rule accesses the database. **Store only the environment-variable name for a secret.** */
   access?: unknown;
   when?: WhenDecl;
 }
 
-/** 一个 skill。模型不挑它，是按条件塞进去的。 */
+/** A skill. Selected by conditions, not chosen by the model. */
 export interface SkillDecl {
   identity: string;
   does: string;
   params: unknown;
-  /** 固定的一段。留空 = 动态生成，由句柄现给。 */
+  /** Static content. Empty = generated dynamically by the handle. */
   body?: string | null;
   role: string;
   usable?: boolean;
@@ -213,25 +196,19 @@ export interface SkillDecl {
 }
 
 /**
- * 一整份声明。每样都可以缺，但缺了的那样就不许被别的引用。
+ * A complete declaration. Any category may be omitted, but omitted items cannot be referenced by other items.
  *
- * **一处不过整份不写** —— 这几样互相引用（工具的 `identity` 要有句柄、
- * 触发条件的 owner 要真存在、智能体的轨要 `api` 表有那一行），分开灌的话
- * 可以合法地灌成「一半声明」，而错要等到跑起来才冒出来。
+ * **One validation failure prevents every write**: these categories reference one another (tool `identity` requires a handle, trigger owners must exist, agent tracks require matching `api` rows). Inserting them separately could legally produce a "half declaration", with errors appearing only at runtime.
  */
 export interface Declare {
   /**
-   * MCP server —— **一条批量来源**，不是另一种注册方式。
+   * MCP server: **a bulk source**, not another registration mechanism.
    *
-   * 形状跟 `claude_desktop_config.json` 里那个 `mcpServers` 一样：`command` /
-   * `args` / `env` 起个子进程，或者 `url` / `headers` 走 HTTP。有哪些工具是
-   * server 自己用 `tools/list` 报的 —— 省得一个个写。
+   * Its shape matches `mcpServers` in `claude_desktop_config.json`: `command` / `args` / `env` start a subprocess, or `url` / `headers` use HTTP. The server reports its tools through `tools/list`, saving individual declarations.
    *
-   * **想一个个写也行**：`tools` 那一项直接给，`identity` 指一条 `http://` 句柄。
-   * 两条路落到库里是同样的行。
+   * **Individual declarations also work**: provide `tools` directly, with `identity` pointing to an `http://` handle. Both paths produce the same database rows.
    *
-   * `tools` 那一项是**我们补的**：什么时候把它摆给模型（`when`）、多久算死
-   * （`expectMs`）、要不要谁都有（`system`）。MCP 里没有这几样。
+   * The `tools` section is **our addition**: when to show tools to the model (`when`), when to mark them dead (`expectMs`), and whether everyone receives them (`system`). MCP itself has none of these fields.
    */
   servers?: ServerDecl[];
   handles?: HandleDecl[];
@@ -244,9 +221,9 @@ export interface Declare {
   skills?: SkillDecl[];
 }
 
-/** 灌完了，回什么。 */
+/** What to return after applying the declaration. */
 export interface Declared {
-  /** 每个 server 连上之后报了哪些工具。 */
+  /** Tools reported by each server after connection. */
   servers: Record<string, string[]>;
   handles: string[];
   places: string[];
@@ -256,9 +233,9 @@ export interface Declared {
   tools: string[];
   rules: string[];
   skills: string[];
-  /** 这一趟长出来的子表。 */
+  /** Subtables created during this application. */
   tables: string[];
-  /** 每个模式的入口周期。**不止一个的话，发任务得指定 `cycle`** —— 在这儿说出来。 */
+  /** Entry cycles for each mode. **With more than one, task submission must specify `cycle`**; report that here. */
   entries: Record<string, string[]>;
 }
 
@@ -274,10 +251,9 @@ function list(v: unknown, what: string, bad: string[]): string[] {
 }
 
 /**
- * 把一整份声明验一遍。**返回全部问题，不是逮着第一个就抛。**
+ * Validate a complete declaration. **Return every issue instead of throwing on the first one.**
  *
- * 一次只说一条的话，用户就得「改一行、再发一次、再看下一条」——十处错来回十趟。
- * 这份声明本来就是一次性写完的东西，问题也该一次性给全。
+ * Reporting one at a time forces a user to fix one line, resubmit, and read the next error: ten errors mean ten round trips. The declaration is authored as a whole, so report its problems together.
  */
 export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
   const bad: string[] = [];
@@ -285,7 +261,7 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
 
   // ── MCP server ────────────────────────────────────────────────────────
   //
-  // 连不连得上要真去连，那是 `apply` 的事；这儿只看声明本身对不对。
+  // Connectivity requires an actual connection, handled by `apply`. Here, only validate the declaration itself.
   const servers = new Set<string>();
   for (const s of d.servers ?? []) {
     for (const w of inspectServer(s)) say(w);
@@ -295,14 +271,11 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
     }
   }
 
-  // ── 外面注册进来的句柄。**先验这一段** ────────────────────────────────
+  // ── Externally registered handles. **Validate this section first** ─────
   //
-  // 后面的模式、智能体、工具、规则、skill 都要引用句柄，所以得先知道这一份里
-  // 声明了哪些 —— 不然「同一份里先声明句柄、再用它」这条最自然的写法会被拒。
+  // Modes, agents, tools, rules, and skills below reference handles. First collect the handles declared here; otherwise the natural pattern of declaring a handle and using it in the same declaration would be rejected.
   //
-  // **只能是 `http://` / `https://`。** `fn:` 的句柄是进程内的真函数，只有那个
-  // 进程持有得住 —— 从外面往 `handle` 表写一个 `fn:` 名字，库里就有了一条
-  // 进程里没人认领的句柄，而错要等到某个任务真走到那一步才炸。
+  // **Only `http://` / `https://` are allowed.** `fn:` handles are real in-process functions that only their process can hold. Writing an `fn:` name into `handle` externally creates an unclaimed handle; the error appears only when a task reaches it.
   const handles = new Set<string>();
   for (const h of d.handles ?? []) {
     const at = `handle ${h.name || "(unnamed)"}`;
@@ -323,19 +296,18 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
   }
 
   /**
-   * 这个句柄够得着吗：这一份里刚声明的、进程里注册过的、或者库里已经登记过的。
+   * Is this handle available: newly declared here, registered in the process, or already recorded in the database?
    *
-   * 三处都算数 —— 外部句柄本来就该能当 `infer` / `agent.unit` / 工具实现用，
-   * 那正是「外面能往里加东西」这条路。只认进程内注册表的话，这条路就断了。
+   * All three count. External handles must be usable for `infer`, `agent.unit`, and tool implementations; that is how external callers extend the engine. Consulting only the in-process registry would break that path.
    */
   const handleThere = (name: string) =>
     handles.has(name) || reg.has(name) || all(db, `select 1 from handle where name = ?`, [name]).length > 0;
 
-  /** 句柄不在时那句话。得说清「在 handles 里一起声明」，不然人不知道下一步做什么。 */
+  /** The missing-handle message. Explicitly say to declare it alongside the others in handles, so the user knows the next step. */
   const noHandle = (name: string) =>
     `there is no handle named ${name} - in-process fn: handles are registered by code, and http:// ones are given in the handles of this same declaration`;
 
-  // ── 在哪儿干 ──────────────────────────────────────────────────────────
+  // ── Work locations ────────────────────────────────────────────────────
   const places = new Set<string>();
   for (const p of d.places ?? []) {
     const at = `place ${p.place || "(unnamed)"}`;
@@ -351,45 +323,38 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
       }
     }
     if (p.forward) {
-      // **转发就必须说清由谁转。**
+      // **Forwarding requires an explicit forwarding handle.**
       //
-      // 以前这儿没有这一问，因为「怎么到那个位置」是编译进内核的：`hops` 只认
-      // `wsl` / `ssh` / `docker` 三种，命令怎么拼也写死。于是「这台机器上的
-      // docker 装在 snap 里、只在登录 shell 的 PATH 上」这种**机器的性质**没地方
-      // 安放，唯一的落点是改内核那三个函数。
+      // Previously this was unnecessary because reaching a location was compiled into the kernel: `hops` recognized only `wsl` / `ssh` / `docker`, with hard-coded command construction. A **machine property** such as Docker being installed through snap and only on the login shell's PATH had nowhere to go except changes to those three kernel functions.
       //
-      // 现在位置跟工具、跟 G 的节点一样由句柄接住。不给的话，任务会一路走到某件
-      // 工具真要转发的那一刻才炸 —— 那时候它已经在半路上了。
+      // Locations now use handles just like tools and G nodes. Without a handle, failure would occur only when a task actually forwards a tool call, after the task is already underway.
       const identity = String(p.identity ?? "").trim();
       if (!identity) {
         say(`${at}: it forwards, but no handle was given to carry the calls there - name one in identity`);
       } else if (!handleThere(identity)) {
         say(`${at}: ${noHandle(identity)}`);
       }
-      // ── 下面两条只问内置那条实现 ────────────────────────────────────
+      // ── The next two checks apply only to the built-in implementation ─────
       //
-      // **地址串怎么读，是那条句柄的事。** `fn:place.hops` 读的是一串跳板
-      // （`wsl` / `ssh` / `docker`），拿去拼命令前缀，所以认不得的写法当场就得炸
-      // —— 猜的话会连到别的地方去。换一条句柄，地址就该按它自己的写法读：
-      // `modal:sandbox-7` 在它那儿是合法的，在这儿不该被拦。
+      // **Address parsing belongs to the handle.** `fn:place.hops` reads a sequence of hops (`wsl` / `ssh` / `docker`) to build command prefixes. Unknown syntax must fail immediately: guessing could connect somewhere else. Another handle must parse its own address format; `modal:sandbox-7` may be valid there and must not be rejected here.
       if (identity === HOPS_HANDLE) {
         try {
           hops(p.place);
         } catch (e) {
           say(`${at}: ${e instanceof Error ? e.message : String(e)}`);
         }
-        // 它是要把运行时送过去的。没登记送什么，第一次调用才炸。
-        // **别的实现不问这一句** —— 送不送、送什么，一样是那条句柄自己的事。
+        // This implementation transfers a runtime. Without a declared source, it would fail on the first call.
+        // **Do not ask this of other implementations**: whether and what to transfer also belongs to the handle.
         if (p.place !== "local" && !p.runtime) {
           say(`${at}: ${HOPS_HANDLE} ships a runtime over, but none was given - there is nothing to ship`);
         }
       }
-      // 开了总闸而白名单是空的 = 一个工具都不会转发。**合法，但一定不是本意。**
+      // Forwarding enabled with an empty allowlist = no tools are forwarded. **Valid, but certainly unintended.**
       if ((p.tools ?? []).length === 0) say(`${at}: forwarding is on but the allow-list is empty - not a single tool would be forwarded`);
     }
   }
 
-  // ── 模式：验的是图，不是行 ────────────────────────────────────────────
+  // ── Modes: validate the graph, not the rows ────────────────────────────
   const modes = new Set<string>();
   for (const m of d.modes ?? []) {
     const at = `mode ${m.mode || "(unnamed)"}`;
@@ -399,7 +364,7 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
     }
     if (modes.has(m.mode)) say(`${at}: appears twice in this declaration`);
     modes.add(m.mode);
-    // 模式名要能长成一张表（`task_<mode>`）。长不出来的话装表那一步才炸。
+    // The mode name must form a valid table name (`task_<mode>`); otherwise table installation would fail later.
     try {
       tableNameOf("task_{}", m.mode);
     } catch (e) {
@@ -409,8 +374,8 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
       say(`${at}: it has no cycles`);
       continue;
     }
-    // 走树那套机制自带一个交卷站（`tree/dfs.ts` 的 `withSubmit`）。**验的是补完之后
-    // 那张图** —— 验之前那张的话，「从起点走不到它」这类检查会漏掉补出来的那一站。
+    // Tree mechanisms add a submission station (`withSubmit` in `tree/dfs.ts`). **Validate the completed graph**:
+    // validating the original graph would omit that added station from checks such as reachability from an entry point.
     m.cycles = withSubmit(m.cycles as never) as never;
 
     const names = new Set<string>();
@@ -427,14 +392,14 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
       const cat = `${at}/${c.cycle}`;
       const next = list(c.next, `the next of ${cat}`, bad);
       const from = list(c.from, `the from of ${cat}`, bad);
-      // 指到这个模式外面去的周期永远走不到，而内核不会说什么 —— 它只是停在那儿。
+      // A cycle outside this mode can never be reached, and the kernel says nothing: it simply stops there.
       for (const n of next) if (!names.has(n)) say(`${cat}: next names ${n}, which is not in this mode`);
       for (const f of from) if (!names.has(f)) say(`${cat}: from names ${f}, which is not in this mode`);
 
       if (c.maxUnits !== undefined && (!Number.isInteger(c.maxUnits) || c.maxUnits < 1)) {
         say(`${cat}: max_units must be a positive integer`);
       }
-      // 推断函数没注册 → 走到这一站才炸，而那时候任务已经跑了一半。
+      // An unregistered inference function fails only when execution reaches this station, halfway through the task.
       if (!c.infer || !c.infer.trim()) say(`${cat}: infer is missing`);
       else if (!handleThere(c.infer)) say(`${cat}: infer is ${c.infer}, but ${noHandle(c.infer)}`);
 
@@ -448,12 +413,12 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
       }
     }
 
-    // 起点：`from` 为空的那些。一个都没有 = 这个模式根本进不去。
+    // Entry points have an empty `from`. None = the mode cannot be entered at all.
     const entries = m.cycles.filter((c) => list(c.from, "", []).length === 0).map((c) => c.cycle);
     if (entries.length === 0) say(`${at}: no entry point (every cycle has a non-empty from), so this mode cannot be entered`);
 
-    // 谁都指不到的周期。**它永远不会被走到，而且不报错** —— 声明里躺着一段死代码，
-    // 而写的人多半以为它在跑。
+    // Cycles that nothing can reach. **They never execute and produce no error**: dead code remains in the declaration,
+    // while the author probably believes it is running.
     const seen = new Set(entries);
     const queue = [...entries];
     while (queue.length) {
@@ -471,7 +436,7 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
     }
   }
 
-  // ── 智能体 ────────────────────────────────────────────────────────────
+  // ── Agents ────────────────────────────────────────────────────────────
   const agents = new Set<string>();
   for (const a of d.agents ?? []) {
     const at = `agent ${a.name || "(unnamed)"}`;
@@ -505,10 +470,9 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
     }
   }
 
-  // ── 触发条件 ──────────────────────────────────────────────────────────
+  // ── Trigger conditions ────────────────────────────────────────────────
   //
-  // 跟 `check` 查的是同一套，只是提前到了**写进去之前**。写进去之后再查的话，
-  // 那条件已经在库里躺着了 —— 而它的表现是「永远不触发」，不是报错。
+  // The same validation as `check`, moved to **before the write**. Checking afterward leaves the bad condition in the database, where its behavior is never triggering, not raising an error.
   const colsOf = (t: string) => (all(db, `pragma table_info("${t}")`) as { name: string }[]).map((r) => r.name);
   const dimKeys: Record<string, string[]> = {
     agent: colsOf("agent"),
@@ -546,7 +510,7 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
             say(`${where}: the value for in is not readable JSON: ${t.value}`);
           }
         }
-        // 关键词带空格 = 把几个词写一起了。系统不替你猜要的是相邻还是有序。
+        // A keyword containing spaces combines multiple words. The system does not guess whether adjacency or order was intended.
         if (t.op !== "in" && /\s/.test(t.value) && t.dim !== "task") {
           say(`${where}: the value contains a space (${JSON.stringify(t.value)}) - split it into two terms in the same group rather than letting the system guess`);
         }
@@ -554,7 +518,7 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
     }
   };
 
-  // ── 工具 ──────────────────────────────────────────────────────────────
+  // ── Tools ─────────────────────────────────────────────────────────────
   const tools = new Set<string>();
   for (const t of d.tools ?? []) {
     const at = `tool ${t.name || "(unnamed)"}`;
@@ -571,13 +535,13 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
     if (t.params === undefined || t.params === null) say(`${at}: params is missing - that is the argument schema the model reads`);
     if (t.output === undefined || t.output === null) say(`${at}: output is missing - that is the result schema the model reads`);
     checkWhen(at, t.when);
-    // 不是系统工具、又一条条件都没有 = 谁都拿不到它。**合法，但一定不是本意。**
+    // A non-system tool with no conditions is available to nobody. **Valid, but certainly unintended.**
     if (!t.system && (t.when ?? []).length === 0) {
       say(`${at}: not a system tool and it has no trigger terms - it would never be attached to any agent`);
     }
   }
 
-  // ── 压法 ──────────────────────────────────────────────────────────────
+  // ── Compression methods ───────────────────────────────────────────────
   const hows = new Set<string>();
   for (const h of d.hows ?? []) {
     const at = `press how ${h.name || "(unnamed)"}`;
@@ -590,13 +554,13 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
     if (!h.identity || !handleThere(h.identity)) {
       say(`${at}: identity is ${h.identity ?? "(empty)"}, but ${noHandle(String(h.identity))}`);
     }
-    // 两份 schema 都得给。**收什么、回什么说不清的话，压出来的东西没人验得了**，
-    // 而压错了的上下文照样发得出去 —— 那是最难查的一种错。
+    // Both schemas are required. **Without clear inputs and outputs, nobody can validate the compressed result**.
+    // Incorrectly compressed context can still be sent, making this one of the hardest errors to diagnose.
     if (h.params === undefined || h.params === null) say(`${at}: params is missing - what the handle is given must be declared`);
     if (h.output === undefined || h.output === null) say(`${at}: output is missing - what the handle answers must be declared`);
   }
 
-  // ── 规则 ──────────────────────────────────────────────────────────────
+  // ── Rules ─────────────────────────────────────────────────────────────
   const rules = new Set<string>();
   for (const r of d.rules ?? []) {
     const at = `rule ${r.identity || "(unnamed)"}`;
@@ -625,7 +589,7 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
     }
     if (skills.has(s.identity)) say(`${at}: appears twice in this declaration`);
     skills.add(s.identity);
-    // `body` 留空 = 动态生成，那就得真有个句柄现给；写死了的就不用。
+    // Empty `body` = dynamically generated, requiring an actual handle to provide it. Static content does not require one.
     if (!s.body && !handleThere(s.identity)) {
       say(`${at}: body is empty (dynamically generated), but ${noHandle(s.identity)} - nobody can produce the content on demand`);
     }
@@ -638,13 +602,11 @@ export function inspect(db: Conn, reg: Registry, d: Declare): string[] {
 }
 
 /**
- * 灌一整份。**先整份验，一处不过整份不写。**
+ * Apply a complete declaration. **Validate it all first; one failure prevents every write.**
  *
- * 写在一个事务里 —— 中途炸的话已经写进去的那部分得整个退回去，不然就成了
- * 「写了一半」，而那正是这个模块存在的理由。
+ * Write within one transaction. If an operation fails midway, roll back everything already written; otherwise the declaration would be half written, precisely what this module prevents.
  *
- * 写完把子表现长出来（`install` 是幂等的）。不长的话，灌完声明还得重启一趟，
- * 「外面纯用 HTTP 把机器配起来」就断在这儿。
+ * Create subtables immediately afterward (`install` is idempotent). Otherwise applying a declaration would still require a restart, breaking the ability to configure an engine entirely over HTTP.
  */
 export async function apply(db: Conn, reg: Registry, pool: Servers, d: Declare): Promise<Declared> {
   const bad = inspect(db, reg, d);
@@ -660,11 +622,9 @@ export async function apply(db: Conn, reg: Registry, pool: Servers, d: Declare):
 
   const before = new Set(tableNames(db));
 
-  // ── server 先连、先拉工具，**再开事务** ───────────────────────────────
+  // ── Connect to servers and fetch tools **before opening the transaction** ──
   //
-  // 连出去是要等的，而 SQLite 的事务里不该挂着等网络 —— 一个连不上的 server
-  // 能把库锁到超时。而且「连不上」本来就该在动库之前拒：声明一个连不上的
-  // server 是错，跟声明一个不存在的句柄一样。
+  // Connections require waiting; a SQLite transaction must not wait on network I/O. An unreachable server could hold the database lock until timeout. Moreover, a failed connection should be rejected before modifying the database: declaring an unreachable server is an error, just like declaring a nonexistent handle.
   const grew: Record<string, string[]> = {};
   for (const s of d.servers ?? []) {
     run(
@@ -681,7 +641,7 @@ export async function apply(db: Conn, reg: Registry, pool: Servers, d: Declare):
       ],
     );
     grew[s.name] = await pull(db, pool, { ...s, name: s.name }, s.tools, { expectMs: MCP_EXPECT_MS });
-    // 工具是 server 报的，`when` 是我们补的 —— 补在这儿，跟别的 owner 一个写法。
+    // The server supplies tools; we supply `when`. Add it here using the same representation as other owners.
     for (const [tool, o] of Object.entries(s.tools ?? {})) {
       if (o.when !== undefined) putWhen(db, "tool", tool, o.when as WhenDecl);
     }
@@ -711,8 +671,8 @@ export async function apply(db: Conn, reg: Registry, pool: Servers, d: Declare):
         m.mode,
         m.note ?? null,
       ]);
-      // **整个模式换一遍**，不是逐行 upsert：少给一个周期就该是「删掉它」，
-      // 而 upsert 会把它留在库里 —— 那一行谁都指不到，是段死代码，且不报错。
+      // **Replace the entire mode**, not row-by-row upserts. Omitting a cycle should delete it;
+      // an upsert would leave an unreachable row in the database: dead code with no error.
       run(db, `delete from cycle where mode = ?`, [m.mode]);
       for (const c of m.cycles) {
         run(
@@ -743,8 +703,8 @@ export async function apply(db: Conn, reg: Registry, pool: Servers, d: Declare):
           a.config ?? null,
           JSON.stringify(a.apis),
           a.unit,
-          // 不给就是不给 —— 空对象和「没有这一栏」是同一件事，没必要让调用方在两种
-          // 「没有」之间选。
+          // Omitted means omitted: an empty object and an absent field mean the same thing.
+          // There is no need to make callers choose between two forms of absence.
           a.knobs && Object.keys(a.knobs).length ? JSON.stringify(a.knobs) : null,
           a.state ?? "idle",
         ],
@@ -842,9 +802,9 @@ export async function apply(db: Conn, reg: Registry, pool: Servers, d: Declare):
 }
 
 /**
- * 把库里现在的声明**原样导出来** —— 形状跟 `apply` 收的一模一样，可以直接回灌。
+ * **Export the current database declaration unchanged**, in exactly the shape accepted by `apply`, ready to reapply.
  *
- * 于是「导出这台机器的配置 / 在另一台上重建」就是两次调用，客户端不用自己拼。
+ * Exporting an engine's configuration and rebuilding it on another machine then takes two calls, without client-side assembly.
  */
 export function dump(db: Conn): Declare {
   const places = (all(db, `select place, identity, runtime, forward, tools, usable from workplace order by place`) as {
@@ -863,8 +823,8 @@ export function dump(db: Conn): Declare {
     const cycles = all(db, `select cycle, api_mode, must_call, max_units, "from", next, infer from cycle where mode = ? order by cycle`, [
       m.name,
     ]) as { cycle: string; api_mode: string | null; max_units: number; from: string; next: string; infer: string }[];
-    // `mode` 表登记的是**调用形状**（chat/duplex），任务模式只在 cycle 里 ——
-    // 所以没有周期的那些名字不是模式，不导。
+    // The `mode` table records **call shapes** (chat/duplex); task modes exist only in cycle.
+    // Names without cycles are therefore not task modes and are not exported.
     if (cycles.length === 0) continue;
     modes.push({
       mode: m.name,
@@ -890,9 +850,8 @@ export function dump(db: Conn): Declare {
     state: r.state,
   }));
 
-  // 句柄只导**外面注册进来的那些**（`http://`）。进程内的 `fn:` 是代码带来的，
-  // 导出去再回灌一遍毫无意义 —— 而且回灌到一台没有那段代码的机器上就是一条
-  // 谁都认领不了的句柄。
+  // Export only **externally registered handles** (`http://`). In-process `fn:` handles come from code;
+  // exporting and reapplying them serves no purpose, and importing them on a machine without that code would create an unclaimed handle.
   const handles = (all(db, `select name, expect_ms from handle where name like 'http://%' or name like 'https://%' order by name`) as {
     name: string; expect_ms: number;
   }[]).map((r) => ({ name: r.name, expectMs: r.expect_ms }));
@@ -935,13 +894,12 @@ export function dump(db: Conn): Declare {
 }
 
 /**
- * 把一个 owner 的触发条件整组换掉。
+ * Replace all trigger groups for an owner.
  *
- * **整组换，不是逐条 upsert。** 少给一组就该是「删掉它」，而 upsert 会把它留在
- * 库里 —— 那一组照样会命中，于是「我明明把条件改窄了」而它还是到处触发，零报错。
+ * **Replace the groups as a whole, not condition-by-condition upserts.** Omitting a group should delete it; an upsert would leave it in the database, where it would still match. The user narrows the conditions, but the item keeps triggering everywhere without an error.
  *
- * `when` 整个不给（`undefined`）= 不动它现有的条件；给了空数组 = 明确清空。
- * 这两件事不一样：前者是「这次没提」，后者是「我要它一条都没有」。
+ * Omitting `when` entirely (`undefined`) leaves existing conditions unchanged; an empty array explicitly clears them.
+ * These differ: the first means "not mentioned this time", the second "remove all conditions".
  */
 function putWhen(db: Conn, kind: string, owner: string, when: WhenDecl | undefined): void {
   if (when === undefined) return;
@@ -957,7 +915,7 @@ function putWhen(db: Conn, kind: string, owner: string, when: WhenDecl | undefin
   }
 }
 
-/** 库里那个 owner 的条件读回来，还原成 `when` 的形状（外层组，组间 or）。 */
+/** Read an owner's conditions from the database and reconstruct `when` (outer groups, OR between groups). */
 function whenOf(db: Conn, kind: string, owner: string): WhenDecl {
   const rows = all(db, `select "group", dim, "key", op, value from trigger where owner_kind = ? and owner = ? order by "group"`, [
     kind,
@@ -985,7 +943,7 @@ function tableNames(db: Conn): string[] {
   }[]).map((r) => r.name);
 }
 
-/** 有没有哪一行 api 接得住这种调用形状。 */
+/** Whether any api row supports this call shape. */
 function servedBy(db: Conn, want: string): boolean {
   return (all(db, `select modes from api`) as { modes: string }[]).some((r) =>
     String(r.modes ?? "")

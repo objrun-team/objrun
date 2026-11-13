@@ -1,52 +1,35 @@
-"""CMT-Benchmark 的判卷台 —— 引擎外面的一个 HTTP 服务。
+r"""CMT-Benchmark grading service: an HTTP service outside the engine.
 
     python grader.py [--port 7901] [--selftest]
 
-引擎那边它就是两条句柄：
+The engine sees two handles:
 
-    http://127.0.0.1:7901/parsed     这份回答**解析得出来**吗
-    http://127.0.0.1:7901/equiv      跟 GT **等价**吗
+    http://127.0.0.1:7901/parsed     Can this response be **parsed**?
+    http://127.0.0.1:7901/equiv      Is it **equivalent** to GT?
 
-句柄名本身就是地址，内核 POST 一份 JSON 过来，这儿回一个 JSON —— 没有别的协议。
+The handle name is its URL. The kernel POSTs JSON and receives JSON; there is no additional protocol.
 
-## 判据是官方的，一行不改
+## Use the official criterion unchanged
 
-`vendor/cmt_benchmark_data/src/cmtbench` 是官方评分代码（LaTeX→Sympy，会处理
-非对易算符）。这个文件**不实现任何判断**，只做三件事：接 HTTP、按官方
-`scripts/evaluate.py` 里那套分支挑该用哪个 evaluator、把结果缓存住。
+`vendor/cmt_benchmark_data/src/cmtbench` is the official grader (LaTeX -> SymPy, including noncommutative operators). This file **implements no grading decisions**: it accepts HTTP, selects evaluators using the branches in official `scripts/evaluate.py`, and caches results.
+A custom normalization/string comparison would make scores incomparable with the paper's table and invalidate the run's purpose.
 
-自己搓一套归一化去比字符串的话，分数跟论文里那张表就不可比了 —— 那就白跑。
+## Why not import cmtbench directly?
 
-## 为什么不直接 import cmtbench
+`cmtbench/__init__.py` imports `.query`, whose openai/anthropic/google-genai/tqdm/dotenv dependencies support model execution, not grading. Inject a namespace package with the same name to bypass `__init__.py` and load only `evaluator`, `parser`, and `parser_rules`. **Only sympy/numpy/regex must therefore be installed.**
 
-`cmtbench/__init__.py` 顶上 `from .query import ...`，而 `query.py` 要
-openai / anthropic / google-genai / tqdm / dotenv —— 那是它「拿模型跑一遍」那半边，
-判卷用不上。所以这儿手工塞一个同名的命名空间包，绕过 `__init__.py`，
-只加载 `evaluator` + `parser` + `parser_rules`。**装的依赖因此只有 sympy/numpy/regex。**
+## Keep the oracle away from the solver
 
-## oracle 不进求解那一侧
+Only this process reads the answers in `cmt_data.jsonl`. Task descriptions contain statements only, and `/problems` removes `solution`. Answers stay in this process. G is sealed in a separate engine database, inaccessible through the fully exposed main-database API.
 
-答案在 `cmt_data.jsonl` 里，**只有这个进程读它**。任务描述里只有题面，`/problems`
-发题时也把 `solution` 摘掉 —— 答案不出这个进程。G 封存在引擎另一个库里，主库全接口
-开放也翻不出来。
+**This is not isolation.** The solver's bash shares the engine machine, so `wsl.exe -- docker exec cmt-grader cat /oracle/cmt_data.jsonl` retrieves every answer. This was observed **without exploiting any vulnerability**: wsl.exe is in system32 and the account belongs to the Docker group.
+A container changes paths, not reachability. This access route is deliberately left open because the detour is considered sufficiently long here; true prevention requires sandboxing the solver in the `place` dimension. See the README section on actually blocking GT access.
 
-**但这不是隔离，别当成隔离。** solver 的 `bash` 跟引擎在同一台机器上，于是
-`wsl.exe -- docker exec cmt-grader cat /oracle/cmt_data.jsonl` 就是整本答案 ——
-实测走过，**一个漏洞都没用到**（`wsl.exe` 在 system32 里，账号在 docker 组里）。
-装容器改的是路径，不是可达性。这一条是有意留着的（一圈够长了）；真堵死得把 solver
-自己关进沙箱，那是 `place` 这一维的事，见 README「真要挡住 GT」。
+## Reachable `/parsed` and `/equiv` endpoints are **not** the leak
 
-## `/parsed` `/equiv` 可达**不是**洞
-
-它俩回的是判决 —— 而判决本来就是给智能体的：判死之后投进它的上下文，它也可以主动
-调 `verify` 来问（`app/src/objective/tool.ts`）。同一份信息，不能主动给的时候叫机制、
-它自己问的时候叫作弊。
-
-会被刷的是**次数**（无限问 = 完美 oracle 下的 best-of-N），但那是预算问题，
-闸在树那边：`max_branches` / `max_dead_siblings` / `solve_seconds`。
-
-要藏的自始至终只有一样：`solution`。它不出这个进程。
-"""
+They return verdicts, which are intended for the agent: verdicts enter context after an attempt is marked dead, and the agent can explicitly query `verify` (`app/src/objective/tool.ts`). The same information cannot be legitimate when delivered automatically but cheating when requested.
+The exploitable quantity is the **number** of requests (unlimited requests yield best-of-N with a perfect oracle), which is a budget issue. The tree gates it through `max_branches`, `max_dead_siblings`, and `solve_seconds`.
+Only `solution` must remain hidden, and it never leaves this process."""
 
 from __future__ import annotations
 
@@ -58,18 +41,16 @@ import types
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-# **题库和判据不在仓库里，在判卷台这一侧。**
+# **The corpus and grader live outside the repository, on the grader side.**
 #
-# solver 手上有 read / glob / bash，而它干活的地方就是引擎那台机器 —— 放仓库里的话
-# 它 glob 一下就找到。实测发生过：模型先 read grader.py 搞清楚判据怎么比，接着读官方
-# parser 源码，然后 glob 到了 cmt_data.jsonl。**够不着，不是不许。**
+# The solver has read/glob/bash and runs on the engine machine. A repository copy is one glob away. In an observed run, the model read grader.py to understand comparison, then read the official parser, then found cmt_data.jsonl with glob. **Prevent access rather than merely prohibiting it.**
 HOME_DIR = Path(os.environ.get("TGENGIN_CMT_HOME", Path.home() / ".cache" / "tgengin-cmt"))
 SRC = HOME_DIR / "vendor" / "cmt_benchmark_data" / "src"
 DATA = Path(os.environ.get("TGENGIN_CMT_DATA", HOME_DIR / "cmt_data.jsonl"))
 
 
 def load_official():
-    """把官方那三个模块加载进来，**不碰 __init__.py**。"""
+    r"""Load the three official modules **without executing __init__.py**."""
     if not (SRC / "cmtbench" / "evaluator.py").exists():
         raise SystemExit(f"the official grading code is missing: {SRC} (run setup.sh first)")
     sys.path.insert(0, str(SRC))
@@ -98,12 +79,9 @@ BOOK = load_book()
 
 
 def judge(response: str, item: dict) -> tuple[bool, bool, str]:
-    """跑一遍官方判据。回 `(解析出来了, 等价, 出了什么错)`。
+    r"""Run the official criterion and return `(parsed, equivalent, error)`.
 
-    分支照抄官方 `scripts/evaluate.py` 的 `evaluate_response`：
-    参数和函数都空 → 先试纯数值，不行退回符号；只有参数且不含 NC → 符号；
-    其余（有函数、或参数里带 NC 非对易）→ 函数式。
-    """
+    Follow `evaluate_response` in official `scripts/evaluate.py`: with no parameters or functions, try numeric evaluation and fall back to symbolic; with parameters only and no NC, use symbolic; otherwise (functions or noncommutative NC parameters), use functional evaluation."""
     solution = item["solution"]
     parameters = item.get("parameters", "") or ""
     functions = item.get("functions", "") or ""
@@ -126,16 +104,12 @@ def judge(response: str, item: dict) -> tuple[bool, bool, str]:
     return bool(r.success), bool(r.is_equivalent), r.error_message or ""
 
 
-# 一道题判一次就够 —— `parsed` 和 `equiv` 两个节点问的是同一次判卷的两栏。
+# One grading pass per problem is enough: `parsed` and `equiv` request two fields of the same result.
 CACHE: dict[tuple[str, str], tuple[bool, bool, str]] = {}
 
 
 def answer_of(body: dict) -> tuple[str, dict | None, str]:
-    """从内核送来的那份东西里挖出「这道题是哪道」和「模型答了什么」。
-
-    内核送的是 `{node, moment, domain, feed, input}`，`input` 是
-    `{task, chain, result}`（树那条路）或 `{task}`（收尾那一路）。
-    """
+    r"""Extract the problem identity and model answer from the kernel payload. The kernel sends `{node, moment, domain, feed, input}`; input is `{task, chain, result}` on the tree path or `{task}` during finalization."""
     inp = body.get("input") or {}
     task = inp.get("task") or {}
     tid = str(task.get("id", ""))
@@ -169,7 +143,7 @@ def verdict(body: dict) -> tuple[bool, bool]:
 
 
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, *a):  # 默认那行访问日志太吵
+    def log_message(self, *a):  # Suppress the noisy default access log.
         pass
 
     def _send(self, obj, code=200):
@@ -184,11 +158,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/health":
             self._send({"ok": True, "items": len(BOOK)})
         elif self.path.startswith("/problems"):
-            # **发题的口：给题面，不给答案。**
+            # **Problem endpoint: statements only, no answers.**
             #
-            # 题库在判卷台这一侧，发批那个脚本（跑在引擎那台机器上）读不到 ——
-            # 那正是我们要的。它从这儿取题，`solution` 一个字都不过来：
-            # 答案**不出这个进程**。
+            # The corpus stays on the grader side, inaccessible directly to the sender on the engine machine. The sender fetches problems here without any `solution` content: answers **remain inside this process**.
             n = 0
             if "?" in self.path:
                 for kv in self.path.split("?", 1)[1].split("&"):
@@ -223,8 +195,7 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:
             self._send({"valid": False, "outcome": "grader_error", "error": type(e).__name__}, 422 if isinstance(e, LookupError) else 503)
             return
-        # **回一个裸 bool。** G 的值域是封闭的（bool / bool[n]），
-        # 回别的东西内核当违约，一律归 0。
+        # **Return a bare bool.** G has a closed domain (bool / bool[n]); any other result is a contract violation, mapped to 0 by the kernel.
         if self.path == "/parsed":
             self._send(ok)
         elif self.path == "/equiv":
@@ -234,7 +205,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def selftest() -> int:
-    """拿题库自己的 GT 当回答喂进去 —— 官方判据该说「解析得出来、而且等价」。"""
+    r"""Feed back the corpus GT; the official criterion should mark it both parsable and equivalent."""
     bad = 0
     selected = sorted(BOOK)[:10]
     for idx in selected:

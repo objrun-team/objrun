@@ -1,46 +1,47 @@
 /**
- * 交卷：**一个工具 + 一站**，随走树那套机制一起装上。
+ * Submission: **one tool plus one station**, installed with the tree mechanism.
  *
  * ```
  * bun test/integration/submit.ts
  * ```
  *
- * ## 两件事，两个时刻
+ * ## Separate operations at separate moments
  *
- * | | 什么时候 | 干什么 |
+ * | Operation | When | Purpose |
  * | --- | --- | --- |
- * | `verify` 工具 | 干活途中，随时，可以多次 | 拿一份候选去问 G「这样行不行」 |
- * | `submit` 工具 | 觉得做完了 | **无参**。只是说一声「我交了」，让流转提前拐到交卷站 |
- * | `submit` 那一站 | 流转到这儿 | **交的就是这一站说的那段话**，有 G 就在这儿判一次 |
+ * | `verify` tool | During work, at any time, potentially repeatedly | Ask G whether a candidate is acceptable |
+ * | `submit` tool | When the agent considers its work complete | **No arguments** in the original design; signal submission and transition to submit early |
+ * | `submit` station | When execution reaches it | **Submit the text produced at this station**, evaluating it once if G exists |
  *
- * 不调那个工具也会走到交卷站 —— 干活那几站说完话就拐过去。调它的意义只有一个：
- * **提前**。
+ * Execution also reaches submit without that tool call: completed text from a work
+ * station leads there. The tool's original purpose is to arrive **early**.
  *
- * ## 为什么这一站得随机制装，不能让声明自己写
+ * ## Why install this station with the mechanism?
  *
- * 它不是某道题的特性，是**走树这套机制**的特性：判决要判「它交上来的那一份」，
- * 而「交上来」得有个落脚的站。让每份声明自己写一遍的话，写漏一个模式就退回
- * 「内核回头去消息表里猜哪句话像答案」—— 猜是会猜错的，实测拿过开场白、拿过空串。
+ * Submission is a property of **tree execution**, not an individual task. The verdict
+ * must grade what was submitted, and submission needs a defined station. Requiring
+ * every declaration to repeat it would let an omitted mode fall back to guessing an
+ * answer from message history. Real runs have selected opening remarks or empty strings this way.
  */
 
 import { done, machine, ok, outside, part, show, step, until } from "../_lib.ts";
 
 const m = await machine();
 
-/** G 被真调了几次 —— 「验过就不再判一遍」靠数它。 */
+/** Count real G invocations to verify that previously checked candidates are not graded again. */
 const graded: unknown[] = [];
 
-/** 这一轮挂给智能体的工具名。 */
+/** Tool names exposed to the agent in this round. */
 let attached: string[] = [];
-/** 每一站分别摆了哪些工具 —— 「在哪儿摆」正是要验的事之一。 */
+/** Tools exposed at each station; exposure location is one of the tested properties. */
 const attachedAt: Record<string, string[]> = {};
 
 const out = await outside({
-  // 干活那一站：**调一次 `submit` 把答案交上去**。
+  // Work station: **call `submit` once with the answer**.
   //
-  // 交什么写在调用里，不写在它说的话里 —— 说的话是给人看的，答案是给判据看的，
-  // 从前者里挑出后者只能靠猜。在干活站上按交卷是允许的：那一次就是交，流转会把它
-  // 送到交卷站，交卷站直接判这一份。
+  // Put the candidate in the call, not in surrounding speech. Speech is for people; the answer is for the grader.
+  // Extracting the latter from the former requires guessing. Submission is allowed at a work station:
+  // the transition leads to submit, which grades that exact candidate.
   "/unit": (u) => {
     attached = ((u.tools ?? []) as { name: string }[]).map((t) => t.name);
     attachedAt[String((u.cycle as { cycle?: string } | undefined)?.cycle ?? "")] = attached;
@@ -53,10 +54,10 @@ const out = await outside({
       }),
     };
   },
-  // 干活那一站：**永远只调工具，一句完整的话都不说**。
-  // 一直在调工具的题走不到「说完了」那条路，只能靠额度用完那条路拐去交卷。
+  // Work station: **only request tools, never produce complete text**.
+  // A task that only calls tools cannot take the text-completed path; exhausting its budget must move it to submit.
   "/grind": () => ({ role: "assistant", kind: "call", body: JSON.stringify({ text: "", calls: [] }) }),
-  // 一个永远说不成的观测节点 —— 用来验「判死之后换个节点再来」。
+  // An observation node that always rejects, testing a fresh node after rejection.
   "/nope": () => false,
   "/look": (a) => {
     graded.push(a);
@@ -75,7 +76,7 @@ const G = {
 };
 
 try {
-  // ═══════════════ 第一部分：注册 ═══════════════
+  // =============== Part 1: registration ===============
   part("Part one: the hand-in step comes with the mechanism");
 
   step("1. declare a mode whose cycle uses the tree mechanism - and do not write a submit cycle");
@@ -100,10 +101,10 @@ try {
   show("the graph:", graph.cycles);
   const submit = graph.cycles.find((c) => c.cycle === "submit");
   ok("a submit cycle grew, though nobody declared one", submit !== undefined, graph.cycles);
-  // **交卷不是终点。** 判 1 是这道题做成了；判 0 只说明这一次交的不成，
-  // 该往前走进下一个节点的动作阶段再试，而不是收工。
-  // **交卷不是终点。** 判 1 是这道题做成了；判 0 只说明这一次交的不成，
-  // 该往前走进下一个节点的动作阶段再试，而不是收工。
+  // **Submission is not necessarily the end**. Acceptance means the task is solved; rejection only means this candidate failed,
+  // so proceed into the next node's action phase for another attempt rather than finishing.
+  // **Submission is not necessarily the end**. Acceptance means the task is solved; rejection only means this candidate failed,
+  // so proceed into the next node's action phase for another attempt rather than finishing.
   ok(
     "it feeds back into the action stage rather than ending the tree",
     JSON.stringify(submit?.next) === JSON.stringify(["ask"]),
@@ -111,9 +112,9 @@ try {
   );
   ok("and the table records where it can be entered from", JSON.stringify(submit?.from) === JSON.stringify(["ask"]), submit?.from);
   ok("the working cycle can now route to it", JSON.stringify(graph.cycles.find((c) => c.cycle === "ask")?.next).includes("submit"), graph.cycles);
-  // **一个节点只交一次。** 交卷站每次都落一个终态（判活或判死），落了节点就结束 ——
-  // 结构上不可能有第二个。所以这一列写 1 才是这张表在说实话；写成「干活那几站之和」
-  // 那种够大的数，读表的人会以为一个节点能交好多次。
+  // **A node submits only once**. Submit always writes a terminal status, accepted or dead, which ends the node.
+  // A second submission within that node is structurally impossible. This column should therefore be 1;
+  // a large value such as the sum of work-station budgets would misleadingly suggest multiple submissions per node.
   ok("a node hands in once, and the table says so", Number(submit?.maxUnits) === 1, submit?.maxUnits);
   ok("the whole-database check is clean", ((await m.api<{ data: unknown[] }>("GET", "/check")).data).length === 0);
 
@@ -125,7 +126,7 @@ try {
   show("its graph:", flat.cycles.map((c) => c.cycle));
   ok("nothing was added", flat.cycles.length === 1, flat.cycles);
 
-  // ═══════════════ 第二部分：使用层次的校验 ═══════════════
+  // =============== Part 2: actual-use validation ===============
   part("Part two: checks at the level of use");
   console.log("  A cycle in the table proves nothing. Run a task and see where the verdict is taken.");
 
@@ -141,9 +142,9 @@ try {
   show("the stations it walked:", t.units.map((u) => `${String(u.cycle)}#${String(u.unit)}`));
   ok("it reached the hand-in step", t.units.some((u) => u.cycle === "submit"), t.units);
   ok("and it passed", t.state === "done", t.state);
-  // **G 收到的得是那段话本身。** 递原始 result 的话它拿到的是 `{text, calls}`
-  // 整坨 JSON —— 判卷那一侧只会说「没找到答案」，而看日志像是模型没答。
-  // 实测就这么判错过一整跑。
+  // **G must receive the answer text itself**. Passing raw result would send the whole `{text, calls}`
+  // JSON object, which the grader would reject as "answer not found", making logs look as if the model never answered.
+  // This caused incorrect grading of an entire observed run.
   show("what the grading function received as the answer:", (graded.at(-1) as { input?: { result?: unknown } })?.input?.result);
   ok(
     "the grading function received the words themselves, not a JSON blob",
@@ -164,13 +165,13 @@ try {
     (attachedAt.ask ?? []).includes("verify"),
     attachedAt,
   );
-  // **交卷站只摆交卷这一个。** 跑工具的只有动作站；交卷站是模型站、下一站也是
-  // 模型站，在那儿请求别的工具没有人会去跑 —— 那次调用会一直挂着，最后被补一条
-  // 「没跑成」。而这一站要干的事只有一件：把答案交出来。
-  // **别把普通推进站也一起关了。** 那几件基础工具为了「不在交卷站露面」从
-  // `system` 那一档退了出来（system = 谁都有、不看条件，而条件正是要被看的）。
-  // 退出来之后它们靠条件活着 —— 条件写错就是「哪儿都没有」，而那不报错，
-  // 只表现为模型突然什么都干不了。
+  // **Expose only submit at the submission station**. Only act executes tools. Submit and its successor are model stations,
+  // so other tool requests there have no executor; they would remain pending until repaired with
+  // a synthetic "not executed" result. This station has one job: submit the answer.
+  // **Do not also disable tools at ordinary work stations**. Basic tools left the `system` category to avoid
+  // appearing at submit: system tools are universal and bypass the very conditions needed here.
+  // They now depend on conditions. Incorrect conditions silently make the tools unavailable everywhere,
+  // appearing only as a model that can no longer do anything.
   const ordinary = ["read", "write", "edit", "glob", "grep", "bash", "python_exec"];
   const missing = ordinary.filter((t) => !(attachedAt.ask ?? []).includes(t));
   show("ordinary tools missing from the working station:", missing);
@@ -186,13 +187,13 @@ try {
     })
   ).rows[0];
   show("the row it registered:", row);
-  // **交什么，写在调用里。** 上一版这个工具不收参数，交上去的是「它在交卷站说的
-  // 那段话」—— 那是猜：它可能说三段话、每段里都有一个式子，挑哪一段都是猜，而猜错
-  // 的表现是「答案明明写对了却判 0」。
+  // **The candidate belongs in the tool call**. Previously, submit took no arguments and graded the text
+  // spoken at the submission station. Choosing among several paragraphs, each with an expression, was guessing;
+  // an incorrect guess appeared as rejection despite a correctly written answer.
   //
-  // 参数表**跟着 G 走**（`objective.params`）：内核把 G 包装成 `verify`，交卷这一步
-  // 内部问的又是同一个 G，两处当然要一样的东西。抄成两份字面量的话，G 哪天多一个
-  // 字段就只会改到一边。
+  // The parameter schema **comes from G** (`objective.params`). The kernel wraps G as `verify`, and submission
+  // internally queries the same G, so both must accept the same inputs. Duplicated literal schemas would diverge
+  // as soon as a new G field was updated in only one copy.
   const shape = JSON.parse(String(row?.params ?? "{}")) as { properties?: Record<string, unknown> };
   show("what it takes:", Object.keys(shape.properties ?? {}));
   ok(
@@ -220,7 +221,7 @@ try {
     g2.units.some((u) => u.cycle === "submit"),
     g2.units.map((u) => `${String(u.cycle)}#${String(u.unit)}`),
   );
-  // 这个模式除了交卷站没有别的候选，所以第一站之后就拐过去了 —— 一格都没浪费。
+  // This mode has no successor candidate other than submit, so it transitions there after the first station without wasting a unit.
   ok(
     "it did not burn more than the declared working budget",
     g2.units.filter((u) => u.cycle === "ask").length <= 2,

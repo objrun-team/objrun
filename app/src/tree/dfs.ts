@@ -1,54 +1,45 @@
 /**
- * 树的控制流：**派生 / 判死开兄弟 / 回退到更上层**。
+ * Tree control flow: **spawn children / mark dead and open a sibling / backtrack upward**.
  *
- * 这是一个**推断函数**（`cycle.infer` 指向它），不是内核的一部分 —— 内核只认
- * 「回什么形状」，不认得「兄弟」「回退」是什么意思。换一种搜索策略 = 换一个
- * `infer` 句柄，内核一个字不动。
+ * This is an **inference function** referenced by `cycle.infer`, not part of the kernel. The kernel recognizes return shapes, not the meaning of siblings or backtracking. Changing search strategy means replacing an `infer` handle without changing the kernel.
  *
- * ## 节点的终止状态，出生即定不回改
+ * ## Terminal node states are fixed when assigned and never revised
  *
- * | 状态 | 意思 |
+ * | State | Meaning |
  * | --- | --- |
- * | `reached` | 到达终点，这条路成了 |
- * | `dead_failed` | 判死：这一步做砸了 |
- * | `dead_below_bar` | 判死：够不着标准 |
- * | 空 | 还在跑 |
+ * | `reached` | Reached the goal; this path succeeded |
+ * | `dead_failed` | Marked dead: this step failed |
+ * | `dead_below_bar` | Marked dead: below the required standard |
+ * | Empty | Still running |
  *
- * **判死是混合策略**：`dead_failed` 和 `dead_below_bar` 任一都算判死，都触发开兄弟。
- * 分两个值是为了事后查得出「是砸了还是不够好」，判定那一刻它们等价。
+ * **Death uses a mixed policy**: either `dead_failed` or `dead_below_bar` counts as dead and opens a sibling. Separate values preserve whether the attempt failed outright or was insufficient, but are equivalent for branching.
  *
- * ## 判死之后怎么走
+ * ## What happens after marking a node dead?
  *
- * 1. 数同一个父底下判死了几个兄弟
- * 2. **没到上限** → 在同一个父底下开一个新兄弟，换个方向再试
- * 3. **到上限了** → 回退到**更上层**，从祖父那儿另开 —— 这一层的方向都试遍了
- * 4. **回到根还是没路** → 到此为止
+ * 1. Count dead siblings under the same parent.
+ * 2. **Below the limit**: open a new sibling under that parent and try another direction.
+ * 3. **At the limit**: backtrack **higher**, opening a branch under the grandparent because this level's directions are exhausted.
+ * 4. **No path remains at the root**: stop.
  *
- * 还有一道并发闸：同一个父底下**没干完的**行数到了 `max_branches` 就不再开新的。
- * 那是「同时几条」，跟「判死几个」不是一回事。
+ * A separate concurrency gate prevents opening new rows when **unfinished** rows under one parent reach `max_branches`. This controls simultaneous branches, not the count of dead ones.
  *
- * ## 走法必须在候选之内 —— 数据说了算
+ * ## Moves must stay within the candidates: data is authoritative
  *
- * 内核只让推断函数在 `cycle.next` 里挑，挑到候选之外当场炸。所以：
+ * The kernel permits only selections from `cycle.next`, rejecting anything outside it. Therefore:
  *
- * - 要让这一层能**开兄弟**，这个周期的 `next` 里得**列上它自己**
- * - 要让它能**回退**，`next` 里得列上要退回去的那个周期
+ * - To **open a sibling**, a cycle must **include itself** in `next`.
+ * - To **backtrack**, `next` must include the cycle to return to.
  *
- * 这不是限制，是把「这道题允许怎么走」写在数据里。周期表没说能开兄弟，
- * 那这棵树就不该开兄弟 —— 而不是让推断函数自己决定。
+ * This expresses the problem's allowed transitions as data. If the cycle table does not allow siblings, the tree must not open them on the inference function's own authority.
  *
- * ## ĝ 往下走，G 只在「自称到了」那一刻复核
+ * ## ĝ guides progress; G checks only a claimed arrival
  *
- * 两个判据管的不是一件事，混用会让树永远走不到第二层：
+ * These criteria serve different purposes. Mixing them prevents the tree from reaching a second level:
  *
- * - **ĝ（自评 / 启发式）**：这一步做完了没有。还在要工具 = 没完，接着往下派生。
- *   老代码那边说得明白：绿度、打分、信心分级都是 `F` 内部的搜索启发式，是模型对
- *   目标的**估计**，不属于样本格式。
- * - **G（验证函数）**：只回 0/1，**在节点自称到达终点那一刻才调**。说 1 → 真的
- *   `reached`；说 0 → 它以为到了其实没到 → `dead_failed`，开兄弟换个方向。
+ * - **ĝ (self-assessment / heuristic)**: is this step finished? Continuing tool requests mean no; keep deriving children. As the old code explained, greenness, scores, and confidence levels are search heuristics internal to `F`: the model's **estimate** of progress, not part of the sample format.
+ * - **G (verifier)**: returns only 0/1 and runs **when a node claims to have reached the goal**. A 1 confirms `reached`; a 0 means the claimed arrival was wrong, yielding `dead_failed` and a sibling trying another direction.
  *
- * 这才是 verifier-guided：不是每一步都问 G（那样中间步全被判死，树长不出来），
- * 而是**不许它自己说了算**。
+ * That is verifier-guided search: not querying G at every step (which kills intermediate steps before the tree can grow), but **refusing to let the model's own claim be final**.
  */
 
 import type { Conn } from "../H2H/db.ts";
@@ -61,7 +52,7 @@ import { CANDIDATE, type Sealed } from "../objective/store.ts";
 
 type Row = Record<string, unknown>;
 
-/** 推断函数拿到的那一份。 */
+/** Input received by the inference function. */
 interface Ask {
   task: Row;
   cycle: Row;
@@ -69,15 +60,15 @@ interface Ask {
   chain: string;
   next: string[];
   result: unknown;
-  /** 我是哪张子表的哪一行。 */
+  /** Which subtable and row this is. */
   sub: string;
   unit: number;
 }
 
-/** 回给内核的形状。 */
+/** The return shape expected by the kernel. */
 interface Said {
   to: string | null;
-  /** 新行挂在哪一行底下。**`null` = 挂在根上（没有父）**；不给这个键 = 从当前行接。 */
+  /** Parent of the new row. **`null` = attach at the root (no parent)**; omit the key to continue from the current row. */
   from_cycle?: string | null;
   from_unit?: number | null;
   status?: string;
@@ -86,7 +77,7 @@ interface Said {
 interface Node {
   cycle: string;
   unit: number;
-  /** 这一行属于哪个节点。一个节点是一次完整的尝试，它自己有一份额度。 */
+  /** The node this row belongs to. A node is one complete attempt with its own allowance. */
   node: number;
   from_cycle: string | null;
   from_unit: number | null;
@@ -96,16 +87,16 @@ interface Node {
 
 const DEAD = new Set(["dead_failed", "dead_below_bar"]);
 
-/** 走树那套机制的推断函数。周期表里 `infer` 写这个名字，就是在选这套机制。 */
+/** Inference function for the tree mechanism. Using this name in a cycle's `infer` selects this mechanism. */
 export const TREE_INFER = "fn:infer.dfs";
 
-/** 这套机制自带的那一站：**交卷**。 */
-/** 判据那个工具叫什么。**只有一个出处** —— 交卷这一步落判决时也用它。 */
+/** The station supplied by this mechanism: **submission**. */
+/** Verifier tool name. **One source of truth**, also used when recording the submission verdict. */
 export const VERIFY = "verify";
 
 export const SUBMIT = "submit";
 
-/** 声明里一个周期的形状（`declare/index.ts` 收的那一份）。 */
+/** Shape of a declared cycle (accepted by `declare/index.ts`). */
 export interface DeclaredCycle {
   cycle: string;
   apiMode?: string;
@@ -117,73 +108,54 @@ export interface DeclaredCycle {
 }
 
 /**
- * **交卷那一站随机制一起装上，不用谁在声明里写。**
+ * **Install the submission station with the mechanism; declarations need not define it.**
  *
- * 一个模式只要有周期选了走树这套机制，它就需要一个交卷站 —— 那不是这道题的
- * 特性，是这套机制的特性：判决要判**它交上来的那一份**，而「交上来」得有个
- * 落脚的站。让每份声明自己写一遍的话，写漏一个模式就退回「内核回头去消息表里
- * 猜哪句话像答案」，而猜是会猜错的。
+ * Any mode with a cycle using the tree mechanism needs a submission station. This is a property of the mechanism, not of the problem: grade **the actual submission**, and give submission a designated station. Repeating its definition in every declaration risks an omission that reverts to the kernel guessing which message looks like an answer, and those guesses can be wrong.
  *
- * 干活那几站的 `next` 也跟着加上它 —— 内核只让推断函数在 `next` 里挑，
- * 不加的话推断函数指向交卷站会被当场拒。
+ * Also add it to working stations' `next`. The kernel only permits inference to select from `next`; without this, routing to submission would be rejected immediately.
  *
- * **声明里自己写了 `submit` 就不动。** 这是补默认，不是抢方向盘。
+ * **Leave an explicitly declared `submit` unchanged.** Supply a default without taking control away.
  *
- * 额度不另设闸：交卷站的上限取干活那几站之和，让它永远不是那个卡住的地方 ——
- * 该由「还能干几轮」说了算，不该由「还能交几次」说了算。
+ * Do not introduce a separate allowance bottleneck: use the sum of working stations' limits for submission, so remaining work rounds, not remaining submissions, determine progress.
  */
 export function withSubmit(cycles: DeclaredCycle[]): DeclaredCycle[] {
   const tree = cycles.filter((c) => c.infer === TREE_INFER);
   if (tree.length === 0) return cycles;
   if (cycles.some((c) => c.cycle === SUBMIT)) return cycles;
 
-  // 交卷之后接**入口站** —— 机制里那个不从谁来的站（`from` 是空的）。
+  // After submission, continue at the **entry station**, the mechanism's station with an empty `from`.
   //
-  // 判 0 只说明这一次交的不成，接下来是**一次全新的尝试**，而一次尝试从想事情
-  // 开始。上一版接的是动作站（跑工具的那个），理由是「把上一站请求的工具跑完，
-  // 那一轮工作才完整」—— 那个理由在判死之后不成立：节点已经死了，补跑它的工具
-  // 没有意义，而新节点上来就跑一遍自己从没请求过的工具，等于白花一格。
+  // A verdict of 0 only rejects this submission. What follows is **a fresh attempt**, starting with reasoning. Previously the successor was an action station, justified as completing the previous station's requested tools. That rationale fails after the node dies: running its tools has no purpose, and making a fresh node run tools it never requested wastes a slot.
   //
-  // 实测的样子是 `submit#8[dead_failed] → act#9 → submit#10`：新节点两步就又交了
-  // 一次，中间一次都没想过。
+  // Observed sequence: `submit#8[dead_failed] → act#9 → submit#10`. The new node submitted again after two steps without reasoning once.
   const entry = tree.filter((c) => (c.from ?? []).length === 0);
   const after = entry.length > 0 ? entry : tree;
   const names = new Set(tree.map((c) => c.cycle));
 
   return [
-    // **每一站都能走到交卷。** 「干活的额度花完了就该交」是节点级的规矩，
-    // 而这条规矩得写在表上：表说得出的边，才是内核准许走的边
-    // （`loop.ts` 那道白名单：`if (!saidFrom && !next.includes(to))`）。
+    // **Every station can reach submission.** Submitting when the work allowance is exhausted is a node-level rule,
+    // and it must be represented in the table. The kernel permits only edges the table describes
+    // (the `loop.ts` allowlist: `if (!saidFrom && !next.includes(to))`).
     //
-    // 让推断函数带上父指针绕过白名单也能拐过去，但那样表上就看不出这条边 ——
-    // 表说的和实际走的不一样，那才是把表整乱套。
+    // An inference function could bypass the allowlist by supplying a parent pointer, but that would hide the edge from the table. Divergence between declared and actual transitions is what would corrupt the model.
     ...cycles.map((c) => (names.has(c.cycle) ? { ...c, next: [...new Set([...(c.next ?? []), SUBMIT])] } : c)),
-    // **交卷只有这一行。** 它自己说全了：从哪来、到哪去、谁来判。
+    // **This is the only submission row.** It fully declares its predecessors, successors, and judge.
     {
       cycle: SUBMIT,
       mustCall: SUBMIT_TOOL.name,
-      // **这一站只能干一件事，而且请求里就写死了。**
+      // **This station can do only one thing, enforced in the request itself.**
       //
-      // 工具那边已经只摆了 `submit`（见 `tools/index.ts` 那条「不在交卷站」的条件），
-      // 可只摆一件挡不住它去调一件没摆的：实测它在这一站请求过 `web_search`，那一格
-      // 就这么白费了 —— 没人会去跑它，最后补一条「没跑成」。带上「必须调这一个」，
-      // 它连「说一堆话然后什么都没交」都做不到。
+      // Only `submit` is offered (see the non-submission-station condition in `tools/index.ts`), but offering one tool does not prevent requests for unoffered ones. In practice the model requested `web_search` here, wasting a slot because nobody executed it; a "not executed" result was added later. Requiring this specific tool also prevents a long response with no submission.
       //
-      // 以前不敢默认填，是因为**它跟思考互斥**：模型在思考时 `tool_choice` 一律 400。
-      // 那道坎现在由适配器兜着 —— 这一站要求必调某个工具时，它把思考关掉再发
-      // （见 `llm/index.ts`）。交卷本来也不需要想：要交的东西前面早就算完了。
-      // 跟干活那几站同一种轨。硬写 chat 的话，一个不用模型的机制（`agent.unit`
-      // 走外部句柄那种）会在这一站上卡死：它的智能体一条 chat 轨都没有。
+      // Previously this could not be the default because **it conflicts with reasoning**: models reject `tool_choice` with HTTP 400 while reasoning. The adapter now handles that constraint, disabling reasoning when a station requires a specific tool (see `llm/index.ts`). Submission needs no reasoning anyway; the answer was worked out earlier.
+      // Use the same track type as the working stations. Hard-coding chat would strand a non-model mechanism (an external `agent.unit` handle) because its agent has no chat track.
       apiMode: tree.map((c) => (c.apiMode ?? "").trim()).find((x) => x !== "") ?? "",
-      // **一个节点只交一次。** 交卷站每次都落一个终态（判活或判死），落了节点就
-      // 结束 —— 结构上不可能有第二个。额度是按节点数的（见 `full`），所以这儿写 1
-      // 才是这张表在说实话；写成「干活那几站之和」那种够大的数，读表的人会以为
-      // 一个节点能交好多次。
+      // **One submission per node.** Every submission station records a terminal state, successful or dead, ending the node;
+      // a second submission within it is structurally impossible. Allowances are per node (see `full`), so 1 accurately describes this table. A large value such as the sum of working-station limits would falsely suggest multiple submissions per node.
       maxUnits: 1,
       from: tree.map((c) => c.cycle),
-      // 交完接下一个节点的入口站 —— 判 0 只说明这一次交的不成，不说明这道题到头
-      // 了。做成终点站（`next: []`）的那一版只能往回退，而退回去又立刻拐回交卷，
-      // 交的还是同一份东西。
+      // After submission, enter the next node's entry station. A 0 rejects this submission, not the entire problem.
+      // The terminal-station version (`next: []`) could only backtrack, then immediately return to submission with the same answer.
       next: after.map((c) => c.cycle),
       infer: TREE_INFER,
     },
@@ -197,34 +169,24 @@ function nodesOf(db: Conn, sub: string, task: string): Node[] {
 }
 
 /**
- * 这一格（或它同一个节点里的上一格）交上来的那份答案。没交过就回 `null`。
+ * Answer submitted in this slot, or its predecessor within the same node. Return `null` if no submission exists.
  *
- * **答案在调用的参数里，不从它说的话里解析。** 解析是兜底：模型可能说三段话、
- * 每段里都有一个式子，挑哪一段都是猜。而猜错的表现是「答案明明写对了却判 0」——
- * 那种事查起来最费劲，因为看日志它确实答对了。
+ * **The answer comes from call arguments, not parsed speech.** Parsing is a fallback guess: a model may produce three passages, each with a formula. Choosing the wrong one looks like a correct answer being graded 0, especially difficult to diagnose because the logs really do contain the correct answer.
  *
- * ## 为什么要往回看一格，又为什么必须限在同一个节点里
+ * ## Why inspect the previous slot, and why restrict it to the same node?
  *
- * 在干活站上按交卷是允许的：那一次就是交，流转把它送到交卷站，交卷站不必再交
- * 一遍。所以交卷站得认得出上一格那次调用 —— 这就是往回看一格。
+ * Submission from a working station is allowed. That call already submits the answer; control moves to the submission station without requiring it again. The submission station must therefore recognize the previous slot's call.
  *
- * **但上一格未必是同一个节点的。** 判死之后开的新节点，它第一站的上一格正好是
- * **前一个节点的交卷站**，那儿躺着一次 `submit`。不限节点的话，新节点一睁眼就
- * 被判成「已经交过了」，当场又拐去交卷 —— 它想先验一次、想读读上一次错在哪，
- * 那些调用连跑的机会都没有，最后闭着眼交一份没改过的答案。
+ * **But the previous slot may belong to another node.** A fresh node's first station follows **the previous node's submission station**, which contains a `submit`. Without the node restriction, the new node is immediately classified as already submitted and redirected to submission. Its verification and previous-failure-inspection calls never run, and it blindly resubmits an unchanged answer.
  *
- * 实测：cmt-3 的 node2 就是这么烧掉的（`ask#5` 调了四次 `verify`，一次没跑成，
- * 一站就被拐去 `submit#6` 判死）。它的 node3 侥幸正常，是因为 node2 的交卷站
- * 压根没交出东西 —— 靠的是运气，不是规矩。
+ * Observed example: cmt-3's node2 was consumed this way (`ask#5` requested four `verify` calls, none executed, and immediately moved to `submit#6` and died). Its node3 worked only because node2's submission station produced no submission: luck, not a reliable rule.
  */
 /**
- * 这个实例交上来的最后一份答案。**「交了什么」只有这一个出处。**
+ * The instance's latest submitted answer. **The sole authority for what was submitted.**
  *
- * 交卷是调一次 `submit` 并把答案放进去。谁想知道「它交了什么」都从这儿问 ——
- * 各读各的话，同一份东西会有两个答案：交卷站按调用里的那份判，收尾按它随口说的
- * 那段判，两边判出不同结果，而成绩以后者为准。实测就这么丢过题。
+ * Submission means calling `submit` with the answer. Every consumer asks here. Independent readers could select two different answers: the submission station grades call arguments, while finalization grades incidental speech, and the latter becomes the reported score. Problems have been lost exactly this way.
  *
- * `units` 给了就只看那几格（交卷站用它把范围限在同一个节点里），不给就看整条实例。
+ * When `units` is supplied, inspect only those slots (the submission station uses it to restrict scope to one node); otherwise inspect the whole instance.
  */
 export function handedIn(
   db: Conn,
@@ -244,11 +206,11 @@ export function handedIn(
       const v = JSON.parse(r.body) as { calls?: { name?: string; input?: { answer?: unknown } }[] };
       for (const c of v.calls ?? []) {
         if (c.name !== SUBMIT) continue;
-        // 交了一份空的也算交 —— 那是它的答案，判 0 是判卷台的事，不是这儿的事。
+        // An empty submission still counts: it is the submitted answer. Grading it 0 belongs to the grader, not this function.
         found = typeof c.input?.answer === "string" ? c.input.answer : "";
       }
     } catch {
-      // 读不出来就当这一行没交过
+      // An unreadable row counts as no submission.
     }
   }
   return found;
@@ -266,10 +228,9 @@ function submitted(
 }
 
 /**
- * 它是不是已经拿这一份问过 G 了（`verify`），问出来什么。
+ * Whether this exact candidate has already been checked by G through `verify`, and the resulting verdict.
  *
- * 比的是**答复原文**：一字不差才算同一份。差一个字符就是另一份候选，
- * 上一次的判决对它不作数。
+ * Compare the **original answer text** exactly. A one-character difference creates a different candidate to which the previous verdict does not apply.
  */
 function verdictFor(
   db: Conn,
@@ -281,7 +242,7 @@ function verdictFor(
   const rows = all(db, `select unit, seq, kind, body from "${t}" where instance = ? order by unit, seq`, [
     inst.instance,
   ]) as { unit: number; seq: number; kind: string; body: string }[];
-  const asked = new Map<string, string>(); // 调用 id → 问的是哪一份
+  const asked = new Map<string, string>(); // Call id → candidate checked.
   let hit: { pass: 0 | 1; why: string; note: string } | null = null;
   for (const r of rows) {
     let v: { calls?: { id?: string; name?: string; input?: { answer?: unknown } }[]; id?: string; name?: string; value?: { pass?: unknown; valid?: unknown; outcome?: unknown; why?: unknown; note?: unknown } };
@@ -305,10 +266,9 @@ function verdictFor(
 }
 
 /**
- * 这一站**开口说了什么**。
+ * What this station **said aloud**.
  *
- * `prompt` 行的 `body` 就是那段话；`call` 行的 `body` 是 `{text, calls}`，
- * 说的话在 `text` 里 —— 原样递出去的话，拿到的是一坨 JSON。
+ * A `prompt` row's `body` is the text; a `call` row's `body` is `{text, calls}`, with speech in `text`. Passing the latter unchanged would supply a JSON object instead of the spoken answer.
  */
 function spokenAt(result: unknown): string {
   const r = (result ?? {}) as { kind?: string; body?: unknown };
@@ -326,10 +286,9 @@ function spokenAt(result: unknown): string {
 
 
 /**
- * 这个周期在**这一个节点里**的额度用完了没有。
+ * Whether this cycle's allowance **within this node** is exhausted.
  *
- * 按整道题数的话，第一个节点就把预算吃光了 —— 一道题只可能有一次提交，
- * 「判死 → 换条路」永远跑不起来。一个节点是一次尝试，它自己有一份预算。
+ * Counting across the whole problem would let the first node exhaust the budget, allowing only one submission and preventing retry after failure. Each node is one attempt with its own budget.
  */
 function full(db: Conn, a: Ask, nodes: Node[], cycle: string, node: number): boolean {
   const cap = all(db, `select max_units from cycle where mode = ? and cycle = ?`, [
@@ -341,38 +300,29 @@ function full(db: Conn, a: Ask, nodes: Node[], cycle: string, node: number): boo
 }
 
 /**
- * **交卷那个工具。答案写在入参里。**
+ * **The submission tool. The answer is in its arguments.**
  *
- * 它干两件事：把答案交上来，同时说一声「我做完了」—— 于是流转提前拐到交卷站。
+ * It does two things: submits an answer and declares completion, causing an early transition to the submission station.
  *
- * **答案在入参里，不从它说的话里解析。** 早先那一版不收参数，交上去的是它在交卷站
- * 说的那段话，还带一层从别的工具调用里翻 `answer` 字段的兜底。两层都是猜：它可能
- * 说三段话、每段里都有一个式子，挑哪一段都是猜，而猜错的表现是「答案明明写对了
- * 却判 0」—— 那种最难查，因为看日志它确实答对了。
+ * **Read the answer from arguments, not parsed speech.** The older version accepted no parameters and submitted speech from the submission station, with a fallback searching other calls' `answer` fields. Both paths guessed: a model may produce three passages with one formula each. Selecting the wrong one looks like a correct answer graded 0, especially hard to diagnose because the logs contain a correct answer.
  *
- * 参数表跟着 G 走（`objective.params`）：内核把 G 包装成 `verify`，交卷这一步内部
- * 问的又是同一个 G，两处要的东西当然一模一样。
+ * The parameter schema follows G (`objective.params`). The kernel wraps G as `verify`, and submission invokes that same G internally, so both naturally require identical inputs.
  *
- * 不调它也会走到交卷站（干活那几站的额度用完）。调它的意义是**提前**：早点交，
- * 判 0 之后还剩着预算，够开个新节点再来一次。实测赢的那几道走的都是这条路。
+ * Exhausting the working stations' allowances also reaches submission without calling this tool. Its purpose is **early** submission: after a 0, enough budget remains to open another node. All observed winning cases used that path.
  *
- * ## 跟 `verify` 的分工
+ * ## Division of responsibility with `verify`
  *
- * `verify` 是**验证**：干活途中拿一份候选去问「这样行不行」，随时能问、能问多次。
- * `submit` 是**交卷**：这件事我做完了，判这一份。两个时刻，两件事。
+ * `verify` is **validation**: check a candidate during work, at any time and potentially repeatedly. `submit` is **submission**: work is complete; grade this answer. Two moments, two operations.
  *
- * 这道题有没有 G，不改这个工具的形状 —— 改的是**交卷站上多不多做一步**：
- * 有 G 就在那儿判一次，没有就直接收工。
+ * Whether the problem has G does not change this tool's shape. It changes **whether the submission station performs an extra step**: grade once when G exists, otherwise finish directly.
  */
 const SUBMIT_TOOL = {
   name: SUBMIT,
   does:
     "Hand the work in: the answer passed here is what gets graded, exactly as written. Text that is not " +
     "passed here is not read as an answer.",
-  // **参数表跟 G 走**（`objective.params`）。内核把 G 包装成 `verify`，交卷这一步
-  // 内部问的又是同一个 G —— 两处要的东西当然一模一样。抄成两份字面量的话，G 哪天
-  // 多一个字段就只会改到一边，而那不报错：只表现为模型照着一边的说明填，另一边
-  // 收到的少一样。
+  // **The parameter schema follows G** (`objective.params`). The kernel wraps G as `verify`, and submission invokes the same G,
+  // so both require identical inputs. Duplicated literal schemas would drift when G gains a field: one would be updated while the other silently receives incomplete input from a model following the first description.
   params: CANDIDATE,
   output: { type: "object", properties: { handingIn: { type: "boolean" } } },
   prompt:
@@ -382,9 +332,9 @@ const SUBMIT_TOOL = {
 };
 
 /**
- * 注册树的控制流。
+ * Register tree control flow.
  *
- * `sealed` 给进来是为了让判据来自 G —— 没有它就只能自评，而自评的树是瞎走的。
+ * `sealed` supplies the criterion from G. Without it, only self-assessment remains, leaving the tree to search blindly.
  */
 export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] {
   reg.register(db, "fn:infer.dfs", 900_000, async (arg) => {
@@ -401,64 +351,56 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
       a.unit,
     ])[0] as { agent: string; instance: string } | undefined;
 
-    // ── 干活那几站：**这儿不判** ──────────────────────────────────────────
+    // ── Working stations: **do not grade here** ────────────────────────────
     //
-    // 判决只在交卷站出。以前是「出现一条 `prompt` 就叫 G」—— 那等于内核替它交了
-    // 一份它没交的东西，而且那条 `prompt` 是空的时候（模型这一发什么都没生成出来）
-    // 也照判，白烧一次 G、白判死一条分支。实测两道题就这么没的。
+    // Verdicts are issued only at submission. Previously any `prompt` triggered G, meaning the kernel submitted something the agent never submitted. Empty prompts (a model call producing nothing) were also graded, wasting a G call and killing a branch. Two observed problems were lost this way.
     if (here !== SUBMIT) {
       const r = (a.result ?? {}) as { kind?: string; body?: unknown };
 
-      // **拐去交卷站的两条路：**
+      // **Two routes to the submission station:**
       //
-      // 1. 它调了 `submit` —— 那就是「我交了」，提前拐过去
-      // 2. 它说出了一段有内容的话 —— 自称做完了，也拐过去（没调工具也走得到）
+      // 1. It called `submit`: an actual submission, so route there early.
+      // 2. It produced nonempty speech: a claim of completion, also routed there (reachable without a tool call).
       //
-      // 空话不算。一条什么都没生成出来的 `prompt` 不是「我做完了」，
-      // 是这一发没出来 —— 按普通推进往下走，让它下一站接着说。
-      // 哪几格算这一个节点的 —— `node` 那一列说了算。
+      // Empty output does not count. A `prompt` containing nothing is a failed generation, not a claim of completion. Advance normally so the next station can continue.
+      // The `node` column determines which slots belong to this node.
       const here_node = Number(me.node);
       const sameNode = (u: number) => nodes.some((n) => Number(n.unit) === u && Number(n.node) === here_node);
       const handedIn = submitted(db, inst, a.unit, sameNode) !== null;
       const spoke = r.kind === "prompt" && spokenAt(a.result).trim() !== "";
 
-      // **拐去交卷是节点级的规矩，而这条规矩写在表上。** 每一站的 `next` 里都有
-      // 交卷（`withSubmit` 补的），所以这儿平推过去就行 —— 表说得出的边，才是
-      // 内核准许走的边。自己带父指针绕过白名单也能走通，但那样表上看不出这条边。
+      // **Routing to submission is a node-level rule represented in the table.** Every station's `next` includes submission
+      // (added by `withSubmit`), so advance directly. The kernel permits only declared edges; bypassing the allowlist with a parent pointer would hide this edge from the table.
       const toSubmit = { to: SUBMIT } satisfies Said;
 
-      // 它自己说完了 / 它按了交卷 —— 提前拐过去。
+      // It finished speaking or invoked submission: route there early.
       if (handedIn || spoke) return toSubmit;
 
-      // 干活那几站的额度花完了 —— 该交卷了。**这一条不看它想不想交。**
+      // Working-station allowances are exhausted: time to submit. **This does not depend on whether it wants to submit.**
       const to = a.next.find((c) => c !== SUBMIT) ?? null;
       if (to === null || full(db, a, nodes, to, Number(me.node))) return toSubmit;
 
-      // 还有额度：按候选往下走一格，从当前这一行接。
+      // Allowance remains: advance one slot through the candidates, continuing from the current row.
       return { to } satisfies Said;
     }
 
-    // ── 交卷站 ────────────────────────────────────────────────────────────
+    // ── Submission station ────────────────────────────────────────────────
     //
-    // 交的就是这一站说的那段话。没有 G 的题到这儿就是收工；有 G 的题**在这儿多做
-    // 一步**：判一次。「有没有验证过」不改交卷这件事的形状，只改这一步跑不跑得成。
+    // The station's speech is its submission. Problems without G finish here; those with G perform **one additional step**: grading. Prior verification does not change the shape of submission, only whether this step can succeed.
     let status = "reached";
     if (sealed.has(task)) {
-      // **交的是那次调用里的那一份，不解析它说了什么。**
+      // **Submit the candidate in the call; do not parse the station's speech.**
       //
-      // 上一版交的是「它在交卷站说的那段话」，还带一层从别的工具调用里翻 `answer`
-      // 字段的兜底。两层都是猜：它可能说三段话、每段里都有一个式子，挑哪一段都是猜，
-      // 而猜错的表现是「答案明明写对了却判 0」—— 那种最难查，因为看日志它确实答对了。
+      // Previously submission used the station's speech with a fallback searching other tool calls for an `answer` field. Both guessed: a model could produce three passages, each with a formula. A wrong selection looks like a correct answer graded 0, hard to diagnose because the logs do contain the correct answer.
       //
-      // 现在只有一条路：调一次 `submit`，把答案放进去。没调 = 什么都没交。
-      // 哪几格算这一个节点的 —— `node` 那一列说了算。
+      // There is now only one path: call `submit` with the answer. No call = no submission.
+      // The `node` column determines which slots belong to this node.
       const here_node = Number(me.node);
       const sameNode = (u: number) => nodes.some((n) => Number(n.unit) === u && Number(n.node) === here_node);
       const said = submitted(db, inst, a.unit, sameNode);
-      // **什么都没交。** 这一站只能干一件事，而它没干 —— 没得判，这个节点到此为止。
+      // **Nothing was submitted.** This station had one operation to perform and did not perform it. There is nothing to grade; the node ends here.
       //
-      // 「交了一份错的」和「什么都没交」不是一回事，所以话要说清楚：前者的判决里带着
-      // why，下一个节点看得见、改得动；后者只有这一句，而它说的是「你那一步没做」。
+      // An incorrect submission differs from no submission, so explain precisely. The former has a verdict with `why`, which the next node can inspect and address. The latter has only this message saying the required step was not performed.
       if (said === null) {
         if (inst) {
           deliverVerdict(db, {
@@ -474,20 +416,16 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
       } else {
         const g = sealed.open(task)!;
 
-      // **验过就不必再判一次。** `verify` 是干活途中的验证，交卷是这一刻的提交；
-      // 两个时刻，但问的是同一个 G。它刚验过的正是这一份的话，那次判决就是这一次
-      // 的答案 —— 再打一遍判卷台只是多花一次钱，还多一次抖动的机会。
+      // **Do not grade an already verified candidate again.** `verify` validates during work; submission commits the candidate now.
+      // These are different moments querying the same G. If the exact candidate was just checked, reuse that verdict. Another grader call only adds cost and another opportunity for variability.
       const had = g.reuse === "text" ? verdictFor(db, inst, said) : null;
-      // **递出去的是挖出来的那一份，不是原始 result。** 原样递的话，G 那一侧
-      // 拿到的是 `{text, calls}` 整坨 JSON —— 上面那几行把答案挖出来就白挖了。
-      // 形状跟收尾那一路对齐（`main.ts`：`result: {body}`），一个 G 脚本两处都能用。
+      // **Pass the extracted candidate, not the raw result.** Passing it unchanged would give G the entire `{text, calls}` JSON object,
+      // undoing the extraction above. Match finalization's shape (`main.ts`: `result: {body}`), so one G script works in both paths.
       const v = had ?? (await evaluate(g, reg, candidateInput(a.task, said, a.chain)));
 
-      // **判决要落进上下文**，不能只进日志。投成「一次带结果的工具调用」——
-      // 它是外部的、这一次的观测，正好是 tool 结果的语义。
+      // **Put verdicts into context**, not only logs. Represent them as a tool call with a result: an external observation for this attempt, matching tool-result semantics.
       //
-      // 落在**交卷这一站**上：兄弟默认看不见它（那是故意的），要看得自己
-      // `node_load` 去取 —— 「进度共享是能看、不是直接继承」。
+      // Attach them to **the submission station**. Siblings deliberately do not inherit them; they must use `node_load` to retrieve them. Shared progress means visibility, not direct inheritance.
       if (inst) {
         deliverVerdict(db, {
           agent: inst.agent,
@@ -495,8 +433,8 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
           unit: a.unit,
           name: VERIFY,
           input: { task, at: `${here}#${a.unit}` },
-          // **`why` 一起给。** 只给 0/1 的话，模型只知道错了，不知道错在哪 ——
-          // 那跟不给差不多，它下一条分支多半原样再来一遍。
+          // **Include `why`.** A bare 0/1 tells the model it failed without explaining why.
+          // That is barely more useful than no verdict; the next branch will likely repeat the same path.
           value: { pass: v.pass, valid: "valid" in v ? v.valid : true, outcome: "outcome" in v ? v.outcome : (v.pass === 1 ? "passed" : "rejected"), why: v.why, note: v.note, ...(had ? { reused: true } : {}) },
         });
       }
@@ -505,23 +443,20 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
       }
     }
 
-    // 判 1 = 这道题做成了，树到此为止。
+    // A verdict of 1 means the problem is solved; stop the tree here.
     if (status === "reached") return { to: null, status } satisfies Said;
 
-    // ── 判 0：换下一个节点再试一次 ────────────────────────────────────────
+    // ── Verdict 0: try again in the next node ───────────────────────────────
     //
-    // **新节点挂在收口这一行底下。** 节点号是这么长的：
+    // **Attach the new node under the closing row.** Node numbers grow as follows:
     //
-    //   node(新行) = node(父) + (父.status 非空 ? 1 : 0)
+    //   node(new row) = node(parent) + (parent.status nonempty ? 1 : 0)
     //
-    // 收口那一行有终止状态，所以它的孩子就是下一个节点的头 —— 那一个节点自己
-    // 有一份新的额度。走回退那一支的话，新行挂到的是一个**没有**终止状态的祖先
-    // 底下，node 不涨、预算不重置，「换条路」就只是同一个节点里接着走。
+    // The closing row has a terminal state, so its child starts the next node with a fresh allowance. The backtracking path attaches under an ancestor **without** a terminal state, leaving node unchanged and budget unreset: "trying another path" would continue within the same node.
     //
-    // 去哪一站由表说了算（`submit.next` = 动作阶段）。
+    // The table chooses the destination (`submit.next` = action phase).
     //
-    // 「一道题能试几个节点」是 `max_dead_siblings` 那根轴 —— 数的是**判死过的
-    // 节点**，不是行：一个节点判死一次，不该按它有几行算成几次。
+    // `max_dead_siblings` controls how many nodes a problem may try. Count **dead nodes**, not rows: a node dies once, regardless of how many rows it contains.
     {
       const tried = new Set(
         nodes.filter((n) => n.status !== null && DEAD.has(n.status)).map((n) => Number(n.node)),
@@ -532,25 +467,19 @@ export function registerTree(db: Conn, reg: Registry, sealed: Sealed): string[] 
       return { to: null, status } satisfies Said;
     }
 
-    // 判 0 往下走的是**已经写好的那一套**：交卷站不开自己的兄弟（再交一遍同一份
-    // 没意义），于是走回退那一支 —— `to: parent.cycle` 就是那个动作阶段，挂在
-    // 祖父底下，正好是死掉那个动作阶段的兄弟。这就是「下一个节点的动作阶段」。
+    // After a 0, use **the existing control flow**: submission does not open its own sibling (resubmitting the same candidate is pointless), so take the backtracking path. `to: parent.cycle` selects the action phase under the grandparent, a sibling of the dead action phase: the next node's action phase.
     //
-    // 我一度在这儿加过一句「往前接一格」，那是错的：不带 `from_cycle` 的话新行
-    // 挂在**死掉的交卷行**底下，树越长越深却一个分叉都没有。
-
-    // ── 底下原来还有一段「开兄弟 / 回退」，删了 ──────────────────────────
+    // I once added a direct forward step here, incorrectly: without `from_cycle`, the new row attaches under **the dead submission row**, making the tree deeper without any branching.
     //
-    // 那一套是给「干活的站被判死」准备的：在同一个父底下开个兄弟换条路，
-    // 试够了就往上爬一层。可判决只在交卷站出，干活的站一个 status 都不产 ——
-    // 于是那一段永远走不到。
+    // ── A former sibling/backtracking block below was removed ──────────────
     //
-    // 换节点这件事上面已经做完了：新节点挂在收口那一行底下，node 自然涨一格，
-    // 额度也就重置了。留着那段死代码只会让人以为树还有另一套长法。
+    // It handled death at working stations: open a sibling under the same parent, then climb upward after enough attempts. But only submission issues verdicts; working stations never produce a status, so that block was unreachable.
+    //
+    // The node transition is already handled above: attaching under the closing row increments node and resets its allowance naturally. Keeping dead code would imply a second tree-growth mechanism that does not exist.
   });
 
-  // **交卷那个工具跟这套机制一起装上。** 它属于机制，不属于某一份声明 ——
-  // 条件是「这一站的推断函数是不是走树的那个」，跟 `task_tree` / `node_load` 同一条。
+  // **Install the submission tool with this mechanism.** It belongs to the mechanism, not a particular declaration.
+  // Its condition checks whether this station uses the tree inference function, just like `task_tree` / `node_load`.
   reg.register(db, `fn:tool.${SUBMIT_TOOL.name}`, SUBMIT_TOOL.expectMs, async () => ({ handingIn: true }));
   run(
     db,

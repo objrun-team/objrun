@@ -36,16 +36,16 @@ def main():
             'accounting':summary['accounting'],'costDeduplication':'v2 ledger already includes every inherited v1 receipt; do not add original pilot costs again',
             'analysisSourceSha256':digest(Path(__file__).read_bytes())}
     (LOCAL/'DELIVERY.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-    lines=['# LAB-Bench 完整交付','','ProtocolQA108＋SeqQA600；仅单次与完整 ObjRun；完整方法具有金标正误反馈。','',
-           '|结果视图|组别|有效/总数|通过|准确率范围|','|---|---|---:|---:|---|']
+    lines=['# LAB-Bench complete delivery','','ProtocolQA108 + SeqQA600; single-shot and full ObjRun only. The full method receives ground-truth correctness feedback.','',
+           '|Result view|Arm|Valid/total|Passed|Accuracy bounds|','|---|---|---:|---:|---|']
     for view,arms in views.items():
         for arm,s in arms.items():lines.append(f"|{view}|{arm}|{s['valid']}/{s['total']}|{s['passed']}|{s['accuracyBounds']}|")
-    lines+=['','3条恢复没有交付过旧候选，其首逻辑请求按原wire从剩余传输次数继续。已用约303秒、剩余约297秒；修复停机间隔单独记录，因此这3条不是不中断的600秒墙钟实验。原中断视图和排除这3题的配对范围同时保留。',
-            '', '费用以v2完整账本为准，包含原v1回执及新增恢复费用；不再与原试跑费用相加。缺失费用保留未知。', '', '|组别|已知实际美元|未知费用请求|请求数|','|---|---:|---:|---:|']
+    lines+=['','The 3 recovered units had delivered no prior candidates. Their first logical requests resumed the original wire payload with remaining transport attempts. About 303 seconds were used and about 297 remained; repair downtime is recorded separately, so these were not uninterrupted 600-second wall-clock experiments. Preserve both the original interrupted view and paired bounds excluding these 3 tasks.',
+            '', 'Costs use the complete v2 ledger, including original v1 receipts and new recovery charges; do not add pilot costs again. Missing costs remain unknown.', '', '|Arm|Known actual USD|Unknown-cost requests|Requests|','|---|---:|---:|---:|']
     for arm,c in summary['accounting']['byArm'].items():lines.append(f"|{arm}|{c['knownActualCostUsd']:.9f}|{c['unknownCostRequests']}|{c['requests']}|")
-    lines+=['',f"全量归档：{retrieval['archive']}",f"SHA256：{retrieval['sha256']}",f"原试跑归档：{original_archive['localArchive']}",f"原试跑SHA256：{original_archive['sha256']}",
-            '',f"本地核验通过，检查数：{verified['checkCount']}。逐题CSV、源数据、候选、原始请求响应、费用、日志、SQLite与轨迹在完整归档及full-results内。",
-            '准确率、precision、coverage及各子任务结果见SUMMARY.json；同文选项题的预设敏感性分析另报。最终选择正确不自动证明生物学推理得到修复。']
+    lines+=['',f"Full archive: {retrieval['archive']}",f"SHA256: {retrieval['sha256']}",f"Original pilot archive: {original_archive['localArchive']}",f"Original pilot SHA256: {original_archive['sha256']}",
+            '',f"Local verification passed {verified['checkCount']} checks. Per-task CSVs, source data, candidates, raw requests/responses, costs, logs, SQLite, and trajectories are in the full archive and full-results.",
+            'See SUMMARY.json for accuracy, precision, coverage, and subtask results; the prespecified sensitivity analysis for identical-text options is reported separately. Correct final selection does not automatically establish repaired biological reasoning.']
     (LOCAL/'DELIVERY_REPORT.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
     print(json.dumps({'delivered':True,'verified':True,'views':views,'accounting':summary['accounting']}))
 

@@ -1,96 +1,96 @@
-# 沉淀（distill）—— 从判决史里抽 skill，用留出题验它
+# Distill — extract skills from verdict history and test them on held-out tasks
 
-这是 agentos 那边「降解 → 结晶 → 入林」那一环在 TgEngin 上的版本。**内核一个字没动**：
-产物是 `skill` 表的行（`POST /declare` 灌），触发是 `trigger` 表的条件。
-跟那边最大的不同是验收：**一份 skill 有没有用，只看它没见过的题上 U 臂涨没涨**。
-同一道题 ✖→✓ 不算数（agentos 的用法案例册里 7490 那一案就是这么被证伪的：单点翻了，同类 4 题 0/4）。
+This is the TgEngin version of agentos's “degrade → crystallize → enter the forest” stage. **The kernel is unchanged**:
+outputs are rows in the `skill` table (loaded through `POST /declare`), and triggers are conditions in the `trigger` table.
+The main difference is validation: **a skill is useful only if it improves the U arm on tasks it has never seen**.
+Changing ✖ to ✓ on the same task does not count (case 7490 in the agentos usage casebook was falsified this way: one task flipped, but four related tasks scored 0/4).
 
-## 四步
+## Four steps
 
 ```
-cd app                                   # bun 脚本一律从 app/ 起（这台节点 bun 读 .env 撞 statx）
+cd app                                   # Run all Bun scripts from app/ (Bun hits statx reading .env on this node).
 set -a; . ../.env; set +a                # OPENROUTER_API_KEY
 D=../runs/distill-cmt
 bun ../examples/distill/run.ts harvest ../runs/cmt-f-0731/h2h.sqlite ../runs/cmt-u-0731/unaided.csv --out $D/harvest.json
-bun ../examples/distill/run.ts extract $D/harvest.json --only <训练半 id> --out $D/candidates-A.json
-bun ../examples/distill/run.ts land    $D/candidates-A.json $D/harvest.json --domain physics --corpus <训练半 id> --out $D/declare-A.json
-bun ../examples/distill/run.ts probe   $D/declare-A.json $D/harvest.json --only <留出半 id>
-bun ../examples/distill/run.ts pool    $D/candidates-A.json $D/harvest.json --domain physics --corpus <训练半 id> --out $D/declare-pooled-A.json
+bun ../examples/distill/run.ts extract $D/harvest.json --only <training-half-ids> --out $D/candidates-A.json
+bun ../examples/distill/run.ts land    $D/candidates-A.json $D/harvest.json --domain physics --corpus <training-half-ids> --out $D/declare-A.json
+bun ../examples/distill/run.ts probe   $D/declare-A.json $D/harvest.json --only <held-out-half-ids>
+bun ../examples/distill/run.ts pool    $D/candidates-A.json $D/harvest.json --domain physics --corpus <training-half-ids> --out $D/declare-pooled-A.json
 ```
 
-| 步 | 做什么 | 调模型 |
+| Step | What it does | Model call |
 | --- | --- | --- |
-| `harvest` | 从 F 臂的库读每道题每个 node 上验过的原文和判决，配上 U 臂成绩；默认只留「没反馈做不对、有反馈做对了」的题 | 否 |
-| `extract` | 每道题一份候选：`does` / `body` / 从题面原样抄的触发词 / 类别标签 | 是 |
-| `land` | 四道闸（`app/src/distill/gate.ts`）→ 过了的拼成声明；触发 = domain + 根站 + 题面里至少共现两个触发词 | 否 |
-| `probe` | 不跑引擎，算一份声明会在哪些题面上触发 | 否 |
-| `pool` | 第二级：把多份单题教训并成一份领域级的，只按 domain 触发 | 是 |
+| `harvest` | Read graded raw text and verdicts at every node of each task from the F-arm database, paired with U-arm results; by default, retain only tasks solved with feedback but not without it | No |
+| `extract` | One candidate per task: `does` / `body` / trigger terms copied verbatim from the prompt / category labels | Yes |
+| `land` | Apply four gates (`app/src/distill/gate.ts`), then combine passing candidates into a declaration; trigger = domain + root station + at least two trigger terms co-occurring in the prompt | No |
+| `probe` | Without running the engine, calculate which prompts would trigger a declaration | No |
+| `pool` | Second stage: combine lessons from multiple individual tasks into one domain-level skill, triggered only by domain | Yes |
 
-## 四道闸
+## Four gates
 
-| 闸 | 拦什么 | 抄自 |
+| Gate | What it rejects | Adapted from |
 | --- | --- | --- |
-| 指纹 | 正文含这道题被判过的任何一段原文（对错都算） | `degrade/submit.py` 题号指纹 |
-| 词在题面 | 触发词必须是题面里原样的子串，不然引擎的 `contains` 永远不命中、零报错 | 「静默不生效」 |
-| 双边探针 | 触发词命中来源题、且命中语料里至少另一道、且不超过 30% | `locate.probe_for` |
-| 别人的答案 | 正文含语料里其它题被判对的原文 | — |
+| Fingerprint | A body containing any raw text graded for this task, whether correct or incorrect | Task-number fingerprints in `degrade/submit.py` |
+| Terms in prompt | Trigger terms must be exact substrings of the prompt; otherwise the engine's `contains` never matches and reports no error | Silent nonactivation |
+| Two-sided probe | Trigger terms must match the source task and at least one other corpus task, but no more than 30% | `locate.probe_for` |
+| Other tasks' answers | A body containing raw text graded correct for another corpus task | — |
 
-**闸拦不住的**：把答案写成散文（「对这类模型，正确说法是 X」）。判过的原文是 `\boxed{c}` 这种选项字母时，
-指纹闸对散文无能为力。所以留出验证不是可选项。
+**What the gates cannot catch**: answers paraphrased into prose (“For this type of model, the correct statement is X”). When graded raw text is an option letter such as `\boxed{c}`,
+the fingerprint gate cannot catch prose. Held-out validation is therefore mandatory.
 
-## 留出验证（CMT，2026-09-27）
+## Held-out validation (CMT, 2026-09-27)
 
-训练半 = 偶数下标 25 题，留出半 = 奇数下标 25 题；对照 = `runs/cmt-u-0731` 里留出半那 25 行。
+Training half = 25 even-indexed tasks; held-out half = 25 odd-indexed tasks; control = the 25 corresponding held-out rows in `runs/cmt-u-0731`.
 
-| 阶段 | 结果 |
+| Stage | Result |
 | --- | --- |
-| 训练半里「反馈教会的」题 | 16 |
-| 按题抽的 skill，全词 AND | 14 单题、2 词不在题面、0 落地 |
-| 任两词共现 | 2 落地，留出半触发 **0/25** |
-| 汇成一份领域级 skill | 过闸；留出半 U 臂见 `runs/cmt-u-distill-B/` |
+| Training tasks solved because of feedback | 16 |
+| Per-task skills, AND across all terms | 14 matched only their own task, 2 had terms absent from the prompt, 0 landed |
+| Any two terms co-occur | 2 landed, triggered on **0/25** held-out tasks |
+| Pool into one domain-level skill | Passed gates; held-out U-arm run is in `runs/cmt-u-distill-B/` |
 
-`runs/cmt-distill-holdout.sh` 把上面整条流程串起来；`runs/cmt-arm.sbatch` 收 `SKILLS=` 和 `TGENGIN_CMT_ONLY=`。
+`runs/cmt-distill-holdout.sh` connects the full pipeline above; `runs/cmt-arm.sbatch` accepts `SKILLS=` and `TGENGIN_CMT_ONLY=`.
 
-## 全集验证（CMT 50 题抽、同 50 题测，2026-09-27，`runs/cmt-u-distill-all`）
+## Full-set validation (extract from CMT 50, test on the same 50, 2026-09-27, `runs/cmt-u-distill-all`)
 
-用户点名要的「抽题即测题」那一跑：30 道反馈教会的题各抽一份，过指纹闸的 26 份（含 22 份只命中自己的）+ 1 份汇总，全挂。
+The user specifically requested this run that tests on the extraction tasks: extract one skill from each of 30 tasks solved because of feedback, then attach all 26 that pass the fingerprint gate (including 22 matching only their own task), plus 1 pooled skill.
 
-| 组 | n | 基线 U | 挂后 U |
+| Group | n | Baseline U | U with skills |
 | --- | --- | --- | --- |
-| 有自己那份 skill（抽自本题的判决） | 26 | 0 | **15** |
-| 只有汇总 skill | 24 | 13 | **5** |
-| 合计 | 50 | 13 | 20（+7） |
+| Has its own skill (extracted from this task's verdicts) | 26 | 0 | **15** |
+| Pooled skill only | 24 | 13 | **5** |
+| Total | 50 | 13 | 20 (+7) |
 
-涨的 15 道全部是「自己那份」挂上的题，跌的 8 道全部是只挂了汇总的题。
-前者就是答案回流（留出半上同样的 skill 触发 0/25、汇总 Δ=0），后者说明一段不相干的领域级 checklist
-在 U 臂上是**负作用**。两组加起来的 +7 不能当成学习环的收益。
+All 15 gains came from tasks with their own skill attached; all 8 losses came from tasks with only the pooled skill.
+The former is answer leakage (the same skills triggered on 0/25 held-out tasks, and pooled Δ=0). The latter shows that an irrelevant domain-level checklist
+has a **negative effect** on the U arm. The combined +7 cannot be treated as a benefit of the learning loop.
 
-## ChemBench 留出验证（2026-09-27，`runs/distill-chembench/`）
+## ChemBench held-out validation (2026-09-27, `runs/distill-chembench/`)
 
-F 500 题子集按 topic 内对半：训练 253 / 留出 247；基线 = `runs/chembench-u-0731b` 同 247 题（167/247）。
-训练半里反馈教会的 46 题各抽一份 → 任两词共现、份额上限 50%（preference 题占 37%）→ 33 落地、8 单题、5 拒。
-另按 topic 汇总两份：preference（触发 `Imagine an early virtual screening campaign`，训练半 94/94 命中、其它 0）、
-toxicity（触发 `safety risks|hazard|toxic|safe handling` 任一）。
+Split the F 500-task subset in half within each topic: training 253 / held-out 247; baseline = the same 247 tasks in `runs/chembench-u-0731b` (167/247).
+Extract one skill for each of 46 training tasks solved because of feedback → any two terms co-occur, maximum share 50% (preference tasks account for 37%) → 33 landed, 8 matched only their own task, 5 rejected.
+Also pool two topic-level skills: preference (trigger `Imagine an early virtual screening campaign`, matching 94/94 training tasks and 0 others),
+and toxicity (trigger any of `safety risks|hazard|toxic|safe handling`).
 
-| topic | n | 基线 | 全挂 35 份 | 只挂 2 份汇总 |
+| Topic | n | Baseline | All 35 skills | Only 2 pooled skills |
 | --- | --- | --- | --- | --- |
-| chemical_preference | 93 | 56 | −2（每题被塞 25 份） | +0 |
+| chemical_preference | 93 | 56 | −2 (25 skills injected per task) | +0 |
 | toxicity_and_safety | 58 | 27 | **+4** | **+5** |
-| 其它 7 个 topic | 96 | 84 | +3 | −4 |
-| 合计 | 247 | 167 | +5 | +1 |
+| Other 7 topics | 96 | 84 | +3 | −4 |
+| Total | 247 | 167 | +5 | +1 |
 
-没触发任何 skill 的 79 题在全挂臂上 +2：这就是跑与跑之间的噪声量级。所以只有 toxicity 那 +4/+5 值得再看；
-`runs/chembench-u-hold-control`（不挂 skill 的对照重跑）用来量噪声。
-preference 那 22 份单题 skill 触发词互相重叠，一题 25 份，是负作用 —— 触发面窄不只是防泄题，也是防互相踩。
+The 79 tasks triggering no skill gained +2 in the all-skills arm: this indicates the scale of run-to-run noise. Only toxicity's +4/+5 warrants further investigation;
+`runs/chembench-u-hold-control` (a control rerun without skills) measures that noise.
+The 22 individual preference skills have overlapping trigger terms, producing 25 skills per task and a negative effect. Narrow trigger coverage prevents both answer leakage and interference between skills.
 
-**对照重跑（`chembench-u-hold-control`，不挂 skill，同 247 题）= 175/247**，比两天前的基线高 8，与它有 24 题不一致 —— 这是跑与跑之间的噪声。按它重算：
+**Control rerun (`chembench-u-hold-control`, no skills, same 247 tasks) = 175/247**, 8 above the baseline from two days earlier, with disagreement on 24 tasks: this is run-to-run noise. Recomputing against it:
 
-| topic | n | 对照 | 全挂 | 只挂汇总 |
+| Topic | n | Control | All skills | Pooled only |
 | --- | --- | --- | --- | --- |
-| chemical_preference | 93 | 63 | 54（−9） | 56（−7） |
-| toxicity_and_safety | 58 | 28 | 31（+3） | 32（+4，翻对 4 翻错 0） |
-| 其它 | 96 | 84 | 87 | 80 |
-| 合计 | 247 | 175 | 172（−3） | 168（−7） |
+| chemical_preference | 93 | 63 | 54 (−9) | 56 (−7) |
+| toxicity_and_safety | 58 | 28 | 31 (+3) | 32 (+4, 4 corrected and 0 made incorrect) |
+| Other | 96 | 84 | 87 | 80 |
+| Total | 247 | 175 | 172 (−3) | 168 (−7) |
 
-结论：整体是负的；preference 的 skill（无论 22 份还是 1 份汇总）都把原本会做的题带偏；唯一疑似正向的是 toxicity 汇总那份
-（+4，0 翻错，toxicity 在两个无 skill 跑之间只有 3 题不一致），量级小，要再做才敢说。
+Conclusion: the overall effect is negative. Preference skills, whether 22 individual skills or 1 pooled skill, derail tasks the model could already solve. The only potentially positive result is the pooled toxicity skill
+(+4, no regressions; toxicity disagrees on only 3 tasks between the two no-skill runs). The effect is small and requires another run before making a claim.

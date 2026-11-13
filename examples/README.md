@@ -1,12 +1,12 @@
-# 示例
+# Examples
 
-- [基础使用与接口](#快速启动)：下文的工具、目标、机制和任务示例。
-- [Benchmark 示例与实验](benchmark/README.md)。
-- [科学问题实验](research/README.md)。
+- [Basic usage and API](#quick-start): examples of tools, objectives, mechanisms, and tasks below.
+- [Benchmark examples and experiments](benchmark/README.md).
+- [Scientific research experiments](research/README.md).
 
-## 快速启动
+## Quick start
 
-每个例子都假定这一步做过了。
+Every example assumes this step has already been completed.
 
 ```bash
 cd app && bun start
@@ -20,9 +20,9 @@ curl -s $BASE/health
 {"ok":true,"db":"…/h2h.sqlite","tables":12,"write":true,"query":true,"uptimeMs":31}
 ```
 
-## 灌底子
+## Declare the shared configuration
 
-一个干活的地方、一种最简单的机制、一个智能体。**只用灌一次**，后面所有例子共用。
+Declare one execution place, a minimal mechanism, and an agent. **Do this once**; the examples below share these declarations.
 
 ```bash
 curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<'JSON'
@@ -42,14 +42,14 @@ JSON
  "tables":["task_chat1","agent_bot_ctx","agent_bot_msg"],"entries":{"chat1":["ask"]}}
 ```
 
-`tables` = 这一趟长出来的子表。灌完直接能发任务，不用重启。
+`tables` lists the subtables created by this declaration. Tasks can be submitted immediately, without restarting.
 
-## 发一个任务
+## Submit a task
 
 ```bash
 curl -s -X POST $BASE/tasks -H 'content-type: application/json' -d @- <<'JSON'
 { "id":"t-1", "mode":"chat1", "agent":"bot", "place":"local",
-  "source":"user", "description":"用一句话说说你是谁" }
+  "source":"user", "description":"Describe who you are in one sentence." }
 JSON
 ```
 ```json
@@ -69,9 +69,9 @@ curl -s $BASE/tasks/t-1
 
 | phase | |
 | --- | --- |
-| `pending` | 出站那一行还没落库 → 这一轮该动它 |
-| `running` | 落了、返回还没落 |
-| `done` | 两头都落了 |
+| `pending` | The outgoing row has not been persisted; this iteration should process it |
+| `running` | The outgoing row is persisted, but its response is not |
+| `done` | Both the outgoing row and response are persisted |
 
 ```bash
 curl -s $BASE/tasks/t-1/messages
@@ -79,13 +79,13 @@ curl -s $BASE/tasks/t-1/messages
 ```json
 {"total":3,"rows":[
  {"unit":1,"seq":1,"role":"user","kind":"user","human":true,
-  "body":"【人】用一句话说说你是谁","text":"用一句话说说你是谁"},
+  "body":"[human] Describe who you are in one sentence.","text":"Describe who you are in one sentence."},
  {"unit":1,"seq":2,"role":"system","kind":"inject",
   "parsed":{"sent":true,"tools":["read","write","edit","glob","grep","bash"],"rules":[]}},
- {"unit":1,"seq":3,"role":"assistant","kind":"prompt","body":"我是…"}]}
+ {"unit":1,"seq":3,"role":"assistant","kind":"prompt","body":"I am…"}]}
 ```
 
-任务不动的时候：
+If a task is not progressing:
 
 ```bash
 curl -s $BASE/tasks/t-1/why
@@ -94,27 +94,27 @@ curl -s $BASE/tasks/t-1/why
 {"id":"t-1","state":"done","movable":true,"problems":[],"stuckAt":null}
 ```
 
-## 接口清单
+## API index
 
 ```bash
-curl -s $BASE/help                # 全部 31 个口，终端里直接读
-curl -s "$BASE/help?q=tasks"      # 只看相关的
-curl -s "$BASE/help?format=json"  # 机器读的
+curl -s $BASE/help                # All 31 endpoints, readable in the terminal
+curl -s "$BASE/help?q=tasks"      # Show only matching endpoints
+curl -s "$BASE/help?format=json"  # Machine-readable output
 ```
 
-## 例子
+## Examples
 
 | | |
 | --- | --- |
-| [`tool/`](./tool/) | 工具：同一个，两种写法 |
-| [`meet-join/`](./meet-join/) | 一个工具长出新句柄 |
-| [`meet-book/`](./meet-book/) | 真的开一个谷歌会议 |
-| [`benchmark/cmt/`](./benchmark/cmt/) | 跑一遍 CMT-Benchmark：`/bench` 整批发、G 判卷、判 0 换路重试。基线 **44 / 50** |
-| [`benchmark/deepswe/`](./benchmark/deepswe/) | 跑一遍 DeepSWE：一道题一个容器，位置走自己那条句柄，官方判据判卷 |
-| [`rule/`](./rule/) | 规则（挂在时刻上就是钩子） |
+| [`tool/`](./tool/) | One tool implemented in two ways |
+| [`meet-join/`](./meet-join/) | A tool that creates a new handle |
+| [`meet-book/`](./meet-book/) | Create a real Google Meet meeting |
+| [`benchmark/cmt/`](./benchmark/cmt/) | Run CMT-Benchmark: submit a batch through `/bench`, grade with G, and retry a different path after verdict 0. Baseline: **44 / 50** |
+| [`benchmark/deepswe/`](./benchmark/deepswe/) | Run DeepSWE: one container per task, a dedicated place handle, and the official grader |
+| [`rule/`](./rule/) | Rules (hooks when attached to lifecycle moments) |
 | [`skill/`](./skill/) | skill |
-| [`mode/`](./mode/) | 任务机制 |
-| [`place/`](./place/) | 干活的地方 |
+| [`mode/`](./mode/) | Task mechanisms |
+| [`place/`](./place/) | Execution places |
 
-> 请求体都走 `-d @- <<'JSON'`。写成 `-d '{…}'` 也行，但在 Windows 的 Git Bash 里
-> 带中文会撞上命令行转码，body 长度对不上。
+> Request bodies use `-d @- <<'JSON'`. Although `-d '{…}'` also works, Windows Git Bash
+> can transcode Chinese command-line text and produce a body-length mismatch.

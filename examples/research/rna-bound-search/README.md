@@ -1,7 +1,7 @@
 # rna-bound-search
 
-科学问题实验源码。问题、输入和判定规则见本目录的运行器与校验器。
+Scientific experiment source. The runners and checkers in this directory define the problem, inputs, and acceptance rules.
 
-本目录只保存源码；原始运行记录、候选、证书和环境已外置。监控和收尾脚本需要对应的完整运行目录，不能只凭这份源码恢复一个历史进程。实际历史版本和运行状态见外部记录。
+This directory contains source only. Original run records, candidates, certificates, and environments are stored externally. Monitoring and finalization scripts need the corresponding complete run directory; source alone cannot restore a historical process. Consult the external records for the actual historical versions and run status.
 
-目录总览见 [科学问题实验](../README.md)，记录位置见 [数据与归档](../../../docs/storage.md)。
+See [scientific research experiments](../README.md) for the directory index and [data and archives](../../../docs/storage.md) for record locations.

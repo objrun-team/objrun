@@ -1,12 +1,13 @@
 /**
- * 读 `config.yaml`。
+ * Read `config.yaml`.
  *
- * **这是整台机器唯一一处认路的地方。** 别处不许出现「相对我这个源文件
- * 往上几层」那种写法 —— 打包成单文件之后，源文件的位置是包里的虚拟路径，
- * 那种写法一律失效。
+ * **This is the only place that locates files for the application.** Other modules must not
+ * resolve paths by walking upward from their source file. Once compiled into one executable,
+ * source locations are virtual paths inside the bundle and those relative paths no longer work.
  *
- * 缺了的键当场炸，并且说得出缺的是哪个 —— 悄悄套个默认值的话，
- * 配置写错了系统照常跑，那是最难查的一类（「我明明改了」）。
+ * Fail immediately on missing keys and name the missing key. Silently applying defaults would
+ * let an incorrectly configured system keep running, producing the hard-to-diagnose complaint:
+ * "I changed the configuration, but nothing happened."
  */
 
 import { existsSync, readFileSync } from "node:fs";
@@ -15,13 +16,14 @@ import { dirname, isAbsolute, resolve } from "node:path";
 import { parse } from "yaml";
 
 /**
- * 配置文件在哪儿，只有两步：
+ * Find the configuration file in exactly two steps:
  *
- *   1. **程序自己所在的目录** —— 装完之后 `config.yaml` 就躺在这儿，不用配任何东西
- *   2. 上一步没有，才读 `TGENGIN_CONFIG`
+ * 1. **The executable's own directory.** An installed `config.yaml` lives here without extra setup.
+ * 2. Only if it is absent there, consult `TGENGIN_CONFIG`.
  *
- * 两步都不成就当场停。**不往上找、不试第三个地方** —— 找错配置不报错，
- * 只是那台机器看起来「什么都没有」，而那是最难查的一类。
+ * Stop immediately if neither works. **Do not search parent directories or try a third location.**
+ * Loading the wrong configuration may produce no error, just a machine that appears to contain
+ * nothing, which is particularly difficult to diagnose.
  */
 export function findConfig(): string {
   const beside = resolve(dirname(process.execPath), "config.yaml");
@@ -45,10 +47,12 @@ export interface Config {
     prefix: string;
     token: string | null;
     /**
-     * **谁能绑判据。** 设了这个，发布带 objective 的任务（`/tasks`、`/bench`）必须带
-     * `X-TGEngin-Publisher: <token>`，否则 403。没设 = 老行为：来源字段由调用方自报，
-     * 谁能打到 API 谁就能绑 —— 启动时会警告。环境变量 `TGENGIN_PUBLISHER_TOKEN` 优先。
-     * 这把钥匙不能让求解器的工具读到（环境变量、能读的文件、能连的端口），否则形同虚设。
+     * **Who may attach objectives.** When configured, publishing tasks with an objective through
+     * `/tasks` or `/bench` requires `X-TGEngin-Publisher: <token>`; otherwise return 403. If unset,
+     * preserve the old behavior: callers declare their own source, and anyone who can reach the
+     * API may attach an objective. Startup warns about this. `TGENGIN_PUBLISHER_TOKEN` takes priority.
+     * The solver's tools must not be able to read this token through environment variables, readable
+     * files, or reachable ports; otherwise the protection is ineffective.
      */
     publisherToken: string | null;
     allowQuery: boolean;
@@ -58,17 +62,17 @@ export interface Config {
   };
   cors: { enabled: boolean; origin: string | string[] };
   /**
-   * 调模型时那几个旋钮。**这台机器一份，不按智能体分** —— 要按智能体分的时候
-   * 再往 `agent.apis` 那一列上加，那一列本来就是 JSON。
+   * Model-call settings. **One configuration per machine, not per agent.** If per-agent settings
+   * are needed, extend `agent.apis`, which is already JSON.
    */
   llm: {
-    /** **一次调用**最多生成多少 token。不是一个执行单元的上限 —— 截断了会续写。 */
+    /** Maximum output tokens for **one call**, not for an execution unit: truncated calls are continued. */
     maxTokens: number;
-    /** 一次调用炸了之后最多重打几次，每次多等 5 秒。0 = 不重打。 */
+    /** Maximum retries after a failed call, waiting an additional 5 seconds each time. 0 disables retries. */
     retryTimes: number;
-    /** 截断之后最多再续几次。0 = 不续。 */
+    /** Maximum continuations after truncation. 0 disables continuation. */
     continueTimes: number;
-    /** 思考强度。原样发给那家 —— 认不认得是那家的事，我们不替它猜。 */
+    /** Reasoning effort, passed through unchanged. The provider decides whether it supports the value. */
     reasoningEffort: string;
     /** Sampling temperature. 0 makes a run reproducible. */
     temperature: number;
@@ -77,7 +81,7 @@ export interface Config {
   };
 }
 
-/** `${VAR}` 从环境变量取。取不到就是空 —— 由用它的地方去判缺不缺。 */
+/** Resolve `${VAR}` from the environment. Missing variables become empty strings; consumers decide whether a value is required. */
 function expand(v: unknown): unknown {
   if (typeof v !== "string") return v;
   return v.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (_, k) => process.env[k] ?? "");

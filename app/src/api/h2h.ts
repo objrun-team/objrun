@@ -1,18 +1,18 @@
 /**
- * 库那一层的口 —— **只做搬运**：把请求翻成一次库操作，把结果翻成 JSON。
+ * Database endpoints **only translate** requests into database operations and results into JSON.
  *
- * 这一层**不认得任何业务**：没有任务、没有智能体、没有 G。它认得的只有「表」和
- * 「行」。业务那一层在 `kernel.ts`。
+ * This layer knows **nothing about domain behavior**: no tasks, agents, or G. It knows only
+ * tables and rows. Domain operations belong in `kernel.ts`.
  *
- * ## 这几个口是给谁的
+ * ## Intended callers
  *
- * `/query` 和 `/exec` 收原始 SQL，**它们是给认得表的人用的**（我们自己、调试、
- * 迁移），不是给客户端的。客户端该用的是 `kernel.ts` 里那些封好的口 ——
- * 拿原始 SQL 去配一台机器，等于把表结构焊进客户端。
+ * `/query` and `/exec` accept raw SQL and are **for people who understand the tables**:
+ * maintainers, debugging, and migrations. Application clients should use the encapsulated
+ * endpoints in `kernel.ts`. Configuring a machine through raw SQL couples the client to its schema.
  *
- * 留着它们是因为「库是权威存储」这条：任何时候都得有一条路能把库里的实情看全，
- * 而不是只能看我们愿意给的那部分。要关掉就把 `api.allowQuery` / `api.allowWrite`
- * 关了。
+ * These endpoints preserve the database's role as authoritative storage. There must always be
+ * an avenue to inspect all stored facts, not only the subset the API chooses to expose.
+ * Disable them with `api.allowQuery` / `api.allowWrite` when necessary.
  */
 
 import type { Config } from "../H2H/config.ts";
@@ -51,7 +51,7 @@ export function h2hRoutes(cfg: Config, store: Store, onWrite: () => void): Route
         tables: tables(store.ro).length,
         write: cfg.api.allowWrite,
         query: cfg.api.allowQuery,
-        // 绑判据这道闸是令牌还是自报来源。客户端（和审计）一眼看得出这台机器的边界有多硬。
+        // Whether objective publication is protected by a token or relies on self-reported source. Clients and auditors can immediately see the strength of this boundary.
         objectiveGate: cfg.api.publisherToken ? "publisher-token" : "open",
         uptimeMs: Date.now() - started,
       }),

@@ -119,14 +119,14 @@ def main():
                     'No invoice, equal-budget causal claim or authorization to generate remaining431 records.'])
     doc = ROOT / 'docs/repair-2026-10-08'
     out = save(doc/'preserved-science-regrade-stored-independent-audit.json', report)
-    md = f"""已逐份只读核验 789 个新判卷收据、原候选 SHA 与 schedule tuple、81 个冻结执行源及完整题目集合，未调用模型或评分服务。原 acceptance 仍为 pending，原 1220 整批不完整，锁/财务释放不在本审计范围。
+    md = f"""All 789 new grading receipts, original candidate SHAs and schedule tuples, 81 frozen execution sources, and complete task sets were individually verified read-only, with no model or grading-service calls. Original acceptance remains pending, and the original 1220-run batch is incomplete; lock/financial release is outside this audit's scope.
 
-| 组 | 有效/已保留 | 通过 | 原计划分母 | 完整题目集合 |
+| Group | Valid/retained | Passed | Original planned denominator | Complete task set |
 | --- | ---: | ---: | ---: | --- |
 """
     for g in groups:
-        md += f"| {g['key']} | {g['valid']}/{g['retained']} | {g['passed']} | {g['planned']} | {'是' if g['originalKeysetComplete'] else '否'} |\n"
-    md += f"\nChemBench 的 194/286 与 259/283 仅为中断实验中保留记录的结果，不能作为 500 题分数。AIME/CMT 的完整集合已在保存收据上复核；这不补全整批、不执行剩余 431 条、不触及原四笔未知费用责任。actual financial4722 与历史 owned proof 仅核其 Pin，不重复原始47010件审计。详细报告 SHA {out['sha256']}；结果原件 SHA {RESULT_SHA}。\n"
+        md += f"| {g['key']} | {g['valid']}/{g['retained']} | {g['passed']} | {g['planned']} | {'yes' if g['originalKeysetComplete'] else 'no'} |\n"
+    md += f"\nChemBench 194/286 and 259/283 are results only for retained records from the interrupted experiment, not 500-task scores. Complete AIME/CMT sets were rechecked against saved receipts; this does not complete the batch, execute the remaining 431 records, or affect liability for the original four unknown costs. Only the pins of actual financial4722 and historical owned proof are checked; the original 47010-item audit is not repeated. Detailed report SHA {out['sha256']}; original results SHA {RESULT_SHA}.\n"
     md_pin = save(doc/'preserved-science-regrade-stored-independent-audit.md', md)
     print(json.dumps({'report':out,'markdown':md_pin}))
 

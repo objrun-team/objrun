@@ -139,19 +139,19 @@ with (local/'RESULTS.csv').open('w',newline='',encoding='utf-8-sig') as f:
  fields=['arm','id','valid','passed','outcome','recordStatus','error','actualCostUsd','unknownCostCount','unknownCostUpperBoundUsd','seconds','stoppingReason']
  writer=csv.DictWriter(f,fieldnames=fields);writer.writeheader()
  for r in records:writer.writerow({k:(r['grade'].get(k) if k in {'valid','passed','outcome'} else record_status(r) if k=='recordStatus' else r.get(k,'')) for k in fields})
-lines=[f"# SciBench {cfg['run']}",'',f"状态：{'进行中快照' if args.partial else '完整批次审计'}。",'', '| 组别 | 已完成 | 有效评分 | EX通过 | 已知费用 USD |','|---|---:|---:|---:|---:|']
+lines=[f"# SciBench {cfg['run']}",'',f"Status: {'in-progress snapshot' if args.partial else 'complete batch audit'}.",'', '| Arm | Completed | Valid grades | EX passes | Known cost (USD) |','|---|---:|---:|---:|---:|']
 for arm,s in stats.items():lines.append(f"| {arm} | {s['completed']}/{s['expected']} | {s['valid']} | {s['passed']} | {s['actualCostUsd']:.6f} |")
-cost_label='本实验累计已知费用（已含继承，历史请求只计一次）' if continuation_path.exists() else '本批新增已知费用'
-lines.extend(['',f'{cost_label} ${actual:.6f}；未知费用 {unknown} 笔，预留 ${reserve:.6f}。',f"核验 {len(checks)} 项，通过：{audit['allPassed']}。",'','模型沿用 SciCode：deepseek-v4.1-flash / DigitalOcean / high / temperature 0 / 16384 tokens。','独立采样与二值反馈最多5个完整答案、EX通过即停；三种多轮方法不设单题费用上限。','ObjRun 保留 c5 / 600秒 / 4分支 / 12 units；异常与答错分别记录。'])
-lines.extend(['',f"原始记录分类：有效 {record_status_counts['valid']}；接口/基础设施异常 {record_status_counts['infrastructure_error']}；原生无最终submit {record_status_counts['native_no_final_submission']}；其他无效 {record_status_counts['other_invalid']}。原始grade不改，未提交与接口故障分列。"])
+cost_label='Cumulative known cost for this experiment (including inherited requests, each counted once)' if continuation_path.exists() else 'New known cost in this batch'
+lines.extend(['',f'{cost_label} ${actual:.6f}; {unknown} requests with unknown cost, reserve ${reserve:.6f}.',f"Verification: {len(checks)} checks; passed: {audit['allPassed']}.",'','Same model setup as SciCode: deepseek-v4.1-flash / DigitalOcean / high / temperature 0 / 16384 tokens.','Independent sampling and binary feedback allow up to 5 complete answers, stopping on EX pass; the three multi-round methods have no per-problem cost cap.','ObjRun retains c5 / 600 seconds / 4 branches / 12 units; errors and incorrect answers are recorded separately.'])
+lines.extend(['',f"Raw record classification: valid {record_status_counts['valid']}; API/infrastructure errors {record_status_counts['infrastructure_error']}; native runs without final submit {record_status_counts['native_no_final_submission']}; other invalid {record_status_counts['other_invalid']}. Original grade values remain unchanged; missing submissions and API failures are listed separately."])
 if continuation_path.exists():
- split=audit['continuationAccounting'];lines.extend(['',f"继承 {split['inheritedRecords']} 条结果、{split['inheritedModelCalls']} 笔请求：已知 ${split['inheritedKnownUsd']:.6f}，未知 {split['inheritedUnknownCount']} 笔。",f"本次续跑新增已知 ${split['newKnownUsd']:.6f}；新增未知及在飞 {split['newUnknownCountIncludingActive']} 笔。不能把旧归档费用再加到本报告累计金额上。"])
+ split=audit['continuationAccounting'];lines.extend(['',f"Inherited {split['inheritedRecords']} results and {split['inheritedModelCalls']} requests: known cost ${split['inheritedKnownUsd']:.6f}, with {split['inheritedUnknownCount']} unknown-cost requests.",f"This continuation adds known cost of ${split['newKnownUsd']:.6f} and {split['newUnknownCountIncludingActive']} new unknown-cost or in-flight requests. Do not add old archive costs again to this report’s cumulative amount."])
 if cfg.get('recoveryFrom'):
  original=local.parent/'pilot-20261016-v1/AUDIT.json'
  if original.exists():
   old=read(original);audit['originalPilotAccounting']={k:old[k] for k in ['actualCostUsd','unknownCostCount','unknownCostUpperBoundUsd']}
   audit['originalPlusRecoveryKnownUsd']=old['actualCostUsd']+actual
-  lines.extend(['',f"原始试跑已知费用 ${old['actualCostUsd']:.6f}、未知 {old['unknownCostCount']} 笔（预留 ${old['unknownCostUpperBoundUsd']:.6f}）完整保留；加本次恢复后已知合计 ${old['actualCostUsd']+actual:.6f}。",'恢复仅继续两条未完成原生断点；原始记录、原始候选和原始归档保持独立，不能把历史复制回执重复计费。'])
+  lines.extend(['',f"Original pilot costs remain fully preserved: known ${old['actualCostUsd']:.6f}, {old['unknownCostCount']} unknown-cost requests (reserve ${old['unknownCostUpperBoundUsd']:.6f}). Including this recovery, total known cost is ${old['actualCostUsd']+actual:.6f}.",'Recovery resumes only two incomplete native checkpoints. Original records, candidates, and archives remain separate; copied historical receipts must not be counted twice.'])
   (local/name).write_text(json.dumps(audit,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 (local/'REPORT.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
 print(json.dumps({k:v for k,v in audit.items() if k!='details'},ensure_ascii=False))

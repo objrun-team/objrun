@@ -1,20 +1,22 @@
-# ChemBench —— G 设计表
+# ChemBench — G design
 
-题库：HF `jablonkagroup/ChemBench`，9 个主题 2785 题：2542 选择（可多选）+ 243 数值。
-判据：官方 `all_correct`（选择 = 字母集合相等；数值 = 误差 < 1% 目标值）。
+Dataset: HF `jablonkagroup/ChemBench`, 2785 tasks across 9 topics: 2542 choice questions (possibly multiple answers) + 243 numerical questions.
+Criterion: official `all_correct` (choice: equal letter sets; numerical: error < 1% of the target value).
 
-## 四个字段
+## Four fields
 
-| 字段 | 现在的值 | 理由 |
+| Field | Current value | Rationale |
 |---|---|---|
-| 结构 | `parsed → correct` | — |
-| 边界 | `noSearch` 挡 chembench/lamalab | 题库公开 |
-| **预算** | **`checks: 1`，`maxDeadSiblings: 1`** | 选项通常 4–6 个，多选题空间 2^n−1；给 1 次 + 1 次重来 = 最多 2 个候选，枚举可达率对四选一 ≈ 50%，仍然高——**ChemBench 的 F 臂主要是零模型对照**；数值题（243）不受此限，可以单独报 |
-| 信息级别 | ℓ0 | — |
-| 时限 | 900 s | 题短；2785 题 × 1 h 跑不完 |
+| Structure | `parsed → correct` | — |
+| Boundary | `noSearch` blocks chembench/lamalab | The dataset is public |
+| **Budget** | **`checks: 1`, `maxDeadSiblings: 1`** | Usually 4–6 options; multiple-answer space is 2^n−1. One attempt + one restart permits at most 2 candidates, still reaching approximately 50% for four-option single-answer questions. **ChemBench’s F arm is primarily a null-model control**. Numerical tasks (243) are unaffected and can be reported separately |
+| Feedback level | ℓ0 | — |
+| Time limit | 900 s | Short questions; 2785 tasks × 1 h is impractical |
 
-## 主题
-默认 9 个主题全含（对齐 eacndev 的 2785）。`chemical_preference`（1000 题）是人类偏好二选一，不是知识题；要剔掉就改环境变量 `TGENGIN_CHEMBENCH_TOPICS`。
+## Topics
 
-## 建议
-主报 U 臂；F 臂只在数值题子集上有信息量。跑全量前先 `HOW_MANY=20` 冒烟。
+Include all 9 topics by default, matching eacndev’s 2785 tasks. `chemical_preference` (1000 tasks) asks for binary human preferences, not knowledge. To exclude it, change `TGENGIN_CHEMBENCH_TOPICS`.
+
+## Recommendation
+
+Report the U arm as the main result; the F arm is informative only on the numerical subset. Run a `HOW_MANY=20` smoke test before the full dataset.

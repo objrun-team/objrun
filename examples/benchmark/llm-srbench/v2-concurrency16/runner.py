@@ -72,7 +72,7 @@ def main():
         audit=audit_exception.inspect(ROOT,True);common.save(CONTROL/'exception-audit.json',audit);assert audit['approvedExceptionAuditPassed'],audit
         core.STATE.update(stage='final_evaluation',approvedExceptionAuditPassed=True);core.status();old.final_analysis()
         for directory in [OUT,ROOT/'analysis/outputs']:
-            report=directory/'REPORT.md';report.write_text(report.read_text()+'\n\n并发切换：在旧控制器排空并退出后，只有未启动的 '+str(len(p['remainingCells']))+' 个单元使用独立16/16/16控制器。此前 '+str(len(p['protectedCells']))+' 条v2原始记录保持不变；各执行段清单、哈希和并发观测位于outputs/concurrency16。\n',encoding='utf8')
+            report=directory/'REPORT.md';report.write_text(report.read_text()+'\n\nConcurrency transition: after the old controller drained and exited, only '+str(len(p['remainingCells']))+' unstarted units used the independent 16/16/16 controller. The preceding '+str(len(p['protectedCells']))+' original v2 records remain unchanged; execution-segment manifests, hashes, and concurrency observations are in outputs/concurrency16.\n',encoding='utf8')
             summary=load(directory/'summary.json');summary['concurrencyHandoff']={'preserved':len(p['protectedCells']),'concurrency16':len(p['remainingCells']),'capacities':[16,16,16],'allOriginalAuditsPassed':False};common.save(directory/'summary.json',summary)
         preserve();core.STATE['stage']='complete_with_exceptions'
     except Exception as e:core.STATE.update(stage='needs_attention',stopReason=type(e).__name__+':'+str(e));traceback.print_exc()

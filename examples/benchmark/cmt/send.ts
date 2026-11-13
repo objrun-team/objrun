@@ -1,24 +1,23 @@
 /**
- * 把 `cmt_data.jsonl` 拼成一批带 G 的题，发给 `POST /bench`。
+ * Build a batch of G-bearing tasks from `cmt_data.jsonl` and submit it to `POST /bench`.
  *
  * ```
- * bun examples/benchmark/cmt/send.ts [几道] [这一跑叫什么]
+ * bun examples/benchmark/cmt/send.ts [count] [run-name]
  * ```
  *
- * 50 道题没法在文档里一条条 curl，所以有这么个脚本。**它只干一件事：拼请求体**
- * —— 一道题长什么样、G 长什么样，README 里有完整的一份。
+ * Issuing 50 curl commands in documentation is impractical. **This script only assembles request bodies**; the README includes complete examples of a task and G.
  *
- * 题面进 `description`，`solution` **不进** —— 智能体那一侧看不到答案。
+ * Put the statement in `description`, **never `solution`**: the agent side must not see the answer.
  */
 
 const BASE = process.env.TGENGIN_BASE ?? "http://127.0.0.1:7801/api";
-/** 引擎设了 api.publisherToken 时，绑判据要带这把钥匙（X-TGEngin-Publisher）。从环境变量取；没设就是空对象，老行为不变。 */
+/** When api.publisherToken is configured, attaching grading criteria requires this key (X-TGEngin-Publisher). Read it from the environment; if unset, use an empty object to preserve existing behavior. */
 const PUBLISHER: Record<string, string> = process.env.TGENGIN_PUBLISHER_TOKEN ? { "x-tgengin-publisher": process.env.TGENGIN_PUBLISHER_TOKEN } : {};
 const GRADER = process.env.TGENGIN_CMT_GRADER ?? "http://127.0.0.1:7901";
 const HOW_MANY = Number(process.argv[2] ?? 0);
 const RUN = process.argv[3] ?? `cmt-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}`;
 
-/** 判卷台发过来的题面。**没有 `solution`** —— 那一栏不出它的进程。 */
+/** Problem statement exposed by the grader. **No `solution`**; that field remains inside the grading process. */
 interface Item {
   index: number;
   prompt: string;
@@ -27,13 +26,11 @@ interface Item {
   type: string;
 }
 
-// **题从判卷台取，不从磁盘读。**
+// **Fetch problems from the grader, not disk.**
 //
-// 题库跟答案在一起，装在判卷台那一侧（见 `setup.sh`）。这个脚本跑在引擎那台机器上，
-// 读不到那个路径 —— 那正是我们要的：solver 手上有 read / glob / bash，干活的地方
-// 就是这台机器，题库放这儿的话它 glob 一下就找到（实测它已经摸到门口了）。
+// The corpus and answers are installed on the grader side (setup.sh). This script runs on the engine machine and cannot read that path, as intended: a solver with read/glob/bash would find a local corpus immediately, and an observed run had already reached it.
 //
-// 所以走 HTTP 取题：`/problems` 只回题面，`solution` 一个字都不过来。
+// Fetch through HTTP: `/problems` returns statements and no `solution` content.
 const res0 = await fetch(`${GRADER}/problems${HOW_MANY > 0 ? `?n=${HOW_MANY}` : ""}`);
 if (!res0.ok) {
   console.error(`cannot fetch problems from the grader (${GRADER}/problems): ${res0.status}`);
@@ -41,13 +38,10 @@ if (!res0.ok) {
 }
 let items = (await res0.json()) as Item[];
 
-// **只发点名的那几道。** 空 = 全发。
+// **Submit only named problems; empty means all.**
 //
-// 复现一次「上一跑哪几道没做完」时要用：那几道在题库里的下标是散的，按「前 N 道」
-// 取不到它们。
-// **先把空的挑掉，再转数字。** 反过来的话空字符串会变成一个合法的下标：
-// `"".split(",")` 是 `[""]`，`Number("")` 是 `0`，而 `0` 是个正经的题号 ——
-// 于是「没点名」被读成「只要第 0 道」。实测就这么发出去过一道题。
+// Use this to reproduce the unfinished problems from an earlier run: their corpus indexes may be scattered, so selecting the first N is insufficient.
+// **Remove empty entries before converting to numbers.** Otherwise `"".split(",")` is `[""]`, `Number("")` is `0`, and 0 is a valid problem index. An empty selection then becomes only problem 0; this caused a real unintended submission.
 const ONLY = (process.env.TGENGIN_CMT_ONLY ?? "")
   .split(",")
   .map((x) => x.trim())
@@ -63,15 +57,14 @@ if (ONLY.length) {
 }
 
 /**
- * 每道题的 G。两个节点，**句柄名就是判卷台的地址**：
+ * Per-problem G has two nodes, with **grader URLs as handles**:
  *
  * ```
- *   parsed ──→ equiv        parsed：给没给出 \boxed{}
- *                           equiv ：跟 GT 等不等价（根）
+ *   parsed ──→ equiv       parsed: was an answer supplied in \boxed{}?
+ *                          equiv: is it equivalent to GT? (root)
  * ```
  *
- * 根**必须有入边** —— 没有的话它的值跟候选无关，G 恒定，那是个无效目标，
- * 发布这一关就拒。而这两格正好是原基准自己报的那两栏（`parse` / `equiv`）。
+ * The root **must have an incoming edge**; without one it is candidate-independent, making G constant and invalid at publication. These nodes are the original benchmark's own `parse`/`equiv` results.
  */
 const objective = {
   nodes: [
@@ -80,25 +73,19 @@ const objective = {
   ],
   edges: [{ src: "parsed", out: 0, dst: "equiv" }],
   sink: "equiv",
-  // **一轮里能问几次这个黑盒。** 跟干活的额度配着给：一轮二十格，问十次是宽的 ——
-  // 够它「算出来 → 验一次 → 照着 why 改 → 再验」来回好几趟。
+  // **Black-box queries per attempt.** Match this to the work budget: with 20 work units, 10 queries comfortably allow repeated compute/check/revise-from-why/check cycles.
   //
-  // 有上限这件事本身才是要紧的：不设的话，最省事的策略是把答案空间枚举一遍
-  // （实测过一道题被连着试了七十七个排列组合），而那样得来的分数量的是答案空间
-  // 有多大，不是它会不会做。
+  // The existence of a limit matters most. Otherwise enumerating answers is the easiest strategy: one observed problem tried 77 permutations without reasoning. That measures answer-space size rather than solving ability.
   checks: Number(process.env.TGENGIN_CMT_CHECKS ?? 10),
 };
 
 /**
- * **U 臂：不挂 G。** 报告一 §6 预注册的 unaided arm —— 同一批题、同一个求解器、同一份
- * 描述，只是任务不带验证函数：交卷即收工，没有判决、没有判死重来，pass@1。
+ * **Arm U: no G attached.** The unaided arm preregistered in report 1 §6 uses the same problems, solver, and descriptions, but no verification function. Submission ends the task without verdicts or retries, giving pass@1.
  *
- * 描述要**逐字节一样**（附录 A 的 B3）：带 G 的题 `readable: true` 时发布口会把
- * `## Acceptance criteria` + G 的 JSON 拼到描述后面；不带 G 的题发布口不拼，所以这儿
- * 由发题脚本拼同一段。判分在跑完之后由 `grade-unaided.ts` 拿交卷内容去问判卷台。
+ * Descriptions must be **byte-identical** (Appendix A, B3). With `readable: true`, publication appends `## Acceptance criteria` and G JSON. Publication does not do that for tasks without G, so this sender appends the same text itself. After completion, `grade-unaided.ts` submits the saved answer to the grader.
  */
 const UNAIDED = process.env.TGENGIN_CMT_UNAIDED === "1";
-/** 哪把钥匙、哪个模型。默认跟基线一样；U 臂换到 OpenRouter 上的 0731 时从这儿改。 */
+/** Provider key and model. Defaults match the baseline; override here when arm U uses the 0731 model through OpenRouter. */
 const BOT_APIS = process.env.TGENGIN_CMT_BOT_APIS;
 
 const tasks = items.map((it) => ({
@@ -107,84 +94,66 @@ const tasks = items.map((it) => ({
   agent: "bot",
   place: "local",
   source: "user",
-  // 这是哪一类问题。**扩展按它分发** —— 跟 `mode`（推理机制）是两回事。
-  // 平的一个值，不往里塞层级：要收紧就在 `when` 里跨维多写几条条件。
+  // Problem category. **Extensions dispatch on this**, independently of `mode` (the reasoning mechanism).
+  // Keep the value flat; express tighter conditions across dimensions in `when` instead of encoding a hierarchy in it.
   domain: "physics",
-  // **每道题多久。** 环境变量顶掉，默认一小时。
+  // **Per-problem time limit.** Override through the environment; default is one hour.
   //
-  // 时限要长过一次调用的死期，不能等于它：模型那条句柄的 `expect_ms` 是 15 分钟，
-  // 两个钟同时响的话任务那个先赢 —— 「一次调用卡住 → 判死这一站 → 换个节点重来」
-  // 那条路就永远走不到，整道题跟着一次抖动一起没。
+  // It must exceed one call's timeout, not equal it. The model handle has `expect_ms` of 15 minutes; simultaneous deadlines let the task timeout win, preventing the stalled-call -> dead-station -> new-node retry path. One transient delay would end the whole task.
   //
-  // 而实测一小时也未必够：慢的那几道走到第七站才用掉十二格额度里的四格，时间先没了，
-  // 它们从来没走到过交卷站，连一份错答案都交不出来。
+  // Even one hour was insufficient in observed slow problems: reaching station 7 used only 4 of 12 budget units before time expired. They never reached submission, so not even a wrong answer was handed in.
   solveSeconds: Number(process.env.TGENGIN_CMT_SECONDS ?? 3600),
-  // **只留时间这一个闸。** 额度、分支、判死重来的次数都给够 —— 卡在哪儿就该是
-  // 「时间到了」，不该是「格子用完了」。哪一样先撞上，成绩单说的就是哪一样，
-  // 而我们想量的是前者。
+  // **Let time be the only binding constraint.** Provide enough units, branches, and retries that termination means time expired rather than work units exhausted. The first exhausted budget determines what the score measures, and we intend to measure the former.
   maxBranches: 4,
   maxDeadSiblings: Number(process.env.TGENGIN_CMT_K ?? 8),
   /**
-   * **一轮里准搜几次。** 一轮 = 一站，判死重来是新的额度；被拦下的、超额被拒的都不扣数。
+   * **Searches allowed per round.** Here a round is one station; restarting after a dead attempt gets a fresh allowance. Blocked or over-limit searches do not count.
    *
-   * 这个数是量出来的，不是拍的。上一跑（同样 medium、同样一小时、**没设这一栏**）
-   * 一道题的一小时是这么花的：
+   * This value was measured, not guessed. In the previous run (same medium reasoning, same one-hour limit, **this field unset**), time was distributed as follows:
    *
-   * | | 占了多少 |
+   * | Activity | Share |
    * | --- | --- |
-   * | 问模型 | 60%（462 次 × 107 秒） |
-   * | **等检索** | **39%**（230 次 × 138 秒） |
-   * | 跑别的工具 | 1%（198 次 × 5 秒） |
+   * | Model calls | 60% (462 × 107 s) |
+   * | **Waiting for search** | **39%** (230 × 138 s) |
+   * | Other tools | 1% (198 × 5 s) |
    *
-   * 平均每道搜 16 次、最多 34 次 —— **一小时里有 23 分钟在等检索**，而那一跑没有一道题
-   * 撞到过格子上限：卡住它们的是钟。一次检索比一次思考还贵（138 秒 vs 107 秒），
-   * 所以省下来的每一次都直接换成一次能推导的调用。
+   * Mean searches per problem were 16, maximum 34: **23 minutes of an hour went to waiting for search**. No problem hit its work-unit cap; wall time was binding. Search cost more time than a reasoning call (138 s versus 107 s), so each avoided search directly permits another reasoning call.
    *
-   * 给 5：够「查一篇文献 → 查它引的那篇 → 补个定义」这么一串，不够把一个方向来回翻。
+   * Allow 5: enough to find a paper, follow a reference, and look up a definition, but not repeatedly browse one direction.
    */
   maxSearches: 5,
   /**
-   * **不许搜到这套题本身。**
+   * **Do not retrieve this benchmark's own answer set.**
    *
-   * 搜文献是本事 —— 题目的物理就发表在某篇论文里，找到它、读懂它、照着推，那是解题。
-   * 搜到**这套基准的答案册**不是：那量的是「这份数据集好不好扒」。
+   * Finding a paper containing the relevant physics, understanding it, and deriving an answer is legitimate solving. Retrieving **the benchmark answer book** instead measures how easy the dataset is to scrape.
    *
-   * 这条不是假想。实测一跑：十五分钟里 834 个开过的页面，**143 个落在这份数据集
-   * 上**，而且绕得很有章法 ——
+   * This happened in practice: of 834 pages opened in 15 minutes, **143 were dataset pages**, reached systematically:
    *
    * ```
-   * huggingface.co/datasets/…/resolve/main/cmt_data.jsonl    主站
-   * hf-mirror.com/…/raw/main/cmt_data.jsonl                  主站不通换镜像
-   * r.jina.ai/https://…/cmt_data.jsonl                       镜像不通换文本代理
-   * web.archive.org/web/…/rows?…&offset=1&length=1            再不通换存档站
+   * huggingface.co/datasets/…/resolve/main/cmt_data.jsonl    Primary host
+   * hf-mirror.com/…/raw/main/cmt_data.jsonl                  Mirror when the primary fails
+   * r.jina.ai/https://…/cmt_data.jsonl                       Text proxy when the mirror fails
+   * web.archive.org/web/…/rows?…&offset=1&length=1            Archive as the next fallback
    * ```
    *
-   * 查询串直接写着 `cmt_benchmark row 1 answer`、`"cmt_benchmark" "answer": "$\Delta"`，
-   * 甚至拿着答案原文回去反查数据集。那一跑它得手了，轨迹里留着一句
-   * 「The web search found the reference answer」。
+   * Queries explicitly included `cmt_benchmark row 1 answer` and `"cmt_benchmark" "answer": "$\Delta"`; the model even reverse-searched the original answer text. It succeeded, leaving "The web search found the reference answer" in the trace.
    *
-   * 所以**按域名挡不住** —— 每条备用路都得单列一遍，而下一条永远列不到。
+   * **Domain blocking is insufficient**: every fallback needs its own entry, and future ones cannot all be enumerated.
    *
-   * ## 不能是连写的，而且一条不够
+   * ## Match separate words, with more than one rule
    *
-   * 列 `cmt_benchmark` 这种连写太松：同一跑里它还摸到了第三方的一份拷贝
-   * （`Infektyd/syntra-evals-dataset/…/cmt-physics.jsonl`），名字完全不一样，
-   * 连写那条一个都拦不住 —— 可那照样是答案册。
+   * The joined token `cmt_benchmark` misses copies such as `Infektyd/syntra-evals-dataset/…/cmt-physics.jsonl`, encountered in that same run under a different name.
+   * Each entry is therefore **a group of words that must all appear** (`tripped` in `tools/search.ts`), irrespective of separators, hyphens/underscores, or order.
    *
-   * 所以一条项是**一组词，全都出现才算命中**（见 `tools/search.ts` 的 `tripped`）：
-   * 中间隔着什么、连字符还是下划线、顺序如何，一概不管。
+   * Why not just `"cmt benchmark"`? Testing the 168 real searches gave:
    *
-   * 那为什么不是一条 `"cmt benchmark"` 就完了 —— 拿那一跑真实的 168 次检索量过：
-   *
-   * | 判据 | 漏 | 误伤 |
+   * | Rule | Misses | False positives |
    * | --- | --- | --- |
    * | `cmt benchmark` | **5** | 0 |
    * | `cmt` | 0 | **1** |
-   * | 下面这三条 | **0** | **0** |
+   * | The three rules below | **0** | **0** |
    *
-   * 漏的那 5 次是它**直接拉原始 jsonl**：返回里有 `cmt`，却没有 `benchmark` 这个词。
-   * 只列 `cmt` 又会误伤正经文献。三条各挡一种说法，多列两条不花什么代价，而少列
-   * 一条就是那个洞。
+   * The five misses fetched raw JSONL directly: results contained cmt but not benchmark. Using cmt alone blocked legitimate literature. The three rules cover distinct phrasings at little cost; omitting one leaves that hole open.
    */
   noSearch: ["cmt benchmark", "cmt dataset", "cmt jsonl"],
   description:
@@ -194,32 +163,26 @@ const tasks = items.map((it) => ({
     `\nPut the final answer inside \\boxed{}.` +
     (UNAIDED ? `\n\n## Acceptance criteria\n${JSON.stringify(objective, null, 2)}` : ""),
   ...(UNAIDED ? {} : { objective }),
-  // 带 G 就必须显式给：这道题的智能体读不读得到 G 的定义。
+  // When attaching G, explicitly declare whether the agent may read its definition.
   //
-  // **给 true。** 要藏的只有 GT，不是验收标准 —— 「答案得在 \boxed{} 里、
-  // 而且要被官方 parser 读得出来」本来就该让它知道。藏着的那一跑五道里两道
-  // 死在 parsed=False：不是不会做，是不知道尺子长什么样。
+  // **Set true.** Hide only GT, not acceptance criteria. The solver should know that its answer belongs in \boxed{} and must be readable by the official parser. In the hidden-criteria run, two of five problems failed with parsed=False because the format was unknown, not because the problems were unsolvable.
   ...(UNAIDED ? {} : { readable: true }),
 }));
 if (UNAIDED) console.log(`${RUN}: UNAIDED arm - no objective mounted, descriptions carry the same acceptance text`);
 void BOT_APIS;
 
 /**
- * **同时做几道。** 0 = 不管，整批一次全发出去（老行为）。
+ * **Concurrent problems.** 0 preserves the old behavior of submitting the whole batch without a cap.
  *
- * 内核那边是**来多少吃多少**：没出站过的行全部当场发出去。所以「同时做几道」
- * 这件事只能在发题这一侧管 —— 库里同时摆着几道没做完的，机器上就同时在做几道。
+ * The kernel dispatches every unsent row immediately. Concurrency must therefore be controlled by the sender: unfinished tasks in the database correspond to active tasks on the machine.
  *
- * 为什么要管：五十道一起发，就是五十个并发调用一起打给同一个供应商。它不会拒，
- * 它会排队 —— 实测二十道并发时每次调用的耗时中位数就到了一分半、长尾十分钟。
- * **吞吐没涨，延迟涨了**，而每道题的时限是按墙上的钟算的，于是题反而做不完。
+ * Submitting 50 problems creates 50 concurrent calls to one provider, which queues rather than rejects them. At concurrency 20, observed median call time reached 1.5 minutes with a ten-minute tail. **Latency increased without a throughput increase**, exhausting per-task wall-time budgets.
  *
- * **这是「同时二十道」，不是「一批二十道」**：做完一道就补一道进去，而不是等
- * 二十道全做完再发下一批。后者会被那一批里最慢的一道拖住整队。
+ * Maintain **20 concurrent problems, not batches of 20**: replace each completed task immediately instead of letting the slowest task hold up a whole batch.
  */
 const AT_ONCE = Number(process.env.TGENGIN_CMT_AT_ONCE ?? 0);
 
-/** 这一跑现在有几道还没做完（没开工的 + 在做的）。 */
+/** Current unfinished task count for this run: not yet started plus running. */
 async function busy(): Promise<number> {
   const r = await fetch(`${BASE}/bench/${RUN}`);
   if (!r.ok) return 0;
@@ -228,8 +191,7 @@ async function busy(): Promise<number> {
 }
 
 if (AT_ONCE > 0) {
-  // 一道一道地发，发之前先看有没有空位。`POST /tasks` 那道准入检测是按题的
-  // （G 过不了就拒这一道），所以拆开发不会松掉任何一条规矩。
+  // Submit tasks individually after checking for a free slot. Admission through `POST /tasks` validates each problem and rejects its invalid G, so splitting a batch weakens no rule.
   console.log(`${RUN}: ${tasks.length} tasks, keeping ${AT_ONCE} of them in flight`);
   let sent = 0;
   for (const t of tasks) {

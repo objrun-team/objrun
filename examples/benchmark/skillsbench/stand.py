@@ -1,64 +1,46 @@
-"""SkillsBench 1.1 的台子 —— 引擎外面的一个 HTTP 服务，跑在有 docker 的机器上（WSL）。
+r"""SkillsBench 1.1 service: an HTTP service outside the engine, running on a Docker host (WSL).
 
-2026-10-08 隔离修复：此通用台子的 Docker 快照会执行候选可修改的 bash/Python，
-不能正式计分；Docker 快照、Apptainer 和 level 3 仅可用 --unsafe-diagnostic 诊断。
-每次诊断评分使用独立快照、实例和日志名，防止跨 run 覆盖。正式 JPG 私有输出评分
-由独立 repair adapter 实现，其原镜像/输出文件/解释器与实际控制门另行验证。
-发题、工具与评分入口须携带宿主 TGENGIN_GRADER_TOKEN，令牌不写入任务或容器。
-正式 level 2 回报稳定的 test#N 序号；测试原名可能包含参数化期望值，仅诊断时可见。
+2026-10-08 isolation fix: this general service’s Docker snapshots execute candidate-modifiable bash/Python and cannot produce formal scores. Docker snapshots, Apptainer, and level 3 are diagnostic-only with --unsafe-diagnostic. Each diagnostic grading uses independent snapshot, instance, and log names to prevent cross-run overwrites. Formal private-output JPG grading uses a separate repair adapter; its original image, output files, interpreter, and actual control gates are verified separately. Problem, tool, and grading endpoints require the host TGENGIN_GRADER_TOKEN, which is never placed in tasks or containers. Formal level 2 returns stable test#N indices; original test names may contain parameterized expected values and are visible only in diagnostics.
 
     python3 stand.py [--port 7903] [--level 2] [--skills with|none] [--network official|none]
-    python3 stand.py --pick 10 0          点名（给 setup.sh 用）
-    python3 stand.py --build [TASK_ID...] 建镜像
+    python3 stand.py --pick 10 0          Select tasks (for setup.sh).
+    python3 stand.py --build [TASK_ID...] Build images.
     python3 stand.py --selftest [TASK_ID...]
 
-引擎那边它是**三条句柄**：
+The engine sees **three handles**:
 
-    http://127.0.0.1:7903/place       在哪儿干：把工具调用转发进那道题的容器
-    http://127.0.0.1:7903/verified    G 的第一格：官方 verifier/test.sh 跑完、写出了 reward.txt
-    http://127.0.0.1:7903/passed      G 的根：reward == 1.0
+    http://127.0.0.1:7903/place       Where to work: forward tool calls into the task container.
+    http://127.0.0.1:7903/verified    First node of G: official verifier/test.sh completed and wrote reward.txt.
+    http://127.0.0.1:7903/passed      Root of G: reward == 1.0.
 
-句柄名本身就是地址，内核 POST 一份 JSON 过来，这儿回一份 JSON —— 没有别的协议。
+Each handle is its own address. The kernel POSTs JSON and receives JSON; there is no additional protocol.
 
-## 候选是容器状态
+## The candidate is container state
 
-题面写死了输出路径（`/root/offer_letter_filled.docx` 这种），官方判据直接 open 它。
-所以交卷字符串**不看**，判的是交卷那一刻容器里的文件。判卷时先 `docker commit` 干活容器
-成快照，再起一个一次性容器把官方 `verifier/` 拷进 `/verifier` 跑 `test.sh`。
+The problem statement fixes output paths (such as `/root/offer_letter_filled.docx`), which the official grader opens directly. The submission string is **ignored**: grading evaluates the files in the container at submission time. First `docker commit` the work container into a snapshot, then start a disposable container, copy official `verifier/` into `/verifier`, and run `test.sh`.
 
-官方 harness 是 `verifier.service: main` —— 在干活容器里原地跑。改用快照只有一个理由：
-一轮里 verify 会问好几次，每次 test.sh 都 `apt-get`/`uvx` 装一遍东西，原地跑的话干活
-容器越判越脏。判据本身一字不改。
+The official harness uses `verifier.service: main`, running in place in the work container. Snapshots serve one purpose: verify can be called several times per round, and test.sh reinstalls dependencies with `apt-get`/`uvx` each time, progressively contaminating the work container. The grader itself is unchanged.
 
-## 判卷是官方的，一行不改
+## The official grader, unchanged
 
-`tasks/<id>/verifier/test.sh`（+ `test_outputs.py`，pytest）是官方判据，退出码 0 就
-`echo 1 > /logs/verifier/reward.txt`。这个文件不实现任何判断，只做四件事：起容器、拍快照、
-把官方判据跑起来、读 `reward.txt`。
+`tasks/<id>/verifier/test.sh` (+ pytest `test_outputs.py`) is the official grader; exit code 0 causes `echo 1 > /logs/verifier/reward.txt`. This file implements no grading decisions: it starts containers, snapshots them, runs the official grader, and reads `reward.txt`.
 
-**通过 = reward == 1.0**，论文和官方 oracle 门（`run_benchflow_integration.py:549`）都这么定。
-7 道题的 test.sh 写的是分数，榜单 `mean(reward)` 给部分分，这儿不给 —— 分数进 note。
+**Pass = reward == 1.0**, as defined by the paper and official oracle gate (`run_benchflow_integration.py:549`). Seven tasks write fractional rewards; leaderboard `mean(reward)` grants partial credit, but this service does not. The fractional reward goes in note.
 
-## 分级：这一栏说多少
+## Feedback levels: how much this field reveals
 
-    0   只有过没过
-    1   + 哪一段断的 + reward 数值 + pytest 计数（81 道有 ctrf.json）
-    2   + 是哪几条没过（测试名）
-    3   + 断言原文 —— **会漏 GT**（很多断言把期望值写在信息里），只当上界实验
+    0   Pass/fail only.
+    1   + Failed stage + reward value + pytest counts (81 tasks have ctrf.json).
+    2   + Failed tests (test names).
+    3   + Raw assertions: **leaks ground truth** (many messages contain expected values); upper-bound experiments only.
 
-## skills 是这个 benchmark 的自变量
+## Skills are this benchmark’s independent variable
 
-论文比的是同一模型「有 / 无 skills」。`--skills with` 把 `environment/skills/` 拷进
-`/root/skills` 和 `/root/.claude/skills`，并在 `/problems` 里附 skill 名和描述让发批脚本
-拼进题面（官方 harness 是注入 system prompt，我们的 solver 不是那些 harness，这是我们自己
-的注入法）。`--skills none` 是 no-skill 对照。G 的形状两趟一样。
+The paper compares the same model with and without skills. `--skills with` copies `environment/skills/` into `/root/skills` and `/root/.claude/skills`, then includes skill names and descriptions in `/problems` for the batch script to append to the problem statement. The official harness injects a system prompt; our solver is not one of those harnesses, so this is our injection method. `--skills none` is the no-skill control. G has the same shape in both runs.
 
-## oracle/ 和 verifier/ 不出这个进程
+## oracle/ and verifier/ stay within this process
 
-参考解只在自检里用。GT 在 `verifier/` 里，只进那个一次性判卷容器。**但这不是隔离**：
-86/87 道题官方给干活容器 `network_mode: public`，而整个 benchmark 在 GitHub 上。
-`--network none` 是我们的旋钮，开了就不是榜上那个实验。
-"""
+Reference solutions are used only for self-tests. Ground truth stays in `verifier/` and enters only the disposable grading container. **This is not isolation**, however: official work containers use `network_mode: public` for 86/87 tasks, and the entire benchmark is on GitHub. `--network none` is our control; enabling it changes the experiment from the leaderboard’s."""
 
 from __future__ import annotations
 
@@ -80,7 +62,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / '_lib'))
 from grader_status import require_result, fault_payload
 
-import yaml  # setup.sh 装的 pyyaml —— task.md 的 frontmatter 是 YAML，stdlib 没有
+import yaml  # pyyaml installed by setup.sh: task.md frontmatter is YAML, which the standard library does not support.
 
 HOME_DIR = Path(os.environ.get("TGENGIN_SKB_HOME", Path.home() / ".cache" / "tgengin-skillsbench"))
 REPO = HOME_DIR / "skillsbench"
@@ -88,13 +70,13 @@ TASKS = REPO / "tasks"
 RUNTIME = HOME_DIR / "tgengin-runtime-linux-x64"
 LOGS = HOME_DIR / "logs"
 
-# ── 后端：docker 或 apptainer（Sherlock）────────────────────────────────────
-# 判据一行不改，只换容器四件事。实测见 $SCRATCH/bench-feas/REPORT-skillsbench.md：
-#   - 镜像：Dockerfile → def（$TGENGIN_SKB_HOME/def_of.py，spython 直译 + apt drop-in）→ images/<tid>.sif；
-#   - 干活容器：sif 只读 + **目录 overlay**（/lscratch）+ --containall --no-home（否则 /root 里 COPY 进来的题目文件被盖掉）；
-#   - 快照 = `cp -a` overlay 目录（0.1 s），替代 docker commit；判卷 = 一次性 exec 挂快照 overlay 跑官方 test.sh；
-#   - 指纹 = upper/ 里的路径+mtime+大小，替代 docker diff；
-#   - 做不到：--network none（无 net namespace）、--cpus/--memory（无 cgroup）。
+# ── Backends: Docker or Apptainer (Sherlock) ──
+# Keep the grader unchanged; replace only four container operations. Measurements: $SCRATCH/bench-feas/REPORT-skillsbench.md.
+#   - Image: Dockerfile → def ($TGENGIN_SKB_HOME/def_of.py, direct spython translation + apt drop-in) → images/<tid>.sif.
+#   - Work container: read-only SIF + **directory overlay** (/lscratch) + --containall --no-home (otherwise task files COPYed into /root are hidden).
+#   - Snapshot: `cp -a` of the overlay directory (0.1 s), replacing docker commit; grading: disposable exec with snapshot overlay running official test.sh.
+#   - Fingerprint: paths + mtime + sizes under upper/, replacing docker diff.
+#   - Unavailable: --network none (no network namespace), --cpus/--memory (no cgroups).
 BACKEND = os.environ.get("TGENGIN_SKB_BACKEND", "apptainer" if shutil.which("docker") is None and shutil.which("apptainer") else "docker")
 IMAGES = HOME_DIR / "images"
 DEFS = HOME_DIR / "defs"
@@ -111,11 +93,11 @@ if shutil.which("docker") is None and Path("/snap/bin/docker").exists():
     os.environ["PATH"] = "/snap/bin:" + os.environ.get("PATH", "")
 
 
-# ── 语料 ────────────────────────────────────────────────────────────────────
+# ── Corpus ──
 
 
 def split_task_md(text: str) -> tuple[dict, str]:
-    """`task.md` = `---` YAML frontmatter `---` 题面。题面就是 agent 看到的全部。"""
+    r"""`task.md` = `---` YAML frontmatter `---` problem statement. The statement is everything the agent sees."""
     m = re.match(r"^---\n(.*?)\n---\n(.*)$", text, re.S)
     if not m:
         raise ValueError("task.md has no frontmatter")
@@ -123,10 +105,9 @@ def split_task_md(text: str) -> tuple[dict, str]:
 
 
 def workdir_of(dockerfile: Path) -> str:
-    """Dockerfile 最后一条 WORKDIR，就是 agent 的 cwd（66 道 /root、15 道 /app…）。
+    r"""The last Dockerfile WORKDIR is the agent’s cwd (66 tasks use /root, 15 use /app…).
 
-    带变量的那一条（`WORKDIR ${WORKSPACE}`）会抓成字面量 —— 只有一道，见 G.md 未验证。
-    """
+    A variable form (`WORKDIR ${WORKSPACE}`) is captured literally; only one task has this. See the unverified items in G.md."""
     wd = "/root"
     for line in dockerfile.read_text(encoding="utf-8", errors="replace").splitlines():
         m = re.match(r"^\s*WORKDIR\s+(\S+)", line)
@@ -136,7 +117,7 @@ def workdir_of(dockerfile: Path) -> str:
 
 
 def skills_of(d: Path) -> list[dict]:
-    """每个 skill 的名字和描述（SKILL.md 的 frontmatter）。**只发这两样**，正文 solver 自己去读。"""
+    r"""Each skill’s name and description (SKILL.md frontmatter). **Send only these two fields**; the solver reads the body itself."""
     out = []
     for s in sorted((d / "environment" / "skills").glob("*/SKILL.md")):
         try:
@@ -148,7 +129,7 @@ def skills_of(d: Path) -> list[dict]:
 
 
 def load_corpus() -> dict[str, dict]:
-    """把 87 道题的元数据读进来。**oracle/ 不读，verifier/ 不读** —— 判卷时才拷进一次性容器。"""
+    r"""Load metadata for all 87 tasks. **Read neither oracle/ nor verifier/**; copy them into a disposable container only during grading."""
     if not TASKS.is_dir():
         raise SystemExit(f"the task corpus is missing: {TASKS} (run setup.sh first)")
     book: dict[str, dict] = {}
@@ -163,12 +144,12 @@ def load_corpus() -> dict[str, dict]:
             "category": str(meta.get("category", "")),
             "difficulty": str(meta.get("difficulty", "")),
             "instruction": body,
-            # **官方给了时限就用官方的**，我们不另编一个数。
+            # **Use the official time limit when provided**; do not invent another value.
             "seconds": int(float((fm.get("agent") or {}).get("timeout_sec", 1800))),
             "verify_seconds": int(float((fm.get("verifier") or {}).get("timeout_sec", 1800))),
             "cpus": str(env.get("cpus", 1)),
             "memory": f"{int(env.get('memory_mb', 4096))}m",
-            # 87 道里只有 bike-rebalance 是 no-network，其余 public。
+            # Only bike-rebalance among the 87 tasks has no-network; the rest are public.
             "network": str(env.get("network_mode", "public")),
             "workdir": workdir_of(d / "environment" / "Dockerfile"),
             "skills": skills_of(d),
@@ -179,11 +160,11 @@ def load_corpus() -> dict[str, dict]:
 
 BOOK = load_corpus()
 
-# **这台机器上跑不了的题。** 发批时不发，成绩单里按 0 算。每一条都得写清楚是量出来的什么。
-# 量法：`stand.py --selftest`（空容器判 0、官方 oracle 判 1 才算过），2026-09-28/29 三轮，记录在
-# $TGENGIN_SKB_HOME/{selftest.out,selftest3.out}。87 题里 76 过、9 自检不过、2 没翻出 Apptainer 定义。
+# **Tasks that cannot run on this machine.** Do not submit them; count them as 0 in the scorecard. Each entry must describe what was measured.
+# Method: `stand.py --selftest` (empty container scores 0 and official oracle scores 1), three rounds on 2026-09-28/29, recorded in
+# $TGENGIN_SKB_HOME/{selftest.out,selftest3.out}. Of 87 tasks, 76 passed, 9 failed self-tests, and 2 lacked translated Apptainer definitions.
 SKIP: dict[str, str] = {
-    # 自检不过：官方 oracle 在 Apptainer 容器里判不到 1.0
+    # Self-test failures: the official oracle does not score 1.0 in the Apptainer container.
     "crystallographic-wyckoff-position-analysis": "selftest: oracle=0.0",
     "exceltable-in-ppt": "selftest: oracle=0.0",
     "fix-druid-loophole-cve": "selftest: verifier exited 255 without writing reward.txt (oracle=0.0)",
@@ -191,17 +172,17 @@ SKIP: dict[str, str] = {
     "gravitational-wave-detection": "selftest: oracle=0.0",
     "python-scala-translation": "selftest: oracle=0.0",
     "setup-fuzzing-py": "selftest: oracle=0.66 (partial credit only)",
-    # 镜像建不出
+    # Image cannot be built.
     "debug-trl-grpo": "image build: downloads HF model at build time, no network in apptainer build",
     "lean4-proof": "image build: elan installs into host $HOME, `lean: not found` in container",
-    # Dockerfile 是多阶段 / bugswarm 基底，def_of.py 没翻
+    # Multistage Dockerfile / bugswarm base not translated by def_of.py.
     "fix-build-agentops": "no apptainer def: multi-stage / bugswarm base image not translated",
     "fix-build-google-auto": "no apptainer def: multi-stage / bugswarm base image not translated",
 }
 
 
 def pick(n: int, seed: int) -> list[str]:
-    """点名哪几道。**确定的**：同一个 (n, seed) 永远是同一批。排除的先拿掉再抽。"""
+    r"""Select problems **deterministically**: identical (n, seed) gives the same batch. Remove excluded problems before sampling."""
     ids = [i for i in sorted(BOOK) if i not in SKIP]
     if n <= 0 or n >= len(ids):
         return ids
@@ -240,12 +221,12 @@ def isolation_status() -> dict:
 
 
 def task_id_of(name: str) -> str:
-    """`<跑名>/<题号>` 里的题号。理由同 deepswe：task.id 全局唯一，题号跨跑不变。"""
+    r"""Task ID in `<run-name>/<task-id>`. As in deepswe, task.id is globally unique while the task identifier remains constant across runs."""
     return name.rsplit("/", 1)[-1]
 
 
 def container_of(place: str) -> str:
-    """位置串 → 容器名。`skb:[<跑名>/]<题号>`，一跑一个容器。"""
+    r"""Place string → container name: `skb:[<run-name>/]<task-id>`, one container per run."""
     m = re.fullmatch(r"skb:(?:([A-Za-z0-9._-]+)/)?([A-Za-z0-9._-]+)", place or "")
     if not m:
         raise ValueError(f"unrecognised place for this bench: {place} (expected skb:[<run>/]<task-id>)")
@@ -261,7 +242,7 @@ TID_OF: dict[str, str] = {}
 
 
 def env_digest(tid: str) -> str:
-    """`environment/` 的指纹，镜像 tag 认它 —— 认名字的话语料一更新就悄悄用旧镜像。"""
+    r"""Fingerprint `environment/` for the image tag. Using only the name would silently reuse an old image after a corpus update."""
     h = hashlib.sha256()
     d = Path(BOOK[tid]["dir"]) / "environment"
     for f in sorted(d.rglob("*")):
@@ -272,7 +253,7 @@ def env_digest(tid: str) -> str:
 
 
 def task_image(tid: str) -> str:
-    """那道题的镜像：官方 `environment/Dockerfile`，context 就是 `environment/`。**没有官方 registry，都得自己 build。**"""
+    r"""Task image: official `environment/Dockerfile`, with `environment/` as context. **There is no official registry; build every image locally.**"""
     if BACKEND == "apptainer":
         sif = IMAGES / f"{tid}.sif"
         if sif.is_file():
@@ -299,14 +280,14 @@ def task_image(tid: str) -> str:
 
 
 def network_of(tid: str) -> str:
-    """`--network none` 旋钮开了就全 none；不开照官方那道题自己声明的。"""
+    r"""If `--network none` is enabled, use none for every task; otherwise follow each task’s official declaration."""
     if NETWORK == "none" or BOOK[tid]["network"] == "no-network":
         return "none"
     return "bridge"
 
 
 def container_up(place: str) -> str:
-    """那道题的容器起着没有，没起就起一个。核、内存、网都照官方 task.md。"""
+    r"""Start the task container if it is not running. Follow official task.md for CPU, memory, and network settings."""
     require_isolation()
     name = container_of(place)
     tid = task_id_of(place.split(":", 1)[1])
@@ -353,7 +334,7 @@ def cexec(name: str, *cmd: str, **kw) -> subprocess.CompletedProcess:
 
 
 def instance_up(name: str, tid: str) -> str:
-    """apptainer 版 container_up：sif 只读 + 目录 overlay + /rt、/stage 两个 bind。skills 在起之前放进 upper/。"""
+    r"""Apptainer container_up: read-only SIF + directory overlay + /rt and /stage binds. Place skills in upper/ before startup."""
     require_isolation()
     with UP_LOCK:
         if instance_running(name):
@@ -384,7 +365,7 @@ def instance_up(name: str, tid: str) -> str:
 
 
 def upload(name: str, src: Path, dst: str) -> subprocess.CompletedProcess:
-    """`docker cp src/. name:dst`：apptainer 走 /stage 中转。"""
+    r"""`docker cp src/. name:dst`: Apptainer transfers through /stage."""
     if BACKEND == "docker":
         return sh("docker", "cp", f"{src}/.", f"{name}:{dst}")
     box = STAGE / name / dst.strip("/")
@@ -412,7 +393,7 @@ def remove(name: str) -> None:
 
 
 def ship_runtime(name: str) -> None:
-    """把内核那份运行时送进去（MCP server，装的就是内核本机那批工具）。"""
+    r"""Copy the kernel’s runtime into the container (an MCP server with the same tools as the kernel host)."""
     if not RUNTIME.is_file():
         raise RuntimeError(f"the runtime binary is missing: {RUNTIME} (run setup.sh first)")
     if sh("docker", "exec", name, "test", "-x", "/rt").returncode == 0:
@@ -424,10 +405,9 @@ def ship_runtime(name: str) -> None:
 
 
 def ship_skills(name: str, tid: str) -> None:
-    """`environment/skills/` 进容器。两处：`/root/skills`（题面里指着它）和 `/root/.claude/skills`（agentskills 约定路径）。
+    r"""Copy `environment/skills/` into two container paths: `/root/skills` (referenced by the problem statement) and `/root/.claude/skills` (the agentskills convention).
 
-    官方 CONTRIBUTING 说「不要把 skills 烤进镜像，harness 运行时注入」—— 这儿就是那个注入。
-    """
+    Official CONTRIBUTING says not to bake skills into images but to inject them at harness runtime; this is that injection."""
     src = Path(BOOK[tid]["dir"]) / "environment" / "skills"
     if not src.is_dir():
         return
@@ -438,11 +418,11 @@ def ship_skills(name: str, tid: str) -> None:
             raise RuntimeError(f"cannot ship skills into {name}: {r.stderr.strip()}")
 
 
-# ── 转发：跟容器里那个运行时说 MCP（照抄 deepswe） ──────────────────────────
+# ── Forwarding: speak MCP to the runtime inside the container (copied from deepswe) ──
 
 
 class Runtime:
-    """一个容器里那个运行时的连接。**一条会话是一根线**，所以来回上锁排队。"""
+    r"""A connection to the runtime in one container. **Each session has one stream**, so requests and responses are serialized under a lock."""
 
     def __init__(self, name: str) -> None:
         self.name = name
@@ -501,11 +481,11 @@ def runtime_of(place: str) -> Runtime:
         return rt
 
 
-# ── 判卷 ────────────────────────────────────────────────────────────────────
+# ── Grading ──
 
 
 def wipe(box: Path, image: str) -> None:
-    """清上一次的日志目录。判卷容器以 root 在 /logs 里建目录，宿主普通用户删不动 —— 借容器删。"""
+    r"""Clear the previous log directory. Grading containers create /logs directories as root, so an ordinary host user cannot delete them; use a container."""
     shutil.rmtree(box, ignore_errors=True)
     if box.exists() and BACKEND == "docker":
         sh("docker", "run", "--rm", "--network", "none", "-v", f"{box}:/logs", image,
@@ -516,13 +496,9 @@ def wipe(box: Path, image: str) -> None:
 
 
 def run_verifier(tid: str, image: str, key: str) -> dict:
-    """在 `image`（干活容器的快照，或自检时的原始镜像）上跑一遍官方判据。
+    r"""Run the official grader on `image` (a work-container snapshot, or the original image during self-tests).
 
-    步骤照官方 harness：`verifier/` → `/verifier`，`bash /verifier/test.sh`，读
-    `/logs/verifier/reward.txt`。多一步 `cleanup_conftests`（87 道 task.md 都开着这条
-    hardening）：判卷前删掉 agent 放的 `conftest.py`，不然一个 conftest 就能劫持 pytest。
-    BenchFlow 那边的精确范围没看到，这儿删的是 /、cwd、/root 顶层那一层（见 G.md 未验证）。
-    """
+    Follow the official harness: `verifier/` → `/verifier`, run `bash /verifier/test.sh`, then read `/logs/verifier/reward.txt`. Add `cleanup_conftests` (enabled as hardening in all 87 task.md files): remove agent-created `conftest.py` before grading, since a single conftest can hijack pytest. BenchFlow’s exact removal scope was not found; here remove only top-level files in /, cwd, and /root (see unverified items in G.md)."""
     require_isolation()
     it = BOOK[tid]
     box = LOGS / f"{tid}-{key}"
@@ -535,12 +511,12 @@ def run_verifier(tid: str, image: str, key: str) -> dict:
     if BACKEND == "apptainer":
         return run_verifier_apptainer(tid, image, key, box)
     sh("docker", "rm", "-f", name)
-    # **只删顶层的**（/、cwd、/root 各一层）：能劫持 /verifier 那趟 pytest 的是这几处；
-    # 递归删的话会把题目仓库自己的 conftest.py 一起删掉，软件工程那几道就判坏了。
+    # **Remove only top-level files** (one level in /, cwd, and /root): these locations can hijack pytest in /verifier.
+    # Recursive deletion would also remove the task repository’s own conftest.py and break software-engineering grading.
     cleanup = f"find / {it['workdir']} /root -maxdepth 1 -name conftest.py -type f -delete 2>/dev/null; "
     r = sh(
         "docker", "create", "--name", name,
-        # 判卷容器的网照干活容器：57 个 test.sh 要 apt-get / curl uv，断网的话它们自己就崩。
+        # Use the work container’s network settings for grading: 57 test.sh scripts need apt-get / curl uv and fail themselves without network access.
         "--network", network_of(tid), "--cpus", it["cpus"], "--memory", it["memory"],
         "-v", f"{box}:/logs", "-w", it["workdir"],
         image, "bash", "-c", cleanup + "bash /verifier/test.sh",
@@ -552,8 +528,8 @@ def run_verifier(tid: str, image: str, key: str) -> dict:
         sh("docker", "rm", "-f", name)
         return {"reward": 0.0, "crashed": True, "why": f"cannot copy the verifier in: {r.stderr.strip()[-300:]}"}
 
-    # 官方给判卷的上限是那道题自己的 `verifier.timeout_sec`，照抄。超了不抛 —— 读不到
-    # reward.txt 自然判 0，那条路已经有了。
+    # Use the task’s official `verifier.timeout_sec` unchanged. Do not raise on timeout: failure to read
+    # reward.txt already leads to 0 through the existing path.
     code, timed_out = -1, False
     t0 = time.time()
     try:
@@ -569,7 +545,7 @@ def run_verifier(tid: str, image: str, key: str) -> dict:
     reward_file = box / "verifier" / "reward.txt"
     out: dict = {"seconds": took, "exit": code}
     if not reward_file.is_file():
-        # 三种缺席得分得开：OOM（137）、超时、判据自己炸了。
+        # Distinguish three missing-result causes: OOM (137), timeout, and grader failure.
         out.update(reward=0.0, crashed=True,
                    why="oom-killed" if code == 137 else (f"timed out at {it['verify_seconds']}s" if timed_out else f"the verifier exited {code} without writing reward.txt"))
         return out
@@ -587,7 +563,7 @@ def run_verifier(tid: str, image: str, key: str) -> dict:
 
 
 def finish_verifier(it: dict, box: Path, code: int, timed_out: bool, took: float) -> dict:
-    """读 reward.txt（两个后端共用的收尾）。"""
+    r"""Read reward.txt (shared finalization for both backends)."""
     reward_file = box / "verifier" / "reward.txt"
     out: dict = {"seconds": took, "exit": code}
     if not reward_file.is_file():
@@ -608,7 +584,7 @@ def finish_verifier(it: dict, box: Path, code: int, timed_out: bool, took: float
 
 
 def run_verifier_apptainer(tid: str, image: str, key: str, box: Path) -> dict:
-    """apptainer 版：`image` 是 sif，快照 overlay 目录在 OVERLAYS/snap/<tid>-<key>（judge 拷好的；自检时可以不存在 = 空 overlay）。"""
+    r"""Apptainer version: `image` is a SIF; the snapshot overlay is OVERLAYS/snap/<tid>-<key> (copied by judge; may be absent in self-tests, meaning an empty overlay)."""
     require_isolation()
     it = BOOK[tid]
     snap = OVERLAYS / "snap" / f"{tid}-{key}"
@@ -636,15 +612,15 @@ def run_verifier_apptainer(tid: str, image: str, key: str, box: Path) -> dict:
 
 CACHE_LOCK = threading.Lock()
 INFLIGHT: dict[str, threading.Event] = {}
-# 每个活容器串行判卷，每次请求用独立快照/日志/判卷容器。
-# 路径指纹既不能证明内容相同，也不能隔离不同run的同名候选。
+# Serialize grading per live container; each request uses an independent snapshot, log directory, and grading container.
+# A path fingerprint neither proves equal content nor isolates identically named candidates from different runs.
 
 GRADERS = int(os.environ.get("TGENGIN_SKB_GRADERS", "4"))
 GATE = threading.Semaphore(GRADERS)
 
 
 def judge(place: str, tid: str) -> dict:
-    """判一份候选：重新拍快照 → 官方判据 → 读reward；不复用可变状态判决。"""
+    r"""Grade a candidate: take a fresh snapshot → run the official grader → read reward; never reuse decisions about mutable state."""
     try:
         require_isolation()
         name = container_up(place)
@@ -664,8 +640,8 @@ def judge(place: str, tid: str) -> dict:
     t0 = time.time()
     request_id = uuid.uuid4().hex
     snap = f"skb-cand-{tid}:{request_id}"
-    # 台子自己炸了（日志目录删不掉之类）也得回一个判 0 的字典，不能把异常抛给 HTTP 层 ——
-    # 抛出去的话连接断掉，内核那边只看到「句柄没回」，分不清是题错了还是台子坏了。
+    # Service failures (such as an undeletable log directory) must also return a dictionary scoring 0, not propagate to HTTP.
+    # Otherwise the connection closes and the kernel sees only an unanswered handle, unable to distinguish a wrong answer from a broken service.
     got: dict = {"reward": 0.0, "crashed": True, "why": "the stand failed before judging"}
     try:
         with GATE:
@@ -704,11 +680,11 @@ def judge(place: str, tid: str) -> dict:
     return got
 
 
-# ── note：这一栏说多少，按 --level ──────────────────────────────────────────
+# ── note: feedback detail selected by --level ──
 
 
 def note_of(tid: str, got: dict) -> dict | str:
-    """判 0 的时候多说的那一份。**级别定详略**，形状不随级别变。"""
+    r"""Additional information on verdict 0. **The level controls detail**, while the response structure stays the same."""
     if LEVEL <= 0:
         return ""
     if got.get("crashed"):
@@ -728,7 +704,7 @@ def note_of(tid: str, got: dict) -> dict | str:
                        else [f"test#{i + 1}" for i, t in enumerate(tests) if t.get("status") != "passed"][:60])
     if LEVEL <= 2:
         return note
-    # **level 3 会漏 GT**：不少断言信息里就是期望值。只当上界实验。
+    # **Level 3 leaks ground truth**: many assertion messages contain expected values. Use only for upper-bound experiments.
     note["failures"] = [{"name": t.get("name", ""), "message": (t.get("message") or "")[:2000]} for t in failed[:40]]
     return note
 
@@ -737,7 +713,7 @@ def note_of(tid: str, got: dict) -> dict | str:
 
 
 def task_of(body: dict) -> tuple[str, str]:
-    """内核送的是 `{node, moment, domain, feed, input}`，`input.task.id` 是 `<跑名>/<题号>`。交卷内容不看。"""
+    r"""The kernel sends `{node, moment, domain, feed, input}`; `input.task.id` is `<run-name>/<task-id>`. Ignore submission content."""
     task = (body.get("input") or {}).get("task") or {}
     tid = task_id_of(str(task.get("id", "")))
     place = str(task.get("place", "") or f"skb:{tid}")
@@ -776,7 +752,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.startswith("/problems"):
             if not self._authorized():
                 return
-            # **发题的口：给题面，不给答案。** oracle/ 和 verifier/ 一个字都不过来。
+            # **Problem endpoint: send the statement, not the answer.** No content from oracle/ or verifier/ is sent.
             n, seed = 0, 0
             if "?" in self.path:
                 for kv in self.path.split("?", 1)[1].split("&"):
@@ -792,7 +768,7 @@ class Handler(BaseHTTPRequestHandler):
                     "instruction": BOOK[i]["instruction"],
                     "workdir": BOOK[i]["workdir"],
                     "seconds": BOOK[i]["seconds"],
-                    # 有 skills 那一趟才给名字和描述；正文在容器 /root/skills 里自己读。
+                    # Provide skill names and descriptions only in the skills-enabled run; the solver reads the bodies in container /root/skills.
                     "skills": BOOK[i]["skills"] if SKILLS == "with" else [],
                 }
                 for i in pick(n, seed)
@@ -820,7 +796,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._send({"error": str(e)}, 500 if body.get("op") != "ping" else 200)
             return
 
-        # ── U 臂收工判一次（不经 G）；/stop 收摊 ──
+        # ── Grade the U arm once after completion (without G); /stop cleans up ──
         if self.path in ("/grade", "/stop"):
             place = str(body.get("place", ""))
             try:
@@ -839,7 +815,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(fault_payload(e), 503)
             return
 
-        # ── G 的两格。**一次判卷，两处读。** ──────────────────────────────
+        # ── The two nodes of G. **Grade once, read in two places.** ──
         if self.path in ("/verified", "/passed"):
             tid, place = task_of(body)
             if tid not in BOOK:
@@ -858,21 +834,20 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._send(fault_payload(e), 503)
                 return
-            # **回 `{"value": bool}`。** 值域封闭，回别的内核当违约归 0。
+            # **Return `{"value": bool}`.** The value domain is closed; other responses violate the contract and the kernel maps them to 0.
             self._send({"value": True} if ok else {"value": False, "note": note_of(tid, got)})
             return
 
         self._send({"error": f"no {self.path} here"}, 404)
 
 
-# ── 自检 ────────────────────────────────────────────────────────────────────
+# ── Self-tests ──
 
 
 def selftest(ids: list[str]) -> int:
-    """每道题：空容器该判 0（不是 1.0），跑完官方 oracle/solve.sh 该判 1。**装错了在这儿就炸。**
+    r"""For each task, an empty container must score 0 (not 1.0), and the official oracle/solve.sh must score 1. **A faulty installation fails here.**
 
-    oracle 照官方 `--agent oracle` 那样跑：不注入 skills（`run_benchflow_integration.py:392`）。
-    """
+    Run the oracle as the official `--agent oracle` does: without skill injection (`run_benchflow_integration.py:392`)."""
     bad = 0
     for tid in ids:
         it = BOOK[tid]
@@ -883,11 +858,11 @@ def selftest(ids: list[str]) -> int:
             bad += 1
             continue
         a = run_verifier(tid, image, "empty")
-        # 官方 oracle：在一个全新容器里跑 solve.sh，然后判它。
+        # Official oracle: run solve.sh in a fresh container, then grade it.
         name = f"skb-oracle-{tid}"
         remove(name)
         if BACKEND == "apptainer":
-            saved = globals()["SKILLS"]; globals()["SKILLS"] = "none"   # 官方 oracle 不注入 skills
+            saved = globals()["SKILLS"]; globals()["SKILLS"] = "none"   # The official oracle does not inject skills.
             try:
                 instance_up(name, tid)
             finally:

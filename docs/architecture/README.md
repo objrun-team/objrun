@@ -1,8 +1,8 @@
-# 架构文档
+# Architecture documentation
 
-- [H2H 协议](../H2H.md)
-- [数据表](../tables.md)
-- [执行循环](../loop.md)
-- [理解 TgEngin](../理解TgEngin.md)
+- [H2H protocol](../H2H.md)
+- [Data tables](../tables.md)
+- [Execution loop](../loop.md)
+- [Understanding TgEngin](../understanding-tgengin.md)
 
-程序入口为 `app/src/main.ts`。当前实现及字段以源码和测试为准；已完成的迁移清单、交接计划和历史审计材料保存在仓库外归档中。
+The application entry point is `app/src/main.ts`. Source code and tests define the current implementation and fields. Completed migration checklists, handoff plans, and historical audit material are archived outside the repository.

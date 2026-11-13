@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# 跑一趟 cmtbench。**一步一步都在这儿。**
+# Run cmtbench. **Every step is specified here.**
 #
-#   bash examples/benchmark/cmt/run.sh [几道] [这一跑叫什么]
+#   bash examples/benchmark/cmt/run.sh [count] [run-name]
 #
-# 前提：`setup.sh` 跑过（题库 + 官方判据 + venv），判卷台起着，引擎起着。
-# 三样都没起的话看 README 开头那三条命令。
+# Prerequisites: setup.sh has prepared the corpus, official grader, and venv; the grader and engine are running. Otherwise use the three commands at the start of the README.
 set -eu
 cd "$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
 
@@ -12,23 +11,21 @@ BASE=${TGENGIN_BASE:-http://127.0.0.1:7801/api}
 GRADER=${TGENGIN_CMT_GRADER:-http://127.0.0.1:7901}
 HOW_MANY=${1:-5}
 RUN=${2:-cmt-demo}
-# **同时做几道。** 0 = 整批一次全发（内核那边来多少吃多少，五十道就是五十个并发）。
-# 设了就一道一道地发、做完一道补一道 —— 「同时二十道」，不是「一批二十道」。
+# **Number of concurrent problems.** 0 submits the whole batch immediately; the kernel consumes all arrivals, so 50 problems mean 50 concurrent calls.
+# When set, submit individually and replenish each completed slot: 20 concurrent problems, not fixed batches of 20.
 export TGENGIN_CMT_AT_ONCE=${TGENGIN_CMT_AT_ONCE:-0}
-# **要不要挂扩展。** 空 = 挂。`bare` 那一跑就是无扩展基线：同一套机制、同一批题，
-# 只是不给任何领域提示 —— 有扩展的成绩得跟它比，才知道扩展本身值多少。
+# **Whether to attach extensions.** Empty means attach them. A `bare` run is the no-extension baseline: identical mechanisms and problems, without domain hints. Compare against it to measure the extensions' contribution.
 BARE=${TGENGIN_CMT_BARE:-}
 
 step () { echo; echo "── $* ──"; }
 
-# `bun` 得在 PATH 上。**这一条先查** —— 不查的话它会一路跑到「挂扩展」那一步
-# 才 command not found，而前面几步已经改过库了：看着像跑完了，其实批根本没发。
-command -v bun >/dev/null || { echo "bun 不在 PATH 上（Git Bash 里常见）：先刷一下 PATH 再来"; exit 1; }
+# Check that `bun` is on PATH **before anything else**. Otherwise the script fails at extension registration after earlier steps have modified the database, appearing partly complete even though no batch was submitted.
+command -v bun >/dev/null || { echo "bun is not on PATH (common in Git Bash); refresh PATH and retry"; exit 1; }
 
-step "0 判卷台在不在"
+step "0 Check grading-service availability"
 curl -sS "$GRADER/health"; echo
 
-step "1 底子：一个地方、两周期的机制、一个智能体，外加判卷台那两条句柄"
+step "1 Base configuration: one place, two-cycle mode, one agent, and two grading handles"
 curl -s -X POST "$BASE/declare" -H 'content-type: application/json' -d @- <<JSON
 { "places":[{"place":"local"}],
   "modes":[{"mode":"solve","cycles":[
@@ -44,57 +41,47 @@ curl -s -X POST "$BASE/declare" -H 'content-type: application/json' -d @- <<JSON
 JSON
 echo
 
-step "2a 关掉这道题用不上的那几个工具"
-# **一道纯推导题不需要文件系统。** 这几个是 system 工具（谁都有、不看条件），
-# 留着只会分散注意力：实测模型拿 12 个执行单元去 `bash` 里查 `python --version`，
-# 一个字答案都没写。伸手要算力却摸到空气，额度就这么没的 —— 而现在算力有了，
-# 是 `python_exec`，不在这一行里。
+step "2a Disable tools this task does not need"
+# **A pure derivation problem does not need a filesystem.** These system tools are available to everyone without conditions and can distract the solver. In one run the model spent 12 execution units querying `python --version` through bash without writing an answer. Requests for computation reached no usable environment and exhausted the budget; computation is now available through `python_exec`, which is not in this list.
 #
-# 关的是 usable 那一列，纯数据；`does`/`params` 一个字不动，想开回来把 0 改成 1。
+# Disable only the usable column, leaving `does` and `params` unchanged. Set 0 back to 1 to re-enable.
 curl -s -X POST "$BASE/exec" -H 'content-type: application/json' -d @- <<'JSON'
 { "sql": "update tool set usable = 0 where name in ('bash','read','write','edit','glob','grep')" }
 JSON
 echo
 
-# **算力不用在这儿声明了。** `python_exec` 现在是随二进制走的基础工具
-# （`app/src/tools/python.ts`，Pyodide 跑在一个 worker 里），跟 read/write 一样
-# 谁都有。以前这儿要起一个容器、再声明一条 http 句柄 —— 那套只在装了
-# Docker-in-WSL 的机器上活得下去。
-# **交卷站不摆工具这件事不在这儿办了。** 它是 dfs 这套流转自带的性质 —— 交卷站
-# 是模型站、下一站也是模型站，模型在那儿请求的工具没有人会去跑。所以条件跟着
-# 工具一起注册（`tree/dfs.ts`、`objective/tool.ts`、`tree/view.ts`、`tools/python.ts`），
-# 随二进制分发，装了这套机制的人都有，不用每个 benchmark 自己写几条 SQL。
+# **Computation no longer needs declaration here.** `python_exec` ships with the binary (`app/src/tools/python.ts`, Pyodide in a worker) and is universally available like read/write. The previous container plus HTTP-handle setup only worked on machines with Docker-in-WSL.
+# **Tool suppression at submission is also handled elsewhere.** It follows from DFS transitions: submission is a model station followed by another model station, so nobody executes tools requested there. Register those conditions with the tools (`tree/dfs.ts`, `objective/tool.ts`, `tree/view.ts`, `tools/python.ts`) and distribute them in the binary, rather than requiring every benchmark to write SQL.
 if [ -z "$BARE" ]; then
-  step "2 挂扩展"
+  step "2 Attach extensions"
   bun examples/benchmark/cmt/parmeras/load.ts
 else
-  step "2 不挂扩展（无扩展基线）"
-  echo "  TGENGIN_CMT_BARE 设了，这一跑不挂任何领域提示"
+  step "2 Skip extensions (extension-free baseline)"
+  echo "  TGENGIN_CMT_BARE is set; no domain prompts attached for this run"
 fi
-step "2b 条件本身有没有毛病"
+step "2b Validate conditions"
 curl -sS "$BASE/check"; echo
 
-step "3 发一批（一道不过就整批不发）"
+step "3 Submit batch (reject the whole batch if any task fails validation)"
 bun examples/benchmark/cmt/send.ts "$HOW_MANY" "$RUN"
 
-step "4 等它跑完"
-# 判 0 的题会被树判死、开兄弟换条路重试，所以「跑完」得等到 running 和 open 都归零
-# —— 要么做对了，要么 solveSeconds 到点被判 failed。
+step "4 Wait for completion"
+# Verdict-0 tasks are marked dead and retried on sibling paths. Completion therefore requires both running and open to reach zero, through acceptance or solveSeconds expiration and failed status.
 for i in $(seq 1 400); do
   sleep 10
   r=$(curl -s "$BASE/bench/$RUN")
   left=$(echo "$r" | grep -o '"running":[0-9]*' | grep -o '[0-9]*$')
   open=$(echo "$r" | grep -o '"open":[0-9]*' | grep -o '[0-9]*$')
-  [ $((i % 6)) -eq 0 ] && echo "  在跑 ${left:-?}｜没开工 ${open:-?}（$((i*10))s）"
+  [ $((i % 6)) -eq 0 ] && echo "  Running ${left:-?} | Unstarted ${open:-?} ($((i*10))s)"
   [ "${left:-1}" = "0" ] && [ "${open:-1}" = "0" ] && break
 done
 
-step "5 成绩单"
+step "5 Scorecard"
 curl -s "$BASE/bench/$RUN"
 echo
 
-step "6 扩展塞进去没有"
+step "6 Check extension injection"
 for t in $(curl -s "$BASE/tasks?run=$RUN" | grep -o '"id":"[^"]*"' | grep -o 'cmt-[0-9]*'); do
   n=$(curl -s "$BASE/tasks/$t/messages?kind=skill" | grep -o '"total":[0-9]*' | grep -o '[0-9]*$')
-  echo "  $t: skill 行 ${n:-0} 条"
+  echo "  $t: ${n:-0} skill rows"
 done

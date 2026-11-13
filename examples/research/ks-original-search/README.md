@@ -1,9 +1,9 @@
 # ks-original-search
 
-科学问题实验源码。问题定义与依据：[GOAL.md](GOAL.md)。
+Scientific experiment source. Problem definition and rationale: [GOAL.md](GOAL.md).
 
-独立校验相关入口：`checker.py`、`independent.py`。运行前查看脚本参数和依赖。
+Independent verification entry points: `checker.py`, `independent.py`. Check the script arguments and dependencies before running.
 
-本目录只保存源码；原始运行记录、候选、证书和环境已外置。监控和收尾脚本需要对应的完整运行目录，不能只凭这份源码恢复一个历史进程。实际历史版本和运行状态见外部记录。
+This directory contains source only. Original run records, candidates, certificates, and environments are stored externally. Monitoring and finalization scripts need the corresponding complete run directory; source alone cannot restore a historical process. Consult the external records for the actual historical versions and run status.
 
-目录总览见 [科学问题实验](../README.md)，记录位置见 [数据与归档](../../../docs/storage.md)。
+See [scientific research experiments](../README.md) for the directory index and [data and archives](../../../docs/storage.md) for record locations.

@@ -1,53 +1,41 @@
 /**
- * 实时轨（duplex）—— 一条 WebSocket 会话。
+ * Realtime track (duplex): a WebSocket session.
  *
- * ## 跟 chat 那条轨差在哪
+ * ## How it differs from chat
  *
- * chat 是「一次调用 = 一个执行单元」，调完连接就没了。duplex **不是一次调用，
- * 是一条会话**：一个执行单元对应会话里的**一个来回**，会话本身跨着好几个单元活着。
+ * Chat maps one call to one execution unit; the connection ends with the call. Duplex is **a session, not one call**: each execution unit corresponds to **one exchange**, while the session spans several units.
  *
- * 但**句柄签名跟 chat 一模一样** —— 内核递过来一个单元，还回去该落库的那一行。
- * 内核不认得「会话」这回事，也不该认得：认得了，`cycle.api_mode` 那一列就白设了。
+ * The **handle signature is identical to chat**: the kernel passes a unit and receives the row to store. The kernel neither knows nor should know about sessions; otherwise `cycle.api_mode` would serve no purpose.
  *
- * ## 会话是连接，不是状态
+ * ## A session is a connection, not state
  *
- * 会话活在进程内的池子里，**不进库** —— 跟 `workplace.usable` 是登记不是探活同一个
- * 道理。写回去的话，崩了重启读到的那一列就是过期的谎话。
+ * Sessions live in an in-process pool, **not the database**, just as `workplace.usable` is a declaration rather than a health probe. Persisting session liveness would leave stale claims after a crash and restart.
  *
- * 库里丢不了的是**每一个来回**：它讲了什么、谁说了什么、请求了哪个工具，全落
- * `agent_<name>_msg`。所以崩了重启，会话没了，账还在 —— 「库 = 快照」那条定理不破。
+ * What the database preserves is **every exchange**: the model's speech, other participants' speech, and tool requests all enter `agent_<name>_msg`. After a crash the session is gone but the record survives, preserving the database-as-snapshot property.
  *
- * ## DashScope 用的是 beta 事件名
+ * ## DashScope uses beta event names
  *
- * 这是这一块**最要紧的一件事**。Qwen 的实时端点走 OpenAI 的 *beta* 事件 schema，
- * 而现在通行的名字是 *GA* 的那套。名字对不上的后果不是报错，是**什么都收不到**：
- * 连接建着、事件在流、每一条都没人认领，于是一个来回永远等不到头。
+ * This is **the most important detail here**. Qwen's realtime endpoint uses OpenAI's *beta* event schema, while common current names follow *GA*. A mismatch produces no error: **nothing is received**. The connection remains open and events flow, but no handler claims them, so an exchange never finishes.
  *
- * 所以入站事件名先过 {@link BETA2GA} 映射回 GA，再分派。**只映射入站** ——
- * 出站我们发的仍是 beta 名，那边只认这个。
+ * Map inbound names from beta to GA through {@link BETA2GA} before dispatch. **Map inbound events only**: outbound events retain beta names because that is what the endpoint accepts.
  *
- * ## 收流那条路绝不许死
+ * ## The receive loop must never die
  *
- * 老代码在这儿踩了三次，每一次的表现都是「静默」，没有一次是报错：
+ * The old implementation failed here three times, each silently rather than with an error:
  *
- * 1. beta 的 `response.done` 不带 usage，读 `usage.input_tokens` 当场 NoneType 崩 →
- *    **接收协程整个死掉** → 从那一刻起全静默
- * 2. 事件解不了被跳过 → 当前响应态不清 → 「还在讲」永远为真 → 讲一段就哑
- * 3. 参会者转写那条事件是 beta schema，解不了被跳过 → 拿不到「用户说了什么」
+ * 1. Beta `response.done` lacked usage; reading `usage.input_tokens` caused a NoneType failure that **killed the entire receiver coroutine**, silencing all subsequent events.
+ * 2. An undecodable event was skipped without clearing response state. "Still speaking" remained true forever, so the session went silent after one utterance.
+ * 3. A participant-transcription event used the beta schema and was skipped when decoding failed, losing all user speech.
  *
- * 踩出来的通则就一条：**一条事件解不了，只丢这一条，绝不带倒整条连接**；而且
- * 要把丢掉的**数出来**。静默的表现是「什么都没发生」，不数的话，事件名哪天漂了
- * 也没人看得出来 —— 只会觉得「这模型今天不说话」。
+ * The resulting rule: **an undecodable event may discard only itself, never the connection**, and discarded events must be **counted**. Silent failures look like nothing happened. Without counts, future event-name drift would appear merely as an unusually quiet model.
  *
- * ## 这一轮到哪儿为止
+ * ## Scope of this implementation
  *
- * **只做协议层：文本进，文本 + 转写出。**
+ * **Protocol only: text input, text and transcription output.**
  *
- * 采音频、放音频是设备的事，而任何一个音频 IO 库都是 native 依赖 —— 那道闸不许过
- * （零 native、能交叉编译）。所以音频腿不在这一轮里，等它落地时接在这一层上面。
+ * Audio capture and playback belong to devices. Every audio I/O library introduces native dependencies, violating the zero-native, cross-compilation requirement. Audio integration is deferred and will sit above this layer.
  *
- * 出站音频**收到就丢，只计数不落库**：音频是字节流，落进 `agent_<name>_msg` 会把
- * 快照撑成几百 MB，而且没有一个人读得懂那一列。**转写才是那条轨迹。**
+ * Output audio is **discarded immediately and counted, never stored**. Saving byte streams in `agent_<name>_msg` would inflate snapshots to hundreds of MB with an unreadable column. **Transcriptions are the trajectory.**
  */
 
 import type { Conn } from "../H2H/db.ts";
@@ -56,18 +44,16 @@ import { deliver } from "../msg/deliver.ts";
 import { RETRY_ON, SERVES, VENDORS, instructionsOf, sendable, type Unit, viewOf } from "./index.ts";
 
 /**
- * 哪几条会话已经摆过任务视图了。
+ * Sessions that have already received the task view.
  *
- * 会话是**活状态**（跟位置那一层一个道理），所以这个集合也活在内存里、不落库 ——
- * 进程没了会话也没了，重开一条自然会重新摆一遍。
+ * Sessions are **live resources**, like locations, so this set also lives in memory rather than the database. A process exit destroys the sessions; a newly opened one naturally receives the view again.
  */
 const seenView = new Set<string>();
 
 /**
- * 入站事件名：beta → GA。**照抄老代码那张表，一条不改。**
+ * Inbound event names: beta → GA. **Copied unchanged from the old code's table.**
  *
- * 少一条的后果是那一类事件永远没人认领 —— 不报错，只是收不到。多一条不会怎样，
- * 所以宁可全列着。
+ * Omitting a mapping leaves that event type permanently unhandled, silently. Extra mappings are harmless, so retain the full list.
  */
 export const BETA2GA: Record<string, string> = {
   "response.audio.delta": "response.output_audio.delta",
@@ -80,95 +66,88 @@ export const BETA2GA: Record<string, string> = {
 };
 
 /**
- * 一个来回的硬墙。
+ * Hard wall-clock limit for one exchange.
  *
- * chat 那条是 15 分钟，因为它一次要出一整篇。duplex 一个来回只是「讲一小段」，
- * 拖到两分钟就说明那边已经不对了 —— 不设墙的话，会话挂在那儿而这一行永远
- * 不出结果，只能等 `expect_ms` 判死，而那时候日志上什么线索都没有。
+ * Chat allows 15 minutes because one call may produce a complete essay. A duplex exchange is a short utterance; two minutes already indicates trouble. Without a limit, the session and row could wait forever until `expect_ms` marks it dead, leaving no diagnostic clues.
  */
 export const TURN_MS = 120_000;
 
-/** 连上 + 等到 `session.created` 的上限。连不上要当场说，不能挂着。 */
+/** Deadline for connecting and receiving `session.created`. Report failure immediately instead of hanging. */
 export const OPEN_MS = 20_000;
 
 /**
- * 会话闲多久回收。
+ * Idle lifetime before reclaiming a session.
  *
- * 会话跟着 `instance` 活，可 instance 干完了不会有人来说一声。**不回收就是泄漏**：
- * 一条挂着的 WebSocket 会一直占着那边的额度。回收是**算**出来的（上次用到现在多久），
- * 不另起定时器 —— 每次开会话的时候顺手扫一遍就够了。
+ * Sessions follow an `instance`, but nothing announces instance completion. **Without reclamation they leak**: an open WebSocket keeps consuming provider capacity. Compute idleness from time since last use instead of adding timers; scanning whenever a session is opened is sufficient.
  */
 export const IDLE_MS = 300_000;
 
-/** 这条句柄接得住的 mode。**只有 duplex** —— 它不会一问一答。 */
+/** Modes supported by this handle. **Only duplex**: it does not implement request-response chat. */
 const SERVED = new Set(["duplex"]);
 
 /**
- * 只要文本。
+ * Request text only.
  *
- * 音频腿还没接（见文件头），要了也是收到就丢 —— 而那边的音频 token 照样算钱。
- * 等设备层落地，改这一处，别在调用点各写各的。
+ * Audio is not integrated yet (see the header), so requesting it would discard the output while still paying for audio tokens.
+ * When the device layer arrives, change this single definition rather than duplicating settings at call sites.
  */
 const MODALITIES = ["text"];
 
 /**
- * 一个来回攒下来的东西。
+ * Accumulated data for one exchange.
  *
- * `errors` 单独攒着，不是收到就炸：那边的 `error` 不一定致命（提交了个空音频缓冲
- * 也是一条 error）。**有产出就当没事发生，没产出才拿它当死因** —— 这样既不会因为
- * 一条无关的 error 把整个执行单元判掉，也不会在真出事时只留下一句「什么都没回来」。
+ * Collect `errors` rather than throwing immediately: provider errors need not be fatal (even committing an empty audio buffer produces one). **With output, treat the exchange as successful; without output, use errors as the cause**. This avoids killing a unit for an irrelevant error while retaining more than a generic "nothing returned" when it truly fails.
  */
 interface Turn {
   text: string[];
   calls: { id: string; name: string; input: unknown }[];
-  /** 丢掉的音频块数。**只数不存**，见文件头。 */
+  /** Discarded audio-chunk count. **Count, do not store**; see the header. */
   audio: number;
   errors: string[];
   settle(e: Error | null): void;
 }
 
-/** 一个来回走完，还回来的东西。 */
+/** The result of a completed exchange. */
 export interface TurnOut {
-  /** 它讲的话。文本增量 + 语音转写增量，拼在一起。 */
+  /** Model speech, combining text deltas and speech-transcription deltas. */
   text: string;
   calls: { id: string; name: string; input: unknown }[];
-  /** 丢掉的音频块数。 */
+  /** Discarded audio-chunk count. */
   audio: number;
-  /** 那边报过的错。**有产出就不算死因**，只是记着。 */
+  /** Provider-reported errors. **Not a failure cause when output exists**; retained for the record. */
   errors: string[];
-  /** 这个来回里**别人说的话**（转写）。由句柄落库，会话自己不碰库。 */
+  /** Transcribed **speech from others** during this exchange. The handle stores it; the session does not access the database. */
   heard: string[];
-  /** 这条会话累计跳过的事件数。**事件名漂了就是从这个数字开始涨的。** */
+  /** Cumulative skipped-event count for this session. **Event-name drift first appears as growth in this number.** */
   skipped: number;
 }
 
-/** 会话要往里发的一条。`type` 用的是那边的 item 形状，不是我们的消息表。 */
+/** An item sent into the session. `type` uses the provider's item shape, not our message-table format. */
 type Item = Record<string, unknown>;
 
 /**
- * Bun 的 `WebSocket` 第二个参数收选项（浏览器那个收的是 subprotocol）。
+ * Bun's `WebSocket` accepts options as its second argument (the browser version accepts a subprotocol).
  *
- * **实时轨的钥匙只能走请求头** —— 没有这条就连不上，所以这个 cast 是必须的，
- * 不是图省事。写成一处，别在调用点各 cast 各的。
+ * **Realtime credentials must use request headers**; without them the connection fails. This cast is necessary, not a shortcut. Define it once instead of casting independently at every call site.
  */
 type WithHeaders = new (url: string, opts: { headers: Record<string, string> }) => WebSocket;
 
-/** 一条会话。**认协议，不认库** —— 落库是句柄那一层的事。 */
+/** One session. **Understands the protocol, not the database**; persistence belongs to the handle layer. */
 export class Session {
   readonly model: string;
-  /** 上次用到的时刻。闲置回收照它算，不另起定时器。 */
+  /** Time of last use, used to compute idle reclamation without a separate timer. */
   used = Date.now();
-  /** 解不了、没人认领的事件条数。**静默漂移的唯一线索**，所以一定要往外报。 */
+  /** Count of undecodable or unhandled events. **The only clue to silent drift**, so always expose it. */
   skipped = 0;
-  /** 见过的入站事件名。事件名哪天变了，这一串就是证据。 */
+  /** Observed inbound event names. If names change, this list supplies evidence. */
   readonly seen = new Set<string>();
 
   #ws: WebSocket;
   #turn: Turn | null = null;
   #dead: Error | null = null;
-  /** 那边转写出来的、**别人说的话**。每个来回结束时由句柄取走落库。 */
+  /** Provider transcriptions of **other participants' speech**. The handle drains and stores them after each exchange. */
   #heard: string[] = [];
-  /** item_id → 这条工具调用是谁。有的实现只在 item 那条给名字，得先记着。 */
+  /** item_id → tool-call identity. Some implementations supply the name only in the item event, so retain it. */
   #fn = new Map<string, { name: string; call: string }>();
   #ready: Promise<void>;
 
@@ -190,15 +169,15 @@ export class Session {
     });
 
     this.#ws.addEventListener("message", (e: MessageEvent) => this.#take(String(e.data)));
-    // 连接断了 = 在途的那个来回永远等不到 response.done。**当场把它结掉** ——
-    // 不结的话它挂到 TURN_MS 才超时，而日志上看不出是断了还是那边不说话。
+    // A disconnected socket means an in-flight exchange will never receive response.done. **Finalize it immediately**.
+    // Otherwise it waits until TURN_MS, and the log cannot distinguish disconnection from a silent provider.
     this.#ws.addEventListener("close", () => this.#die(new Error("the realtime session dropped")));
     this.#ws.addEventListener("error", () => this.#die(new Error("the realtime session dropped on an error")));
   }
 
   #opened: () => void = () => {};
 
-  /** 会话开好了没有。开不起来在这儿炸，不会拖到发第一条。 */
+  /** Whether the session is ready. Fail here if opening fails, rather than delaying until the first send. */
   ready(): Promise<void> {
     return this.#ready;
   }
@@ -218,14 +197,11 @@ export class Session {
   }
 
   /**
-   * 收一条。**这个函数不许抛。**
+   * Receive one event. **This function must not throw.**
    *
-   * 老代码在这一层死过：一条事件的 payload 解不了，异常顺着冒上去，把接收协程
-   * 整个带走 —— 之后连接还开着、事件还在流，但再没有一个字被处理。**表现是静默，
-   * 不是报错**，所以查起来只能靠猜。
+   * The old code died at this layer: a malformed event payload raised an exception that killed the receiver coroutine. The connection stayed open and events kept flowing, but nothing was processed. **The symptom was silence, not an error**, leaving diagnosis to guesswork.
    *
-   * 这儿的规矩：分派**只看 `type`**，payload 怎么坏都只坏这一条；而且哪怕分派炸了，
-   * `response.done` 该收的尾照收 —— 收不了尾的话，这个来回就永远等不到头。
+   * Dispatch **only by `type`**. Malformed payloads affect only that event. Even if dispatch fails, still finalize `response.done`; otherwise this exchange can never complete.
    */
   #take(raw: string): void {
     this.used = Date.now();
@@ -238,7 +214,7 @@ export class Session {
     }
     const beta = String(d.type ?? "");
     this.seen.add(beta);
-    // **只映射入站。** 出站发的仍是 beta 名 —— 那边只认那套。
+    // **Map inbound names only.** Outbound events retain beta names, the only schema the endpoint accepts.
     const type = BETA2GA[beta] ?? beta;
     try {
       this.#dispatch(type, d);
@@ -249,15 +225,15 @@ export class Session {
     }
   }
 
-  /** 认得的事件。**名字是 GA 的**，入站已经映射过了。 */
+  /** Recognized events. **Names use GA**; inbound names have already been mapped. */
   #dispatch(type: string, d: Record<string, unknown>): void {
     switch (type) {
       case "session.created":
         this.#opened();
         return;
 
-      // 收到了、没事干。**但必须列在这儿** —— 掉进 default 的话它会把 `skipped`
-      // 顶高，而那个数字是事件名漂移的唯一线索：被正常事件污染了就等于没有。
+      // Received with no action required. **Still list these explicitly**: falling through to default would inflate `skipped`.
+      // That number is the only clue to event-name drift; normal events would make it useless.
       case "session.updated":
       case "response.created":
       case "response.output_item.added":
@@ -274,14 +250,14 @@ export class Session {
       case "rate_limits.updated":
         return;
 
-      // 它讲的话。文本增量和语音转写增量是**同一条轨迹的两种来源**，都往一处攒 ——
-      // 只收其中一种的话，换个 modalities 就什么都攒不到了。
+      // Model speech. Text deltas and transcription deltas are **two sources for the same trajectory**, accumulated together.
+      // Listening to only one would yield no content after changing modalities.
       case "response.output_text.delta":
       case "response.output_audio_transcript.delta":
         this.#turn?.text.push(String(d.delta ?? ""));
         return;
 
-      // 音频**收到就丢，只计数**。见文件头：字节流落库会把快照撑爆，转写才是轨迹。
+      // Audio is **discarded immediately and only counted**. As explained above, byte streams bloat snapshots; transcriptions are the trajectory.
       case "response.output_audio.delta":
         if (this.#turn) this.#turn.audio++;
         return;
@@ -298,8 +274,8 @@ export class Session {
       }
 
       case "response.function_call_arguments.done": {
-        // 工具名不一定在这条事件里 —— 有的实现只在 item 那条给。两边都取一次；
-        // 都没有就炸，别拿空名字往下走：那会变成「调了个没有的工具」。
+        // The tool name may be absent here; some implementations provide it only in the item event. Check both.
+        // If neither has it, fail rather than proceeding with an empty name and appearing to call a nonexistent tool.
         const itemId = String(d.item_id ?? "");
         const known = this.#fn.get(itemId);
         const name = String(d.name ?? known?.name ?? "");
@@ -309,17 +285,16 @@ export class Session {
         return;
       }
 
-      // 【老代码踩过】这条是 beta schema，通用解析器解不了会**整条跳过** ——
-      // 于是「别人说了什么」永远拿不到，而系统一声不吭。所以手动接住。
+      // Previously observed failure: this event uses the beta schema, and a generic parser **skipped the entire event** on failure.
+      // That silently lost other participants' speech. Handle it explicitly.
       case "conversation.item.input_audio_transcription.completed": {
         const said = String(d.transcript ?? "").trim();
         if (said) this.#heard.push(said);
         return;
       }
 
-      // 一个来回到头了。**只认这条**。
-      // 【老代码踩过】beta 的这条不带 usage，读统计字段当场崩 —— 所以这儿一个
-      // payload 字段都不读，收尾就是收尾。
+      // The exchange has ended. **Only this event establishes completion.**
+      // Previously observed failure: the beta event lacked usage, and reading metrics crashed. Read no payload fields here; finalization only finalizes.
       case "response.done":
         this.#turn?.settle(null);
         return;
@@ -329,17 +304,16 @@ export class Session {
         return;
 
       default:
-        // 认不得的不算错（那边随时会加新事件），但要数进去 —— 事件名漂了
-        // 就是从这个数字开始涨的。
+        // Unknown events are not errors (providers may add new ones), but count them.
+        // Event-name drift first appears as growth in this number.
         this.skipped++;
     }
   }
 
   /**
-   * 开场那一次：把 instructions 和工具告诉它。
+   * Initial setup: send instructions and tool declarations.
    *
-   * **只发一次** —— 会话记得住，这正是它跟 chat 的分界：chat 每个单元都要把
-   * instructions 重发一遍，因为那边根本没有「上一轮」。
+   * **Send once**: the session remembers. This distinguishes it from chat, which must resend instructions per unit because the provider has no previous turn.
    */
   async update(instructions: string, tools: Item[]): Promise<void> {
     await this.ready();
@@ -354,17 +328,14 @@ export class Session {
   }
 
   /**
-   * 走一个来回：把这几条发进去，等它讲完。
+   * Perform one exchange: send these items and wait for speech to finish.
    *
-   * **一条会话是一根线，来回只能一个接一个。** 树开了兄弟之后，同一个 instance
-   * 底下会有好几个执行单元同时是「该动」的那一档，内核会并排推它们 —— 直接并发
-   * 发进同一条会话的话，两个来回的事件会混在一起，而**混了不报错**，只是两边
-   * 都拿到对方的半句话。所以在这儿排队。
+   * **A session is sequential; exchanges must run one after another.** Tree siblings can make several units of the same instance runnable concurrently, and the kernel advances them in parallel. Sending them concurrently into one session would mix their events **without errors**, giving each half of the other's speech. Queue them here.
    */
   turn(items: Item[]): Promise<TurnOut> {
     const go = () => this.#one(items);
     const next = this.#queue.then(go, go);
-    // 排队本身不该因为前一个来回失败就断掉 —— 那会让后面的单元全部连坐。
+    // A failed exchange must not break the queue and cause every subsequent unit to fail with it.
     this.#queue = next.then(
       () => {},
       () => {},
@@ -380,15 +351,15 @@ export class Session {
 
     const t: Turn = { text: [], calls: [], audio: 0, errors: [], settle: () => {} };
     const wait = new Promise<void>((ok, fail) => {
-      // 硬墙。**不设的话这一行就挂在那儿**，只能等内核按 expect_ms 判死，
-      // 而那时候日志上一条线索都没有 —— 连那边报过什么错都丢了。
+      // Hard deadline. **Without it this row would hang** until the kernel marks it dead under expect_ms,
+      // leaving no diagnostic clues, not even the provider's reported errors.
       const wall = setTimeout(() => {
         const why = t.errors.length ? `; the far side reported: ${t.errors.join("; ")}` : "";
         fail(new Error(`a turn took over ${TURN_MS}ms with no response.done${why}`));
       }, TURN_MS);
       let settled = false;
       t.settle = (e) => {
-        if (settled) return; // response.done 来两条不算数
+        if (settled) return; // Ignore duplicate response.done events.
         settled = true;
         clearTimeout(wall);
         if (e) fail(e);
@@ -396,7 +367,7 @@ export class Session {
       };
     });
 
-    this.#turn = t; // 先挂上再发，不然头几条事件没人接
+    this.#turn = t; // Attach the receiver before sending, or the first events will have no listener.
     try {
       for (const it of items) this.#send({ type: "conversation.item.create", item: it });
       this.#send({ type: "response.create" });
@@ -405,7 +376,7 @@ export class Session {
       this.#turn = null;
     }
 
-    // 转写取走就清空 —— 留着的话下一个来回会把同一句话再落一遍库。
+    // Clear transcriptions after draining them; otherwise the next exchange would store the same speech again.
     return {
       text: t.text.join(""),
       calls: t.calls,
@@ -421,7 +392,7 @@ export class Session {
     try {
       this.#ws.close();
     } catch {
-      // 关一个已经断了的连接不算事
+      // Closing an already disconnected socket is harmless.
     }
   }
 }
@@ -433,17 +404,15 @@ function errText(d: Record<string, unknown>): string {
 }
 
 /**
- * 库里那一行 → 会话里的一条。取不出来的（不该发的）回 `null`。
+ * Database row → session item. Return `null` for rows that cannot or should not be sent.
  *
- * 跟 chat 那边的 `toMsg` 是同一件事的两种形状，**共用同一个 `sendable` 判据** ——
- * 各写一份的话，哪天改了「什么不该发给模型」就只会改到一边。
+ * This and chat's `toMsg` are two representations of the same operation, **sharing the `sendable` criterion**. Separate copies would drift when rules for model-visible content change.
  */
 function itemOf(r: { role: string; kind: string; body: string }, sentAs: Record<string, string>): Item | null {
   if (!sendable(r, sentAs)) return null;
 
-  // 它自己上一轮请求工具的那一条。**会话记得住自己说过什么**，重发等于让它把
-  // 自己的话又听一遍。chat 那边必须重发，因为那边压根没有「上一轮」——
-  // 这是两条轨最实在的一处分别。
+  // The model's tool request from the previous exchange. **The session remembers its own speech**; resending would make it hear itself again.
+  // Chat must resend because it has no previous turn. This is a concrete distinction between the tracks.
   if (r.kind === "call" || r.kind === "graded") return null;
 
   if (r.kind === "tool") {
@@ -456,7 +425,7 @@ function itemOf(r: { role: string; kind: string; body: string }, sentAs: Record<
   return { type: "message", role: "user", content: [{ type: "input_text", text: r.body }] };
 }
 
-/** `tool` 表那一行 → 会话认得的工具声明。**只声明不执行**，跟 chat 那边一样。 */
+/** A `tool` row → a session tool declaration. **Declare only; do not execute**, just as with chat. */
 function toolOf(t: Record<string, unknown>): Item {
   return {
     type: "function",
@@ -467,16 +436,14 @@ function toolOf(t: Record<string, unknown>): Item {
 }
 
 /**
- * 开过的会话留着复用 —— 跟 `Places` 一个形状，也是一个道理：每个执行单元重开一条
- * 会话的话，duplex 就退化成 chat 了，「会话记得住」这件事整个没了。
+ * Retain and reuse open sessions, like `Places` and for the same reason. Opening a new session for every execution unit would reduce duplex to chat and eliminate session memory.
  *
- * **键是 `(vendor, instance)`**：会话跟着智能体实例走。同一个 instance 的第二个
- * 执行单元接着上一条讲，这才是「一条会话，好几个来回」。
+ * **Key by `(vendor, instance)`**: sessions follow agent instances. An instance's second unit continues its previous session, producing one session with multiple exchanges.
  */
 export class Sessions {
   #open = new Map<string, Promise<Session>>();
 
-  /** 池子里现在开着几条 —— 给日志和检查看的。 */
+  /** Current open-session count, for logs and inspection. */
   get size(): number {
     return this.#open.size;
   }
@@ -488,20 +455,18 @@ export class Sessions {
     if (!s) {
       s = make();
       this.#open.set(k, s);
-      // 开不起来就把这次的坑清掉，下次还能重试 —— 留着的话这个 instance 就永久废了
+      // Remove a failed opening attempt so the next call can retry; retaining it would permanently break this instance.
       s.catch(() => this.#open.delete(k));
     }
     return s;
   }
 
   /**
-   * 闲太久的关掉。
+   * Close sessions idle too long.
    *
-   * instance 干完了没有人会来说一声，**不回收就是泄漏**：一条挂着的 WebSocket
-   * 一直占着那边的额度。回收是算出来的（上次用到现在多久），不另起定时器 ——
-   * 定时器是内存里的状态，而这件事每次开会话时顺手扫一遍就够了。
+   * Nothing announces instance completion. **Without reclamation sessions leak**: an open WebSocket consumes provider capacity indefinitely. Compute idleness from last use instead of starting timers; timers are extra in-memory state, while a scan on each session opening is sufficient.
    *
-   * 断掉的那些一并清掉：留着的话下一个单元会拿到一条死会话，然后当场失败。
+   * Remove disconnected sessions too, or the next unit would receive a dead session and fail immediately.
    */
   #reap(): void {
     const now = Date.now();
@@ -524,22 +489,20 @@ export class Sessions {
 }
 
 /**
- * 注册实时轨。**只给有 `ws` 地址的那几家** —— 没有实时轨的家注册出一条来，
- * 库里就多了一条永远调不通的句柄，而错要等到真跑到那一站才冒出来。
+ * Register realtime tracks **only for providers with a `ws` address**. Registering a nonexistent realtime track would create an unusable handle, discovered only when execution reaches that station.
  *
- * `seed` 里那几行 `api` 是**数据**，`modes` 一律是 `duplex`：这条句柄只接得住它，
- * 写成参数只会让人有机会写错。
+ * The `api` rows in `seed` are **data**. Their `modes` is always `duplex`, the only shape this handle supports. Making it a parameter would only enable misconfiguration.
  */
 export function registerDuplex(db: Conn, reg: Registry, pool: Sessions, seed: [string, string][]): string[] {
   const names: string[] = [];
 
   for (const [vendor, v] of Object.entries(VENDORS)) {
-    if (!v.ws) continue; // 这家没有实时轨
+    if (!v.ws) continue; // This provider has no realtime track.
     const name = `fn:api.${vendor}.duplex`;
     SERVES.set(name, SERVED);
     names.push(name);
 
-    // 时限是**一个来回**的时限，不是一条会话的。会话能活很久，一个来回不该。
+    // The limit applies to **one exchange**, not the entire session. Sessions may be long-lived; exchanges should not be.
     reg.register(db, name, TURN_MS, async (arg) => {
       const u = arg as unknown as Unit;
       if (!u.api) throw new Error(`${name} was called, but the kernel did not say which model this station uses`);
@@ -547,12 +510,11 @@ export function registerDuplex(db: Conn, reg: Registry, pool: Sessions, seed: [s
       const secret = process.env[keyEnv];
       if (!secret) throw new Error(`no key in environment variable ${keyEnv} - see .env`);
       const model = u.api.model;
-      // **地址从这一行来，不从代码来。** 这条句柄上一版是闭包里捞 `VENDORS[vendor].ws`，
-      // 于是同一份库换个二进制就可能打向别处 —— 库当不成快照。现在 `api.base_url`
-      // 说了算：那一行指哪儿，这一次就打哪儿。
+      // **Read the address from this row, not code.** Previously the closure used `VENDORS[vendor].ws`, so a different binary could send the same database to another endpoint, invalidating it as a snapshot.
+      // `api.base_url` is now authoritative: this call goes where the row points.
       const ws = u.api.base_url;
 
-      // 会话跟着 instance 走。头一个单元开会话、发 instructions；后面的直接接着讲。
+      // The session follows the instance: its first unit opens the session and sends instructions; later units continue it.
       const s = await pool.get(vendor, u.instance, async () => {
         const fresh = new Session(ws, secret, model);
         await fresh.ready();
@@ -560,17 +522,16 @@ export function registerDuplex(db: Conn, reg: Registry, pool: Sessions, seed: [s
         return fresh;
       });
 
-      // 任务视图打头，跟 chat 那边同一个道理：它是「这道题是什么」，上下文接着它说。
-      // **这条会话第一个来回才发** —— 会话记得住，每轮重发等于把题目念很多遍。
+      // Put the task view first, as in chat: it defines the problem, and context follows it.
+      // **Send only in the session's first exchange**. The session remembers; resending each round would repeat the problem many times.
       const view = viewOf(u);
       const opening: Item[] = view && !seenView.has(u.instance) ? [{ role: "user", text: view }] : [];
       if (opening.length) seenView.add(u.instance);
 
       const out = await s.turn([...opening, ...u.context.map((r) => itemOf(r, u.sentAs)).filter((x): x is Item => x !== null)]);
 
-      // 别人说的话先落库。**走那条唯一的投递管道** —— kind 和 role 都是推出来的，
-      // 不在这儿填。`voice` 跟 `user` 分开：转写是说的，不是打的，混成一个的话
-      // 回放这段上下文会把它当成人敲进来的字重新发一遍。
+      // Store other participants' speech first, **through the sole delivery pipeline**. Infer kind and role there, not here.
+      // Keep `voice` separate from `user`: transcription represents speech, not typing. Conflating them would replay transcriptions as typed input.
       for (const said of out.heard) {
         deliver(db, {
           agent: String(u.agent.name),
@@ -581,8 +542,8 @@ export function registerDuplex(db: Conn, reg: Registry, pool: Sessions, seed: [s
         });
       }
 
-      // 形状跟 chat 那条轨**完全一致** —— 下游（内核落库、工具那一步）读的是同一份
-      // 约定，两条轨回不一样的形状的话，下游就得认得「这是哪条轨回来的」。
+      // Use **exactly the same shape as chat**. Downstream persistence and tool execution share one contract.
+      // Different return shapes would force them to know which track produced the result.
       if (out.calls.length > 0) {
         return {
           role: "assistant",
@@ -592,9 +553,8 @@ export function registerDuplex(db: Conn, reg: Registry, pool: Sessions, seed: [s
       }
 
       if (out.text.trim() === "") {
-        // 一个来回走完了，一个字都没有。**这正是事件名漂了的样子** ——
-        // 所以把线索一次说全：跳过了几条、见过哪些事件名、那边报过什么。
-        // 只说「什么都没回来」的话，人得从头猜起。
+        // An exchange ended with no text. **This is exactly what event-name drift looks like**.
+        // Report all clues together: skipped-event count, observed event names, and provider errors. "Nothing returned" alone forces diagnosis from scratch.
         const why = [
           `${vendor}/${model} finished a turn but returned nothing`,
           `skipped ${out.skipped} events`,
@@ -616,8 +576,8 @@ export function registerDuplex(db: Conn, reg: Registry, pool: Sessions, seed: [s
     db.run(
       `insert into api (key_env, model, handle, modes, base_url, retry_on) values (?, ?, ?, 'duplex', ?, ?)
        on conflict(key_env, model) do update set handle = excluded.handle, modes = excluded.modes`,
-      // 实时轨走的是 `ws`，不是这条 http 地址；`base_url` 在这一行里只是把列填上，
-      // 让「一行 api 就知道它打向哪儿」这件事没有例外。
+      // Realtime uses `ws`, not this HTTP address. Fill `base_url` in this row so that
+      // one api row always identifies its endpoint, with no exceptions.
       [v.keyEnv, model, `fn:api.${vendor}.duplex`, v.ws ?? v.baseURL, RETRY_ON],
     );
   }

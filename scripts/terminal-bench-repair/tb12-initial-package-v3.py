@@ -223,15 +223,15 @@ def main():
                "sourceConfigSecretsExcluded": True, "actualCredentialValuesChecked": len(secrets)}
     summary_path = staging / "summary.json"
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    lines = ["# Terminal-Bench 修正版初版结果包", "", "部分结果" if len(records)<24 else "固定清单运行结果已齐备；完整认证尚未完成", "",
-             f"固定 12 题 U/F，共计划 24 次；已完成有效记录 {len(records)} 次，未完成 {24-len(records)} 次。当前 U {score['U']}，F {score['F']}。评分认证错误单独列入 diagnostics，不作为模型失败。", "",
-             "| 题目 | U | F |", "|---|---|---|"]
+    lines = ["# Initial corrected Terminal-Bench results package", "", "Partial results" if len(records)<24 else "All fixed-manifest run results are available; full certification is incomplete", "",
+             f"12 fixed tasks U/F, 24 planned runs; {len(records)} valid records completed, {24-len(records)} incomplete. Current U {score['U']}, F {score['F']}. Grading-certification errors are listed separately in diagnostics, not treated as model failures.", "",
+             "| Task | U | F |", "|---|---|---|"]
     for row in rows:
         lines.append(f"| {row['taskId']} | {row['U']['status']} | {row['F']['status']} |")
-    lines += ["", "参数：deepseek-flash；temperature 0；seed 42；thinking disabled；每请求输出 8192 token；原任务 agent/verifier 时限保留。两个独立进程通道，每题 U 后 F。旧 17 条记录不混入本包对照。", "",
-              "实际任务记录、完整轨迹、已有候选产物、工具/最终评分原始回执、原始模型请求响应均装入 ZIP。原生评分器 stdout 与原 CTRF 保留在 grading；完整 trace 与关闭后的引擎数据库在 tasks。", "",
-              "局限：本包是初版；额外独立审阅、全生命周期认证仍 pending。nginx 使用窄活态接口；Docker 无 10 GiB 硬配额，仅边界采样；无候选等情况不代表原测试已执行。模型服务别名不是固定底层检查点。保留真实失败与原测试输出，不把未完成项当作通过。", "",
-              "运行仍在继续时，包仅包含已有完整任务记录，不对仍在写入的全局账本作最终认证。源码/环境/依赖清单及已有离线联调审阅收入 provenance、source。敏感运行配置和 TLS 私钥排除。离线入口 verify-package.py 只检查成员大小与 SHA256，不运行候选或模型。", ""]
+    lines += ["", "Parameters: deepseek-flash; temperature 0; seed 42; thinking disabled; 8192 output tokens per request; original task agent/verifier time limits retained. Two independent process lanes, U then F per task. The old 17 records are not mixed into this package comparison.", "",
+              "Actual task records, complete traces, available candidate artifacts, original tool/final-grading receipts, and original model requests/responses are included in the ZIP. Native grader stdout and original CTRF are retained in grading; complete traces and closed engine databases are in tasks.", "",
+              "Limitations: this is an initial package; additional independent review and full-lifecycle certification remain pending. nginx uses a narrow live-state interface. Docker has no 10 GiB hard quota, only boundary sampling. Cases such as no candidate do not establish that original tests executed. A model-service alias is not a pinned underlying checkpoint. Actual failures and original test outputs are retained; incomplete items are not treated as passes.", "",
+              "While execution continues, the package contains only existing complete task records and does not finally certify global ledgers still being written. Source/environment/dependency manifests and existing offline integration reviews are included in provenance and source. Sensitive runtime configuration and TLS private keys are excluded. Offline entry point verify-package.py checks only member sizes and SHA256, without executing candidates or models.", ""]
     (staging / "README.md").write_text("\n".join(lines), encoding="utf-8")
     verifier = "import hashlib,json,sys,zipfile\nfrom pathlib import Path\np=Path(sys.argv[1]);z=zipfile.ZipFile(p);m=json.loads(z.read('package-manifest.json'));assert z.testzip() is None\nfor r in m['files']:\n b=z.read(r['path']);assert len(b)==r['bytes'] and hashlib.sha256(b).hexdigest()==r['sha256']\nprint('PASS: '+str(len(m['files']))+' members; no model or candidate execution')\n"
     (staging / "verify-package.py").write_text(verifier, encoding="utf-8")

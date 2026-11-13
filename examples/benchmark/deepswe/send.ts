@@ -1,54 +1,48 @@
 /**
- * 把 DeepSWE 的题拼成一批带 G 的任务，发给 `POST /bench`。
+ * Build a batch of DeepSWE tasks with G and send it to POST /bench.
  *
  * ```
- * bun examples/benchmark/deepswe/send.ts [几道] [这一跑叫什么] [种子]
+ * bun examples/benchmark/deepswe/send.ts [count] [run-name] [seed]
  * ```
  *
- * **它只干一件事：拼请求体** —— 一道题长什么样、G 长什么样，README 里有完整的一份。
- *
- * 题面进 `description`，参考解 **不进**，隐藏测试 **不进** —— 那两样不出台子那个进程。
+ * **This script only assembles request bodies.** The README gives complete task and G examples.
+ * Statements enter description; **reference solutions and hidden tests do not**. Both remain in the grading service.
  */
 
 import { objectiveOf } from "./objective.ts";
 
 const BASE = process.env.TGENGIN_BASE ?? "http://127.0.0.1:7801/api";
-/** 引擎设了 api.publisherToken 时，绑判据要带这把钥匙（X-TGEngin-Publisher）。从环境变量取；没设就是空对象，老行为不变。 */
+/** When api.publisherToken is configured, attaching grading criteria requires this key (X-TGEngin-Publisher). Read it from the environment; if unset, use an empty object to preserve existing behavior. */
 const PUBLISHER: Record<string, string> = process.env.TGENGIN_PUBLISHER_TOKEN ? { "x-tgengin-publisher": process.env.TGENGIN_PUBLISHER_TOKEN } : {};
 const STAND = process.env.TGENGIN_DSW_STAND ?? "http://127.0.0.1:7902";
 const HOW_MANY = Number(process.argv[2] ?? 10);
 const RUN = process.argv[3] ?? `dsw-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}`;
 const SEED = Number(process.argv[4] ?? process.env.TGENGIN_DSW_SEED ?? 0);
 /**
- * **每道题最多给多久**，秒。官方 `task.toml` 那一栏是 10800（三小时），这儿封到
- * 7200（两小时），取两个里小的那个。`TGENGIN_DSW_SECONDS` 改这个上限。
+ * **Maximum seconds per problem.** Official task.toml allows 10800 (three hours). Cap it here at 7200 (two hours), using the smaller limit. TGENGIN_DSW_SECONDS overrides this cap.
  *
- * 时限比官方短，所以这一趟的分数跟榜上那些不是同一个实验 —— 榜上是三小时。
+ * Because the limit is shorter, these scores describe a different experiment from the three-hour leaderboard.
  */
 const CAP_SECONDS = Number(process.env.TGENGIN_DSW_SECONDS ?? 7200);
-/** K：判死几个兄弟后放弃（`maxDeadSiblings`）。`TGENGIN_DSW_DEAD` 改；F 臂设定里是 100000（K=∞）。 */
+/** K: abandon after this many dead siblings (maxDeadSiblings). Override with TGENGIN_DSW_DEAD; the F-arm setting is 100000 (K=∞). */
 const DEAD = Number(process.env.TGENGIN_DSW_DEAD ?? 8);
-/**
- * **U 臂**（`TGENGIN_DSW_UNAIDED=1`，照 terminal-bench/send.ts）：不挂 G、不给 `readable`，同一段验收标准拼在
- * 描述末尾 —— 它知道会怎么判，但没有判据可以问。收工后 arm 脚本对每题容器里的 HEAD 判一次（台子 `/grade`）。
- */
+/** **Arm U** (TGENGIN_DSW_UNAIDED=1, following terminal-bench/send.ts): attach neither G nor readable, but append the same acceptance criteria. The solver knows how it will be graded but cannot query a criterion. At completion, the arm script grades each container's HEAD once through /grade. */
 const UNAIDED = process.env.TGENGIN_DSW_UNAIDED === "1";
-/** 只发这几道（逗号分隔题号）。`TGENGIN_DSW_ONLY`。 */
+/** Submit only these comma-separated problem IDs, from TGENGIN_DSW_ONLY. */
 const ONLY = (process.env.TGENGIN_DSW_ONLY ?? "").split(",").map((x) => x.trim()).filter(Boolean);
 
-/** 台子发过来的题面。**没有参考解,也没有隐藏测试。** */
+/** Statement exposed by the grader. **Contains neither reference solution nor hidden tests.** */
 interface Item {
   id: string;
   language: string;
   title: string;
   instruction: string;
   base_commit: string;
-  /** 官方 `task.toml` 的 `[agent] timeout_sec`。**我们不另编一个数。** */
+  /** Official task.toml [agent] timeout_sec. **Do not invent another value.** */
   seconds: number;
 }
 
-// **题从台子取,不从磁盘读。** 语料跟参考解在一起,装在台子那一侧（见 `setup.sh`）。
-// 这个脚本跑在引擎那台机器上,读不到那个路径。
+// **Fetch problems from the grader, not disk.** The corpus and reference solutions are installed on the grader side (setup.sh); this sender runs on the engine machine and cannot read that path.
 const res0 = await fetch(`${STAND}/problems?n=${HOW_MANY}&seed=${SEED}`);
 if (!res0.ok) {
   console.error(`cannot fetch problems from the stand (${STAND}/problems): ${res0.status}`);
@@ -57,7 +51,7 @@ if (!res0.ok) {
 let items = (await res0.json()) as Item[];
 if (ONLY.length) items = items.filter((it) => ONLY.includes(it.id));
 
-// **续发**：`TGENGIN_SKIP_EXISTING=1` 时，这一跑里已经发过的按名字跳过。
+// **Resume submission:** with TGENGIN_SKIP_EXISTING=1, skip by name tasks already submitted in this run.
 let skip = new Set<string>();
 if (process.env.TGENGIN_SKIP_EXISTING === "1") {
   const r = await fetch(`${BASE}/tasks?run=${RUN}&limit=5000`);
@@ -66,65 +60,46 @@ if (process.env.TGENGIN_SKIP_EXISTING === "1") {
 }
 
 const objective = objectiveOf(STAND);
-/**
- * U 臂题面里放的那份验收标准：**去掉 handle 的 URL**。Sherlock 上容器共享宿主 loopback，
- * 台子的地址写进题面就等于把判据递给了它（台子那边也按来源拒，这儿是第一道）。
- */
+/** Acceptance criteria included in arm-U statements: **remove handle URLs**. Sherlock containers share host loopback, so exposing grader URLs exposes the criterion. The grader also rejects container-origin requests; omission here is the first barrier. */
 const criteria = { ...objective, nodes: objective.nodes.map(({ handle: _h, ...n }) => n) };
 
 const tasks = items.filter((it) => !skip.has(`${RUN}/${it.id}`)).map((it) => {
-  // 官方那道题自己说的时限，跟这一趟的上限取小。
+  // Use the smaller of the problem's official time limit and this run's cap.
   const seconds = Math.min(it.seconds, CAP_SECONDS);
   return {
-    /**
-     * **id 得带上跑名。**
-     *
-     * `task.id` 是全局唯一的（`tasks/publish.ts`：重了当场拒），而 deepswe 的题号
-     * 跨跑不变。写成裸题号的话，第一趟跑完就把那个名字占死了 —— 第二趟（换个级别、
-     * 换个种子）整批发不出去，除非每次把库挪走重建。而**四个级别本来就是四趟**。
-     */
+    /** **Include the run name in the id.** task.id is globally unique (tasks/publish.ts rejects duplicates), but DeepSWE problem IDs are unchanged across runs. Bare IDs would permanently occupy those names after one run, preventing another level/seed run without rebuilding the database. The four feedback levels are intended to be four separate runs. */
     id: `${RUN}/${it.id}`,
     mode: "solve",
     agent: "bot",
-    // **地址写法是我们自己的。** 位置由 `workplace.identity` 指着的那条句柄解析,
-    // 内核不认得 `dsw:` —— 那正是加那一列的用处（`app/src/place/index.ts`）。
+    // **This address format is ours.** The handle named by workplace.identity parses it; the kernel does not know dsw:. That is the purpose of this column (app/src/place/index.ts).
     //
-    // 跑名也在里头：**一跑一个容器**。换个级别重跑的话，工作区是全新的，上一趟留下
-    // 的东西渗不进来；同一趟里判死重来则共用同一个，那是有意的 —— 经验留着。
+    // Include the run name so **each run gets a fresh container**. Changing feedback level starts with a clean workspace. Retries within one run deliberately share their container to preserve experience.
     place: `dsw:${RUN}/${it.id}`,
     source: "user",
     domain: "software",
-    // 干活的地方是容器里的仓库根。
+    // Work at the repository root inside the container.
     workdir: "/app",
     /**
-     * **每道题多久。** 官方那道题自己说的（`task.toml` 的 `[agent] timeout_sec`，
-     * 现在是 10800 秒）跟这一趟的上限 `CAP_SECONDS` 取小 —— 现在是 7200。
+     * **Per-problem time limit:** the smaller of official task.toml [agent] timeout_sec (currently 10800 seconds) and CAP_SECONDS (currently 7200).
      *
-     * 时限要长过一次调用的死期,不能等于它：两个钟同时响的话任务那个先赢,
-     * 「一次调用卡住 → 判死这一站 → 换个节点重来」那条路就永远走不到。
+     * It must exceed an individual call's timeout. Equal deadlines let the task timeout win, preventing stalled-call -> dead-station -> new-node retry.
      */
     solveSeconds: seconds,
-    // **只留时间这一个闸。** 额度、分支、判死重来的次数都给够 —— 卡在哪儿就该是
-    // 「时间到了」,不该是「格子用完了」。
+    // **Keep time as the only binding constraint.** Provide ample units, branches, and dead-attempt retries so termination means time expired rather than unit budget exhausted.
     maxBranches: 4,
     maxDeadSiblings: DEAD,
     /**
-     * **不许搜。**
+     * **No search.** Official environments are no-network, but our search tool is not forwarded to workplace because it needs network access and credentials, not that filesystem (main.ts). It would expose publicly available GitHub reference solutions searchable by task ID.
      *
-     * 官方那套两侧都是 `no-network`,而我们的 `search` 不转发到 workplace（要的是
-     * 网络和钥匙,不是那台机器上的文件系统,见 `main.ts`）—— 它是条真网络,而这套题
-     * 的参考解就公开在 GitHub 上,按题目 id 一搜就是。
-     *
-     * 一个数都不给,那条工具在这一跑里根本不该摆出来（`run.sh` 里关掉它）。这几条
-     * 是保险：万一哪次它又被摆出来了,这些词能挡住最直的那几条路。
+     * Give no search allowance and disable the tool in run.sh. These keywords are defense in depth if the tool is accidentally exposed again, blocking the most direct retrieval routes.
      */
     noSearch: ["deepswe solution", "datacurve deep-swe", `${it.id} solution`],
-    /** 官方题面，后面接这道题是怎么判的：判哪两点之间的 diff、交什么、时限多少。 */
+    /** Official statement followed by grading details: the two diff endpoints, required submission, and time limit. */
     description:
       `${it.instruction}\n\n` +
       `## Grading\n\n` +
       `The repository is at /app, checked out at ${it.base_commit}.\n` +
-      // U 臂收工判的是容器里的 HEAD（官方 [[verifier.collect]] 命令），题面照实说；F 臂判交上来的 sha。
+      // At completion, arm U grades container HEAD using the official [[verifier.collect]] command; state that accurately. Arm F grades the submitted SHA.
       (UNAIDED
         ? `What is graded is the diff from ${it.base_commit} to HEAD of /app at the moment you hand in. `
         : `What is graded is the diff from ${it.base_commit} to the commit whose sha is handed in. `) +
@@ -132,43 +107,38 @@ const tasks = items.filter((it) => !skip.has(`${RUN}/${it.id}`)).map((it) => {
       `The wall-clock limit for this task is ${Math.round(seconds / 3600)} hours. ` +
       `Nothing reports how much of it is left.` +
       (UNAIDED ? `\n\n## Acceptance criteria\n${JSON.stringify(criteria, null, 2)}` : ""),
-    // 带 G 就必须显式给：这道题的智能体读不读得到 G 的定义。
+    // When attaching G, explicitly declare whether the agent may read its definition.
     //
-    // **给 true。** 「补丁得打得上、原有的测试不许坏、题面列的行为要做出来」本来就该
-    // 让它知道 —— 这套系统要量的是「给一个说得清楚的靶子,它能不能命中」,靶子藏起来
-    // 量的就是别的东西了。U 臂不挂 G，也就没有 readable 这一说。
+    // **Set true.** The solver should know that patches must apply, existing tests must keep passing, and requested behavior must be implemented. This system measures success against a clearly stated target; hiding it measures something else. Arm U has no G and therefore no readable field.
     ...(UNAIDED ? {} : { objective, readable: true }),
   };
 });
 console.log(`${RUN}: ${tasks.length} tasks, c=${objective.checks}, K=${DEAD}, T<=${CAP_SECONDS}s${UNAIDED ? " (UNAIDED: no objective mounted)" : ""}`);
 
 /**
- * **发之前先验一遍要丢给 G 的那个 HTTP 请求。**
+ * **Validate the exact HTTP request to G before submission.**
  *
  * ```
  * bun examples/benchmark/deepswe/send.ts 10 dsw-l2 0 --dry
  * ```
  *
- * 验的不是「台子活着吗」（那是 `/health`），是**内核真会发出去的那个形状**：
+ * This tests more than grader liveness (/health): it uses **the actual kernel payload shape**:
  *
  * ```json
  * {"node":"applies","moment":"task_done","domain":"bool",
- *  "feed":[], "input":{"task":{…整行…},"chain":[],"result":{"kind":"prompt","body":"<sha>"}}}
+ *  "feed":[], "input":{"task":{…complete row…},"chain":[],"result":{"kind":"prompt","body":"<sha>"}}}
  * ```
  *
- * 这一趟能当场发现的：句柄打不通、题号对不上（`id` 跟语料里那个不是一个）、
- * 回的东西不落值域（`bool` 那一格回了别的，G 会**归 0 并且不报错**）、
- * 上游判 0 时根节点没有短路。**一趟要跑几个钟头，这些错留到那时候发现就是整趟重来。**
+ * It detects unreachable handles, task IDs absent from the corpus, out-of-domain responses (a non-bool silently makes G return 0), and roots that do not short-circuit upstream failure. **Finding these after an hours-long run requires starting over.**
  *
- * 这儿不起容器：那道题还没开工，`applies` 该说「取不到补丁」—— 那正是要看到的答案，
- * 说明它认出了题、走到了取补丁那一步。
+ * No container is started here. Since work has not begun, applies should report that the patch cannot be retrieved, proving it recognized the task and reached patch retrieval.
  */
 async function dryRun(): Promise<number> {
   console.log(`${RUN}: ${tasks.length} tasks assembled, nothing sent\n`);
-  console.log("── 一道题的请求体（其余的只有 id / place / description 不同）──");
+  console.log("── One task request (others differ only in id / place / description) ──");
   console.log(JSON.stringify({ ...tasks[0], description: tasks[0].description.slice(0, 160) + " …" }, null, 2));
 
-  console.log("\n── 拿内核真会发的形状打一遍 G ──");
+  console.log("\n── Query G with the kernel’s actual payload shape ──");
   const shape = (node: string, task: (typeof tasks)[number], said: string, feed: unknown[]) => ({
     node,
     moment: "task_done",
@@ -192,15 +162,15 @@ async function dryRun(): Promise<number> {
     const line: string[] = [];
     let fine = true;
     try {
-      // 那道题还没开工，所以这一问该判 0，而且得说得出「为什么」—— 取不到补丁。
+      // Work has not started, so expect verdict 0 with an explanation that the patch cannot be retrieved.
       const a = await ask(objective.nodes[0].handle, shape("applies", t, "0000000000000000000000000000000000000000", []));
-      // **值域封口**：`bool` 那一格必须回 bool。回别的的话 G 归 0 且不报错。
+      // **Enforce the domain:** a bool node must return bool; other responses silently map to 0 in G.
       if (typeof a.value !== "boolean") throw new Error(`applies returned ${typeof a.value}, not a bool`);
       if (a.value !== false) throw new Error(`applies said true for a task that has not started`);
       if (!a.note) throw new Error(`applies judged 0 but said nothing (note is empty)`);
       line.push(`applies=false note=${JSON.stringify(a.note).slice(0, 60)}`);
 
-      // 上游判 0 的时候，根**不该再去判一次卷** —— 那是几十秒到几分钟。
+      // After upstream failure, the root **must not grade again**; that would cost tens of seconds to minutes.
       const t0 = Date.now();
       const r = await ask(objective.nodes[1].handle, shape("resolved", t, "0000000000000000000000000000000000000000", [{ from: "applies", out: 0, value: false }]));
       const ms = Date.now() - t0;
@@ -216,8 +186,8 @@ async function dryRun(): Promise<number> {
     console.log(`  ${fine ? "✓" : "✗"} ${t.id.padEnd(52)} ${line.join("  ")}`);
   }
 
-  // 题号对不上的话，整趟跑完每道都判 0。
-  console.log("\n── 题号对不上的时候它说得出来吗 ──");
+  // A mismatched problem ID would make every problem score 0 after the entire run.
+  console.log("\n── Check whether a mismatched task ID is reported ──");
   const ghost = await ask(objective.nodes[0].handle, shape("applies", { ...tasks[0], id: "no-such-task" }, "x", []));
   const knows = JSON.stringify(ghost.note ?? "").includes("not in the corpus");
   console.log(`  ${knows ? "✓" : "✗"} ${JSON.stringify(ghost)}`);
@@ -230,21 +200,17 @@ async function dryRun(): Promise<number> {
 if (process.argv.includes("--dry")) process.exit(await dryRun());
 
 /**
- * **同时做几道。** 0 = 整批一次全发出去。
+ * **Concurrent problems.** 0 submits the full batch immediately.
  *
- * 内核那边是**来多少吃多少**：没出站过的行全部当场发出去。所以「同时做几道」这件事
- * 只能在发题这一侧管 —— 库里同时摆着几道没做完的，机器上就同时在做几道。
+ * The kernel dispatches all unsent rows as soon as they exist, so only the sender can control concurrency. The number of unfinished database tasks is the number being processed.
  *
- * 全集是 112 道。一次全发 = 112 个容器 + 112 个并发模型调用打给同一个供应商。
- * 它不会拒，它会排队 —— 而每道题的时限是按**墙上的钟**算的，于是题反而做不完。
- * 这台机器同时开十道时判卷已经要排队了（见台子日志的 `queued`）。
+ * Submitting all 112 problems means 112 containers and 112 simultaneous calls to one provider. Requests queue rather than fail, consuming **wall-clock** problem budgets. Even ten concurrent tasks already queue grading on this machine (see queued in grader logs).
  *
- * **这是「同时 N 道」，不是「一批 N 道」**：做完一道补一道，不等这一批全做完。
- * 后者会被批里最慢的那道拖住整队。
+ * Maintain **N concurrent problems, not fixed batches of N**: replace each completed task immediately rather than waiting for the slowest member of a batch.
  */
 const AT_ONCE = Number(process.env.TGENGIN_DSW_AT_ONCE ?? 0);
 
-/** 这一跑现在有几道还没做完（没开工的 + 在做的）。 */
+/** Current unfinished task count for this run: not yet started plus running. */
 async function busy(): Promise<number> {
   const r = await fetch(`${BASE}/bench/${RUN}`);
   if (!r.ok) return 0;
@@ -253,9 +219,7 @@ async function busy(): Promise<number> {
 }
 
 if (AT_ONCE > 0) {
-  // 一道一道地发，发之前先看有没有空位。`POST /tasks` 那道准入检测是按题的
-  // （G 过不了就拒这一道），所以拆开发不会松掉任何一条规矩 —— 但也就没有
-  // 「一道不过整批不发」那层保护了，所以第一道要是被拒，这儿当场停。
+  // Submit individually after checking capacity. POST /tasks validates each problem's G, so no criterion is weakened. Atomic batch rejection is lost, however; stop immediately if the first task is rejected.
   console.log(`${RUN}: ${tasks.length} tasks, keeping ${AT_ONCE} of them in flight (seed ${SEED})`);
   let sent = 0;
   let skipped = 0;
@@ -268,9 +232,7 @@ if (AT_ONCE > 0) {
     });
     if (!r.ok) {
       const e = (await r.json()) as { error?: string };
-      // **这个名字已经在库里了 = 那一道上一趟发过了，跳过。** 一趟被打断之后接着发
-      // 剩下的，就是这个形状：同一个跑名再走一遍，发过的按名字认出来。
-      // 别的拒绝照旧当场停 —— 那些是这一趟本身有毛病。
+      // **An existing name means this task was submitted earlier; skip it.** Resume an interrupted sender with the same run name and recognize prior submissions by name. Other rejections still stop immediately because they indicate a problem with the run.
       if ((e.error ?? "").includes("already exists")) {
         skipped++;
         continue;

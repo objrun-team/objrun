@@ -1,28 +1,29 @@
 /**
- * 例子：**从外面加一条规则**（挂在时刻上就是钩子）。
+ * Example: **add a rule externally**; attaching it to a moment makes it a hook.
  *
  * ```
  * bun test/integration/rule.ts
  * ```
  *
- * 钩子在这台机器上**不另开表**：一条规则 + 一条 `dim: "moment"` 的条件，就是钩子。
- * 内核只喊「现在是哪一刻」，谁挂在这一刻上由触发条件说了算 —— 所以内核里没有
- * 任何一个规则名。
+ * Hooks **do not have a separate table**: a rule with a `dim: "moment"` condition
+ * is a hook. The kernel announces the current moment, and trigger conditions
+ * determine which rules apply. No rule name is hard-coded in the kernel.
  *
- * 内核会喊到的时刻：`unit_start` / `pre_send` / `post_send` / `task_done`。
+ * Kernel moments: `unit_start` / `pre_send` / `post_send` / `task_done`.
  *
- * ## 要害在第二部分
+ * ## The second part is essential
  *
- * 「挂上了」和「到点真被喊到了」是两件事。而且更要紧的是**它不该在别的时刻被喊**
- * —— 一条本该只在收尾时跑的规则，要是每一刻都跑，那不报错，只是行为完全不是
- * 你想的那样。所以第二部分要数：每条规则各被喊了几次、分别在哪一刻。
+ * Registering a hook differs from invoking it at the right time. It is equally
+ * important **not to invoke it at other moments**. A finalization-only rule running
+ * at every moment may produce no error while behaving entirely incorrectly.
+ * The second part therefore counts each rule's invocations and their moments.
  */
 
 import { done, machine, ok, outside, part, show, step, until } from "../_lib.ts";
 
 const m = await machine();
 
-/** 每条规则被喊到时，把「这是哪一刻、哪个任务」记下来。 */
+/** For every rule invocation, record the current moment and task. */
 const seen: { who: string; moment: unknown; task: unknown }[] = [];
 
 const out = await outside({
@@ -40,7 +41,7 @@ const out = await outside({
 const at = (who: string) => seen.filter((s) => s.who === who).map((s) => s.moment);
 
 try {
-  // ═══════════════ 第一部分：注册 ═══════════════
+  // =============== Part 1: registration ===============
   part("Part one: registration");
 
   step("1. hung on a moment the kernel never raises");
@@ -116,7 +117,7 @@ try {
   ok("a hook hung on a moment lives in this same list; there is no separate table", rules.length === 2, rules.length);
   ok("neither is a never-fires rule", rules.every((r) => r.neverFires === false), rules);
 
-  // ═══════════════ 第二部分：使用层次的校验 ═══════════════
+  // =============== Part 2: actual-use validation ===============
   part("Part two: checks at the level of use");
   console.log("  Hung is not the same as raised on time. And more importantly: it must not be raised at other moments.");
 
@@ -128,7 +129,7 @@ try {
     const d = await m.api<{ state: string }>("GET", "/tasks/t-1");
     return d.state === "done" || d.state === "failed" ? d : null;
   });
-  // 收尾那一刻是在任务推到 done 之后喊的，等它一下。
+  // The finalization moment is announced after the task becomes done; wait for it.
   await until("wrapup to be raised", async () => (at("wrapup").length > 0 ? true : null), 5_000);
 
   show("moments audit was raised at:", at("audit"));

@@ -1,17 +1,18 @@
-# ChemIQ —— G 设计表
+# ChemIQ — G design
 
-题库：oxpig/ChemIQ `questions/chemiq.jsonl`，816 题，8 类（IUPAC 命名 200、原子映射 184、最短路径 108、NMR 解谱 96、反应 90、数碳 50、数环 48、SAR 40）。
-判据：官方 `answer_verifier.py` 原样（RDKit 规范 SMILES；IUPAC 名走剑桥 OPSIN 网络服务转 SMILES；计数精确；SAR 区间）。
+Dataset: oxpig/ChemIQ `questions/chemiq.jsonl`, 816 tasks in 8 categories (IUPAC naming 200, atom mapping 184, shortest path 108, NMR interpretation 96, reactions 90, carbon counting 50, ring counting 48, SAR 40).
+Criterion: unchanged official `answer_verifier.py` (RDKit canonical SMILES; IUPAC names converted to SMILES through Cambridge’s OPSIN web service; exact counts; SAR intervals).
 
-## 四个字段
+## Four fields
 
-| 字段 | 现在的值 | 理由 |
+| Field | Current value | Rationale |
 |---|---|---|
-| 结构 | `parsed → correct` | 官方 parser 抽不出答案的算 parsed=0，和官方「格式错=0 分」口径一致 |
-| 边界 | `noSearch` 挡 chemiq/oxpig | 题库在 GitHub；SMILES 本身搜不到答案 |
-| **预算** | `checks: 3`，`maxDeadSiblings: 4` | 数碳/数环答案空间小（6–25，eacndev 估枚举可达 28%）——**这两类 F 臂要单独报**；SMILES/IUPAC/映射空间无限，3 次是干净的 |
-| 信息级别 | ℓ0 | 可选 ℓ1：拒绝时告诉它 RDKit 解析失败还是不等价——对 NMR 解谱有用 |
+| Structure | `parsed → correct` | Official parser failures give parsed=0, matching the official zero score for invalid formatting |
+| Boundary | `noSearch` blocks chemiq/oxpig | The dataset is on GitHub; SMILES alone does not reveal answers through search |
+| **Budget** | `checks: 3`, `maxDeadSiblings: 4` | Carbon/ring counts have small answer spaces (6–25; eacndev estimates 28% enumeration reachability). **Report these two F-arm categories separately**. SMILES/IUPAC/mapping spaces are infinite, so 3 attempts are clean |
+| Feedback level | ℓ0 | Optional ℓ1: distinguish RDKit parsing failure from nonequivalence on rejection, useful for NMR interpretation |
 
-## 注意
-- OPSIN 是网络调用（每个 IUPAC 名一次，有缓存）；判卷台要能出网。
-- 官方规定回答里有换行或超过 200 字符直接判错——所以 `suffix` 要求 boxed 里只放答案。
+## Notes
+
+- OPSIN requires network access (one request per IUPAC name, cached); the grading service needs outbound connectivity.
+- The official grader immediately rejects responses containing a newline or exceeding 200 characters, so `suffix` requests only the answer inside boxed.

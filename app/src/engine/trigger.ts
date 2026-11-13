@@ -1,28 +1,28 @@
 /**
- * 什么时候轮到谁。
+ * Determine which owner should trigger at a given time.
  *
- * 条件全在 `trigger` 表里，一行一个条件项：**同组之间 and，组和组之间 or**。
- * 这一层只会做比较，不认得任何一个具体的规则名、工具名、周期名。
+ * Conditions live in `trigger`, one condition per row: **AND within a group, OR between groups**.
+ * This layer performs comparisons without knowing any specific rule, tool, or cycle names.
  */
 
 import type { Conn } from "../H2H/db.ts";
 import { all } from "../H2H/db.ts";
 
-/** 比的时候手上有这些东西。`chain` 是拼好的链路串。 */
+/** Facts available to comparisons. `chain` is the formatted execution-chain string. */
 export interface Facts {
   agent: Record<string, unknown>;
   task: Record<string, unknown>;
   cycle: Record<string, unknown>;
   chain: string;
   /**
-   * **这个执行单元**的工作区，不是任务的。
+   * The workspace of **this execution unit**, not the task's original workspace.
    *
-   * 两者一开始一样，但工作区是一行一行往下传的（见 `loop.ts` 开下一站那段），
-   * 树岔开之后同一个任务的两站可以落在不同地方 —— 「这一站手上有哪些工具」
-   * 要看这一站在哪儿，看 `task.place` 会挂错。
+   * They initially match, but workspace assignments propagate row by row (see station creation
+   * in `loop.ts`). After branching, two units of the same task can run in different places.
+   * Tool availability must use the current unit's place; using `task.place` would select incorrectly.
    */
   place: string;
-  /** 这一刻是什么时刻。见 `MOMENTS`。不在时刻上问的条件用不到它。 */
+  /** The current lifecycle moment; see `MOMENTS`. Conditions not evaluated at a moment do not use it. */
   moment?: string;
 }
 
@@ -37,26 +37,27 @@ interface Term {
 }
 
 /**
- * 认得的比法。**这一组就是权威** —— 不另开一张登记表。
+ * Supported comparisons. **This set is authoritative**; do not maintain another registration table.
  *
- * 登记表会跟实现漂：表里写着 `contains` 而代码改了名，或者反过来，两边都以为
- * 自己对。合法取值本来就是这个 `switch` 认得的那几个，校验直接对着它查最硬。
+ * A separate list can drift from implementation, for example after renaming `contains` on only
+ * one side. The valid values are exactly those supported by this switch, so validation checks
+ * this implementation directly.
  */
 export const OPS = ["eq", "ne", "contains", "not_contains", "prefix", "suffix", "in"] as const;
 
-/** 认得的维度。同理，不另开表。 */
+/** Supported dimensions, likewise without a separate registration table. */
 export const DIMS = ["agent", "task", "cycle", "chain", "moment", "place"] as const;
 
 /**
- * 内核会喊到的时刻。**钩子就挂在这些点上** —— 一条规则 + 一条
- * `dim=moment` 的条件，不另开一张钩子表。
+ * Lifecycle moments announced by the kernel. **Hooks attach to these points** through a rule
+ * and a `dim=moment` condition, without a separate hooks table.
  *
- * 老代码那边钩子是 `cards/<id>/hooks/<event_type>/*.py`，一个目录一个时刻。
- * 我们这儿时刻是**数据里的一个值**，挂谁由 `trigger` 说了算。
+ * The old implementation used `cards/<id>/hooks/<event_type>/*.py`, one directory per moment.
+ * Here the moment is **a data value**, and `trigger` determines what attaches to it.
  */
 export const MOMENTS = ["unit_start", "pre_send", "post_send", "task_done"] as const;
 
-/** 认得的比法。写错一个字母不该悄悄不匹配，所以不认得的当场炸。 */
+/** Supported comparisons. A typo must not silently fail to match; reject unknown names immediately. */
 export function compare(op: string, got: string, want: string): boolean {
   switch (op) {
     case "eq":
@@ -66,8 +67,8 @@ export function compare(op: string, got: string, want: string): boolean {
     case "contains":
       return got.includes(want);
     case "not_contains":
-      // 「非」：出现即不命中。老代码那边是单独一个 absent 字段，我们这儿是一种比法 ——
-      // 少一个字段，而且能跟别的条件混在同一组里 and。
+      // Negation: a present value prevents a match. The old code used a separate absent field;
+      // here it is a comparison operator, removing a field and allowing AND with other conditions.
       return !got.includes(want);
     case "prefix":
       return got.startsWith(want);
@@ -101,11 +102,11 @@ export function pick(f: Facts, dim: string, key: string): string {
 }
 
 /**
- * 这一刻有哪些 owner 该触发。
+ * Owners that should trigger now.
  *
- * 一个 owner 只要**有一组**全中就算触发（组间 or）；一组里**每一条**都得中
- * （组内 and）。一个 owner 一条条件都没有 = 从不触发 —— 不是「总是触发」。
- * 反过来定的话，忘了写条件的东西会到处乱开。
+ * An owner matches when **any group** matches (OR between groups); **every condition** in that
+ * group must match (AND within groups). No conditions means never, not always. The opposite
+ * interpretation would activate declarations everywhere when their conditions were omitted.
  */
 export function fire(db: Conn, kind: string, f: Facts): string[] {
   const terms = all(

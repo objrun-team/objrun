@@ -1,14 +1,14 @@
 /**
- * 把基础工具注册进内核。
+ * Register basic tools with the kernel.
  *
- * **注册走内核**，因为只有它持有得住函数。注册一次落两处：
+ * **Registration belongs to the kernel**, which alone can hold function objects. Each tool adds:
  *
- * - `handle` 表一行：名字 + 多久算死（谁引用这个句柄、超时怎么判，都看它）
- * - `tool` 表一行：给模型看的那几样（`does` / `params` / `output` / `prompt`）
+ * - A `handle` row containing its name and timeout, used for references and liveness decisions.
+ * - A `tool` row containing model-facing `does` / `params` / `output` / `prompt` metadata.
  *
- * 注册进去的那个函数**本身不干活，它只负责转发**：按 `workplace` 决定这一次
- * 在哪儿跑，然后把调用发过去。真正干活的实现在 `./index.ts`，本机和运行时里
- * 装的是同一份。
+ * The registered function **only forwards**: choose the execution location through `workplace`
+ * and dispatch the invocation there. Actual implementations live in `./index.ts` and are shared
+ * by local execution and the remote runtime.
  */
 
 import type { Conn } from "../H2H/db.ts";
@@ -22,27 +22,28 @@ interface Policy {
   policy: string;
 }
 
-/** 这一次在哪儿跑，以及**由谁把调用送过去**。 */
+/** Execution location and **the handle responsible for forwarding**. */
 export interface Where {
-  /** 位置串。`local` = 就在这个进程里跑。 */
+  /** Location string. `local` means this process. */
   place: string;
-  /** 转发它的那条句柄 → `workplace.identity`。本机跑的时候是空的。 */
+  /** Forwarding handle, from `workplace.identity`. Empty for local execution. */
   identity: string;
 }
 
 /**
- * 这一次在哪儿跑。
+ * Choose the execution location for this invocation.
  *
- * `workplace.forward` 是总闸；白名单 `tools` 里那一项的 `policy` 定细则：
- * `always` 一定转发，`agent` 由智能体那一次说了算，没列进白名单的不转发。
+ * `workplace.forward` enables forwarding; each allowlisted tool's `policy` refines it:
+ * `always` forwards unconditionally, `agent` follows the agent's choice for this call, and
+ * unlisted tools remain local.
  *
- * 都不满足就在本机跑 —— **不是报错**。位置登记的是「可以转到哪儿」，
- * 不是「必须转过去」。
+ * If no policy applies, run locally: **this is not an error**. A place declares where work
+ * may be forwarded, not where it must run.
  *
- * 判出要转发的时候，**得一并说清由谁转** —— 「怎么到那个位置」是那条句柄的事，
- * 不是这个文件的事。声明那一关保证了 `forward = 1` 的行必有 `identity`；
- * 真缺了在这儿炸，不往下走：往下走的话它会**悄悄退回本机跑**，而一件本该在
- * 容器里跑的 `bash` 落到宿主机上，是不报错的那种错。
+ * When forwarding is selected, **also identify its forwarding handle**. Reaching the destination
+ * belongs to that handle, not this file. Declaration validation guarantees `identity` whenever
+ * `forward = 1`; if missing anyway, fail here. Continuing could **silently execute locally**,
+ * such as running container-intended bash on the host without reporting an error.
  */
 export function placeFor(db: Conn, tool: string, place: string, agentWants: boolean | undefined): Where {
   const HERE: Where = { place: "local", identity: "" };
@@ -72,30 +73,31 @@ export function placeFor(db: Conn, tool: string, place: string, agentWants: bool
   throw new Error(`unknown policy for ${tool} on workplace ${place}: ${hit.policy}`);
 }
 
-/** 不转发的时候工具就在这儿跑。**跟运行时里装的是同一份实现**，所以两边行为一样。 */
+/** Run tools here when not forwarding. **The implementation is shared with the runtime**, preserving behavior. */
 const here = openLocal();
 
-/** 把一次工具调用发出去。转发的话经那条句柄，不转发的话就在这儿跑。 */
+/** Dispatch one tool call through its forwarding handle or execute it locally. */
 type Send = (tool: string, args: Record<string, unknown>) => Promise<unknown>;
 
-/** 改文件之前得先读过它 —— 这几个是「改」。 */
+/** File-modifying tools subject to the read-before-write guard. */
 const MUTATES = new Set(["edit", "write"]);
 
 /**
- * 这个单元读过这个文件没有。
+ * Whether this execution unit has read the file.
  *
- * 判据是**库**：这个执行单元的消息里有没有一条 read 的返回，落在这个路径上。
- * 不是问工具、不是问内存 —— 工具跑在别的位置上，内存崩了就没了，只有库两边都算数。
+ * The **database** is authoritative: look for a read result at this path in the unit's messages.
+ * Do not consult the tool or in-memory state. Tools may run elsewhere, memory is lost on crashes,
+ * and only the database is authoritative on both sides.
  */
 /**
- * 它**读到过这个文件的内容**没有。
+ * Whether the agent **has actually read the file's contents**.
  *
- * 两处以前是错的，合起来让这道闸按构造永远满足不了：
+ * Two earlier mistakes made this guard impossible to satisfy:
  *
- * - 找的是 `v.tool`，可结果行写进去的形状是 `{id, name, value}`（`tools/unit.ts`）——
- *   永远对不上，于是任何 `write` / `edit` 都被无限交回「先去读」。
- * - 范围只看当前这一站。可这道闸交回去的是一个**操作单元**，那个 read 落在
- *   **下一站**上 —— 本站里当然找不到。范围得是整个实例。
+ * - It looked for `v.tool`, but result rows use `{id, name, value}` (`tools/unit.ts`), causing
+ *   every write or edit to return "read first" forever.
+ * - It searched only the current unit. The guard returns an **operation unit**, so its requested
+ *   read occurs in the **next station**. Search the entire instance instead.
  */
 function hasRead(db: Conn, agent: string, instance: string, path: string): boolean {
   const t = `agent_${agent.replace(/[^A-Za-z0-9_]/g, "_")}_msg`;
@@ -113,11 +115,11 @@ function hasRead(db: Conn, agent: string, instance: string, path: string): boole
 }
 
 /**
- * 那个位置上有没有这个文件。**得问那个位置** —— 文件未必在引擎这台机器上，
- * 在引擎这边 `stat` 一下的话，转发出去的场景会答错。
+ * Check file existence **at the execution location**, not on the engine's host. Local stat
+ * would give the wrong answer for forwarded tools.
  *
- * 读不出来的错不止「没有这个文件」一种（没权限、那是个目录……）。只有 ENOENT
- * 才算「不存在」—— 别的错一律当成存在，否则一个读不动的文件就把整道闸绕过去了。
+ * Read failures include permission errors and directories as well as missing files. Only ENOENT
+ * means absent; treat other failures as existence so unreadability cannot bypass the guard.
  */
 async function existsAt(send: Send, path: string): Promise<boolean> {
   try {
@@ -128,7 +130,7 @@ async function existsAt(send: Send, path: string): Promise<boolean> {
   }
 }
 
-/** 一件工具报给库的那几样。干活那个函数不在里头 —— 那是句柄的事，跟这张表无关。 */
+/** Tool metadata stored in the database. The implementation function belongs to its handle, not this table. */
 export interface Declared {
   name: string;
   does: string;
@@ -136,24 +138,23 @@ export interface Declared {
   output: Record<string, unknown>;
   prompt: string;
   concurrent: boolean;
-  /** 它的返回是哪一类东西 → `msg_part.name`。不填 = `event`。 */
+  /** Result category, referencing `msg_part.name`; default to `event`. */
   gives?: string;
   when?: { dim: string; key: string; op: string; value: string }[][];
 }
 
 /**
- * 把一件工具落进 `tool` 和 `trigger`。**只此一处。**
+ * Persist a tool and its trigger conditions. **This is the sole implementation.**
  *
- * 以前这段有两份：这个文件里一份（照 `when` 生成条件），`objective/tool.ts` 里
- * `verify` 又手写了两条 `insert into trigger`。同一件事两处各写各的，那两份就会漂，
- * 而且是**悄悄地漂**：一边改了 upsert 要更新哪几列、另一边没跟上，看着照常工作，
- * 只是有一列永远停在第一次写进去的值上。实际就已经差了一列（`concurrent`）。
+ * Previously both this file and `objective/tool.ts` implemented registration, with verify writing
+ * two trigger inserts manually. Their upserts silently drifted: a changed column set on one
+ * side left the other's values fixed at first insertion. `concurrent` had already diverged.
  *
- * `when` 一并管两件事：条件写进 `trigger`，以及**这件算不算「系统工具」**。系统工具
- * 是「谁都有、不看条件」，所以带条件的必须退出那一档 —— 两样同时成立的话，条件写了
- * 不生效，而且不报错。
+ * `when` controls both trigger rows and **system-tool classification**. System tools are available
+ * unconditionally, so conditional tools must leave that category. Combining both would silently
+ * make their conditions ineffective.
  *
- * 条件**先清后写**：重装时旧的那几行留着的话，改了条件也不生效。
+ * **Delete conditions before replacing them**, or reinstalling a tool would retain stale rules.
  */
 export function declareTool(db: Conn, t: Declared, identity = `fn:tool.${t.name}`): void {
   const conditional = (t.when ?? []).length > 0;
@@ -190,10 +191,10 @@ export function declareTool(db: Conn, t: Declared, identity = `fn:tool.${t.name}
 }
 
 /**
- * 注册全部基础工具。行是 upsert 的 —— 重装一次不该多出一堆重复。
+ * Register all basic tools with upserts, avoiding duplicate rows on repeated installation.
  *
- * **落进去的是 `system = 1`**：读写这一组谁一上来都有，不看 `trigger`。
- * 不标的话，按「一条条件都没有 = 从不触发」那条语义，它们谁也拿不到。
+ * **Use `system = 1`** for universally available file tools. Without it, "no conditions = never
+ * triggers" would prevent every agent from receiving them.
  */
 export function registerTools(db: Conn, reg: Registry): string[] {
   const names: string[] = [];
@@ -211,23 +212,22 @@ export function registerTools(db: Conn, reg: Registry): string[] {
       };
       const args = a.args ?? {};
 
-      // 在哪儿跑、由谁送过去。**送过去这件事经注册表**，跟调 G 的节点、调推断
-      // 函数是同一条路 —— 这个文件不认得 wsl、ssh、docker 里的任何一个。
+      // Choose the location and forwarder. **Forward through the registry**, just like G nodes and
+      // inference functions. This file has no knowledge of wsl, ssh, or docker.
       const where = placeFor(db, t.name, a.place ?? "local", a.forward);
       const send: Send = where.identity
         ? (tool, args) => reg.get(where.identity).call({ place: where.place, op: "call", tool, args })
         : (tool, args) => here.call(tool, args);
 
-      // 改之前没读过 → **不拒，回一个操作单元**：先去做这一步，再回来改。
+      // An unread file modification **returns an operation unit instead of rejection**: perform the
+      // read first, then retry the edit.
       //
-      // dsh 那边是策略层直接拒。我们不用拒 —— 手上有执行单元这个东西，
-      // 把「下一步该干什么」交回去就行。拒只是告诉它「不行」，
-      // 交回一个单元是告诉它「这么办」，后者模型接得住。
+      // dsh rejects this at the policy layer. Here an execution unit can express the corrective action.
+      // Rejection says only "no"; returning a unit says "do this", which the model can act on.
       //
-      // **新建文件不过这道闸。** 闸挡的是「盖掉你没看过的内容」，而新建没有内容
-      // 会被盖掉 —— 那儿本来就是空的。不这么分的话新建这条路根本走不通：
-      // `write` 说「先去读」，`read` 说 ENOENT，两边各说各的，死循环。
-      // 实测烧掉过一整道题（cmt-0：12 个单元全花在这上面，一个字答案都没写）。
+      // **New files bypass this guard** because they contain nothing to overwrite. Otherwise write
+      // would demand a read while read returned ENOENT, producing an endless loop. One observed
+      // cmt-0 task spent all 12 units on that loop without producing an answer.
       const path = typeof args.file_path === "string" ? args.file_path : "";
       if (MUTATES.has(t.name) && a.agent && a.instance && path && (await existsAt(send, path))) {
         if (!hasRead(db, a.agent, a.instance, path)) {

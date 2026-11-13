@@ -1,14 +1,13 @@
 /**
- * 把一趟的东西导出来：四张 csv + 一份说明。
+ * Export a run into four CSV files and an explanatory note.
  *
  * ```
- * bun examples/benchmark/deepswe/report.ts [这一跑叫什么] [导到哪儿]
+ * bun examples/benchmark/deepswe/report.ts [run-name] [output-directory]
  * ```
  *
- * **在开跑之前就该跑一遍**（拿上一趟的名字），确认每一栏都取得出来。跑完才发现少一栏
- * 的话，那一栏的数据不在库里，就是整趟重来 —— 而全集一趟要好几个钟头。
+ * **Try this before starting a run**, using an earlier run name, to confirm that every column is available. Discovering after completion that a required field was never stored forces an hours-long full rerun.
  *
- * 导的是**库里已经有的东西**，一个数都不新算：分数是数出来的，不是存下来的。
+ * Export **existing database data**, without inventing new values: scores are derived by counting records, not stored as scores.
  */
 
 const BASE = process.env.TGENGIN_BASE ?? "http://127.0.0.1:7801/api";
@@ -25,7 +24,7 @@ async function sql<T>(q: string): Promise<T[]> {
   return ((await r.json()) as { rows: T[] }).rows;
 }
 
-/** csv 一行。**逗号、引号、换行都得转义** —— 不转的话表格那边错一列，而且不报错。 */
+/** One CSV row. **Escape commas, quotes, and newlines**; otherwise spreadsheet columns shift silently. */
 const cell = (v: unknown) => {
   const s = v === null || v === undefined ? "" : String(v);
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -35,13 +34,11 @@ const csv = (rows: Record<string, unknown>[]) =>
     ? ""
     : [Object.keys(rows[0]).join(","), ...rows.map((r) => Object.values(r).map(cell).join(","))].join("\n") + "\n";
 
-// ── 一道题一行 ──────────────────────────────────────────────────────────────
+// ── One row per problem ──
 //
-// `pass` 是**数出来的**：`task.state = 'done'`。库里没有「分数」这一栏，也不该有。
+// Derive pass from `task.state = 'done'`. The database has, and should have, no stored score column.
 //
-// **带逗号的自由文本（`result`）排在最后一栏。** 排中间的话，`cut -d,` / `awk -F,`
-// 这类不认引号的工具会从那一栏开始整行错位 —— 而且不报错，只是后面每一栏都读错。
-// 拿去画图的人多半就是这么读的。
+// **Place comma-bearing free text (`result`) last.** Quote-unaware readers such as `cut -d,` or `awk -F,`, often used for plotting, otherwise silently shift every subsequent column.
 const tasks = await sql<Record<string, unknown>>(`
   select
     t.id,
@@ -61,15 +58,14 @@ const tasks = await sql<Record<string, unknown>>(`
     t.result
   from task t where t.run = '${RUN}' order by t.id`);
 
-// ── 一站一行 ────────────────────────────────────────────────────────────────
+// ── One row per station ──
 const stations = await sql<Record<string, unknown>>(`
   select task, cycle, unit, place, at, status, done
   from task_solve where task like '${RUN}/%' order by task, unit`);
 
-// ── 每次问 G 一行 ───────────────────────────────────────────────────────────
+// ── One row per query to G ──
 //
-// `note` 那一栏是判卷台说的话（分级由它那边定）。**判 0 的时候有没有内容，
-// 是这一跑最要紧的一列** —— 空的话这一跑的级别设了等于没设。
+// `note` contains grader feedback at its configured level. **Whether it is nonempty after verdict 0 is a key column**: empty feedback makes the chosen information level ineffective.
 const verify = await sql<Record<string, unknown>>(`
   select instance, unit, at, body
   from agent_bot_msg
@@ -87,15 +83,15 @@ const checks = verify.map((r) => {
     graded: x.graded ?? "",
     left: x.left ?? "",
     reused: x.reused ? 1 : 0,
-    // 自由文本排最后，理由同上。
+    // Keep free text last, for the same reason as above.
     why: x.why ?? "",
     note: x.note ?? "",
   };
 });
 
-// ── 每件工具跑了几次 ────────────────────────────────────────────────────────
+// ── Call counts for each tool ──
 //
-// `glob` 一次没人用这种事只有这张表看得出来。
+// Only this table reveals cases such as glob never being used.
 const TOOLS = ["bash", "read", "write", "edit", "glob", "grep", "verify", "submit", "node_load", "task_tree", "web_search", "python_exec"];
 const tools: Record<string, unknown>[] = [];
 for (const t of tasks) {
@@ -109,7 +105,7 @@ for (const t of tasks) {
   tools.push(row);
 }
 
-// ── 落盘 ────────────────────────────────────────────────────────────────────
+// ── Write output ──
 const { mkdirSync, writeFileSync } = await import("node:fs");
 mkdirSync(`${OUT}/csv`, { recursive: true });
 writeFileSync(`${OUT}/csv/tasks.csv`, csv(tasks));
@@ -127,53 +123,53 @@ writeFileSync(
 
 ${passed} / ${tasks.length} solved.
 
-## csv/tasks.csv — 一道题一行
+## csv/tasks.csv — one row per task
 
-| 栏 | 是什么 |
+| Column | Meaning |
 | --- | --- |
-| \`task\` | 题号（去掉跑名前缀） |
+| \`task\` | Task ID without the run-name prefix |
 | \`state\` | \`done\` / \`failed\` / \`claimed\` |
-| \`pass\` | 1 = 官方判据说做成了。**数出来的**，库里没有「分数」这一栏 |
-| \`place\` | 它的容器（\`dsw:<跑名>/<题号>\`） |
-| \`solve_seconds\` | 时限，取自官方 \`task.toml\` 的 \`[agent] timeout_sec\` |
-| \`stations\` | 走了多少站（两个周期加起来） |
-| \`asks\` | 其中多少站是问模型 —— 相当于模型轮次 |
-| \`dead_stations\` | 判死了几站 |
-| \`attempts_died\` | 判死了几次尝试（树上开了几次兄弟） |
-| \`checks\` | 它自己问了几次 G |
-| \`result\` | 收尾判决的原文 \`{pass, why, note}\` |
+| \`pass\` | 1 = official grader reports success. **Computed by counting**; the database has no score column |
+| \`place\` | Its container (\`dsw:<run-name>/<task-id>\`) |
+| \`solve_seconds\` | Time limit from official \`task.toml\` \`[agent] timeout_sec\` |
+| \`stations\` | Execution-unit count across both cycles |
+| \`asks\` | Execution units that call the model, equivalent to model turns |
+| \`dead_stations\` | Execution units marked dead |
+| \`attempts_died\` | Attempts marked dead (sibling branches opened in the tree) |
+| \`checks\` | Proactive queries to G |
+| \`result\` | Raw finalization verdict \`{pass, why, note}\` |
 
-## csv/stations.csv — 一站一行
+## csv/stations.csv — one row per execution unit
 
-\`status\` 空 = 还在跑；\`reached\` = 走到了；\`dead_*\` = 被判死。
-\`at\` 是这一站开始的毫秒时刻，配 \`done\` 能算出每一站花了多久。
+\`status\` empty = still running; \`reached\` = reached; \`dead_*\` = marked dead.
+\`at\` is the execution unit’s start time in milliseconds; combine with \`done\` to calculate its duration.
 
-## csv/checks.csv — 每次问 G 一行
+## csv/checks.csv — one row per G query
 
-| 栏 | 是什么 |
+| Column | Meaning |
 | --- | --- |
-| \`pass\` | 这一次判 1 还是 0 |
-| \`graded\` | 判的是哪个提交（sha）。**改一个字符就是另一份候选** |
-| \`left\` | 这一轮还剩几次额度 |
-| \`reused\` | 1 = 交卷那次没重判，用的是它自己验过的那次判决 |
-| \`why\` | 判 0 的时候是 \`see note\` |
-| \`note\` | **判卷台说的话**，详略由台子的 \`--level\` 定 |
+| \`pass\` | Whether this grading call returned 1 or 0 |
+| \`graded\` | Graded commit SHA. **Changing one character creates a different candidate** |
+| \`left\` | Checks remaining in this round |
+| \`reused\` | 1 = submission reused the previous self-check verdict without regrading |
+| \`why\` | For a score of 0, this is \`see note\` |
+| \`note\` | **Grading-service feedback**, with detail controlled by the service’s \`--level\` |
 
-判 0 的 ${zeros} 次里，${withNote} 次带着 \`note\`。
-**这个比例要是不到十成，这一趟的级别设了等于没设。**
+Of ${zeros} zero scores, ${withNote} include \`note\`.
+**If this is not 100%, the feedback-level setting is ineffective for this run.**
 
-## csv/tools.csv — 每道题每件工具跑了几次
+## csv/tools.csv — tool-call counts per task
 
-\`web_search\` 和 \`python_exec\` 这一跑是关掉的，**这两列必须全是 0**。
-不是 0 的话这一趟不作数：官方那套两侧都是 \`no-network\`。
+\`web_search\` and \`python_exec\` are disabled for this run; **both columns must be all 0**.
+Nonzero values invalidate the run: both official sides use \`no-network\`.
 `,
 );
 
 console.log(`${RUN}: ${passed} / ${tasks.length} solved`);
-console.log(`  csv/tasks.csv     ${tasks.length} 行`);
-console.log(`  csv/stations.csv  ${stations.length} 行`);
-console.log(`  csv/checks.csv    ${checks.length} 行（判 0 的 ${zeros} 次里 ${withNote} 次带 note）`);
-console.log(`  csv/tools.csv     ${tools.length} 行`);
+console.log(`  csv/tasks.csv     ${tasks.length} rows`);
+console.log(`  csv/stations.csv  ${stations.length} rows`);
+console.log(`  csv/checks.csv    ${checks.length} rows (${withNote} of ${zeros} zero scores include note)`);
+console.log(`  csv/tools.csv     ${tools.length} rows`);
 const leaked = tools.reduce((s, r) => s + Number(r.web_search) + Number(r.python_exec), 0);
-console.log(`  ${leaked === 0 ? "✓" : "✗"} web_search / python_exec 一共跑了 ${leaked} 次`);
+console.log(`  ${leaked === 0 ? "✓" : "✗"} web_search / python_exec ran ${leaked} times in total`);
 console.log(`→ ${OUT}`);

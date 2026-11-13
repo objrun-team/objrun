@@ -89,42 +89,42 @@ def main():
         add('source/packaging-and-recovery-helpers/'+name,ROOT/'scripts/benchmark-repair'/name)
     counts={'taskRecords':len(list(OUTPUT.glob('task-*.json'))),'taskTraces':len(list(OUTPUT.glob('trace-*.jsonl'))),'rawModelRequests':len(list(Path(recipe['store']).glob('provider-*-request.json.gz'))),'rawModelResponses':len(list(Path(recipe['store']).glob('provider-*-response.json.gz')))}
     assert counts=={'taskRecords':16,'taskTraces':16,'rawModelRequests':46,'rawModelResponses':46}
-    generated['README.md']=('''# ChemIQ 16题 F900 试跑初版结果包
+    generated['README.md']=('''# Initial ChemIQ 16-task F900 pilot results package
 
-固定16题已实际执行并完成最终评分，16题均通过。每题时间预算900秒，F臂、4并发；46次真实模型请求。此包是初版实际结果，原V3关闭证书仍为runtime-abort／score=false，不能视为全部认证完成，也不能外推816题。
+The fixed 16 tasks were actually executed and finally graded; all 16 passed. Each had a 900-second budget, F arm, concurrency 4; there were 46 actual model requests. This package contains initial actual results. The original V3 closure certificate remains runtime-abort / score=false; this is not completed certification of everything, and results cannot be extrapolated to 816 tasks.
 
-| 项目 | 结果 |
+| Item | Result |
 | --- | ---: |
-| 计划／已执行／已最终评分 | 16／16／16 |
-| 最终评分通过／失败／未完成 | 16／0／0 |
-| 有效生成 | 16 |
-| 真实模型请求 | 46 |
-| 实际物理评分回执／独立最终回执 | 106／32 |
-| 本轮新增费用估算 | 0.20077968元 |
+| Planned / executed / finally graded | 16 / 16 / 16 |
+| Final grading passed / failed / incomplete | 16 / 0 / 0 |
+| Valid generations | 16 |
+| Actual model requests | 46 |
+| Actual physical grading receipts / independent final receipts | 106 / 32 |
+| Estimated new cost for this round | CNY 0.20077968 |
 
-运行参数、逐题答案、官方索引和ID见summary.json；逐题中文表见results.zh.txt。此前失败轮费用估算5.32224116元另列，两个轮次未拼题或混合计分。费用是按usage与官方费率计算的估算，不是账单。
+See summary.json for run parameters, per-task answers, official indices, and IDs; the per-task Chinese table is results.zh.txt. Estimated costs of CNY 5.32224116 from earlier failed rounds are listed separately; tasks and scores from the two rounds are not combined. Costs are estimates computed from usage and official rates, not bills.
 
-## 已完成与待补
+## Completed and outstanding checks
 
-16题候选、900秒期限、完整轨迹、32份最终parsed／correct原始回执、46次请求usage与现金链已经独立核验；131个实际源码文件及冻结归档成员匹配。原关闭检查只留下SystemError名称，具体错误码和失败子命令未知，因此原失败证书、摘要和记录全部保留。补充的完整原运行时审计、17个本轮进程和18个端口消失观察已通过，原文件前后哈希一致。
+Candidates for all 16 tasks, 900-second deadlines, complete traces, 32 final parsed/correct raw receipts, usage for 46 requests, and the cash chain have been independently verified; 131 actual source files match frozen archive members. The original closure check retained only the SystemError name; its specific error code and failed subcommand are unknown, so the original failed certificate, digests, and records are all preserved. The supplemental full original-runtime audit and observations that 17 processes and 18 ports from this round disappeared have passed, with original file hashes unchanged before and after.
 
-独立恢复证书尚未签发；恢复helper的桥进程／磁盘字段完整谓词补齐审阅仍为pending。本包不修改原失败状态、不冒充冻结V3成绩证书。包本身仅完成一次离线成员完整性核对，未新增重复双轴审阅。816题未启动。
+An independent recovery certificate has not been issued; review of the completed full predicates for the recovery helper's bridge-process/disk fields is still pending. This package does not alter the original failure state or pose as a frozen V3 results certificate. The package itself has undergone one offline member-integrity check, with no additional repeated two-axis review. The 816-task run has not started.
 
-## 文件布局
+## File layout
 
-- tasks/run-records：16份实际任务记录、完整trace、候选答案、最终评分和原关闭／费用证据。
-- raw/owned-model-store：46对模型原始gzip请求／响应、完整usage事件与现金账本、实际评分请求／响应／回执、16个停止后的DB／WAL／SHM以及本轮冻结源码ZIP。
-- source：实际付费配方／配置／源码清单及已有源码快照、打包器与恢复观察源码、固定OPSIN依赖。完整源码和Node依赖实物位于raw/owned-model-store/frozen-source.zip；公开评分源码另在该store的grader-provenance内。
-- provenance：冷评分控制、私有评分器环境和依赖清单、已有独立审阅、尚未认证的恢复观察。
-- failed-attempts：此前失败／中断轮的真实任务、轨迹、模型原始请求响应、现金与精确锁释放证据；不计入本轮16题。
+- tasks/run-records: 16 actual task records, complete traces, candidate answers, final grades, and original closure/cost evidence.
+- raw/owned-model-store: 46 pairs of original gzipped model requests/responses, complete usage events and cash ledger, actual grading requests/responses/receipts, 16 stopped DB/WAL/SHM sets, and this round's frozen source ZIP.
+- source: actual paid recipe/configuration/source manifests and existing source snapshots, packager and recovery-observation source, and pinned OPSIN dependencies. Complete sources and Node dependencies are in raw/owned-model-store/frozen-source.zip; public grading source is also in that store's grader-provenance directory.
+- provenance: cold grading controls, private grader environment and dependency manifests, existing independent reviews, and uncertified recovery observations.
+- failed-attempts: actual tasks, traces, original model requests/responses, cash, and exact lock-release evidence from earlier failed/interrupted rounds; excluded from this round's 16 tasks.
 
-原始证据保留其采集时的绝对路径；文件实物均按上述成员目录收入ZIP。package-manifest.json可按sourcePath查找对应成员。指向其他Bench、操作系统解释器或容器镜像的历史引用不代表其已装入本包；Bun、Python、Java等外部执行器仅提供现有版本／哈希清单，Docker镜像未导出。
+Original evidence retains the absolute paths recorded at capture; actual files are included in the ZIP under the member directories above. package-manifest.json maps sourcePath to the corresponding member. Historical references to other benchmarks, OS interpreters, or container images do not mean those objects are included. External executors such as Bun, Python, and Java are represented only by existing version/hash manifests; Docker images are not exported.
 
-## 离线核验
+## Offline verification
 
-从ZIP取出verify-package.py，执行`python verify-package.py <本ZIP路径>`。它核对完整成员集合、CRC、大小与SHA256，不访问模型、评分服务、网络或SQLite。package-manifest.json列出除清单自身以外的所有成员；清单自身和ZIP的哈希记录在外置package-receipt.json。ZIP内package-receipt.json为打包过程收据，ZIP最终哈希仅在外置收据记录，避免循环哈希。
+Extract verify-package.py from the ZIP and run `python verify-package.py <PATH_TO_THIS_ZIP>`. It checks the complete member set, CRC, size, and SHA256 without accessing models, grading services, the network, or SQLite. package-manifest.json lists every member except itself; its own hash and the ZIP hash are recorded in the external package-receipt.json. The package-receipt.json inside the ZIP is a packaging-process receipt; the final ZIP hash appears only in the external receipt to avoid circular hashing.
 
-不包含.env、鉴权header、私钥或API key实值。本包写入时扫描当前实际provider key，包括gzip和嵌套ZIP展开；本轮原封存secret-audit另证明当时使用的provider／grader两值扫描通过。此前轮的grader临时token已不可得，因此不声称对其重新完成实值扫描。
+No .env, authentication headers, private keys, or actual API key values are included. When writing this package, the current actual provider key is scanned for, including expanded gzip and nested ZIP contents. This round's original sealed secret-audit separately proves that scans for the provider/grader values used then passed. The temporary grader token from earlier rounds is no longer available, so no claim is made that its actual value was rescanned.
 ''').encode('utf-8')
     generated['verify-package.py']=VERIFY.encode('utf-8')
     generated['package-receipt.json']=encoded({'protocol':'chemiq-pilot16-initial-package-internal-receipt-v1','runId':RUN,'deliveryStage':'initial-real-results','executedTasks':16,'finalPassedTasks':16,'failedTasks':0,'uncompletedTasks':0,'actualPayloadCounts':counts,'originalScoreCertificateValid':False,'recoveredPilotValidated':False,'modelCallsByPackager':0,'graderCallsByPackager':0,'manifestMember':'package-manifest.json','finalArchiveHashInExternalReceipt':True,'recoveryCertification':'pending','newIndependentPackageReview':'pending'})

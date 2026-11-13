@@ -1,53 +1,43 @@
-"""GPQA Diamond 的判卷台 —— 引擎外面的一个 HTTP 服务。
+r"""GPQA Diamond grading service: an HTTP service outside the engine.
 
     python stand.py [--port 7903] [--level 1] [--selftest]
 
-引擎那边它就是两条句柄：
+The engine sees two handles:
 
-    http://127.0.0.1:7903/parsed     官方正则从回答里抠得出一个 A–D 吗
-    http://127.0.0.1:7903/correct    抠出来的字母是不是正确选项（根）
+    http://127.0.0.1:7903/parsed     Can the official regex extract an A–D answer?
+    http://127.0.0.1:7903/correct    Is the extracted letter correct (root)?
 
-句柄名本身就是地址，内核 POST 一份 JSON 过来，这儿回一份 JSON —— 没有别的协议。
+Each handle is its own address. The kernel POSTs JSON and receives JSON; there is no additional protocol.
 
-## 判据是官方的，一行不改
+## The official grader, unchanged
 
-`vendor/gpqa/baselines/` 是官方仓库（idavidrein/gpqa，钉在 56686c0）。判卷只有三处，
-全在官方代码里，这个文件**不实现任何判断**：
+`vendor/gpqa/baselines/` is the official repository (idavidrein/gpqa, pinned to 56686c0). All three grading components are in the official code; this file **implements no grading decisions**:
 
-    utils.load_examples(csv, seed)                 把四个选项打乱、记下正确项的下标
-    AnswerPredictor.parse_sampled_answer(text)     五条正则依次试，抠出 A–D，抠不出回 None
-    AnswerPredictor.LETTER_TO_INDEX[l] == correct_index      run_baseline.py main() 里那一行
+    utils.load_examples(csv, seed)                 Shuffle the four choices and record the correct index.
+    AnswerPredictor.parse_sampled_answer(text)     Try five regexes in order; extract A–D or return None.
+    AnswerPredictor.LETTER_TO_INDEX[l] == correct_index      That line in run_baseline.py main().
 
-**选项顺序是官方 `random.seed(seed)` + `random.shuffle` 定的**，seed 默认 0。发题（`/problems`）
-和判卷读的是同一份 `load_examples` 的结果，所以求解器看到的 (A)(B)(C)(D) 跟判卷用的
-下标是同一套。换了 seed 就是另一趟实验，`TGENGIN_GPQA_SEED` 改它。
+**Option order comes from the official `random.seed(seed)` + `random.shuffle`**, with seed 0 by default. `/problems` and grading read the same `load_examples` result, so the solver’s (A)(B)(C)(D) match the grader’s indices. Changing the seed creates a different experiment; use `TGENGIN_GPQA_SEED`.
 
-## 为什么不直接 import utils
+## Why not import utils directly?
 
-`utils.py` 顶上 `from openai import OpenAI` … `client = OpenAI()` —— 没有 OPENAI_API_KEY
-在 import 那一刻就炸；`run_baseline.py` 又拉 `fire` / `tqdm` / `open_book`（bing 检索）。
-那些是它「拿模型跑一遍」那半边，判卷用不上。所以这儿先往 `sys.modules` 里塞几个同名
-空壳，再 import 官方模块 —— 官方代码一个字不改，**装的依赖因此只有 pandas / numpy。**
+`utils.py` starts with `from openai import OpenAI` … `client = OpenAI()`, which fails at import time without OPENAI_API_KEY. `run_baseline.py` also imports `fire` / `tqdm` / `open_book` (Bing search). These support model execution and are unnecessary for grading. Insert empty modules with those names into `sys.modules` before importing the official modules. The official code stays unchanged, and **only pandas / numpy need to be installed**.
 
-## 答案不进求解那一侧
+## Keep answers outside the solving side
 
-`gpqa_diamond.csv` 里 `Correct Answer` 和 `Explanation` 两栏就是答案，**只有这个进程读它**。
-`/problems` 发的是题面 + 打乱后的四个选项，`correct_index` 不过来。
+The `Correct Answer` and `Explanation` columns in `gpqa_diamond.csv` contain the answers; **only this process reads them**. `/problems` sends the problem statement and four shuffled options, without `correct_index`.
 
-**但这不是隔离，别当成隔离。** 数据集在 GitHub 上公开（zip 密码写在官方 README 里），
-HF 上也有（gated 只是要登录）；solver 有网就能拿到整本。要挡得靠 `noSearch` 和关掉
-`web_search`，那是 `place` / 工具那一维的事，不是这个文件能做的。
+**This is not isolation; do not treat it as such.** The dataset is public on GitHub (zip password in the official README) and also on HF (gating only requires login). A solver with network access can obtain the entire dataset. Blocking that requires `noSearch` and disabling `web_search`, which belong to the `place` / tool dimension and cannot be enforced here.
 
-## 分级：`note` 那一栏说多少
+## Feedback levels: how much `note` reveals
 
-四选一，判 0 之后能多说的东西极少 —— 「不是 X」在 m = 4 上就是排除法的一步。
+With four choices, little can be added after a score of 0: “not X” is already one elimination step when m = 4.
 
-    0   只有过没过
-    1   + 哪一段断的（抠不出字母 / 字母错了）
-    2   + 官方正则从你的回答里抠出的是哪个字母（给它看解析结果，不给答案）
+    0   Pass/fail only.
+    1   + Which stage failed (no letter extracted / incorrect letter).
+    2   + The letter the official regex extracted (the parsing result, not the answer).
 
-没有 3。再多一个字就是答案本身（`Explanation` 那一栏就是标准解）。`--level 3` 按 2 办。
-"""
+There is no level 3: anything further reveals the answer (`Explanation` is the reference solution). `--level 3` behaves as level 2."""
 
 from __future__ import annotations
 
@@ -59,21 +49,20 @@ import types
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-# **题库和判据不在仓库里，在判卷台这一侧。** solver 手上有 read / glob / bash，放仓库里
-# 的话 glob 一下就找到（cmt 那边实测发生过）。够不着，不是不许。
+# **The dataset and grader live on the grading-service side, outside the repository.** The solver has read / glob / bash;
+# inside the repository, a glob would find them (observed in CMT). Make them unreachable, rather than merely forbidden.
 HOME_DIR = Path(os.environ.get("TGENGIN_GPQA_HOME", Path.home() / ".cache" / "tgengin-gpqa"))
 BASELINES = HOME_DIR / "vendor" / "gpqa" / "baselines"
 DATA = Path(os.environ.get("TGENGIN_GPQA_DATA", HOME_DIR / "dataset" / "gpqa_diamond.csv"))
-# 官方 `run_baseline.py` 的 `seed` 默认 0，选项顺序由它定。
+# The official `run_baseline.py` defaults to `seed` 0, which determines option order.
 SEED = int(os.environ.get("TGENGIN_GPQA_SEED", "0"))
 LEVEL = int(os.environ.get("TGENGIN_GPQA_LEVEL", "1"))
 
 
 def stub(name: str, **attrs) -> None:
-    """往 `sys.modules` 里塞一个空壳，顶掉官方代码 import 的那些 API 客户端。
+    r"""Insert an empty module into `sys.modules` in place of the API clients imported by the official code.
 
-    **强制顶掉，不用 setdefault** —— 真装了 openai 的话，`OpenAI()` 没钥匙照样炸。
-    """
+    **Replace forcibly, not with setdefault**: if openai is installed, `OpenAI()` still fails without a key."""
     m = types.ModuleType(name)
     for k, v in attrs.items():
         setattr(m, k, v)
@@ -81,7 +70,7 @@ def stub(name: str, **attrs) -> None:
 
 
 def load_official():
-    """把官方那两个模块加载进来。判据的三处都在里面。"""
+    r"""Load the two official modules containing all three grading components."""
     if not (BASELINES / "run_baseline.py").exists():
         raise SystemExit(f"the official grading code is missing: {BASELINES} (run setup.sh first)")
     nothing = lambda *a, **k: None  # noqa: E731
@@ -92,8 +81,8 @@ def load_official():
     stub("fire", Fire=nothing)
     stub("open_book", answer_single_question=nothing)
     sys.path.insert(0, str(BASELINES))
-    import utils  # noqa: E402  官方 baselines/utils.py
-    from run_baseline import AnswerPredictor  # noqa: E402  官方 baselines/run_baseline.py
+    import utils  # noqa: E402  Official baselines/utils.py
+    from run_baseline import AnswerPredictor  # noqa: E402  Official baselines/run_baseline.py
     return utils, AnswerPredictor
 
 
@@ -102,15 +91,13 @@ LETTERS = "ABCD"
 
 
 def load_book() -> dict[int, dict]:
-    """题库：官方 `load_examples` 打乱过的 198 道，下标就是官方的 `question_id`。
+    r"""Dataset: 198 tasks shuffled by the official `load_examples`; the index is the official `question_id`.
 
-    另读一遍 csv 只为拿 Record ID / 学科这几栏元数据 —— **答案那几栏不进 book**，
-    留在 `Example.correct_index` 里，只有 judge() 和自检看它。
-    """
+    Read the CSV again only for metadata such as Record ID / subject. **Answer columns never enter book**; they stay in `Example.correct_index`, read only by judge() and self-tests."""
     if not DATA.exists():
         raise SystemExit(f"the problem set is missing: {DATA} (run setup.sh first)")
     examples = UTILS.load_examples(str(DATA), seed=SEED)
-    import pandas as pd  # 官方 utils 已经要它，这儿不多一个依赖
+    import pandas as pd  # Already required by the official utils; this adds no dependency.
 
     df = pd.read_csv(DATA)
     if len(df) != len(examples):
@@ -124,7 +111,7 @@ def load_book() -> dict[int, dict]:
             "subdomain": str(row.get("Subdomain", "")),
             "question": ex.question,
             "choices": {"A": str(ex.choice1), "B": str(ex.choice2), "C": str(ex.choice3), "D": str(ex.choice4)},
-            "_example": ex,  # 带 correct_index，**不出这个进程**
+            "_example": ex,  # Contains correct_index; **never leaves this process**.
         }
     return book
 
@@ -133,11 +120,9 @@ BOOK = load_book()
 
 
 def judge(response: str, item: dict) -> tuple[bool, bool, str | None]:
-    """跑一遍官方判据。回 `(抠出字母了, 判对了, 抠出的字母)`。
+    r"""Run the official grader. Return `(letter_extracted, correct, extracted_letter)`.
 
-    照抄官方 `run_baseline.py` main() 的 `sample` 分支：`parse_sampled_answer` 回 None
-    就记 refusal 不比对；否则 `LETTER_TO_INDEX[sampled_answer] == example.correct_index`。
-    """
+    Copy the `sample` branch of the official `run_baseline.py` main(): if `parse_sampled_answer` returns None, record a refusal without comparison; otherwise compare `LETTER_TO_INDEX[sampled_answer] == example.correct_index`."""
     ex = item["_example"]
     letter = PREDICTOR.parse_sampled_answer(response or "")
     if letter is None:
@@ -145,16 +130,14 @@ def judge(response: str, item: dict) -> tuple[bool, bool, str | None]:
     return True, PREDICTOR.LETTER_TO_INDEX[letter] == ex.correct_index, letter
 
 
-# 一道题判一次就够 —— `parsed` 和 `correct` 两个节点问的是同一次判卷的两栏。
+# One grading pass per problem is enough: `parsed` and `correct` request two fields of the same result.
 CACHE: dict[tuple[str, str], tuple[bool, bool, str | None]] = {}
 
 
 def answer_of(body: dict) -> tuple[str, dict | None, str]:
-    """从内核送来的那份东西里挖出「哪道题」和「模型答了什么」。
+    r"""Extract the task and model answer from the kernel payload.
 
-    内核送的是 `{node, moment, domain, feed, input}`，`input` 是 `{task, chain, result}`
-    （树那条路）或 `{task, result}`（收尾那一路）。题号从 `task.id` 里摘：`[<跑名>/]gpqa-<下标>`。
-    """
+    The kernel sends `{node, moment, domain, feed, input}`; `input` is `{task, chain, result}` on the tree path or `{task, result}` during finalization. Extract the task index from `task.id`: `[<run-name>/]gpqa-<index>`."""
     inp = body.get("input") or {}
     task = inp.get("task") or {}
     tid = str(task.get("id", ""))
@@ -181,11 +164,11 @@ def verdict(body: dict) -> tuple[bool, bool, str | None]:
     return CACHE[key]
 
 
-# ── note：这一栏说多少，按 --level ──────────────────────────────────────────
+# ── note: feedback detail selected by --level ──
 
 
 def note_of(parsed: bool, letter: str | None) -> dict | str:
-    """判 0 的时候多说的那一份。**级别定详略**，形状不随级别变。"""
+    r"""Additional information on verdict 0. **The level controls detail**, while the response structure stays the same."""
     if LEVEL <= 0:
         return ""
     if not parsed:
@@ -194,7 +177,7 @@ def note_of(parsed: bool, letter: str | None) -> dict | str:
     note: dict = {"stage": "answer", "detail": "the chosen option is not the correct one"}
     if LEVEL <= 1:
         return note
-    note["parsed"] = letter  # 官方正则抠出来的是哪个字母 —— 它想答的和被读到的可能不是一个
+    note["parsed"] = letter  # The letter extracted by the official regex: what it intended to answer may differ from what was parsed.
     return note
 
 
@@ -202,7 +185,7 @@ def note_of(parsed: bool, letter: str | None) -> dict | str:
 
 
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, *a):  # 默认那行访问日志太吵
+    def log_message(self, *a):  # Suppress the noisy default access log.
         pass
 
     def _send(self, obj, code=200):
@@ -218,7 +201,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send({"ok": True, "items": len(BOOK), "seed": SEED, "level": LEVEL})
             return
         if self.path.startswith("/problems"):
-            # **发题的口：给题面和打乱后的四个选项，不给 correct_index。**
+            # **Problem endpoint: send the problem statement and four shuffled options, without correct_index.**
             n = 0
             if "?" in self.path:
                 for kv in self.path.split("?", 1)[1].split("&"):
@@ -248,7 +231,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/parsed":
             self._send({"value": True} if parsed else {"value": False, "note": note_of(False, None)})
             return
-        # **根。** 上游判 0 的话不必再说一遍 —— 那句话已经在上一格里了。
+        # **Root.** Do not repeat an upstream failure explanation; the preceding node already supplied it.
         feed = body.get("feed") or []
         if feed and feed[0].get("value") is not True:
             self._send({"value": False})
@@ -256,11 +239,11 @@ class Handler(BaseHTTPRequestHandler):
         self._send({"value": True} if correct else {"value": False, "note": note_of(parsed, letter)})
 
 
-# ── 自检 ────────────────────────────────────────────────────────────────────
+# ── Self-tests ──
 
 
 def selftest() -> int:
-    """拿每道题的正确字母按官方格式喂回去，该判 1；错字母该判 0；没字母该抠不出。**装错了在这儿就炸。**"""
+    r"""Submit each task’s correct letter in the official format: it must score 1; an incorrect letter must score 0; no letter must fail parsing. **A faulty installation fails here.**"""
     bad = 0
     for i in sorted(BOOK):
         ex = BOOK[i]["_example"]

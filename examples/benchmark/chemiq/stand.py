@@ -1,67 +1,42 @@
-"""ChemIQ 的判卷台 —— 引擎外面的一个 HTTP 服务。
+r"""ChemIQ grading service: an HTTP service outside the engine.
 
     python3 stand.py [--port 7903] [--level 1] [--selftest]
 
-引擎那边它就是两条句柄：
+The engine sees two handles:
 
-    http://127.0.0.1:7903/parsed     官方 AnswerParser 从回答里抠得出一个答案吗
-    http://127.0.0.1:7903/correct    官方 AnswerVerifier 说对吗（根）
+    http://127.0.0.1:7903/parsed     Can official AnswerParser extract an answer?
+    http://127.0.0.1:7903/correct    Does official AnswerVerifier accept it? (root)
 
-句柄名本身就是地址，内核 POST 一份 JSON 过来，这儿回一份 JSON —— 没有别的协议。
+Each handle name is its URL. The kernel POSTs JSON and receives JSON; there is no additional protocol.
 
-## 默认使用官方判据；修订协议显式选用
+## Official grading by default; revised protocols require explicit selection
 
-`vendor/ChemIQ/utils/parser.py` + `utils/answer_verifier.py` 是官方判卷代码
-（oxpig/ChemIQ，钉在 63826f6）。默认按官方 `analysis.ipynb` 的
-parse → check_answer 调过去；本文件提供 HTTP、故障隔离、缓存与显式评分协议。
+`vendor/ChemIQ/utils/parser.py` and `utils/answer_verifier.py` are the official grader (oxpig/ChemIQ, pinned at 63826f6). The default follows parse -> check_answer in official `analysis.ipynb`. This file supplies HTTP, fault isolation, caching, and explicit grading profiles.
 
-五种判法全在官方 `check_answer` 里按每题的 `verification_method` 分派：
-exact_match（整数）、range（带噪 SAR）、list_of_tuples（原子映射）、
-canonical_smi_match（RDKit 去立体后规范化比较）、opsin（IUPAC 名 → OPSIN 网络服务
-→ SMILES → 再走 RDKit 比较）。**没有 LLM 判卷那一部分**，全是确定性的。
+Official `check_answer` dispatches by each question's `verification_method`: exact_match (integers), range (noisy SAR), list_of_tuples (atom mapping), canonical_smi_match (RDKit canonical comparison after removing stereochemistry), and opsin (IUPAC name -> OPSIN network service -> SMILES -> RDKit comparison). **There is no LLM judge; all criteria are deterministic.**
 
-## 两件「机器怎么装」的事，落在这个文件里
+## Two deployment requirements implemented here
 
-1. **单线程 HTTP。** 官方 `check_answer` 上有个 `@timeout(2)`，用的是 `signal.alarm`，
-   只能在主线程装 —— 放进 ThreadingHTTPServer 的工作线程里第一条请求就
-   `ValueError: signal only works in main thread`。所以用 `HTTPServer`，一次判一道。
-   一道题判一次不到两秒，够用。
-2. **chdir 到 vendor 根。** 官方 verifier 用相对路径 `utils/opsin_cache.json` 读写
-   OPSIN 缓存；不切目录它会在当前目录下另建一个空的 `utils/`，缓存全丢。
+1. **Single-threaded HTTP.** Official `check_answer` uses `@timeout(2)` implemented with `signal.alarm`, which only works in the main thread. A ThreadingHTTPServer worker would fail immediately with `ValueError: signal only works in main thread`. Use HTTPServer and grade one request at a time; under two seconds per problem is sufficient.
+2. **chdir to the vendor root.** The official verifier reads/writes OPSIN cache at relative path `utils/opsin_cache.json`. Otherwise it creates an empty utils directory under the current working directory and misses the existing cache.
 
-## OPSIN 的显式评分 profile
+## Explicit OPSIN grading profiles
 
-默认 `TGENGIN_CHEMIQ_OPSIN_PROFILE=rest` 保留官方 REST 路径。连接/HTTP/JSON
-故障和超时记为评分不可用，并撤掉故障写入的负缓存；服务明确不识别名称才判错。
-`local-2.8` 使用宿主的固定官方 OPSIN 2.8.0 JAR，通过本机文件队列传入 SMILES，
-仍由官方 RDKit 分支判等。它不复用旧 REST 正缓存，也绝不回退到 REST；/health
-记录版本、JAR 摘要和 cache 来源。这是独立的本地评分变体，不能宣称与旧 REST 等价。
+The default `TGENGIN_CHEMIQ_OPSIN_PROFILE=rest` preserves the official REST path. Connection/HTTP/JSON failures and timeouts mean grading is unavailable; remove any negative cache entries created by those failures. Reject only when the service explicitly does not recognize the name.
+`local-2.8` uses the host's pinned official OPSIN 2.8.0 JAR, passing SMILES through a local file queue and using the official RDKit equality branch. It neither reuses old REST positive caches nor falls back to REST. /health records the version, JAR digest, and cache origin. This is a separate local grading variant and must not be described as equivalent to old REST.
 
-`TGENGIN_CHEMIQ_LENGTH_POLICY=official-parsed` 是默认长度协议，保留官方
-`len(str(parsed)) <= 200`。可显式选 `raw-input-length`：仅对原子映射题要求
-原始交付单行、长度不超过 200，随后用官方 parser 和 `_check_list_of_tuples`
-判等。它修正紧凑映射被解析器加空格后超过 200 的问题，不修改其他题的评分。
-/health 记录 length_policy；两个协议的成绩必须分开报告。
+The default `TGENGIN_CHEMIQ_LENGTH_POLICY=official-parsed` preserves official `len(str(parsed)) <= 200`. The optional `raw-input-length` policy checks only atom-mapping questions for a single-line raw submission of at most 200 characters, then applies the official parser and `_check_list_of_tuples`. It addresses compact mappings that exceed 200 characters after parser-added spaces, without changing grading for other questions. /health records length_policy; report the two protocols separately.
 
-### REST profile 的故障处理
+### REST-profile fault handling
 
-官方 REST 分支的 `@timeout(2)` 会把连接故障写成 False 缓存，或返回
-`{"is_correct": False, "opsin_smiles": None}`。这里分别记录传输/HTTP/JSON故障，
-撤掉污染缓存，返回 HTTP 503 的评分不可用；只有明确不识别名称才是有效拒绝。
-本地 profile 在调用 requests 前阻止 REST 路径，转换先在本机完成，再进官方
-RDKit 比较。旧 REST 版本未知，不声明它和本地版本等价。
+The official REST branch's `@timeout(2)` can cache connection failures as False or return `{"is_correct": False, "opsin_smiles": None}`. Record transport/HTTP/JSON failures separately, remove polluted cache entries, and return HTTP 503 for unavailable grading. Only explicit failure to recognize a name is a valid rejection.
+The local profile blocks REST before any requests call, converts locally, and then uses the official RDKit comparison. The old REST version is unknown; no equivalence with the local version is claimed.
 
-## 答案不进求解那一侧
+## Answers do not reach the solver side
 
-题库 `questions/chemiq.jsonl` 每一行都带 `answer`（还有 `meta_data`、顶层 `smiles`），
-**只有这个进程读它**。`/problems` 发题时只给 uuid / 类别 / 题面 / 答案格式，别的一个
-字段都不过去。G 封存在引擎另一个库里，主库全接口开放也翻不出来。
+Each `questions/chemiq.jsonl` row contains `answer`, `meta_data`, and top-level `smiles`. **Only this process reads it.** `/problems` exposes only UUID, category, statement, and answer format. G is sealed in a separate engine database, inaccessible even through the fully exposed main-database API.
 
-**但这不是隔离。** solver 的 bash 跟判卷台在同一台机器上的话，
-`cat ~/.cache/tgengin-chemiq/vendor/ChemIQ/questions/chemiq.jsonl` 就是整本答案；
-在 Sherlock 上更简单，`git clone oxpig/ChemIQ` 一样拿到。装到家目录改的是路径，不是可达性。
-真堵死得把 solver 关进没网的沙箱，那是 `place` 那一维的事（见 deepswe）。
-"""
+**This is not isolation.** If solver bash shares the grader machine, `cat ~/.cache/tgengin-chemiq/vendor/ChemIQ/questions/chemiq.jsonl` reveals every answer. On Sherlock, cloning oxpig/ChemIQ does the same. Installing under home changes paths, not reachability. Real protection requires a network-isolated solver sandbox in the `place` dimension (see deepswe)."""
 
 from __future__ import annotations
 
@@ -77,8 +52,7 @@ import uuid as uuidlib
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-# **题库和判据不在仓库里，在判卷台这一侧。** solver 手上有 read / glob，仓库里放的话
-# 一个 glob 就找到。setup.sh 把官方仓库 vendored 到这儿。
+# **The corpus and grader live outside the repository, on the grader side.** A solver with read/glob could find a repository copy immediately. setup.sh vendors the official repository here.
 HOME_DIR = Path(os.environ.get("TGENGIN_CHEMIQ_HOME", Path.home() / ".cache" / "tgengin-chemiq"))
 VENDOR = HOME_DIR / "vendor" / "ChemIQ"
 QUESTIONS = VENDOR / "questions" / "chemiq.jsonl"
@@ -135,19 +109,19 @@ def local_opsin(name: str) -> str | bool:
         time.sleep(0.02)
     raise RuntimeError("LocalOPSINBridgeTimeout")
 
-# 题号形状：`chemiq-<uuid>`，也认 `<跑名>/chemiq-<uuid>`。从整串里抠 uuid 就够了。
+# Problem IDs are `chemiq-<uuid>` or `<run-name>/chemiq-<uuid>`. Extracting the UUID from the full string is sufficient.
 UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
 
 def load_official():
-    """把官方两个类加载进来。**先 chdir 到 vendor 根** —— 见文件头第 2 条。"""
+    r"""Load the two official classes. **First chdir to the vendor root**, as explained in item 2 of the module documentation."""
     if not (VENDOR / "utils" / "answer_verifier.py").exists() or not QUESTIONS.exists():
         raise SystemExit(f"the official grading code is missing: {VENDOR} (run setup.sh first)")
     sys.path.insert(0, str(VENDOR))
     from utils.answer_verifier import AnswerVerifier  # noqa: E402
     from utils.parser import AnswerParser  # noqa: E402
 
-    # 官方 analysis.ipynb 就是这两行：doClean=True 的 parser + 同一份题库的 verifier。
+    # These are the same two lines as official analysis.ipynb: a parser with doClean=True and a verifier for the same corpus.
     writable = Path(tempfile.mkdtemp(prefix="chemiq-cache-"))
     (writable / "utils").mkdir()
     original_cache = VENDOR / "utils/opsin_cache.json"
@@ -171,7 +145,7 @@ def load_official():
 
 
 PARSER, VERIFIER = load_official()
-# 题库就是 verifier 已经读进去的那份 —— 不另读一遍，两份会漂。
+# Use the corpus already loaded by the verifier; reading a second copy could introduce drift.
 BOOK: dict[str, dict] = VERIFIER.question_dict
 OPSIN_FAILURE = None
 import requests
@@ -203,18 +177,13 @@ requests.get = observed_get
 
 
 def judge(uuid: str, said: str) -> dict:
-    """跑一遍官方判据。回 `{parsed, correct, ...排障用的几栏}`。
-
-    照官方 `analysis.ipynb`：`parsed = parser.parse(uuid, raw)`，
-    `check_answer(uuid, parsed)`。parse 失败官方回 False，check_answer 对 False 直接判错 ——
-    我们照样把 False 递过去，不替它短路。
-    """
+    r"""Run the official criterion and return `{parsed, correct, ...diagnostic fields}`. Follow official `analysis.ipynb`: `parsed = parser.parse(uuid, raw)`, then `check_answer(uuid, parsed)`. Failed parsing returns False and check_answer rejects False; pass it through without adding a shortcut."""
     global OPSIN_FAILURE
     OPSIN_FAILURE = None
     q = BOOK[uuid]
     opsin = q["verification_method"] == "opsin"
     parsed = PARSER.parse(uuid, said)
-    # 官方用 `False` 当「没抠出来」；`is False` 而不是 `== False`，因为整数 0 也 == False。
+    # Upstream uses `False` for failed extraction. Test `is False`, not `== False`, because integer 0 also equals False.
     ok = parsed is not False
     if q["verification_method"] == "list_of_tuples" and LENGTH_POLICY == "raw-input-length":
         # The revision changes the mapping length contract only. Preserve the
@@ -239,8 +208,7 @@ def judge(uuid: str, said: str) -> dict:
     got = {"is_correct": False, "opsin_smiles": None}
     timed_out = False
     for attempt in range(3):
-        # 这个名字判之前在不在缓存里 —— 不在、而这一趟又跑满了两秒，就是超时被当成
-        # 「OPSIN 不认」写进了缓存（见文件头「OPSIN 那 200 道要网」）。
+        # Was the name cached before grading? If not, and this call consumed the full two seconds, a timeout was cached as an unrecognized OPSIN name (see the module discussion of the 200 network-dependent OPSIN questions).
         fresh = opsin and ok and str(parsed) not in VERIFIER._opsin_cache
         t0 = time.monotonic()
         try:
@@ -259,8 +227,7 @@ def judge(uuid: str, said: str) -> dict:
         )
         if not timed_out:
             break
-        # 把那条被超时污染的缓存撤掉再问。**这不改判断**，判断还是官方那一句；撤的是它
-        # 自己没来得及区分的「没问到」和「问了说不认」。
+        # Remove the timeout-polluted cache entry before retrying. **This does not change the criterion**; it separates failure to obtain a response from an explicit unrecognized-name response that upstream did not distinguish in time.
         VERIFIER._opsin_cache.pop(str(parsed), None)
         print(f"[chemiq] {uuid[:8]} OPSIN timed out ({took:.1f}s), retry {attempt + 1}/2", flush=True)
     return {
@@ -273,16 +240,12 @@ def judge(uuid: str, said: str) -> dict:
     }
 
 
-# 一道题判一次就够 —— `parsed` 和 `correct` 两个节点问的是同一次判卷的两栏。
+# One grading pass per problem is enough: `parsed` and `correct` request two fields of the same result.
 CACHE: dict[tuple[str, str], dict] = {}
 
 
 def answer_of(body: dict) -> tuple[str, str]:
-    """从内核送来的那份东西里挖出「哪道题」和「它答了什么」。
-
-    内核送的是 `{node, moment, domain, feed, input}`，`input` 是
-    `{task, chain, result}`（树那条路）或 `{task}`（收尾那一路）。
-    """
+    r"""Extract the problem identity and answer from the kernel payload. The kernel sends `{node, moment, domain, feed, input}`; input is `{task, chain, result}` on the tree path or `{task}` during finalization."""
     inp = body.get("input") or {}
     task = inp.get("task") or {}
     m = UUID_RE.search(str(task.get("id", "")))
@@ -313,14 +276,11 @@ def verdict(uuid: str, said: str) -> dict:
     return CACHE[key]
 
 
-# ── note：这一栏说多少，按 --level ──────────────────────────────────────────
+# ── note: feedback detail selected by --level ──
 
 
 def note_of(uuid: str, got: dict) -> dict | str:
-    """判 0 的时候多说的那一份。**级别定详略**，形状不随级别变。**GT 一个字不出。**
-
-    能说的全来自候选自己那一侧：抠出来了什么、OPSIN/RDKit 认不认它。
-    """
+    r"""Additional information on verdict 0. **The level controls detail**, not the response structure. **Never expose GT.** Everything disclosed comes from the candidate: the extracted value and whether OPSIN/RDKit recognize it."""
     if LEVEL <= 0:
         return ""
     q = BOOK[uuid]
@@ -336,20 +296,20 @@ def note_of(uuid: str, got: dict) -> dict | str:
     if LEVEL <= 1:
         return note
 
-    # 级别 2：它交的东西本身站不站得住。这些判断是对**候选**做的，不碰 GT。
+    # Level 2: check whether the submitted value itself is valid. These checks inspect the **candidate**, never GT.
     pv = got.get("parsed_value")
     if q["verification_method"] == "opsin":
         os_ = got.get("opsin_smiles")
         note["name_understood_by_opsin"] = bool(os_)
     elif q["verification_method"] == "canonical_smi_match":
-        # 官方自己的规范化函数 —— 只用来看候选 SMILES 是否合法，不比对。
+        # Use the official canonicalization function only to check candidate SMILES validity, not for comparison.
         note["smiles_valid"] = VERIFIER._canonicalize_smiles(str(pv)) is not None
     elif q["verification_method"] == "list_of_tuples":
         note["pairs_given"] = len(pv) if isinstance(pv, (list, tuple)) else 0
     if LEVEL <= 2:
         return note
 
-    # 级别 3：把它交的东西按官方那条路翻译回去给它看（名字 → SMILES；SMILES → 规范形）。
+    # Level 3: show the official transformation of the candidate back to the solver (name -> SMILES; SMILES -> canonical form).
     note["parsed_as"] = str(pv)[:300]
     if q["verification_method"] == "opsin" and got.get("opsin_smiles"):
         note["your_name_means"] = got["opsin_smiles"]
@@ -364,7 +324,7 @@ PUBLIC = ("uuid", "question_category", "sub_category", "answer_format", "prompt"
 
 
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, *a):  # 默认那行访问日志太吵
+    def log_message(self, *a):  # Suppress the noisy default access log.
         pass
 
     def _send(self, obj, code=200):
@@ -388,8 +348,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._send({"ok": False, "error": "LocalOPSINProfileUnavailable"}, 503)
             return
         if self.path.startswith("/problems"):
-            # **发题的口：给题面，不给答案。** 题库在这一侧，发批那个脚本读不到。
-            # `answer` / `answer_range` / `meta_data` / 顶层 `smiles` 全都不过去 —— 只放行 PUBLIC 那五栏。
+            # **Problem endpoint: statements only, no answers.** The corpus stays on this side, beyond the batch sender's direct access.
+            # Never expose `answer`, `answer_range`, `meta_data`, or top-level `smiles`; allow only the five PUBLIC fields.
             n, cat = 0, ""
             if "?" in self.path:
                 for kv in self.path.split("?", 1)[1].split("&"):
@@ -428,31 +388,27 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/parsed":
             ok = got["parsed"]
         else:
-            # **根。** 上游判 0 的话不必再说一遍 —— 那句话已经在上一格里了。
+            # **Root.** Do not repeat an upstream failure explanation; the preceding node already supplied it.
             feed = body.get("feed") or []
             if feed and feed[0].get("value") is not True:
                 self._send({"value": False})
                 return
             ok = got["correct"]
-        # **回 `{value: bool}`。** G 的值域是封闭的，回别的东西内核当违约，一律归 0。
+        # **Return `{value: bool}`.** G has a closed domain; the kernel treats any other result as a contract violation and returns 0.
         self._send({"value": True} if ok else {"value": False, "note": note_of(uuid, got)})
 
 
-# 发题顺序：题库文件的行序（verifier 读进来的 list 就是那个序）。
+# Problem order follows the corpus file; the verifier's loaded list preserves that order.
 ORDER: list[str] = [q["uuid"] for q in VERIFIER.all_questions]
 
 
-# ── 自检 ────────────────────────────────────────────────────────────────────
+# ── Self-tests ──
 
 
 def golden_of(uuid: str) -> str | None:
-    """这道题「该判 1」的一份回答。
+    r"""Construct an answer that **should pass** this problem. Usually `answer` is usable directly: an integer, SMILES, or a mapping-list string.
 
-    绝大多数题 `answer` 本身就是：整数原样、SMILES 原样、映射列表的字符串。
-    **opsin 题不行** —— 它的 `answer` 是 SMILES，而题目要的是 IUPAC 名。所以从官方
-    `opsin_cache.json`（作者跑模型时攒下的名字→SMILES）里找一个名字，OPSIN 给它的
-    SMILES 规范化后等于 GT 的，拿那个名字当回答。找不到就回 None，自检跳过这道。
-    """
+    **OPSIN questions differ**: their reference `answer` is SMILES, but the requested answer is an IUPAC name. Search official `opsin_cache.json` (name-to-SMILES mappings accumulated during the authors' model runs) for a name whose normalized OPSIN SMILES equals GT. Use that name, or return None and skip the self-test for this problem if none exists."""
     q = BOOK[uuid]
     if q["verification_method"] != "opsin":
         if q["verification_method"] == "list_of_tuples" and LENGTH_POLICY == "raw-input-length":
@@ -475,7 +431,7 @@ def golden_of(uuid: str) -> str | None:
 
 
 def selftest() -> int:
-    """每个 (类别, 子类) 取第一道，拿 GT 喂回去，官方判据该说 1；一句废话该说 0。**装错了在这儿就炸。**"""
+    r"""For the first question in each (category, subcategory), feeding back GT must pass and nonsense must fail. **Fail here on an invalid installation.**"""
     seen: set[tuple[str, str]] = set()
     picked = []
     for u in ORDER:
@@ -483,9 +439,8 @@ def selftest() -> int:
         if k not in seen:
             seen.add(k)
             picked.append(u)
-    # 多加一道：原子最多（25 个）的映射题。**疑似官方判据下无解**：GT 列表 str() 出来
-    # 230 字符，超过 check_answer 那条 200 字符的门槛（G.md「已知坑」，算术推的，这儿验）。
-    # 它是探针，不计入成败 —— 结果只是告诉我们那 30 道（n_atoms 23–25）在官方判据下是不是真没解。
+    # Add the mapping question with the most atoms (25). **It may be unsolvable under the official criterion**: str() of its GT list is 230 characters, exceeding check_answer's 200-character limit (derived arithmetically in G.md's known issues and checked here).
+    # This probe does not determine self-test success; it tests whether the 30 questions with n_atoms 23–25 are actually unsolvable under the official criterion.
     probe = max(
         (u for u in ORDER if BOOK[u]["question_category"] == "atom_mapping"),
         key=lambda u: (BOOK[u].get("meta_data") or {}).get("n_atoms", 0),
@@ -529,7 +484,7 @@ def main() -> int:
         return selftest()
     print(f"[chemiq] {len(ORDER)} questions | note level {LEVEL} | "
           f"http://127.0.0.1:{a.port}/{{parsed,correct}}", flush=True)
-    # 单线程，理由见文件头：官方 @timeout 用 SIGALRM，只能在主线程。
+    # Use one thread: official @timeout uses SIGALRM and therefore requires the main thread, as explained above.
     HTTPServer((a.bind, a.port), Handler).serve_forever()
     return 0
 

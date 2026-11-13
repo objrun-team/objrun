@@ -638,23 +638,23 @@ def main():
               "logicalStore": str(store), "resolvedStore": str(store.resolve()), "limitations": limitations,
               "seconds": round(time.monotonic() - started, 3)}
     (out / "audit.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    rows = ["# nginx 试跑独立闭合审计", "", f"运行 `{args.run}`。只读审计，无 LLM、重评分或 Docker 修改。",
-            "", "| 项目 | 本轮证据 |", "|---|---|",
-            "| 口径 | 预定 U/F 两臂，各一题；来源 89 题，支持 1、其余 88 未支持 |",
-            "| 最终判卷 | U、F 均 valid/pass；4 份私有记录均原官方 8/8 |",
-            f"| API/费用 | {len(wire_rows)} 份真实回执，重算 ${cost_total}；pending/reserve=0 |",
-            "| 工具闭合 | gateway seal/drain 完成，无交付后准入、无超过任务截止的 mutation |",
-            f"| 源与依赖 | ZIP {len(expected)} 个成员含实际依赖 {len(frozen['dependencyFiles'])} 个；摘要逐项核对 |",
-            f"| 原证据稳定 | 元数据 {len(metadata_before)} 文件、raw {len(raw_before)} 文件；审计前后 bytes/SHA 相同 |",
-            "| 认证边界 | 私有 namespace 已保存，候选数字配对未保存；当前容器/PID关闭只能补充佐证 |",
-            "", f"可执行核对 {sum(c['passed'] for c in a.checks)}/{len(a.checks)} 通过。`passedAllAvailableChecks` 不是通用隔离认证。",
-            "", "两臂均有两次模型 submit；最终取最新及时交付标签。模型没有显式调用 verify，F 的两次 graded 是运行时提交/终态判卷，不能作为交付前反馈修复或 F 优势证据。",
-            "", "工具 HTTP500 与 provider HTTP200分别核算；所有已发起工具均有完成回执，工具错误不被隐去。",
-            "", "以下限制须随结果保留：", ""]
+    rows = ["# Independent closure audit of the nginx pilot", "", f"Run `{args.run}`. Read-only audit with no LLM calls, regrading, or Docker changes.",
+            "", "| Item | Evidence from this run |", "|---|---|",
+            "| Scope | Prespecified U/F arms, one task each; source has 89 tasks, with 1 supported and the other 88 unsupported |",
+            "| Final grading | U and F are both valid/pass; all 4 private records passed the original official 8/8 |",
+            f"| API/cost | {len(wire_rows)} actual receipts, recomputed cost ${cost_total}; pending/reserve=0 |",
+            "| Tool closure | Gateway seal/drain completed; no admission after delivery and no mutation beyond the task deadline |",
+            f"| Source and dependencies | ZIP contains {len(expected)} members, including {len(frozen['dependencyFiles'])} actual dependencies; digests checked individually |",
+            f"| Original evidence stability | {len(metadata_before)} metadata files and {len(raw_before)} raw files; bytes/SHA unchanged before and after the audit |",
+            "| Certification boundary | Private namespaces were saved, but candidate numeric pairings were not; current container/PID closure provides corroborating evidence only |",
+            "", f"Executable checks: {sum(c['passed'] for c in a.checks)}/{len(a.checks)} passed. `passedAllAvailableChecks` is not a general isolation certification.",
+            "", "Each arm had two model submit calls; the latest timely delivery tag determines the final result. The model did not explicitly call verify. The two F graded events were runtime submission/final-state grading and cannot establish feedback-driven repair before delivery or an F advantage.",
+            "", "Tool HTTP500 and provider HTTP200 are accounted for separately; every initiated tool call has a completion receipt, and tool errors are not hidden.",
+            "", "The following limitations must accompany the results:", ""]
     rows.extend("- " + limit for limit in limitations)
-    rows += ["", "复现（仅最后的 `--docker` 会只读核对本轮精确对象）：", "", "```powershell",
+    rows += ["", "Reproduction (only the final `--docker` performs read-only checks of the exact objects from this run):", "", "```powershell",
              f"python -X utf8 \"{Path(__file__)}\" --run {args.run} --docker", "```", "",
-             "完整字段、原证据摘要、各项检查与当前关闭观察见同目录 `audit.json`。"]
+             "See `audit.json` in the same directory for complete fields, original evidence digests, individual checks, and current closure observations."]
     (out / "audit.md").write_text("\n".join(rows) + "\n", encoding="utf-8")
     print(json.dumps({"audit": str(out / "audit.json"), "passed": report["passedAllAvailableChecks"],
                       "checks": len(a.checks), "failedChecks": [c["name"] for c in a.checks if not c["passed"]],

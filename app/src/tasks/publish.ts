@@ -1,20 +1,20 @@
 /**
- * 发任务。
+ * Publish a task.
  *
- * **这是任务从外面进系统的唯一入口动作。** 唯一 —— 所以准入的闸设在这儿，
- * 不指望每个调用方自觉。老代码那边的原话是：闸按【来源】判，「原先这条只靠
- * 某个调用方恰好没传那个参数，是『恰好没传』而非『不可能传』：签名一改、
- * 或多一条派生路径，闸就没了」。
+ * **This is the sole operation admitting external tasks into the system.** Enforce admission
+ * here rather than relying on each caller. The old implementation emphasized source-based
+ * authorization: a caller merely happening to omit a parameter is not the same as being unable
+ * to provide it. A signature change or new derivation path would otherwise bypass the guard.
  *
- * 一次调用把该建的都建了：
+ * One invocation creates everything required:
  *
- * 1. `task` 一行 —— 身份（出生即定，永不重写）+ 状态
- * 2. 首个执行单元 —— `task_<mode>` 一行
- * 3. 智能体那边对应的一行 —— `agent_<name>_ctx`，两边要能对咬
- * 4. 任务描述压进上下文 —— `agent_<name>_msg` 的第一条
+ * 1. A `task` row containing immutable identity and mutable state.
+ * 2. Its initial execution unit in `task_<mode>`.
+ * 3. The corresponding `agent_<name>_ctx` row, linked consistently with that unit.
+ * 4. The task description as the first `agent_<name>_msg` row.
  *
- * **要么全建，要么一行都不留。** 中间断了会留下建了行没建单元的任务，
- * 那种任务库里看着存在、永远不动，而且不报错。
+ * **Create all of it or leave no rows.** Partial creation could leave a task that exists in the
+ * database but never advances, without reporting any error.
  */
 
 import type { Conn } from "../H2H/db.ts";
@@ -24,78 +24,77 @@ import { deliver } from "../msg/deliver.ts";
 import { parseObjective, validate } from "../objective/spec.ts";
 import type { Sealed } from "../objective/store.ts";
 
-/** 谁发的。**这是准入判据** —— 不同来源能做的事不一样。 */
+/** Who publishes the task. **This determines admission permissions**, which differ by source. */
 export const SOURCES = ["user", "agent", "world", "eacn"] as const;
 export type Source = (typeof SOURCES)[number];
 
-/** 任务的四态。最薄的一套；blocked / cancelled / paused 之类按需再扩，不预设。 */
+/** The minimal four task states. Add blocked / cancelled / paused only when needed, rather than assuming them now. */
 export const STATES = ["open", "claimed", "done", "failed"] as const;
 
 export interface Publish {
   id: string;
-  /** 走哪种执行模式 → 任务周期表第 1 列。 */
+  /** Execution mode: the first column of the task-cycle table. */
   mode: string;
-  /** 从这个模式的哪个周期起步。不给就取 `from` 为空的那一个。 */
+  /** Initial cycle within the mode. If omitted, select the cycle with an empty `from` list. */
   cycle?: string;
-  /** 交给哪个智能体。 */
+  /** Agent assigned to the task. */
   agent: string;
-  /** 哪个实例。不给就按任务 id 生一个。 */
+  /** Instance name; derive it from the task id if omitted. */
   instance?: string;
-  /** 在哪儿干 → `workplace.place`。 */
+  /** Execution location, referencing `workplace.place`. */
   place: string;
-  /** 那个场所里的落脚路径。 */
+  /** Working path within that location. */
   workdir?: string;
   source: Source;
   description: string;
   /**
-   * 这是哪一类问题（`physics` / `chem` / `coding` …）。**扩展按它分发。**
+   * Problem domain (`physics` / `chem` / `coding` …). **Extensions dispatch on this field.**
    *
-   * 跟 `mode` 是两回事：`mode` 是推理机制（cot / tot / 树），`domain` 是问题属于哪个
-   * 领域。一个 skill 说「我是给物理题用的」，写的是 `dim=task, key=domain`——
-   * 换台机器、换一跑、换道题，只要还是物理题，它就在。
+   * This differs from `mode`, which identifies the reasoning mechanism (cot / tot / tree).
+   * A skill for physics tasks uses `dim=task, key=domain`; it remains applicable across machines,
+   * runs, and individual tasks as long as the domain is physics.
    */
   domain?: string;
-  /** 属于哪一跑（bench）。空 = 不属于任何一跑。 */
+  /** Benchmark run this task belongs to; empty means no run. */
   run?: string;
   maxBranches?: number;
-  /** 同一个父底下判死几个兄弟就回退到更上层换方向。 */
+  /** Number of dead siblings under one parent before backing up to a higher level to try another direction. */
   maxDeadSiblings?: number;
   solveSeconds?: number;
   /**
-   * **发布方不许它搜的东西。** 命中任何一条，那次检索的结果整份丢掉。
+   * **Content the publisher forbids searching for.** A match discards the entire search result.
    *
-   * 判据是「返回内容里任何位置出现过这个串」—— 不只是网址。一次实测里，模型按名字
-   * 去扒题库，主站不通就换镜像、换文本代理、换存档站，查询串直接写着「row 1 answer」；
-   * 光按域名挡的话，三条备用路各绕各的。
+   * Match the string anywhere in returned content, not only URLs. In one observed run, the model
+   * searched a dataset by name, switching from the main site to mirrors, text proxies, and archives,
+   * with queries explicitly asking for "row 1 answer". Domain-only blocking would miss those routes.
    *
-   * 而且必须挡在**模型看见之前**：答案一旦进了上下文，那道题就已经废了，事后作废它
-   * 只是记下损失。
+   * Enforce this **before the model sees the result**. Once an answer enters its context, the task
+   * is already contaminated; invalidating it afterward only records the damage.
    */
   noSearch?: string[];
   /**
-   * **一轮里能搜几次。** 不给 = 不限。
+   * **Maximum searches per attempt.** Omitted means unlimited.
    *
-   * 跟 G 那个 `checks` 是同一个形状：一轮 = 一次尝试（树上一个节点），判死重来是
-   * 新的一轮、新的额度；被拦下的那次不扣数，因为它什么都没查到。
+   * Like G's `checks`, one round is one attempt, or one tree node. Retrying starts a new round
+   * and allowance. Blocked searches do not consume it because they retrieved nothing.
    *
-   * 要这道闸是因为**检索花的是钟，不是格子**：实测一跑，超时那批把一小时里的一半
-   * 花在检索上，而每站的格子额度**一次都没碰到**。格子放宽治不了这个，只有按次数
-   * 限才治得了。
+   * This limit is needed because **search consumes wall-clock time, not execution-unit slots**.
+   * In one run, timed-out tasks spent half their hour searching without ever reaching their unit
+   * budget. Increasing that budget cannot fix this; limiting search count can.
    */
   maxSearches?: number;
   /**
-   * 验证函数 `G` —— 「这个任务算不算做成了」的标准。
+   * Verification function `G`, defining task success.
    *
-   * **绑定发生在发布这一刻，是准入条件。** 给了就当场检、当场封存；过不了
-   * 定义期检测就**拒收整个任务** —— 与其让一个必然算不出结果的 G 混进系统，
-   * 不如这道题根本别发布。
+   * **Attach it at publication as an admission requirement.** Validate and seal it immediately.
+   * An invalid definition **rejects the entire task** rather than admitting a G that cannot evaluate.
    */
   objective?: unknown;
   /**
-   * 能不能直接读到 G 的定义。**带 G 就必须显式给，没有默认值。**
+   * Whether the agent may read G's definition. **Required explicitly whenever G is supplied; no default.**
    *
-   * 设定权在发布方，发布方本来就知道要不要给看。给个默认值等于替他决定，
-   * 而且会长出「没人想过的隐式策略」。
+   * The publisher knows whether the definition should be visible. A default would make that
+   * policy decision implicitly on the publisher's behalf.
    */
   readable?: boolean;
 }
@@ -106,10 +105,10 @@ function one(db: Conn, sql: string, params: unknown[] = []): Record<string, unkn
 }
 
 /**
- * 起步的那个周期：`from` 是空列表的那一个。
+ * Initial cycle: the one with an empty `from` list.
  *
- * **不许猜**：有多个起点或者一个都没有，都当场炸。猜一个的话，任务会从一个
- * 谁也没想到的地方开始跑，而且跑起来了，不报错。
+ * **Never guess.** Multiple or missing entry cycles fail immediately. Guessing would start
+ * a task at an unintended point while appearing to run successfully.
  */
 function firstCycle(db: Conn, mode: string): string {
   const rows = all(db, `select cycle, "from" from cycle where mode = ?`, [mode]) as {
@@ -132,32 +131,32 @@ function firstCycle(db: Conn, mode: string): string {
 }
 
 /**
- * 发一个任务。
+ * Publish one task.
  *
- * 每一条检查失败都是**拒收整个任务** —— 与其让一个必然跑不动的任务混进系统，
- * 不如这道题根本别发布。
+ * Every failed check **rejects the entire task**. Do not admit a task that is known to be unrunnable.
  */
 export function publish(
   db: Conn,
   p: Publish,
   sealed?: Sealed,
 ): { id: string; mode: string; cycle: string; instance: string; objective: boolean } {
-  // 先问「这是不是一份东西」，再问它里面缺什么。**这是从 HTTP 进来的第一道**，
-  // 不挡的话空请求会在 `p.id` 上崩，回给人的是一句 JS 内部话（`undefined is not
-  // an object`）—— 那句话既不告诉他该发什么，也让人以为是服务端坏了。
+  // Check for an object before checking missing fields. **This is the first HTTP admission check**.
+  // Otherwise an empty request fails on `p.id` with an internal JavaScript error such as
+  // `undefined is not an object`, neither explaining valid input nor distinguishing it from a server bug.
   if (p === null || typeof p !== "object") throw new Error("the request body must be a JSON object");
   if (!p.id || !p.id.trim()) throw new Error("the task id cannot be empty");
   if (!SOURCES.includes(p.source)) throw new Error(`unrecognised source: ${p.source} (must be one of ${SOURCES.join(" / ")})`);
   if (!p.description || !p.description.trim()) throw new Error("a task needs a description");
   if (one(db, `select id from task where id = ?`, [p.id])) throw new Error(`a task named ${p.id} already exists`);
 
-  // ── G 那道闸 ──────────────────────────────────────────────────────────
+  // ── Objective admission guard ──
   //
-  // 智能体在树内派生出来的任务**不许带 G**：放行它 = 智能体可以给自己（或自己
-  // 派生的下一层）设定成功标准，那是**自提权**，判据就不再是判据。
+  // Tasks derived by agents inside the tree **must not carry G**. Allowing this lets an agent
+  // set success criteria for itself or its descendants, effectively **escalating its own authority**.
   //
-  // 闸按【来源】判，判在**唯一入口**上 —— 不指望每条派生路径自觉。老代码那边
-  // 原先靠「某个调用方恰好没传这个参数」，签名一改闸就没了。
+  // Check the source at the **sole entry point**, rather than trusting every derivation path.
+  // The old approach relied on a caller happening not to supply the parameter and broke when
+  // that caller's signature changed.
   if (p.objective !== undefined && p.objective !== null) {
     if (p.source === "agent") {
       throw new Error(`task ${p.id} has source agent (derived inside the tree by the agent) and may not carry a grading function - only a person can bind one, at publish time`);
@@ -187,9 +186,9 @@ export function publish(
     (t) => all(db, `select name from sqlite_master where type='table' and name = ?`, [t]).length === 0,
   );
   if (missing.length) {
-    // 子表是照着 cycle / agent 的行长出来的。刚从 HTTP 灌进来一个新模式或新智能体，
-    // 那几张子表还不存在 —— **这儿现长一次**，装表是幂等的。
-    // 不长的话，「外面纯用 HTTP 发任务」就断在这儿：灌完声明还得重启一趟。
+    // Subtables derive from cycle / agent rows. Modes or agents newly declared over HTTP may
+    // not have subtables yet. **Derive them now**; installation is idempotent. Otherwise configuring
+    // and publishing entirely over HTTP would require an intervening restart.
     install(db);
     const still = missing.filter(
       (t) => all(db, `select name from sqlite_master where type='table' and name = ?`, [t]).length === 0,
@@ -197,8 +196,8 @@ export function publish(
     if (still.length) throw new Error(`sub-tables could not be grown: ${still.join(", ")}`);
   }
 
-  // 定义期检测跑在**建任何行之前**。靠事务回滚也能不留脏行，但那是「先做了再撤」；
-  // 这道题既然必然算不出结果，就该在动库之前拒掉。
+  // Validate definitions **before creating any rows**. Rollback could remove partial writes,
+  // but a task known to be unevaluable should be rejected before modifying the database.
   const g = p.objective === undefined || p.objective === null ? null : parseObjective(p.objective);
   if (g) {
     const errs = validate(g);
@@ -209,19 +208,20 @@ export function publish(
 
   const instance = p.instance ?? `${p.id}#1`;
   const now = Date.now();
-  // readable=true 的 G 不用躲 —— 验收标准本来就是需求的一部分，
-  // 直接并进任务描述，连「读 G」这个动作都不存在。benchmark 样本才需要封。
+  // A readable=true G need not be hidden: acceptance criteria are part of the requirements.
+  // Append its definition directly to the description, eliminating a separate "read G" operation.
+  // Benchmark samples are the case requiring sealed criteria.
   const description =
     g && p.readable ? `${p.description}
 
 ## Acceptance criteria
 ${JSON.stringify(p.objective, null, 2)}` : p.description;
 
-  // 要么全建，要么一行都不留。
+  // Create all rows or none.
   //
-  // 用 savepoint 不用 begin：**发一批的时候外面已经开着一个事务**，
-  // 再 begin 一次会当场报 "cannot start a transaction within a transaction"。
-  // savepoint 能嵌，而且跟着外层一起回滚。
+  // Use a savepoint, not begin: **batch publication already has an outer transaction**.
+  // A second begin raises "cannot start a transaction within a transaction". Savepoints nest
+  // and roll back with the outer transaction.
   db.exec("savepoint publish_one");
   try {
     run(
@@ -234,11 +234,11 @@ ${JSON.stringify(p.objective, null, 2)}` : p.description;
         p.id, p.mode, p.place, p.run ?? "", p.source, p.domain ?? "", description, now, p.workdir ?? "",
         g ? "sealed" : null, g ? (p.readable ? 1 : 0) : null,
         p.maxBranches ?? 2, p.maxDeadSiblings ?? 3, p.solveSeconds ?? 1800,
-        // 不给就是不限。**0 和负数也当成不给** —— 「一次都不许搜」该用 `noSearch`
-        // 那条路说，或者干脆别挂这件工具；一个额度字段表达不了「禁用」。
+        // Omitted means unlimited. **Treat zero and negative values as omitted too**. To prohibit
+        // search, use `noSearch` or do not expose the tool; a quota field does not express disabling.
         Number.isFinite(Number(p.maxSearches)) && Number(p.maxSearches) > 0 ? Number(p.maxSearches) : null,
-        // **发布方说不许搜什么，原样存着。** 不给就是不限制 —— 空列表和「没有这一栏」
-        // 是同一件事，没必要让调用方在两种「没有」之间选。
+        // **Store the publisher's search restrictions unchanged.** Omission means unrestricted.
+        // An empty list and a missing field are equivalent; callers need not choose between them.
         p.noSearch && p.noSearch.length ? JSON.stringify(p.noSearch) : null,
       ],
     );
@@ -253,9 +253,9 @@ ${JSON.stringify(p.objective, null, 2)}` : p.description;
       p.id,
       p.place,
     ]);
-    // 任务描述就是上下文的第一条。**内核不解读它** —— 它只是一条消息。
-    // 走那条唯一的投递管道：`by` 说的是**谁放的**，kind / role / 人写的那个标记
-    // 都是推出来的。`source=user` 的任务描述是真人写的，缀上标记；别的来源不缀。
+    // The task description is the first context message. **The kernel does not interpret it**.
+    // Use the sole delivery pipeline: `by` identifies who supplied it; kind, role, and the human
+    // marker are inferred. Descriptions with `source=user` receive the human marker; other sources do not.
     deliver(db, {
       agent: p.agent,
       instance,
@@ -263,7 +263,7 @@ ${JSON.stringify(p.objective, null, 2)}` : p.description;
       by: p.source === "user" ? "user" : "world",
       body: description,
     });
-    // G 封存在**建行都成功之后** —— 建行失败就根本不会留下孤儿 G。
+    // Seal G **only after all rows are created successfully**, so row-creation failures cannot leave orphaned definitions.
     if (g) sealed!.seal(p.id, g);
     db.exec("release publish_one");
   } catch (e) {

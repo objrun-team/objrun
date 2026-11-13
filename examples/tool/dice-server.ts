@@ -1,4 +1,4 @@
-/** 写法二：进程外的 MCP server。stdio 上的 JSON-RPC。 */
+/** Approach 2: an out-of-process MCP server using JSON-RPC over stdio. */
 const TOOL = {
   name: "dice_out",
   description: "Roll an n-sided die (out of process)",

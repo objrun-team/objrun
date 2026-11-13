@@ -1,38 +1,40 @@
 /**
- * 例子：**从外面加一种任务机制**（跟 dfs 同级别的那种）。
+ * Example: **add a task mechanism externally**, at the same level as dfs.
  *
  * ```
  * bun test/integration/mode.ts
  * ```
  *
- * 一种机制 = 一张图（几个周期，靠 `from`/`next` 连起来）+ 一个**推断函数**
- * （`infer`，决定这一站走完之后去哪儿）。
+ * A mechanism consists of a graph of cycles linked by `from`/`next` and an
+ * **inference function** (`infer`) deciding where to go after each station.
  *
- * 这个例子里那张图和那个推断函数**全在进程外**，一行内核代码没改：
+ * Both the graph and inference function in this example live **outside the process**;
+ * no kernel code is changed:
  *
  * ```
- *   plan ──→ work ──→ wrap
- *              ↑         │
- *              └─────────┘   （work 可以自己转自己，wrap 收尾）
+ *   plan --> work --> wrap
+ *              ^         |
+ *              +---------+   (work may loop to itself; wrap finalizes)
  * ```
  *
- * ## 内核只认三种回答
+ * ## The kernel accepts only three response forms
  *
- * 推断函数回：
+ * The inference function returns:
  *
- * - `null` —— 到此为止
- * - `"周期名"` —— 走那个周期，**从当前这一行接**
- * - `{to, from_cycle, from_unit, status}` —— 走那个周期，**从指定那一行接**，
- *   顺带给当前这一行盖个终止状态（树要开兄弟、要回退，全靠这一种）
+ * - `null`: stop here.
+ * - `"cycle-name"`: go to that cycle, **continuing from the current row**.
+ * - `{to, from_cycle, from_unit, status}`: go to that cycle, **continuing from the
+ *   specified row**, and mark the current row with a terminal status. Tree siblings
+ *   and backtracking both use this form.
  *
- * **挑出候选（`next`）之外的东西 → 当场炸**，不许它自由发挥。第二部分会验这条。
+ * **Selecting anything outside `next` fails immediately**. The second part tests this constraint.
  */
 
 import { done, machine, ok, outside, part, show, step, until } from "../_lib.ts";
 
 const m = await machine();
 
-/** 这台机器每一站都调它 —— 记下走过的路，好在第二部分对。 */
+/** Every station calls this handle. Record the path for validation in the second part. */
 const walked: string[] = [];
 
 const out = await outside({
@@ -41,10 +43,10 @@ const out = await outside({
     return { role: "assistant", kind: "prompt", body: `${(u.cycle as { cycle?: string })?.cycle} finished` };
   },
   /**
-   * 推断函数。**内核只把候选递过来，它在候选里挑一个。**
+   * Inference function. **The kernel provides candidates; this selects one of them.**
    *
-   * 这儿的走法：plan → work → work → wrap → 停。第二个 work 特意用
-   * `{to, from_cycle, from_unit}` 那种写法，好验「从指定那一行接」也管用。
+   * The path is plan -> work -> work -> wrap -> stop. The second work deliberately
+   * uses `{to, from_cycle, from_unit}` to test continuation from a specified row.
    */
   "/infer": (a) => {
     const cyc = (a.cycle as { cycle?: string })?.cycle;
@@ -52,20 +54,20 @@ const out = await outside({
     const unit = Number(a.unit);
     if (cyc === "plan") return "work";
     if (cyc === "work") {
-      // 第一个 work 再开一个 work（挂在自己底下），第二个就收尾。
+      // The first work creates another work below itself; the second proceeds to finalization.
       const nth = walked.filter((c) => c.includes("/work#")).length;
       if (nth <= 1) return { to: "work", from_cycle: "work", from_unit: unit };
       return "wrap";
     }
-    if (cyc === "wrap") return null; // 到此为止
+    if (cyc === "wrap") return null; // Stop here.
     return next[0] ?? null;
   },
-  /** 故意挑一个候选之外的周期 —— 用来验内核不许它自由发挥。 */
+  /** Deliberately select a cycle outside the candidates to verify that the kernel rejects it. */
   "/infer-wild": () => "no-such-cycle-at-all",
 });
 
 try {
-  // ═══════════════ 第一部分：注册 ═══════════════
+  // =============== Part 1: registration ===============
   part("Part one: registration");
 
   step("1. next points outside this mode");
@@ -155,7 +157,7 @@ try {
   ok("it is walkable", g.walkable === true, g);
   ok("bot can serve it", (g.agents as string[]).includes("bot"), g.agents);
 
-  // ═══════════════ 第二部分：使用层次的校验 ═══════════════
+  // =============== Part 2: actual-use validation ===============
   part("Part two: checks at the level of use");
   console.log("  A correct graph is not the same as actually walking it. Publish a task and see which path it took.");
 

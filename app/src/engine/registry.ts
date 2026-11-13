@@ -1,68 +1,71 @@
 /**
- * 句柄注册表 —— 名字换出真东西。
+ * Handle registry: resolve names to implementations.
  *
- * **注册一律走内核**，因为只有内核这个进程持有得住函数。库里存的永远只是名字。
+ * **Registration always passes through the kernel**, because only its process can hold function
+ * objects. The database stores names only.
  *
- * **只有一条轴：进程内，还是进程外。** 名字的前缀说的就是它：
+ * **There is one distinction: in-process or out-of-process.** The name prefix specifies it:
  *
- * | 前缀 | 实现在哪 |
+ * | Prefix | Implementation location |
  * | --- | --- |
- * | `fn:` | **内核进程里** |
- * | `http://` `https://` | 另一个进程 |
+ * | `fn:` | **Inside the kernel process** |
+ * | `http://` / `https://` | Another process |
  *
- * 两边共用 `expect_ms`：调用超过这个时间就判死，**内外一视同仁**。
+ * Both use `expect_ms`: an invocation exceeding it is marked dead, **regardless of process location**.
  *
- * ## 「进程内」不等于「必须编进二进制」
+ * ## In-process does not mean compiled into the executable
  *
- * 传不过来的是函数**对象**，不是函数**在哪儿**。所以 `fn:` 的实现有两个来源：
+ * A function **object** cannot be transferred, but its **location** can. `fn:` implementations
+ * therefore come from two sources:
  *
- * | `handle.module` | 实现从哪儿来 | 谁写那一行 | 住在哪 |
+ * | `handle.module` | Source | Who registers the row | Location |
  * | --- | --- | --- | --- |
- * | 留空 | 随二进制发 | 代码调 `register` | 主线程，裸函数调用 |
- * | `路径#导出名` | 运行时装进来的插件 | **外面写一行就行** | 自己的 Worker（见 `plugin.ts`） |
+ * | Empty | Bundled with the executable | Code calls `register` | Main thread, direct function call |
+ * | `path#export` | Runtime plugin | **External code can insert the row** | Its own Worker; see `plugin.ts` |
  *
- * 两种都在这个进程里，都不过 OS 的进程边界。库里那一行的作用是一样的：
- * **让内核知道系统里有这个函数**。
+ * Both remain within the process, without crossing an OS process boundary. The database row
+ * has the same purpose in each case: **tell the kernel that the function exists**.
  *
- * 插件那条住在 Worker 里，是因为**生命周期的单位是 realm**：只有换掉整个 realm
- * 才能真换版本、真卸载。代价是一次结构化克隆 —— 「能真卸载」和「零开销直接调」
- * 在 JS 里换不到一起，那一条选了前者，随二进制发的这一条选了后者。
+ * Plugins use Workers because **a realm is the lifecycle unit**. Replacing the entire realm
+ * allows actual upgrades and unloading, at the cost of a structured clone. JavaScript cannot
+ * combine actual unloading with zero-overhead calls. Plugins choose unloading; bundled
+ * functions choose direct calls.
  *
- * 库里有一个 `fn:` 而进程内没人认领、`module` 也没给 —— 那才是错，当场就该说
- * 出来，不能等到真去调它那一刻。
+ * A `fn:` row with neither a registered in-process implementation nor `module` is invalid.
+ * Report that immediately rather than waiting for an actual invocation.
  *
- * ## MCP 不是第三类
+ * ## MCP is not a third kind
  *
- * MCP 是这两边**说话的方式**，不是另一种句柄。协议本身两边都支持，决定进程边界的
- * 是传输：
+ * MCP is **how these implementations communicate**, not another handle category. Both sides
+ * support the protocol; transport determines the process boundary:
  *
  * ```
- *   fn:      进程内  ←→  MCP 内存传输
- *   http://  进程外  ←→  MCP stdio 子进程 / HTTP
+ * fn:      in-process     ←→ MCP in-memory transport
+ * http://  out-of-process ←→ MCP stdio subprocess / HTTP
  * ```
  *
- * 所以一个 MCP server 报回来的工具，落成的是**上面那两类里的行**，不是新的一类。
- * 声明一个 server 只是一条**批量来源**：它自己报一堆工具，替你把行写出来 ——
- * 它不取代、也不排斥一条一条地写。
+ * Tools advertised by an MCP server become rows in **these same two categories**.
+ * A server declaration is merely a **batch source** of tool definitions that generates rows;
+ * it neither replaces nor excludes registering individual tools.
  */
 
 import type { Conn } from "../H2H/db.ts";
 import { all, run } from "../H2H/db.ts";
 import { Plugins } from "./plugin.ts";
 
-/** 一次调用。参数和返回都是能过 JSON 的东西 —— 程序外那条路只能传这些。 */
+/** An invocation. Arguments and results must be JSON-compatible because the out-of-process path can transfer only such values. */
 export type Handle = (arg: unknown) => Promise<unknown>;
 
 export interface Entry {
   name: string;
   expectMs: number;
   call: Handle;
-  /** 进程内的函数，还是外面的接口。 */
+  /** An in-process function or an external endpoint. */
   where: "in" | "out";
   /**
-   * 运行时装进来的插件，实现在这个模块里（`路径#导出名`）。
+   * A runtime-loaded plugin implemented in this module (`path#export`).
    *
-   * 随二进制发的那些没有这一项 —— 它们不该被「卸载」，也没地方去卸。
+   * Bundled functions omit this field: they should not be unloaded and have no unloadable realm.
    */
   plugin?: string;
 }
@@ -72,10 +75,10 @@ const OUT = /^https?:\/\//;
 const MCP = /^mcp:/;
 
 /**
- * 外面能不能注册这个名字。
+ * Whether an external caller may register this name.
  *
- * `fn:` **能** —— 但得说清实现从哪儿来（`module`）。不说的话，库里就多了一条
- * 谁都认领不了的句柄，而错要等到真去调它那一刻才冒出来。
+ * `fn:` **is allowed**, but must identify its implementation through `module`. Otherwise the
+ * database would contain an unclaimed handle whose failure appears only at invocation time.
  */
 export function registrable(name: string, module?: string | null): boolean {
   if (OUT.test(name) || MCP.test(name)) return true;
@@ -86,26 +89,27 @@ export class Registry {
   #by = new Map<string, Entry>();
 
   /**
-   * 运行时装进来的插件住的地方 —— 一个插件一个 Worker。
+   * Runtime plugin hosts: one Worker per plugin.
    *
-   * 放在这儿是因为**注册表就是「系统里有哪些函数」那张表**，而插件的建和毁跟
-   * 这张表是同一件事的两面：库里多一行就起一个，少一行就收一个。
+   * They belong here because the registry defines which functions exist. Plugin creation and
+   * destruction are the corresponding lifecycle operations: a new row creates a host; removing
+   * a row removes it.
    */
   readonly plugins = new Plugins();
 
   /**
-   * 对表之前先喊一声。
+   * Notify listeners before reconciling the table.
    *
-   * MCP 那条路要用：库里可能刚登记了一个 server，它的工具句柄还没人认领。
-   * 这一声给它一个机会把调用器补上，**补完再对**，不然 `sync` 会说「没人注册过」
-   * 而那不是实情 —— 只是还没轮到它装。
+   * MCP needs this when a server has just been registered but its tool handles have no invokers.
+   * Give it a chance to install them **before reconciliation**, so `sync` does not incorrectly
+   * report an unregistered handle simply because installation has not run yet.
    */
   beforeSync: (() => void) | null = null;
 
   /**
-   * 注册一个**进程内**的句柄：把函数收下，同时往 `handle` 表登记。
+   * Register an **in-process** handle: retain its function and add a row to `handle`.
    *
-   * 库里那一行是给别人看的（谁在引用这个句柄、它多久算死）；函数只活在这个进程里。
+   * The row exposes references and timeout information to others; the function exists only in this process.
    */
   register(db: Conn, name: string, expectMs: number, fn: Handle): void {
     if (!IN.test(name)) throw new Error(`an in-process handle name must start with fn: - got ${name}`);
@@ -116,22 +120,22 @@ export class Registry {
   }
 
   /**
-   * 收下一个**已经在库里登记过**的句柄的调用器。
+   * Adopt an invoker for a handle **already registered in the database**.
    *
-   * 跟 `register` 的分别：`register` 是「我这儿有个函数，替我登记一行」；
-   * `adopt` 是「库里那一行的调用器我给你合成好了」。MCP 那条路走这个 ——
-   * 工具是 server 报的，行早就写进去了，这儿只是把调用器补上。
+   * `register` means "register a row for this function"; `adopt` means "use this synthesized invoker
+   * for an existing row." MCP uses the latter: the server advertised the tools, their rows already
+   * exist, and only the invokers remain to be attached.
    */
   adopt(name: string, expectMs: number, fn: Handle): void {
     this.#by.set(name, { name, expectMs, call: fn, where: "out" });
   }
 
   /**
-   * 照着库里的 `handle` 表对一遍。**这是那两层核对里的第二层。**
+   * Reconcile the registry against the database's `handle` table. **This is the second validation layer.**
    *
-   * - 外面的接口：注册表里没有就现合成一个调用器 —— 外部注册就是这么生效的。
-   * - 进程内的句柄：库里有、进程里没人注册过 → **当场炸**。不炸的话，
-   *   要等到某个任务真走到那一步才发现，而那时候已经在半路上了。
+   * - External endpoints: synthesize an invoker when absent from the registry, enabling external registration.
+   * - In-process handles: a database row without a registered implementation **fails immediately**.
+   *   Otherwise the problem would emerge only after a task reached that invocation.
    */
   sync(db: Conn): { added: string[]; missing: string[]; dropped: string[] } {
     this.beforeSync?.();
@@ -144,15 +148,15 @@ export class Registry {
     const missing: string[] = [];
     for (const r of rows) {
       if (this.#by.has(r.name)) {
-        this.#by.get(r.name)!.expectMs = r.expect_ms; // 库里改了时限，跟着改
+        this.#by.get(r.name)!.expectMs = r.expect_ms; // Update the timeout when its database value changes.
         continue;
       }
       if (OUT.test(r.name)) {
         this.#by.set(r.name, { name: r.name, expectMs: r.expect_ms, where: "out", call: remote(r.name) });
         added.push(r.name);
       } else if (IN.test(r.name) && r.module) {
-        // 进程内，实现在磁盘上 —— 住在自己的 worker 里。第一次调它的时候才起，
-        // 装表这一步不该因为一个插件写坏了就起不来。
+        // In-process implementation stored on disk: host it in its own worker, started lazily on first
+        // invocation. Installing tables must not fail simply because a plugin is broken.
         const spec = r.module;
         this.#by.set(r.name, {
           name: r.name,
@@ -167,8 +171,9 @@ export class Registry {
       }
     }
 
-    // **库里没有了 = 真卸载。** 把那个 worker 收掉：代码、内存、它起的定时器
-    // 一起走。只从注册表里删掉的话，那些东西会一直留在进程里，而且没人看得见。
+    // **Removing the database row actually unloads the plugin.** Terminate its worker and reclaim
+    // code, memory, and timers. Removing only the registry entry would leave those resources
+    // in the process indefinitely, with no visible owner.
     const inDb = new Set(rows.map((r) => r.name));
     const dropped: string[] = [];
     for (const [name, e] of this.#by) {
@@ -224,7 +229,7 @@ export async function graderFetch(url: string, init: RequestInit): Promise<Respo
   return fetch(url, { ...init, headers, ...(trusted ? { redirect: "error" } : {}) });
 }
 
-/** 给外面的接口合成一个调用器。名字本身就是地址。 */
+/** Synthesize an invoker for an external endpoint. Its name is the address. */
 function remote(url: string): Handle {
   return async (arg: unknown) => {
     const res = await graderFetch(url, {

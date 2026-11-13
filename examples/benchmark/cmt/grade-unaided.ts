@@ -1,10 +1,9 @@
 /**
- * CMT U 臂事后判分：读取原始库中最后一次按时交卷的候选，用实时评分的同一张 G。
+ * CMT arm-U post-run grading: read the last on-time submitted candidate from the original database and use the same G as live grading.
  *
- *   bun examples/benchmark/cmt/grade-unaided.ts <run> [db 路径]
+ *   bun examples/benchmark/cmt/grade-unaided.ts <run> [database-path]
  *
- * 原始 SQLite 以 readonly 打开；输出 runs/<run>/unaided.csv，保留原六列，
- * 追加 valid、outcome、error，区分答错、未交卷和执行/评分故障。
+ * Open the original SQLite database read-only. Write runs/<run>/unaided.csv, preserving the original six columns and appending valid/outcome/error to distinguish wrong answers, missing submissions, and execution/grading failures.
  */
 import { Database } from "bun:sqlite";
 import { mkdirSync, writeFileSync } from "node:fs";

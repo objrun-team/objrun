@@ -1,7 +1,7 @@
 {
   "name": "tgengin",
   "version": "1.0.0",
-  "description": "TgEngin —— 一个程序：装表、起库、跑循环",
+  "description": "TgEngin — one program to install tables, start the database, and run the loop",
   "scripts": {
     "start": "TGENGIN_CONFIG=../config.yaml bun --env-file=../.env src/main.ts",
     "check": "tsc -p tsconfig.json",

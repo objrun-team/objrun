@@ -73,13 +73,13 @@ def main():
         for p in audits.glob('*/audit.json'):
             if m.pin(p)['sha256'] == r.FINANCIAL_SHA:
                 financial.append(p)
-    md = f"""读取器 3 项 F 原生控制全部通过；保留此前 2 次夹具失败原件，最终 child exit0。读取器 SHA {source_pin['sha256']}，review SHA {review_pin['sha256']}。
+    md = f"""All 3 F-native reader controls passed; the originals from the previous 2 fixture failures are retained, and final child exit0. Reader SHA {source_pin['sha256']}, review SHA {review_pin['sha256']}.
 
-实际 Root snapshot 8134c6e…已完成，但本 agent 没有打开任何生产副本或原数据库。Root 另行执行下面 CLI。只读 raw 四个 main，SQLite mode=ro&immutable=1，固定 SQL `{r.QUERY}`、参数 `{r.MODEL}`；WAL/SHM 与 working 不打开。每个 worker 必须有唯一相同 127.0.0.1 origin，否则 typed invalid、无端口猜测或自动回退。
+The actual Root snapshot 8134c6e… is complete, but this agent has not opened any production copies or original databases. Root runs the CLI below separately. Read only the four raw main files with SQLite mode=ro&immutable=1, pinned SQL `{r.QUERY}` and parameter `{r.MODEL}`; do not open WAL/SHM or working copies. Each worker must have a unique identical 127.0.0.1 origin; otherwise return typed invalid, with no port guessing or automatic fallback.
 
-成功时生成 raw-query.json 与 financial-interruption-proxy-port-identity-v1 的 proxy-port-identity.json，绑定实际 snapshot、raw12 Pins、source、actual financial4722、原lock31fa；保持 old4unknown，不操作锁或API，不授权重启/评分/释放。snapshot raw12 查询前后 SHA 相同；所有实际查询仅返回 base_url 一列。
+On success, generate raw-query.json and proxy-port-identity.json for financial-interruption-proxy-port-identity-v1, binding the actual snapshot, raw12 pins, source, actual financial4722, and original lock31fa. Preserve old4unknown, perform no lock or API operations, and grant no authorization to restart/grade/release. Snapshot raw12 SHAs match before and after queries; every actual query returns only the base_url column.
 
-Root 命令（financial 参数取 actual4722 完整证书绝对路径；输出必须 fresh）：
+Root command (financial argument is the absolute path to the complete actual4722 certificate; output must be fresh):
 
 ```powershell
 & 'D:/ProgramData/anaconda3/python.exe' -B -X utf8 '{SOURCE}' --snapshot-receipt '{snapshot}' --snapshot-sha '{snapshot_pin['sha256']}' --financial-audit '<actual4722 audit.json absolute path>' --review '{DOC/'review.json'}' --review-sha '{review_pin['sha256']}' --output-directory '{ROOT/'docs/repair-2026-10-08/science-db-snapshots/root-proxy-identity-v1'}'

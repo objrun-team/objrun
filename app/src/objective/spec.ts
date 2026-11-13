@@ -1,29 +1,32 @@
 /**
- * 验证函数 `G` —— 一个任务「算不算做成了」的标准。
+ * Verification function `G`: the criterion for whether a task has succeeded.
  *
- * **G 是一张有向无环图**：节点是一段能算出布尔的东西，边是接线。整张图算出
- * 一个 `{0,1}`。形状抄自老仓库 `agents/tasks/objective/`（DESIGN.md D19–D26），
- * 那边的决定和理由一条条带过来。
+ * **G is a directed acyclic graph**. Nodes evaluate Boolean values; edges connect outputs to
+ * inputs. The complete graph returns `{0,1}`. Its shape and design rationale come from
+ * `agents/tasks/objective/` in the old repository (DESIGN.md D19–D26).
  *
- * ## 值域是封闭的
+ * ## A closed set of value domains
  *
- * 只有 `bool` 和 `bool[n]`，作者只能选、不能自定义。**封闭之后定义期的类型检查
- * 完全可判定** —— 值域要是能随便定义，矩阵和校验就得应付任意值域，那就查不动了。
- * `n` 在定义期写死，所以边的下标越界能**完全静态检出**。
+ * Only `bool` and `bool[n]` are permitted. Authors select a domain rather than defining one.
+ * **This makes definition-time type checking fully decidable**. Arbitrary domains would require
+ * matrices and validators to handle arbitrary values. Since `n` is fixed at definition time,
+ * edge-index bounds can be **checked entirely statically**.
  *
- * ## 违约一律归 0，不引入第三个值
+ * ## Contract violations return 0, without a third value
  *
- * 脚本返回的东西不落值域 = 违约；违约、算不出来、跑挂了，**一律归 0**。
- * 加一个「未知」档的话，上面每一处都要处理三态，而三态会一路渗到根。
+ * Outputs outside the declared domain violate the contract. Violations, unavailable results,
+ * and execution failures **all map to 0**. An "unknown" state would require three-valued handling
+ * everywhere and propagate through the graph to its root.
  *
- * ## 有一条检查故意没装
+ * ## One intentionally omitted check
  *
- * 「时刻与拓扑序相容」—— 老代码留了接口没实装，理由是生命周期时刻不是全序
- * （同一个时刻一次任务里能发很多遍），「A 不晚于 B」在重复时刻上没有确切含义，
- * **写一个语义不明的检查反而会挡住合法的 G**。照样不装。
+ * The old code declared but did not implement "lifecycle moments respect topological order."
+ * Moments are not totally ordered: the same moment can occur repeatedly within a task, so
+ * "A is no later than B" is ambiguous. **An ill-defined check would reject valid G definitions.**
+ * It remains omitted here.
  */
 
-/** 一个值域。`width` 是这个节点的输出端口数，定义期已知。 */
+/** A value domain. `width` is the number of output ports, known at definition time. */
 export interface Domain {
   kind: "bool" | "bool[]";
   width: number;
@@ -35,10 +38,10 @@ export function domainText(d: Domain): string {
   return d.kind === "bool" ? "bool" : `bool[${d.width}]`;
 }
 
-/** 解析值域。**写别的一律拒** —— 值域是封闭的。 */
+/** Parse a domain. **Reject every other form** because the allowed domain set is closed. */
 export function parseDomain(text: unknown): Domain {
-  // 封存区里存的是**解析过的**值域，读回来得认得它自己 —— 不认的话
-  // seal → open 这一趟就断了，而断在读回来那一刻，离出错的地方很远。
+  // Sealed storage contains **parsed** domains, which must be recognized when read back.
+  // Otherwise seal → open would fail on reading, far from the original definition.
   if (text !== null && typeof text === "object") {
     const d = text as { kind?: unknown; width?: unknown };
     if (d.kind === "bool") return BOOL;
@@ -58,7 +61,7 @@ export function parseDomain(text: unknown): Domain {
   throw new Error(`domain must be 'bool' or 'bool[n]', got ${JSON.stringify(text)}. The domain set is closed; custom domains are not accepted`);
 }
 
-/** 求值期封口：`null` = 合法，否则返回**违约原因**（调用方据此归 0）。 */
+/** Validate at evaluation time: `null` means valid; otherwise return the **contract violation reason** so the caller maps it to 0. */
 export function checkValue(d: Domain, v: unknown): string | null {
   if (d.kind === "bool") {
     return typeof v === "boolean" ? null : `domain ${domainText(d)} expects a bool, got ${typeof v}`;
@@ -70,52 +73,53 @@ export function checkValue(d: Domain, v: unknown): string | null {
   return null;
 }
 
-/** 图里的一个节点。`handle` 是算这一格的那个句柄名 —— 脚本引用在这儿，执行不在这儿。 */
+/** A graph node. `handle` names the function evaluating it: store the script reference here, not its execution. */
 export interface Node {
   name: string;
-  /** 什么时刻算它。老代码那边是规则的 `mode`；这儿是个字符串，**不能是空的**。 */
+  /** The evaluation moment. This was a rule's `mode` in the old implementation; here it is a **nonempty** string. */
   moment: string;
   domain: Domain;
   handle: string;
 }
 
-/** 一条边：源节点的第几个输出，接到哪个节点。 */
+/** An edge connects one output of a source node to a destination node. */
 export interface Edge {
   src: string;
   out: number;
   dst: string;
 }
 
-/** 一个任务的 `G`：节点（有序）+ 边 + 输出节点。 */
+/** A task's `G`: ordered nodes, edges, and an output node. */
 export interface Objective {
   nodes: Node[];
   edges: Edge[];
-  /** 输出节点。图上出度为 0 的那一个。 */
+  /** Output node: the node with out-degree 0. */
   sink: string;
   /**
-   * **一轮里这个黑盒最多被问几次。**
+   * **Maximum queries to this black box in one attempt.**
    *
-   * 这是 G 自己的性质，不是任务的：能问几次，问的是这个盒子经得起被问几次 ——
-   * 换一道题、换一个发布方，同一个 G 该是同一个数。
+   * This is a property of G, not of the task. It expresses how many queries the evaluator should
+   * allow; the same G should retain the same limit across tasks or publishers.
    *
-   * 没有上限的话，最省事的策略是把答案空间枚举一遍。实测过：一道选项题被连着试了
-   * 七十七个排列组合，一次推理都没有 —— 那样得来的分数量的是答案空间有多大，
-   * 不是它会不会做。
+   * Without a limit, enumerating the answer space becomes the easiest strategy. One observed
+   * multiple-choice task tried 77 combinations without any reasoning. The resulting score measures
+   * answer-space size rather than problem-solving ability.
    *
-   * 一轮 = 一次尝试（树那套里就是一个节点）。判死之后重来是新的一轮，额度也是新的。
-   * **交卷那一次不算** —— 那是内核替它问的，不是它自己去试。
+   * A round is one attempt, or one tree node. Retrying after a dead node starts a new round with
+   * a fresh allowance. **The final submission does not count** because the kernel requests that
+   * check rather than the agent probing the evaluator.
    */
   checks: number;
-  /** 只有不依赖可变工作区的纯文本候选允许复用。默认重新判分。 */
+  /** Only pure-text candidates independent of a mutable workspace may reuse verdicts. Regrade by default. */
   reuse?: "text" | "never";
 }
 
-/** 端口序：每个节点按值域宽度摊开。 */
+/** Port ordering: expand each node by its domain width. */
 export function ports(o: Objective): { src: string; out: number }[] {
   return o.nodes.flatMap((n) => Array.from({ length: n.domain.width }, (_, k) => ({ src: n.name, out: k })));
 }
 
-/** 节点级邻接：`A[i][j] = 1` 表示 i 有边到 j。 */
+/** Node adjacency: `A[i][j] = 1` means an edge runs from i to j. */
 function adjacency(o: Objective): number[][] {
   const idx = new Map(o.nodes.map((n, i) => [n.name, i]));
   const A = o.nodes.map(() => o.nodes.map(() => 0));
@@ -128,12 +132,13 @@ function adjacency(o: Objective): number[][] {
 }
 
 /**
- * 定义期结构校验。**只看定义，不跑求值。**
+ * Definition-time structural validation. **Inspect the definition without evaluating it.**
  *
- * 返回错误列表；空 = 过。**非空即拒** —— 没有「警告」那一档：与其让一个必然
- * 算不出结果的 G 混进系统，不如这道题根本别发布。
+ * Return all errors; an empty list means success. **Reject every nonempty list**; there is no
+ * warning-only category. Do not publish a task whose G is structurally unable to produce a result.
  *
- * 做不了的一件事是语义冲突 —— 脚本是黑盒，这就是「尽可能」的全部含义。
+ * Semantic conflicts cannot be detected because scripts are black boxes. This is the limit
+ * of "as much validation as possible."
  */
 export function validate(o: Objective): string[] {
   const errs: string[] = [];
@@ -151,7 +156,7 @@ export function validate(o: Objective): string[] {
     if (!n.handle.trim()) errs.push(`node ${n.name}: missing handle`);
   }
 
-  // 边：引用得存在，下标不许越界。**宽度定义期已知，没有理由留到求值期。**
+  // Edges must reference existing nodes and valid port indices. **Widths are known at definition time, so do not defer bounds checks.**
   for (const e of o.edges) {
     if (!idx.has(e.src)) {
       errs.push(`an edge references a source node that does not exist: ${e.src}`);
@@ -166,13 +171,13 @@ export function validate(o: Objective): string[] {
       errs.push(`edge ${e.src}[${e.out}] -> ${e.dst} has an out-of-range output index: ${e.src} has width ${w}, valid indices are 0..${w - 1}`);
     }
   }
-  if (errs.length) return errs; // 边都对不上，后面无从查起
+  if (errs.length) return errs; // Invalid edges prevent subsequent graph checks.
 
   const A = adjacency(o);
   const indeg = o.nodes.map((_, j) => A.reduce((s, row) => s + row[j], 0));
   const outdeg = A.map((row) => row.reduce((s, x) => s + x, 0));
 
-  // 无环：Kahn 排不完的就是环
+  // Acyclicity: nodes left unprocessed by Kahn's algorithm indicate a cycle.
   const deg = [...indeg];
   const order: number[] = [];
   const stack = o.nodes.map((_, i) => i).filter((i) => deg[i] === 0);
@@ -189,7 +194,7 @@ export function validate(o: Objective): string[] {
     errs.push(`there is a cycle through nodes ${stuck.join(", ")} - evaluation would not terminate, so the grading function has no value`);
   }
 
-  // 唯一输出节点。入度为 0 的有几个都正常 —— 那些是直接观测世界的。
+  // Exactly one output node. Multiple zero-in-degree nodes are valid: they directly observe the world.
   const sinks = names.filter((_, i) => outdeg[i] === 0);
   if (sinks.length !== 1) {
     errs.push(`there must be exactly one output node; nodes with out-degree 0 are ${sinks.join(", ") || "(none)"}`);
@@ -200,7 +205,7 @@ export function validate(o: Objective): string[] {
   const root = o.sink || (sinks.length === 1 ? sinks[0] : "");
   if (!root) return errs;
 
-  // 全消费：除根外，每个输出端口都得被某条边用上
+  // Full consumption: every output port except the root's must be used by an edge.
   for (const p of ports(o)) {
     if (p.src === root) continue;
     if (!o.edges.some((e) => e.src === p.src && e.out === p.out)) {
@@ -210,11 +215,11 @@ export function validate(o: Objective): string[] {
 
   const ri = idx.get(root);
   if (ri !== undefined) {
-    // 根的值域必须是 bool —— G 的输出是 {0,1}
+    // The root domain must be bool because G returns {0,1}.
     if (o.nodes[ri].domain.kind !== "bool") {
       errs.push(`the output node ${root} has domain ${domainText(o.nodes[ri].domain)}, but the grading function must output a bool`);
     }
-    // 退化：根没有入边 ⇒ 它的值跟候选无关 ⇒ G 恒定 ⇒ 无效目标
+    // Degeneracy: a root with no incoming edges is candidate-independent, making G constant and the objective invalid.
     if (indeg[ri] === 0) {
       errs.push(`the output node ${root} has no incoming edge - its value does not depend on the candidate, so the grading function is constant and the objective is void`);
     }
@@ -223,7 +228,7 @@ export function validate(o: Objective): string[] {
   return errs;
 }
 
-/** 解析一份 G。形状不对当场炸 —— 这跟结构校验是两回事，那个查的是图对不对。 */
+/** Parse a G definition and fail immediately on invalid shape. This differs from structural validation, which checks the graph. */
 export function parseObjective(raw: unknown): Objective {
   if (raw === null || typeof raw !== "object") throw new Error("the grading function must be an object");
   const o = raw as { nodes?: unknown; edges?: unknown; sink?: unknown; checks?: unknown; reuse?: unknown };
@@ -245,8 +250,9 @@ export function parseObjective(raw: unknown): Objective {
     const x = e as Record<string, unknown>;
     return { src: String(x.src ?? ""), out: Number(x.out ?? 0), dst: String(x.dst ?? "") };
   });
-  // 不给就用默认的五次：够「算出来 → 验一次 → 照着 why 改 → 再验」走上两三个来回，
-  // 不够穷举。给 0 或者负数当成不给 —— 「随便问」不是这个字段能表达的意思。
+  // Default to five checks when unspecified: enough for a few solve → verify → revise from why
+  // → verify cycles, but not exhaustive enumeration. Treat zero and negative values as unspecified;
+  // this field cannot express unlimited querying.
   const asked = Number((o as { checks?: unknown }).checks);
   if (o.reuse !== undefined && o.reuse !== "text" && o.reuse !== "never") throw new Error("objective.reuse must be 'text' or 'never'");
   return { nodes, edges, sink: String(o.sink ?? ""), checks: Number.isFinite(asked) && asked > 0 ? asked : 5, reuse: o.reuse === "text" ? "text" : "never" };

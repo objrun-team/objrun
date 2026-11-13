@@ -1,35 +1,36 @@
 /**
- * 例子：**从外面加一个 skill**。
+ * Example: **add a skill externally**.
  *
  * ```
  * bun test/integration/skill.ts
  * ```
  *
- * skill 跟工具最大的分别：**模型不挑它**。工具是摆出来让模型自己决定调不调；
- * skill 是条件一命中就**塞进上下文**，模型只会看到已经塞好的结果。
+ * The key distinction from a tool is that **the model does not select a skill**.
+ * Tools are exposed for the model to choose. A skill is **inserted into context**
+ * when its conditions match; the model sees the resulting content already present.
  *
- * 两种写法：
+ * Two forms:
  *
- * - `body` 写死 —— 固定的一段话
- * - `body` 留空 —— **动态生成**：触发那一刻去调同名句柄，它现给一段
+ * - A specified `body`: fixed text.
+ * - An empty `body`: **dynamic generation** by calling the same-named handle when triggered.
  *
- * ## 要害在第二部分
+ * ## The second part is essential
  *
- * skill 塞没塞进去，看的是**上下文里那一行**。所以第二部分直接把这个执行单元的
- * 消息拉出来，看有没有 `kind = "skill"` 的那条、内容对不对、`who` 记的是不是它。
- * 光看「注册成功」什么也证明不了。
+ * Skill insertion is established by **its context row**. The second part reads
+ * the execution unit's messages and checks for `kind = "skill"`, correct content,
+ * and the correct `who`. Registration success alone proves none of this.
  */
 
 import { done, machine, ok, outside, part, show, step, until } from "../_lib.ts";
 
 const m = await machine();
 
-/** 动态 skill 被喊到时，把它拿到的事实记下来 —— 用来验它确实是**现生成**的。 */
+/** Record the facts supplied to a dynamic skill, verifying that it is **generated at invocation time**. */
 const generated: Record<string, unknown>[] = [];
 
 const out = await outside({
   "/unit": () => ({ role: "assistant", kind: "prompt", body: "finished" }),
-  // 动态 skill：内核把这一轮的事实递过来，这儿现拼一段话回去。
+  // Dynamic skill: the kernel supplies this round's facts; construct the returned text now.
   "/recap": (a) => {
     generated.push(a);
     const f = (a.facts ?? {}) as { task?: { id?: string; description?: string } };
@@ -37,13 +38,13 @@ const out = await outside({
   },
 });
 
-/** 拉这个任务这一轮的上下文。 */
+/** Fetch this task's context for the current round. */
 async function ctx(id: string) {
   return (await m.api<{ rows: Record<string, unknown>[] }>("GET", `/tasks/${id}/messages`)).rows;
 }
 
 try {
-  // ═══════════════ 第一部分：注册 ═══════════════
+  // =============== Part 1: registration ===============
   part("Part one: registration");
 
   step("1. body left empty (so, dynamically generated), but there is no handle of that name");
@@ -77,7 +78,7 @@ try {
         when: [[{ dim: "task", key: "source", op: "eq", value: "user" }]],
       },
       {
-        // body 留空 = 动态生成，内容由这条句柄在触发那一刻现给。
+        // Empty body means dynamic generation by this handle at trigger time.
         identity: out.url("/recap"), does: "restate the task once", params: {}, role: "user",
         when: [[{ dim: "task", key: "description", op: "contains", value: "restate" }]],
       },
@@ -99,7 +100,7 @@ try {
   ok("the dynamic one is marked", skills.find((s) => String(s.identity).endsWith("/recap"))?.dynamic === true, skills);
   ok("the fixed one is not marked dynamic", skills.find((s) => s.identity === "fixed")?.dynamic === false, skills);
 
-  // ═══════════════ 第二部分：使用层次的校验 ═══════════════
+  // =============== Part 2: actual-use validation ===============
   part("Part two: checks at the level of use");
   console.log("  Whether it was injected shows in the context row. Registering proves nothing.");
 
@@ -123,12 +124,12 @@ try {
     injected,
   );
   ok("the disabled one stayed out", !injected.some((r) => String(r.body).includes("[should not appear]")), injected);
-  // **skill 有自己的 role，不借 `user`。**
+  // **Skills have their own role rather than borrowing `user`.**
   //
-  // 借 `user` 等于告诉模型「有人在跟你说这段话」，而它其实是我们按条件塞进去的一段
-  // 提示。实测的后果：模型开始接话反问（「请把本题的具体选项发出来」），不再作答；
-  // 不报错，只表现为分数低。它走 `instructions`，不进消息流（见 `llm/index.ts`
-  // 的 `ROLES`）。
+  // Using `user` tells the model that a person said this text, although it is a conditionally inserted instruction.
+  // In an observed run, the model started asking follow-up questions ("Please provide this problem's specific choices") instead of answering.
+  // No error was raised; only the score fell. Skill content goes into `instructions`, not the message stream
+  // (see `ROLES` in `llm/index.ts`).
   ok("what was injected carries role skill - an identity of its own, not impersonating a person", injected.every((r) => r.role === "skill"), injected);
 
   step("6. the dynamic one received this round facts, not an empty shell");

@@ -1,36 +1,25 @@
 /**
- * 一次请求带出去的上下文有多大，以及**那一堆消息里哪一段是哪个节点的**。
+ * Measure the outgoing context size and identify **which messages belong to each node**.
  *
  * ```
- * bun examples/benchmark/deepswe/context.ts [这一跑叫什么] [某一道题]
+ * bun examples/benchmark/deepswe/context.ts [run-name] [problem-id]
  * ```
  *
- * 不给题号就每道题一行（它这辈子最大的那一次）；给了就把那道题按节点摊开。
+ * Without a problem ID, print one row per problem for its largest lifetime context; with one, break that problem down by node.
  *
- * ## 大小从哪儿来：量消息，不读 `prompt_tokens`
+ * ## Measure messages, not `prompt_tokens`
  *
- * `prompt_tokens` 那一列记的是**花掉的输入**，不是上下文有多长：一次答复被截断会
- * 接着再问一遍，每一轮各自计费，那一列是几轮之和（表注里写着）。实测过一行 17232
- * 对着一段约 1600 token 的对话。所以这儿的「多大」是**照着内核真会发出去的那份
- * 自己数的**：顺着 `from` 指针把这一站的链走出来，把链上每一行 `body` 的字节加起来。
+ * `prompt_tokens` records **billed input**, not context length. Truncated responses trigger continuation calls, each billed separately, and the column sums them (as documented in the schema). An observed row recorded 17232 tokens for a conversation of about 1600 tokens.
+ * Measure the exact context the kernel would send instead: follow the station's `from` chain and sum each row's body bytes.
  *
- * **思考也要算进去。** 它不在 `body` 里（`body` 是那份谁都认得的重放材料），
- * 单独占着 `thought` 那一列 —— 但出站的时候拼进消息里跟着回去：请求带 `tools` 的
- * 时候，历史轮次的 `reasoning_content` 都得回传（`llm/index.ts` 的 `toMsg`），
- * 而这套机制每一次请求都带 `tools`。只数 `body` 的话，量出来会比真的小一多半。
+ * **Include reasoning.** It occupies `thought`, not `body` (the universally replayable message payload), but is reattached to outgoing messages. When a request includes tools, previous `reasoning_content` must be returned (`toMsg` in `llm/index.ts`), and every request in this mechanism includes tools. Counting body alone underestimates size by more than half.
  *
- * 字节不是 token，两者之间没有定数（代码、JSON、中文各不一样）。算过一道题：
- * 4234989 字节对着模型报的 1033906 token，约 4.1 字节一个 token。这儿按 4 估。
+ * Bytes and tokens have no fixed ratio across code, JSON, and Chinese. One measured problem had 4,234,989 bytes and 1,033,906 provider-reported tokens, about 4.1 bytes/token. Estimate with 4 here.
  *
- * ## 哪一段是哪个节点的
+ * ## Attribute context to nodes
  *
- * `task_{mode}` 每一行都记着 `node`，而消息行记着 `unit` —— 两边按 `unit` 一对，
- * 每条消息属于哪个节点就是确定的，不用猜。
- *
- * 链是顺着 `from_cycle`/`from_unit` 走出来的，**不是「所有比我小的 unit」**：
- * 这两件事在这套树上现在恰好一样（新节点挂在上一个节点的交卷站上，整棵树是一条
- * 直线），但那是这棵树现在的形状，不是协议。按 `from` 走的话，哪天真长出旁支来，
- * 这个脚本不用改。
+ * Each `task_{mode}` row records node, while message rows record unit. Joining by unit identifies ownership exactly.
+ * Follow `from_cycle`/`from_unit`, **not all smaller unit numbers**. They happen to coincide in the current linear tree because each new node attaches to the previous submission station, but that is a topology rather than a protocol guarantee. Following from pointers also works if branches are later added.
  */
 
 const BASE = process.env.TGENGIN_BASE ?? "http://127.0.0.1:7801/api";
@@ -56,7 +45,7 @@ interface Stat {
 
 const kb = (n: number) => `${(n / 1024).toFixed(0)}k`;
 
-/** 一道题：每个节点收口那一刻，链上有多大、哪个节点占了多少。 */
+/** For one problem, measure total chain size and each node's share when every node closes. */
 async function oneTask(task: string): Promise<{ peak: number; nodes: number; line: string[] }> {
   const id = `${RUN}/${task}`;
   const stations = (await sql<Stat>(
@@ -75,7 +64,7 @@ async function oneTask(task: string): Promise<{ peak: number; nodes: number; lin
   }
 
   const by = new Map(stations.map((s) => [s.unit, s]));
-  /** 这一站的链，从根到它自己。 */
+  /** This station's chain, from the root through the station itself. */
   const chainOf = (u: number): number[] => {
     const out: number[] = [];
     let cur = by.get(u);
@@ -106,8 +95,8 @@ async function oneTask(task: string): Promise<{ peak: number; nodes: number; lin
     peak = Math.max(peak, total);
     const split = nodes.filter((x) => per.has(x)).map((x) => `n${String(x)} ${kb(per.get(x) ?? 0)}`).join("  ");
     line.push(
-      `  node ${String(n).padStart(2)}  收口在 #${String(last).padEnd(4)}  链上 ${kb(total).padStart(7)}` +
-        `  ≈${String(Math.round(total / 4 / 1000)).padStart(4)}k tok  其中思考 ${String(Math.round((thought / total) * 100)).padStart(2)}%   ${split}`,
+      `  node ${String(n).padStart(2)}  Finalized at #${String(last).padEnd(4)}  chain ${kb(total).padStart(7)}` +
+        `  ≈${String(Math.round(total / 4 / 1000)).padStart(4)}k tok  reasoning ${String(Math.round((thought / total) * 100)).padStart(2)}%   ${split}`,
     );
   }
   return { peak, nodes: nodes.length, line };
@@ -115,13 +104,13 @@ async function oneTask(task: string): Promise<{ peak: number; nodes: number; lin
 
 if (ONE) {
   const r = await oneTask(ONE);
-  console.log(`${RUN}/${ONE}  ${r.nodes} 个节点，链上最大 ${kb(r.peak)}\n`);
+  console.log(`${RUN}/${ONE}  ${r.nodes} nodes, peak chain size ${kb(r.peak)}\n`);
   console.log(r.line.join("\n"));
-  console.log("\n每一行是那个节点收口那一刻链上的样子；后面那串是这一链里各节点各占多少。");
+  console.log("\nEach row shows the chain when that node finalized; the suffix breaks down each node’s contribution.");
 } else {
   const tasks = await sql<{ id: string }>(`select id from task where run = '${RUN}' order by id`);
-  console.log(`${RUN}  ${tasks.length} 道\n`);
-  console.log("  题".padEnd(50) + "节点  链上最大  ≈token");
+  console.log(`${RUN}  ${tasks.length} tasks\n`);
+  console.log("  Task".padEnd(50) + "Nodes  Peak chain  ≈tokens");
   const rows: { task: string; nodes: number; peak: number }[] = [];
   for (const t of tasks) {
     const task = t.id.slice(RUN.length + 1);

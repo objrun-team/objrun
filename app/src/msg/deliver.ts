@@ -1,69 +1,54 @@
 /**
- * 往上下文里投一条消息 —— **写在一处，读在一处，来源不丢。**
+ * Deliver a message into context: **one write path, one read path, with provenance intact.**
  *
- * ## 为什么必须只有这一处
+ * ## Why there must be only one entry point
  *
- * 老代码那边曾经有两份一模一样的实现（智能体侧一份、内核侧一份），后者的注释
- * 自己写着「这段与那边是同一段代码的两份拷贝」。**两份拷贝意味着同一个 bug 有
- * 两份副本，而修的时候多半只修一份。** 所以这个文件是唯一的入口，内核、发布口、
- * 规则、skill 全走它。
+ * The old code had two identical implementations (agent-side and kernel-side); the latter even described them as two copies of the same code. **Two copies duplicate every bug, while fixes usually reach only one.** This file is therefore the sole entry point for the kernel, publishing endpoint, rules, and skills.
  *
- * ## `kind` 是**推**出来的，不是填的
+ * ## `kind` is **inferred**, not supplied
  *
- * 这是这一块最要紧的一条。老代码的原话：
+ * This is the central rule. As the old code put it:
  *
- * > 标记的**依据必须是系统已有的事实，不能是一条纪律** —— 靠人记得在消息前面加个
- * > 前缀，漏一次就静默失效，而且没人查得出来。
+ * > Marking must be **based on facts already known to the system, not on procedural discipline**. If someone must remember to prefix each message, one omission silently breaks the mechanism and cannot be detected afterward.
  *
- * 所以调用方说的是「**谁放的**」（`by`），`kind` 由它推出来。之前那版是调用方自己
- * 填 `kind`，那就是一条纪律：填错、忘填都不报错，而事后谁也分不出「这段是人写的」
- * 还是「这段是规则投的」。
+ * Callers therefore specify **who supplied it** (`by`), from which `kind` is inferred. Previously callers filled in `kind` themselves: another procedural rule, with no error for wrong or missing values and no way afterward to distinguish human writing from rule-injected content.
  *
- * ## 人写的那些要看得出来
+ * ## Human-authored content must remain identifiable
  *
- * 压给模型的时候，所有非 assistant 的东西最后都拼成一串 `user`。**人写的和系统
- * 注入的在拼完之后就分不开了** —— 除非在库里标着。`HUMAN_MARK` 是那个标记，
- * 定义在这一处，下游读的是**同一个常量**，不是各写各的字面量。
+ * When flattened for the model, all non-assistant content becomes one `user` string. **Human writing and system injection become indistinguishable** unless marked in the database. `HUMAN_MARK` is that marker, defined here once; downstream code reads **the same constant**, not separately written literals.
  */
 
 import type { Conn } from "../H2H/db.ts";
 import { all, run } from "../H2H/db.ts";
 import { tableNameOf } from "../install/index.ts";
 
-/** 人写的那些块的前缀。**一处定义** —— 下游读它，不各写各的字面量。 */
+/** Prefix for human-authored blocks. **Defined once**: downstream code reads it instead of duplicating the literal. */
 export const HUMAN_MARK = "[human] ";
 
-/** 哪几种来源算「人给的」。**取值就是缀不缀 `HUMAN_MARK` 的判据本身。** */
+/** Sources considered human-provided. **These values directly determine whether to prepend `HUMAN_MARK`.** */
 const HUMAN = new Set<By>(["user", "voice"]);
 
 /**
- * 谁放的。`kind` 从这儿推。
+ * Who supplied the message; `kind` is inferred from this.
  *
- * - `user` —— 真人写的。**有意图、有责任**，压出去前缀 `HUMAN_MARK`
- * - `voice` —— 真人**说**的，实时轨转写来的。同样有意图有责任，同样缀 `HUMAN_MARK`；
- *   但跟 `user` **分开记**：转写是说的不是打的，混成一个的话，回放这段上下文会把
- *   它当成人敲进来的字重新发一遍，而那不报错
- * - `world` —— 机械的确定性产出（规则命中后投进来的知识）。**无意图无责任**
- * - `skill` —— skill 临时放的提示词
- * - `tool` —— 工具的返回
- * - `agent` —— 智能体自己说的。**它不进这条管道** —— 那是它自己的轨迹，
- *   由执行单元直接落库
- * - `kernel` —— 内核的记账（出站凭据那种）。给我们看的，不当内容发给模型
+ * - `user`: written by a person. **Intentional and attributable**; prefix with `HUMAN_MARK` when flattening.
+ * - `voice`: **spoken** by a person, transcribed from the realtime track. Equally intentional and attributable, and also prefixed with `HUMAN_MARK`. Record it **separately from `user`**: speech is not typing. Conflating them would silently replay transcribed speech as typed input.
+ * - `world`: mechanical, deterministic output (knowledge injected after a rule matches). **No intent or responsibility**.
+ * - `skill`: a temporary prompt supplied by a skill.
+ * - `tool`: a tool result.
+ * - `agent`: the agent's own words. **Outside this pipeline**: they are its trajectory, written directly by the execution unit.
+ * - `kernel`: kernel bookkeeping, such as outbound receipts. For human inspection, not sent to the model as content.
  */
 export type By = "user" | "voice" | "world" | "skill" | "tool" | "agent" | "kernel";
 
-/** 谁放的 → 落库时的 `kind` 和 `role`。**这张表就是那条推断规则本身。** */
+/** Source → stored `kind` and `role`. **This table is the inference rule itself.** */
 const FROM: Record<By, { kind: string; role: string }> = {
   user: { kind: "user", role: "user" },
   voice: { kind: "voice", role: "user" },
   world: { kind: "inject", role: "user" },
-  // **skill 自己就是一种身份。**
+  // **A skill has its own identity.**
   //
-  // 之前它落成 `role: "user"` —— 那等于告诉模型「有人在跟你说这段话」。实测的后果：
-  // 一段方法注入被读成对话，模型开始接话反问（「请把本题的具体选项发出来」），
-  // 不再作答。它不是人说的，也不是模型说的，更不是工具回的 —— 它是我们按条件塞进去
-  // 的一段提示，那就该有自己的 role，怎么呈现给模型由适配器决定（见 `llm/index.ts`
-  // 的 `sendable` / `instructionsOf`：它走 instructions，不进消息流）。
+  // Previously it was stored with `role: "user"`, telling the model that a person was addressing it. In measurements, injected methodology was interpreted as conversation: the model asked for the question's specific options instead of answering. A skill is neither human speech, model speech, nor a tool result; it is a conditionally injected prompt. Give it its own role and let the adapter choose its presentation (see `sendable` / `instructionsOf` in `llm/index.ts`: it enters instructions, not the message stream).
   skill: { kind: "skill", role: "skill" },
   tool: { kind: "tool", role: "tool" },
   agent: { kind: "prompt", role: "assistant" },
@@ -71,11 +56,9 @@ const FROM: Record<By, { kind: string; role: string }> = {
 };
 
 /**
- * 哪几种 `kind` 是人给的。**从上面那两张表推出来，不另列一份名单。**
+ * Human-provided `kind` values. **Derived from the two tables above, not maintained as another list.**
  *
- * 下游（接口那一层）判「这条是不是人给的」只能靠它 —— **不许看 body 长什么样**：
- * 上下文里人写的那条带着 `HUMAN_MARK` 前缀，模型照着学、在回答开头复读一句，
- * 就被当成人写的了（实测它真会这么干）。`kind` 是投递那一刻推出来的，伪造不了。
+ * Downstream interface code must use this to identify human input: **never inspect the body's appearance**. A model can imitate a context message's `HUMAN_MARK` prefix at the start of its answer, causing misclassification as human writing (observed in practice). `kind` is inferred at delivery and cannot be forged that way.
  */
 export const HUMAN_KINDS = new Set([...HUMAN].map((b) => FROM[b].kind));
 
@@ -85,19 +68,16 @@ export interface Put {
   unit: number;
   by: By;
   body: string;
-  /** `skill` / `tool` 这类要说清是哪一个 —— 事后查得出是谁投的。 */
+  /** Sources such as `skill` / `tool` must identify which one, so the supplier can be traced afterward. */
   who?: string;
 }
 
 /**
- * 模型说完那一行**除了话之外**的东西：它想了什么，这一次花了多少。
+ * Everything **besides the words** in a completed model message: its reasoning and the cost of this call.
  *
- * 跟 `body` 分开是有原因的，不是嫌它挤：`body` 是**重放要用的那一份**，而有的网关
- * 不认得带思考的助手消息 —— 那条路一直是好的，不拿它换。这几样只进库、不回传，
- * 于是「重发的还是它认得的形状」跟「当时到底想了什么、花了多少」两件事都成立。
+ * Separating these from `body` is deliberate: `body` is **the replay representation**, and some gateways reject assistant messages containing reasoning. Preserve that working path. Store these fields without sending them back, retaining both a replayable shape and an account of the original reasoning and usage.
  *
- * **不报的记 null，不记 0。** 哪一家的适配器填不上这几个数，看得出来是「没报」；
- * 记成 0 的话，它跟「真的一个 token 都没花」长得一模一样，而那两件事差着一次调用。
+ * **Record unreported values as null, not 0.** Missing adapter metrics must visibly mean "not reported". Zero would be indistinguishable from a call that truly consumed no tokens, although those cases differ by an entire call.
  */
 export interface Said {
   thought?: string;
@@ -108,20 +88,16 @@ export interface Said {
 }
 
 /**
- * 投一条。返回它落在第几条。
+ * Deliver one message and return its sequence number.
  *
- * `role` 也是推出来的：模型只认那几个 role，而「这条实际是什么」得另外标着 ——
- * 压给模型的时候系统注入的也是一条 `user`，光看消息列表分不出它是不是真人讲的。
+ * `role` is inferred too. Models recognize only certain roles, so the message's actual identity needs a separate marker: system-injected content also becomes `user` when flattened, and the message list alone cannot establish whether a person said it.
  */
 /**
- * 这一行的 `body` 形状对不对。**入库那一刻就查。**
+ * Validate this row's `body` shape. **Check at insertion time.**
  *
- * 以前不查，代价很具体：库里能躺着一条 `call`，它的 `calls` 里某一次没有 `id`，
- * 而 `id` 正是工具结果配回来的钥匙 —— 没有它，那次调用永远配不上结果，整份
- * 上下文从此发不出去。这件事以前要等到发请求时才被发现。
+ * The former lack of validation had a concrete cost: a stored `call` could contain an entry in `calls` without an `id`, the key used to match tool results. Such a call could never receive a matching result, making the entire context unsendable. Previously this was discovered only at request time.
  *
- * 能在这一刻查的只有「这一行自己说得通吗」。「这次调用后来有没有人答」是后话，
- * 归 `answerMissing` 管。
+ * At this point we can validate only the row's internal consistency. Whether someone later answers the call belongs to `answerMissing`.
  */
 export function checkBody(kind: string, body: string): void {
   if (kind !== "call" && kind !== "graded" && kind !== "tool") return;
@@ -145,25 +121,20 @@ export function checkBody(kind: string, body: string): void {
 }
 
 /**
- * 把这一串行里**没人答的调用补齐**：给每一次没有结果的调用写一条结果，说明它
- * 从没跑过。返回补了几条。
+ * **Complete unanswered calls** in these rows: write a result explaining that each unmatched call never ran. Return the number added.
  *
- * ## 为什么是补，不是摘
+ * ## Why add results instead of removing calls?
  *
- * 一条 `call` 没人答，是真发生过的事。**这一站有没有人真去跑工具，取决于机制
- * 怎么搭**：下一站走 `fn:unit.tools` 就有人跑，一条纯问答的轨就没人跑。而系统
- * 工具是无条件挂上去的，所以纯问答的多站机制里，模型迟早会请求一次没人跑的工具。
+ * An unanswered `call` really happened. **Whether a station executes tools depends on the mechanism**: a following `fn:unit.tools` station runs them; a pure question-answer track does not. System tools are attached unconditionally, so a multi-station question-answer mechanism will eventually request a tool that nobody executes.
  *
- * 缺了结果，上下文就发不出去 —— 模型那边一律要求「有 tool_call 就得有对应的
- * tool result」。以前的解法是发之前把那一行**摘掉**，代价是两条：
+ * Without a result, the context cannot be sent: providers require a matching tool result for every tool_call. Previously the call row was **removed** before sending, with two costs:
  *
- * - 模型看到的历史里，那次调用**凭空消失**。它会以为自己没调过，再调一遍
- * - 库里存的和发出去的**不是一份东西**。出了事，拿着库复原不出模型看见了什么
+ * - The call **disappeared** from the model's history. Believing it had never made the call, the model could repeat it.
+ * - Stored and transmitted context **differed**. The database could not reconstruct what the model saw.
  *
- * 补一条「没跑成」两样都解决：模型看得见自己调过、也看得见没结果；而库里存的
- * 就是发出去的那一份。
+ * Adding a "not executed" result solves both: the model sees its call and the absence of a result, while the stored context matches what is sent.
  */
-/** 一行消息，配对校验只用得上这几列。 */
+/** A message row; pairing validation needs only these columns. */
 export interface Pair {
   unit: number;
   seq: number;
@@ -174,22 +145,15 @@ export interface Pair {
 }
 
 /**
- * **发出去之前最后一道闸：这份消息列表还成不成立。**
+ * **The final pre-send gate: is this message list still valid?**
  *
- * 那一端只有一条硬规矩：一个调用必须跟着它的结果，一条结果必须跟着它的调用。破了
- * 整份拒收，而错误信息说的是「少了谁」，不是「谁把它弄丢的」——
- * `Tool result is missing for tool call …` / `Messages with role 'tool' must be a
- * response to a preceding message with 'tool_calls'`。
+ * The provider enforces one pairing rule: a call must have its following result, and a result must follow its call. A violation rejects the entire request. Errors identify the missing piece, not who lost it: `Tool result is missing for tool call …` / `Messages with role 'tool' must be a response to a preceding message with 'tool_calls'`.
  *
- * **对不上就把那一小段摘掉，不回退。** 压缩是照着阈值算出来该压的，为了一个悬空的
- * 调用把整份换回原文，等于用「一定超上下文」换「可能不合法」—— 而摘掉的代价只有
- * 那一次调用本身：它的结果本来就不在，模型看不到它也不损失什么。
+ * **Remove the small unmatched fragment; do not revert compression.** Compression was selected by the size threshold. Reverting the whole context for an orphaned call trades possible invalidity for certain context overflow. Removing the call costs only that call: its result is already absent, so hiding it loses no additional result.
  *
- * 摘的是最小的那一块：调用是从那一行的 `calls` 里挑掉一个，整行只有在**一个调用都
- * 不剩、话也没说**的时候才整行不要。
+ * Remove the smallest piece: delete one entry from the row's `calls`, and drop the whole row only when **no calls and no text remain**.
  *
- * 回的是「留下来的行」和「摘掉了什么」——后者是给日志的：这一步一旦真动了手，
- * 说明前面某个环节漏了一条结果，那才是要修的地方。
+ * Return retained rows and a record of removals. The latter is for logging: any removal means an earlier stage lost a result, and that is the defect to fix.
  */
 export function mendPairs(rows: Pair[]): { rows: Pair[]; dropped: string[] } {
   const answered = new Set<string>();
@@ -235,14 +199,14 @@ export function mendPairs(rows: Pair[]): { rows: Pair[]; dropped: string[] } {
     }
     for (const c of calls) if (!keep.includes(c)) dropped.push(`call ${String(c.id)} (no result for it)`);
     const text = typeof v.text === "string" ? v.text : "";
-    // 一个调用都不剩、话也没说 → 这一行没有内容了，整行不要。
+    // No calls and no text remain → the row has no content; drop it entirely.
     if (keep.length === 0 && !text.trim()) continue;
     out.push({ ...r, body: JSON.stringify({ ...v, calls: keep }) });
   }
   return { rows: out, dropped };
 }
 
-/** `kind='tool'` 那一行答的是哪一个调用。读不出来就是没有。 */
+/** Which call a `kind='tool'` row answers. Unreadable means absent. */
 function idOf(body: string): string {
   try {
     return String((JSON.parse(body) as { id?: unknown }).id ?? "");
@@ -251,7 +215,7 @@ function idOf(body: string): string {
   }
 }
 
-/** 一行里请求了哪几个调用。 */
+/** Calls requested in one row. */
 function callsOf(body: string): { id?: unknown }[] {
   try {
     return (JSON.parse(body) as { calls?: { id?: unknown }[] }).calls ?? [];
@@ -273,15 +237,15 @@ export function answerMissing(
       const id = (JSON.parse(r.body) as { id?: string }).id;
       if (id) answered.add(id);
     } catch {
-      // 读不出 id 的当它没答过 —— 这种行现在也进不了库了（见 checkBody）
+      // An unreadable id counts as unanswered. Such rows can no longer enter the database (see checkBody).
     }
   }
 
-  // 要补哪几条：哪一格、答的是谁。**先收集，再动手** —— 每补一条都会推动后面行的
-  // `seq`，边遍历边改的话，第二条就按着过期的位置去插。
+  // Which results to add: the slot and call being answered. **Collect first, then mutate**.
+  // Each insertion shifts later `seq` values; mutating while iterating would use a stale position for the second insertion.
   const todo: { unit: number; id: string; name: string }[] = [];
   for (const r of rows) {
-    // `graded` 不在此列：它写进来的时候结果就配好了，没有人在等。
+    // Exclude `graded`: its result is already paired when written, so nothing is waiting.
     if (r.kind !== "call") continue;
     let calls: { id?: string; name?: string }[];
     try {
@@ -299,7 +263,7 @@ export function answerMissing(
 
   const t = tableNameOf("agent_{}_msg", agent);
   for (const job of todo) {
-    // 那一行现在排在第几 —— 现查，因为上一轮补齐可能已经把它往后推过。
+    // Look up the row's current position: the previous completion may already have shifted it.
     const host = all(
       db,
       `select seq, body from "${t}" where instance = ? and unit = ? and kind = 'call' order by seq`,
@@ -308,14 +272,9 @@ export function answerMissing(
     const at = host.find((h) => h.body.includes(`"${job.id}"`));
     if (!at) continue;
 
-    // **紧跟在它答的那次调用后面，不是追加到这一格末尾。** 模型那边要求「带
-    // tool_calls 的那条助手消息，后面**紧接着**就是它那几条结果」；中间隔了别的
-    // 助手消息就直接拒：`An assistant message with 'tool_calls' must be followed by
-    // tool messages responding to each of them`。追加到末尾的那一版，判决那一对
-    // 正好插在中间，于是每一道判死的题都在下一站卡住。
+    // **Insert immediately after the call being answered, not at the end of the slot.** Providers require the assistant message containing tool_calls to be **immediately followed** by its results. An intervening assistant message causes rejection: `An assistant message with 'tool_calls' must be followed by tool messages responding to each of them`. Appending at the end used to place the verdict pair in between, stalling every failed problem at its next station.
     //
-    // 腾位子分两步走，是因为 `(instance, unit, seq)` 是主键：直接 +1 会在挪的过程中
-    // 撞上还没挪走的那一行。先整体推远，插进去，再拉回来。
+    // Make room in two steps because `(instance, unit, seq)` is the primary key: incrementing directly would collide with a row not yet moved. Shift rows far away, insert, then shift them back.
     const pos = Number(at.seq) + 1;
     run(db, `update "${t}" set seq = seq + 1000000 where instance = ? and unit = ? and seq >= ?`, [
       instance,
@@ -346,9 +305,8 @@ export function deliver(db: Conn, p: Put): number {
   const { kind, role } = FROM[p.by];
   if (!kind) throw new Error(`unknown delivery source: ${p.by}`);
 
-  // 人给的缀上标记。**在这儿缀，不在调用方缀** —— 调用方缀就成了纪律。
-  // 判据是 `HUMAN`（写的、说的都算），不是某一个具体的 by —— 加一种人类来源时
-  // 漏改这一行的话，那一路就悄悄丢了标记，而压出去之后再也分不出来。
+  // Prefix human input **here, not in callers**: caller-side marking would depend on procedural discipline.
+  // Use `HUMAN` (both written and spoken input), not a particular by value. Otherwise adding a human source without updating this line would silently lose its marker, making it indistinguishable after flattening.
   const body = HUMAN.has(p.by) ? `${HUMAN_MARK}${p.body}` : p.body;
   checkBody(kind, body);
 
@@ -371,38 +329,29 @@ export function deliver(db: Conn, p: Put): number {
 }
 
 /**
- * 把一次**外部裁决**投成「一次工具调用 + 它的结果」两行。
+ * Deliver an **external verdict** as two rows: a tool call and its result.
  *
- * ## 为什么是这个形状
+ * ## Why this shape?
  *
- * G 判完之后，那个判决以前**只进日志和 `task.result`，从不进上下文**。于是判死开兄弟
- * 是**盲重试**：新分支知道要换条路，但不知道上一条错在哪。verifier-guided 的
- * verifier 那一半等于没接上。
+ * G's verdict previously entered **only logs and `task.result`, never context**. Marking a branch dead and opening a sibling therefore meant **blind retries**: the new branch knew to change direction but not why the previous one failed. The verifier half of verifier-guided search was effectively disconnected.
  *
- * 要让模型看见，就得选一个身份。三种都试得出问题：
+ * To show the verdict to the model, choose an identity. Three alternatives cause problems:
  *
- * | 当成 | 为什么不行 |
+ * | Treat it as | Why it fails |
  * | --- | --- |
- * | `user` 说的 | 「有人在跟我说我错了」—— 模型会去接话、辩解 |
- * | `system` 指令 | 它不是交代，是**这一次的观测结果**；而且 instructions 每轮重发，判决会糊在一起 |
- * | `assistant` 自己说的 | 那是让它自己承认，等于伪造它的轨迹 |
+ * | `user` speech | The model interprets a person saying it is wrong and responds or argues. |
+ * | `system` instruction | It is **this call's observation**, not an instruction; instructions are resent every round, blending verdicts together. |
+ * | The `assistant`'s own words | This makes the model admit the verdict itself, falsifying its trajectory. |
  *
- * **一次带结果的工具调用**才对：它是外部的、这一次的、可核对的观测 —— 正好是
- * tool 结果的语义。而且这两种行内核本来就有（`call` / `tool`），`toMsg` 直接认，
- * 不用给模型那边加任何新概念。
+ * **A tool call with a result** fits: an external, specific, verifiable observation, exactly the meaning of a tool result. The kernel already has both row types (`call` / `tool`), and `toMsg` recognizes them without introducing a new model-facing concept.
  *
- * ## 那 `call` 那一半算不算伪造
+ * ## Is the `call` half fabricated?
  *
- * 上面刚说了「不当 `assistant`，那等于伪造它的轨迹」，可这一对里 `call` 那半确实
- * 写成了 `role: assistant`。这一条只有在 **`verify` 是个真工具**的前提下才立得住 ——
- * 否则上下文里躺着一条「我调用了 verify」，模型真去调却报「tool 表里没有 verify」，
- * 那才是伪造。所以 `objective/tool.ts` 把它注册了：有 G 的任务就挂得上，模型自己
- * 也能调。轨迹跟能力对得上，这一对就名副其实。
+ * We just rejected using `assistant` as falsifying the trajectory, yet this pair's `call` does use `role: assistant`. This is justified only if **`verify` is a real tool**. Otherwise context would claim "I called verify" while a real attempt would fail because verify is absent from the tool table. That would be fabrication. `objective/tool.ts` therefore registers it: tasks with G receive it and the model can call it itself. The trajectory matches the available capability.
  *
- * ## 为什么放在这个文件里
+ * ## Why in this file?
  *
- * 它写的是两行消息，那就得走这条唯一的管道 —— seq 怎么排、`kind` 怎么定，
- * 只许有一处说了算。绕过去自己 insert 的话，就是这个文件开头警告的那件事。
+ * It writes two message rows and must use the sole delivery pipeline. Sequence allocation and `kind` inference must each have one authority. Direct inserts elsewhere would recreate the duplication warned about at the top of this file.
  */
 export function deliverVerdict(
   db: Conn,
@@ -414,8 +363,8 @@ export function deliverVerdict(
     p.unit,
   ])[0] as { m: number };
   let seq = Number(got.m);
-  // 调用 id 得对得上 —— 模型那边一律要求「有 tool_call 就得有对应的 tool result」，
-  // 配不上的话整份上下文发不出去（见 `loop.ts` 的 `dropDangling`）。
+  // Call ids must match: every tool_call requires a corresponding tool result.
+  // An unmatched pair prevents the entire context from being sent (see `dropDangling` in `loop.ts`).
   const id = `g-${p.instance}-${p.unit}-${seq + 1}`;
   const at = Date.now();
 
@@ -437,29 +386,22 @@ export function deliverVerdict(
 }
 
 /**
- * 认得的 `role` —— **取值就是上面那张推断表的 role 那一列**，不另列一份名单。
+ * Known `role` values: **the role column of the inference table above**, not a separately maintained list.
  *
- * 库里这一列不是「模型认得的那四个」：`skill` 就是一种独立身份。怎么把它送到模型
- * 那边去，是适配器的事（`llm/index.ts` 的 `ROLES`：`skill` 走 instructions，
- * 不进消息流）。**库先认得，再谈怎么呈现** —— 反过来的话，加一种身份就得同时改
- * 两处，而漏改的表现是那一路悄悄按别人的身份进了上下文。
+ * This database column is not limited to the model's four roles: `skill` has its own identity. Adapters decide how to present it (`ROLES` in `llm/index.ts` sends `skill` through instructions, not the message stream). **Recognize an identity in the database first, then decide its presentation**. Reversing this would require two coordinated changes per new identity; an omission would silently present that content as someone else's.
  */
 export const ROLES = [...new Set(Object.values(FROM).map((f) => f.role))].sort();
 /**
- * 每种 role 出站时去哪儿，外加一句人话。**这是种子，`msg_role` 表才是家。**
+ * Outbound destination for each role, plus a readable description. **This is seed data; `msg_role` is the authoritative home.**
  *
- * | role | 去哪儿 |
+ * | role | Destination |
  * | --- | --- |
- * | `user` `assistant` `tool` | 消息流。模型认得的那三种，原样过去 |
- * | `system` `skill` | `instructions`。不是对话里的一句，是这一轮的交代 |
+ * | `user` `assistant` `tool` | Message stream: the model recognizes these three and receives them unchanged. |
+ * | `system` `skill` | `instructions`: guidance for this round, not a conversational turn. |
  *
- * **`skill` 有自己的 role**，不借 `user`：借了就等于告诉模型「有人在跟你说这段话」，
- * 而它其实是我们按条件塞进去的一段提示。实测借 `user` 的后果是模型开始接话反问
- * （「请把本题的具体选项发出来」），不再作答 —— 不报错，只表现为分数低。
+ * **`skill` has its own role**, without borrowing `user`. Borrowing it tells the model that a person is speaking, although the content is a conditionally injected prompt. In measurements, the model responded by asking for the question's specific options rather than answering. There was no error, only lower scores.
  *
- * **为什么挂在 role 上而不是 kind 上**：同一种 kind 能穿两种 role —— 世界注入的
- * `inject` 是 `user`，内核注入的 `inject` 是 `system`，一个进消息流一个进交代。
- * 按 kind 查的话这两条只能得到同一个答案，而它们本来就不该一样。
+ * **Why attach this to role instead of kind?** One kind can have two roles: world `inject` uses `user`; kernel `inject` uses `system`. One belongs in the message stream, the other in instructions. A lookup by kind would force identical destinations where they must differ.
  */
 const SENT_AS: [string, string, string][] = [
   ["user", "messages", "A line in the conversation, from whoever is on the other side"],
@@ -470,11 +412,9 @@ const SENT_AS: [string, string, string][] = [
 ];
 
 /**
- * 把这份种子灌进 `msg_role`。幂等 —— 跟 `seedKinds` 是同一件事。
+ * Seed `msg_role` idempotently, just like `seedKinds`.
  *
- * 灌完之后**以表为准**：库里把某个 role 改成走 instructions，它就走 instructions，
- * 不用动代码。这一列以前只活在 `llm/index.ts` 的一个常量里 —— 那意味着「一份库
- * 取出来就能打给模型」这句话不成立：还得同时拿着那一版代码，才知道哪些行该进去。
+ * After seeding, **the table is authoritative**: changing a role's destination to instructions in the database takes effect without code changes. Previously this column existed only as a constant in `llm/index.ts`, invalidating the claim that a database alone reconstructs a model request: the matching code version was also needed to know which rows to include.
  */
 export function seedRoles(db: Conn): string[] {
   for (const [name, sentAs, note] of SENT_AS) {
@@ -488,14 +428,14 @@ export function seedRoles(db: Conn): string[] {
   return SENT_AS.map(([n]) => n);
 }
 
-/** 库里现在怎么说：role → 去哪儿。**取出来就能用，不用再问代码。** */
+/** Current database mapping: role → destination. **Ready to use directly, without consulting code.** */
 export function sentAsIn(db: Conn): Record<string, string> {
   const rows = all(db, `select name, sent_as from msg_role`) as { name: string; sent_as: string }[];
   return Object.fromEntries(rows.map((r) => [String(r.name), String(r.sent_as)]));
 }
 
 
-/** 认得的消息类型 —— `msg_kind` 表的种子。**取值就是上面那张推断表的值域。** */
+/** Known message types: seed data for `msg_kind`. **Values are the range of the inference table above.** */
 export const KINDS: [string, string][] = [
   ["user", "Written by a person. Prefixed with " + HUMAN_MARK + " on the way out so it stays distinguishable from system injections"],
   ["voice", "Spoken by a person, transcribed from the realtime lane. Its role is also user; only kind tells speech apart from typing"],
@@ -512,13 +452,13 @@ export const KINDS: [string, string][] = [
 ];
 
 /**
- * 压缩的时候能对一部分做什么。**`press_how` 表的种子。**
+ * Available treatments for message parts during compression. **Seed data for `press_how`.**
  *
- * 开着的一张单子：想多一种处置就多一行，`msg_part` 那三列填它的名字即可。
+ * An extensible list: add a row for a new treatment, then use its name in the three `msg_part` columns.
  */
 /**
- * 每种处置方式收什么。**一份形状，所有方式共用** —— 内置的和外面声明进来的收到的是
- * 同一份东西，换一个实现不用改调用方。
+ * Inputs accepted by each treatment. **One shared shape for every method**: built-ins and externally declared methods
+ * receive the same data, so changing implementations requires no caller changes.
  */
 export const PRESS_IN = {
   type: "object",
@@ -532,7 +472,7 @@ export const PRESS_IN = {
   required: ["part", "level", "body"],
 } as const;
 
-/** 每种处置方式回什么。**空 = 这一部分不出现**，跟回一句「这里省略了什么」不是一回事。 */
+/** Outputs from each treatment. **Empty = omit this part**, distinct from returning a note describing what was omitted. */
 export const PRESS_OUT = {
   type: "object",
   properties: {
@@ -541,14 +481,11 @@ export const PRESS_OUT = {
 } as const;
 
 /**
- * 压缩的时候能对一部分做什么。**`press_how` 表的种子。**
+ * Available treatments for message parts during compression. **Seed data for `press_how`.**
  *
- * 一行 = 一个名字 + 干这件事的句柄 + 两个 schema，跟 `tool` 表一个形状。所以
- * **内置的和外面 `/declare` 送进来的是同一种行** —— 想换一种压法，声明一个新的
- * 就行，不用改内核。
+ * One row = a name + an implementing handle + two schemas, the same shape as `tool`. Thus **built-ins and methods submitted externally through `/declare` use the same rows**. Declare a new method to change compression; no kernel change is needed.
  *
- * `ask` 那一档没有句柄：它得有个模型，而挑哪个模型是外面的事。留着名字和 schema，
- * 谁实现谁把 `identity` 填上。
+ * `ask` has no handle: it requires a model, and choosing one is an external concern. Reserve the name and schemas; whoever implements it supplies `identity`.
  */
 export const HOWS: [string, string, string | null][] = [
   ["keep", "Goes out as it is", "fn:press.keep"],
@@ -560,7 +497,7 @@ export const HOWS: [string, string, string | null][] = [
   ["ask", "A model is given it and answers with a line or two, and that answer goes out instead. The only one that costs a call, and the only one that can say what a stretch amounted to rather than what it contained. Nothing in the binary implements it - declare a handle for it", "ask"],
 ];
 
-/** 把认得的处置方式灌进 `press_how`。幂等，**不覆盖外面填过的 `identity`**。 */
+/** Seed known treatments into `press_how` idempotently, **without overwriting externally supplied `identity` values**. */
 export function seedHows(db: Conn): string[] {
   for (const [name, note, identity] of HOWS) {
     run(
@@ -574,59 +511,49 @@ export function seedHows(db: Conn): string[] {
 }
 
 /**
- * 一条消息里分得出哪几部分，以及每一级拿它怎么办。**`msg_part` 表的种子。**
+ * Message parts and their treatment at each level. **Seed data for `msg_part`.**
  *
- * ## 认部分只认形状，不认工具的含义
+ * ## Identify parts by structure, not tool semantics
  *
- * 判据是消息本来就得有的那几样：`thought` 那一列、`body.text`、`body.calls[]`、
- * `body.name`、`kind`、`role`。内核不知道 `bash` 和 `verify` 谁更要紧 —— 那是
- * 这张表的事，而这张表是数据。
+ * Use intrinsic message fields: `thought`, `body.text`, `body.calls[]`, `body.name`, `kind`, and `role`. The kernel does not decide whether `bash` or `verify` matters more; that belongs to this table, and this table is data.
  *
- * ## 每一种从哪儿认出来
+ * ## How each part is recognized
  *
- * | 部分 | 判据 |
+ * | Part | Criterion |
  * | --- | --- |
- * | `thought` | `thought` 那一列不空 |
- * | `said` | `kind=prompt` 的 `body`，或者 `kind=call` 的 `body.text` |
- * | `call` | `kind=call` 的 `body.calls[]` |
- * | `look` / `event` / `receipt` / `recall` | `kind=tool` 的 `body.value`，是哪一类看那件工具的 `tool.gives`（空 = `event`） |
- * | `verdict` | `kind=graded` —— 判据是 kind，不是「那件叫 verify 的工具」 |
- * | `task` | 这个实例的**第一条**（`unit=1, seq=1`）。题面按 `source` 走 `user` 或 `world` 两条路投递，kind 跟后面人说的话一样，只有位置分得开 |
- * | `person` | `kind=user` / `voice`，且不是第一条 |
- * | `world` | `kind=inject` **且 `role=user`** |
+ * | `thought` | Nonempty `thought` column |
+ * | `said` | `body` for `kind=prompt`, or `body.text` for `kind=call` |
+ * | `call` | `body.calls[]` for `kind=call` |
+ * | `look` / `event` / `receipt` / `recall` | `body.value` for `kind=tool`; the tool's `tool.gives` selects the category (empty = `event`) |
+ * | `verdict` | `kind=graded`: identified by kind, not by a tool named verify |
+ * | `task` | The instance's **first message** (`unit=1, seq=1`). The problem statement is delivered through `user` or `world` according to `source`; its kind matches later human messages, so only position distinguishes it. |
+ * | `person` | `kind=user` / `voice`, excluding the first message |
+ * | `world` | `kind=inject` **and `role=user`** |
  * | `skill` | `kind=skill` |
  * | `intervene` | `kind=intervene` |
- * | `ledger` | `kind=inject` **且 `role=system`** |
+ * | `ledger` | `kind=inject` **and `role=system`** |
  *
- * ## `look` 和 `event` 差在哪
+ * ## How `look` differs from `event`
  *
- * 不在大小 —— `read` 单次 9511 B 是所有返回里最贵的。在于 **`look` 还拿得到、
- * 而且会过期**：同一个文件后来被 `edit` 过，留着的那一份说的就不是现在那个文件了。
- * `event` 反过来：跑了四分钟的测试、一次判决，丢了谁也变不回来，所以到了最狠那一级
- * 也留个头。
+ * Not by size: `read` at 9511 B per call is the largest return. The distinction is that **`look` can be retrieved again and becomes stale**. After `edit` changes a file, its retained snapshot no longer describes the current file. An `event` is the opposite: a four-minute test run or a verdict cannot be recovered after discarding it, so even the strongest level retains its beginning.
  *
- * 哪件工具产哪一类，写在 `tool.gives` 上 —— **工具自己说**，这张表里一个工具名都没有。
+ * Each tool declares its output category through `tool.gives`: **the tool decides**, and this table contains no tool names.
  *
- * **`inject` 那两行必须连 role 一起看。** 它是两样东西共用的一个值（见上面那张
- * 推断表）：世界注入是 `inject`+`user`，**进消息流**；内核记账是 `inject`+`system`，
- * 走 instructions。一刀切成 `ledger` 的话，非真人发的任务连题面都会被当成记账丢掉。
+ * **Both `inject` rows must also inspect role.** The value represents two things (see the inference table above): world injection is `inject`+`user`, entering **the message stream**; kernel bookkeeping is `inject`+`system`, entering instructions. Classifying all inject rows as `ledger` would discard even the problem statement of a task submitted by a nonhuman source.
  *
- * ## 三列是默认值，不是规矩
+ * ## The three columns are defaults, not mandates
  *
- * 跟 `tool.usable` 一个待遇：冲突时只更新 `note`，改过的策略不会被下次启动盖回去。
- * 填的名字得是 `press_how` 里注册过的。
+ * As with `tool.usable`, conflicts update only `note`. The next startup must not overwrite a modified policy. Names must be registered in `press_how`.
  *
- * 现在**没有一格填 `ask`** —— 那一档还没有实现（`press_how` 里它的 `identity`
- * 是空的），填了就是跑到那一级撞空。等它有了实现，`said` 和 `call` 的 `l3` 是它
- * 该去的地方：那两样正是「说不清剩下什么、只能让人重新讲一遍」的东西。
+ * Currently **no cell uses `ask`**: that method has no implementation (`identity` is empty in `press_how`), so selecting it would fail at that level. Once implemented, it belongs in `l3` for `said` and `call`: those parts cannot reliably be reduced by selecting fragments and instead require a fresh explanation.
  *
- * 各部分一趟有多大（112 道的全量，量出来的）：
+ * Measured sizes per run across all 112 problems:
  *
- * | 部分 | 一趟多大 |
+ * | Part | Size per run |
  * | --- | --- |
- * | `thought` | **143 MB**，占七成 |
- * | 工具返回 | 28.8 MB —— `bash` 一件就占 24.5 MB（`event`）；`read` 单次最贵 9511 B（`look`）；`write` 的返回才 131 B（`receipt`） |
- * | `call` | 7.5 MB，里头有写出去的内容（`write` 的入参平均 8248 B） |
+ * | `thought` | **143 MB**, 70% of the total |
+ * | Tool results | 28.8 MB: `bash` alone contributes 24.5 MB (`event`); `read` has the largest per-call return at 9511 B (`look`); `write` returns only 131 B (`receipt`). |
+ * | `call` | 7.5 MB, including written content (`write` arguments average 8248 B) |
  * | `said` | 1.7 MB |
  * | `verdict` | 225 KB |
  * | `task` | 240 KB |
@@ -648,13 +575,13 @@ export const PARTS: [string, string, string, string, string][] = [
   ["ledger", "The kernel's own note of what was on offer that round. inject as well, but role=system: it goes out as instructions and was never in the message stream", "drop", "drop", "drop"],
 ];
 
-/** 把认得的部分灌进 `msg_part`。幂等，**不覆盖改过的三列策略**。 */
+/** Seed known parts into `msg_part` idempotently, **without overwriting modified policies in the three columns**. */
 export function seedParts(db: Conn): string[] {
   for (const [name, note, l1, l2, l3] of PARTS) {
     run(
       db,
-      // `l4` 明写成 null：那一级还没设，而**没设跟设成 `keep` 得分得开** ——
-      // 前者是「别走这一级」，后者是「走，什么都别压」。
+      // Set `l4` explicitly to null: it is unconfigured, and **unconfigured must differ from `keep`**.
+      // The former means skip this level; the latter means use it without compressing anything.
       `insert into msg_part (name, note, l1, l2, l3, l4) values (?, ?, ?, ?, ?, null)
        on conflict(name) do update set note = excluded.note`,
       [name, note, l1, l2, l3],
@@ -663,7 +590,7 @@ export function seedParts(db: Conn): string[] {
   return PARTS.map(([n]) => n);
 }
 
-/** 把认得的消息类型灌进 `msg_kind`。幂等。 */
+/** Seed known message types into `msg_kind` idempotently. */
 export function seedKinds(db: Conn): string[] {
   for (const [name, note] of KINDS) {
     run(db, `insert into msg_kind (name, note) values (?, ?) on conflict(name) do update set note = excluded.note`, [

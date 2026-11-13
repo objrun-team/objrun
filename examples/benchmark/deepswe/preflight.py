@@ -1,41 +1,34 @@
-"""开跑之前把每一道题都过一遍：**这道题在这台机器上跑得起来吗。**
+r"""Before starting, check every problem: **can it run on this machine?**
 
-    python3 preflight.py [题号...] [--deep] [--jobs 4] [--keep]
+    python3 preflight.py [problem-ids...] [--deep] [--jobs 4] [--keep]
 
-不给题号就是全部 113 道。跑在**装了 docker 的那台机器上**（跟 `stand.py` 同一台），
-路径全从这个脚本自己的位置推 —— 一处都不写死。
+Without IDs, check all 113 problems. Run on **the Docker host**, alongside stand.py. Derive every path from this script's location; none is hard-coded.
 
-## 为什么要有这一步
+## Why preflight?
 
-一趟跑几个钟头。一道题的语料缺一个文件、镜像没拉下来、容器里那个仓库不在
-base commit 上 —— 这些**到跑的时候才会露出来，而且露出来的样子跟「模型不行」
-分不开**：那道题判 0，成绩单上就是个 0。
+A complete run takes hours. Missing corpus files or images, or a repository not at its base commit, may surface only during execution. Those failures look indistinguishable from model failures: the problem receives 0.
+Before submitting a batch, actually start each container and execute a command in it.
 
-所以在发批之前，每一道都真起一次容器、真在里头跑一条命令。
+## Seven layers, from cheapest to most expensive
 
-## 一道题查七层，从便宜到贵
+    files     task.toml, instruction.md, four test files, and the solution exist and are nonempty.
+    meta      Language, image, and base commit exist; f2p is nonempty.
+              Empty f2p makes reward 0 by definition, so nobody can solve that problem.
+    image     The pinned image exists locally.
+    verifier  The grader image can be built; its tag uses the tests/ fingerprint.
+    box       The container starts; /app is a Git repository; HEAD resolves to the base commit.
+    net       Networking is actually disabled. Official agent.network_mode is no-network; connectivity invalidates the run.
+    forward   The injected runtime responds over MCP, using the kernel's own implementation.
 
-    files     task.toml / instruction.md / tests 那四个 / solution 那一份，在不在、空不空
-    meta      语言、镜像、base commit 有没有；f2p 是不是空的
-              （f2p 空的话 reward 按定义永远是 0 —— 那道题谁也做不成）
-    image     那个钉死的镜像本地有没有
-    verifier  判据镜像建得出来吗（tag 认 tests/ 的指纹）
-    box       容器起得来吗；/app 是不是 git 仓库；HEAD 是不是 base commit
-    net       容器里网**断没断**（官方 agent.network_mode = no-network，通了就是这一跑不作数）
-    forward   送进去的运行时应不应答（跟内核同一份实现，MCP）
+`--deep` adds the most expensive layer:
 
-`--deep` 再加一层，也是最贵的一层：
+    golden    Feeding the problem's reference solution into the official grader passes; an empty patch fails.
 
-    golden    拿这道题自己的参考解喂回官方判据，该判 1；空补丁该判 0
+The first seven layers take two or three seconds per problem, around ten minutes overall. --deep grades twice per problem, taking 3 seconds to 5.5 minutes per grading pass and hours overall.
 
-前七层一道两三秒，全量十来分钟；`--deep` 一道要判两次卷（3 秒到 5 分半不等），
-全量得几个钟头。
+## Remove containers after checking
 
-## 查完就把容器删掉
-
-用的是 `dsw:preflight/<题号>`，跟真跑那一趟的容器（`dsw:<跑名>/<题号>`）不是同一个，
-所以查这一趟不会动到任何一趟的工作区。`--keep` 留着不删。
-"""
+Use `dsw:preflight/<problem-id>`, separate from real-run containers `dsw:<run-name>/<problem-id>`, so preflight never changes a real workspace. --keep retains the containers."""
 
 from __future__ import annotations
 
@@ -47,13 +40,13 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import stand  # noqa: E402  —— 一份实现：语料、docker、转发、判卷全用它那一套
+import stand  # noqa: E402 — Reuse one implementation for the corpus, Docker, forwarding, and grading.
 
 PLACE = "dsw:preflight/{}"
 
 
 def check(tid: str, deep: bool, keep: bool) -> dict:
-    """一道题过一遍。回 `{tid, ok, layer, detail}` —— **断在哪一层就报哪一层**。"""
+    r"""Check one problem and return `{tid, ok, layer, detail}`. **Report the exact layer that failed.**"""
     place = PLACE.format(tid)
     name = f"dsw-preflight-{tid}"
     try:
@@ -74,8 +67,8 @@ def check(tid: str, deep: bool, keep: bool) -> dict:
                 return dict(tid=tid, ok=False, layer="meta", detail=f"task.toml has no {k}")
         cfg = json.loads((d / "tests" / "config.json").read_text())
         f2p, p2p = len(cfg.get("f2p_node_ids", [])), len(cfg.get("p2p_node_ids", []))
-        # 官方判据：reward = 1 当且仅当 |f2p| > 0 且 f2p 全过且 p2p 无挂。
-        # f2p 是空的话那道题**按定义**判不出 1 来 —— 发出去只会白烧一趟。
+        # Official reward is 1 iff |f2p| > 0, all f2p tests pass, and no p2p tests fail.
+        # Empty f2p makes reward 1 impossible **by definition**; submitting such a problem only wastes a run.
         if f2p == 0:
             return dict(tid=tid, ok=False, layer="meta", detail="f2p_node_ids is empty - reward can never be 1")
         if cfg.get("base_commit") != m["base_commit"]:
@@ -84,9 +77,7 @@ def check(tid: str, deep: bool, keep: bool) -> dict:
 
         # ── image ──
         #
-        # **「没拉」和「连不上守护进程」得分开说。** 一律报成「没拉」的话，docker
-        # 一翻，全部 113 道都会说「镜像没拉」。（snap 装的 docker 闲置会被卸载挂载
-        # 单元，下次一用就重启，所以这一句会真的撞上。）
+        # **Distinguish an unpulled image from an unreachable daemon.** Otherwise a Docker outage makes all 113 problems appear to lack images. This occurs with snap Docker: idle mount units may be unmounted and restart on the next use.
         r = stand.sh("docker", "image", "inspect", m["image"])
         if r.returncode != 0:
             err = (r.stderr or "").strip()
@@ -110,13 +101,10 @@ def check(tid: str, deep: bool, keep: bool) -> dict:
         if r.returncode != 0:
             return dict(tid=tid, ok=False, layer="box", detail=f"/app is not a git repo: {r.stderr.strip()[:200]}")
         head = r.stdout.strip()
-        # **base commit 让 git 自己去解，别拿字符串比。**
+        # **Let Git resolve the base commit rather than comparing strings.**
         #
-        # 语料里有几道题的 `base_commit_hash` 写的是**缩写**（`68dafce`、`7cef35b`、
-        # 12 位的也有）。拿 40 位的 HEAD 去跟它做全等，那几道永远不等 —— 而报出来
-        # 的样子是「HEAD is 68dafce500a8, base commit is 68dafce」。
-        #
-        # 解一遍还顺带查了另一件事：那个 base commit 在这个仓库里**真的存在**。
+        # Some corpus base_commit_hash values are abbreviated (68dafce, 7cef35b, or 12 characters). Comparing them with a full 40-character HEAD always fails, producing messages such as "HEAD is 68dafce500a8, base commit is 68dafce".
+        # Resolution also verifies that the base commit **actually exists** in the repository.
         b = stand.sh("docker", "exec", "-w", "/app", name, "git", "rev-parse", m["base_commit"] + "^{commit}")
         if b.returncode != 0:
             return dict(tid=tid, ok=False, layer="box",
@@ -126,7 +114,7 @@ def check(tid: str, deep: bool, keep: bool) -> dict:
                         detail=f"HEAD is {head[:12]}, base commit resolves to {b.stdout.strip()[:12]}")
 
         # ── net ──
-        # 官方两侧都是 no-network。通了的话这一跑不作数 —— 参考解就公开在 GitHub 上。
+        # Both sides are officially no-network. Connectivity invalidates the run because reference solutions are public on GitHub.
         r = stand.sh("docker", "exec", name, "sh", "-c",
                      "getent hosts github.com >/dev/null 2>&1 && echo OPEN || echo CLOSED")
         if "OPEN" in r.stdout:
@@ -147,8 +135,7 @@ def check(tid: str, deep: bool, keep: bool) -> dict:
             b = stand.run_verifier(tid, golden)
             timing = f"{a.get('seconds', '?')}s/{b.get('seconds', '?')}s"
             if int(a.get("reward", -1)) != 0 or int(b.get("reward", -1)) != 1:
-                # **判不出来跟判错了要分开报。** 前者多半是机器（OOM、超时），
-                # 提一次内存重跑就好；后者才是这道题在这台机器上真的用不了。
+                # **Distinguish inability to grade from a wrong verdict.** The former usually reflects infrastructure (OOM or timeout), often fixed by more memory and a retry; the latter indicates that the problem genuinely cannot be used on this machine.
                 broke = a.get("why") or b.get("why")
                 return dict(tid=tid, ok=False, layer="golden",
                             detail=(f"{broke} ({timing})" if broke else
@@ -158,8 +145,7 @@ def check(tid: str, deep: bool, keep: bool) -> dict:
 
         extra = ""
         if deep:
-            # 两栏分开记：**空补丁那一栏大 = 套件本身贵；差值大 = 改了代码要重编。**
-            # 混成一个「判一次多久」的话，这两种慢就再也分不开了。
+            # Record two timing columns: **a slow empty patch means the suite itself is costly; a large difference means changed code requires recompilation.** One combined grading duration would hide the distinction.
             e, g = float(a.get("seconds", 0)), float(b.get("seconds", 0))
             extra = f"  suite {e:>6.1f}s  rebuild +{g - e:>6.1f}s"
         return dict(tid=tid, ok=True, layer="",
@@ -179,8 +165,7 @@ def main() -> int:
     ap.add_argument("--keep", action="store_true", help="leave the preflight containers behind")
     a = ap.parse_args()
 
-    # **守护进程先确认一次。** 它没起的话下面每一道都会失败，而失败的样子取决于撞在
-    # 哪一层。这一句在第一行就把它说清楚，顺带报出内存和核数：并发开多大看这两个数。
+    # **Check the daemon first.** If it is down, every problem fails at whichever layer encounters it. Report this immediately along with memory and CPU counts, which determine feasible concurrency.
     info = stand.sh("docker", "info", "--format", "{{.ServerVersion}} {{.MemTotal}} {{.NCPU}}")
     if info.returncode != 0:
         print(f"docker is not answering: {(info.stderr or '').strip()[:200]}")

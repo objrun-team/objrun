@@ -1,10 +1,10 @@
-# 实验资料
+# Experiment materials
 
-- [记录索引与正文读取](records/README.md)：运行范围、摘要、覆盖及外置正文位置。
-- [数据与归档规则](../docs/storage.md)：当前目录边界和历史材料恢复。
-- [benchmark-catalog.csv](benchmark-catalog.csv)：论文 Bench 来源。
-- [paper-selection.csv](paper-selection.csv)：论文协议及来源登记。
-- [archive-catalog.json](archive-catalog.json)、[collection-roots.csv](collection-roots.csv)、[catalog.csv](catalog.csv)：早期原档的恢复与来源定位。
-- [外部来源映射](provenance/external-source-map.json)、[历史源码依赖](provenance/historical-source-dependencies.json)、[不可读来源](provenance/unreadable-paths.json)：复现边界。
+- [Record index and content access](records/README.md): run scope, summaries, coverage, and external record locations.
+- [Data and archive rules](../docs/storage.md): current directory boundaries and recovery of historical material.
+- [benchmark-catalog.csv](benchmark-catalog.csv): sources of the paper's benchmarks.
+- [paper-selection.csv](paper-selection.csv): paper protocols and source registrations.
+- [archive-catalog.json](archive-catalog.json), [collection-roots.csv](collection-roots.csv), and [catalog.csv](catalog.csv): recovery and source locations for earlier archives.
+- [External source mapping](provenance/external-source-map.json), [historical source dependencies](provenance/historical-source-dependencies.json), and [unreadable sources](provenance/unreadable-paths.json): reproduction boundaries.
 
-索引中的日期、旧路径和哈希保持其历史含义。它们不代表所有来源都已完整恢复；实际覆盖与缺损以 records 中的报告为准。旧整理清单、阶段报告和搬迁过程保存在仓库外备份。
+Dates, old paths, and hashes in the indexes retain their historical meaning. They do not imply that every source has been fully recovered; the reports in records describe actual coverage and gaps. Old inventory lists, progress reports, and relocation records are backed up outside the repository.

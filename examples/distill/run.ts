@@ -1,18 +1,17 @@
 /**
- * 沉淀（distill）的命令行。四步，每步一个文件进、一个文件出，中间都能看：
+ * Command-line interface for distillation. Four steps, each reading and writing a file so intermediate results remain inspectable:
  *
- *   cd app   # bun 脚本一律从 app/ 起（.env 撞 statx）
- *   bun ../examples/distill/run.ts harvest <F 臂 h2h.sqlite> [U 臂 unaided.csv] --out harvest.json
+ *   cd app   # Run all Bun scripts from app/ (.env encounters statx).
+ *   bun ../examples/distill/run.ts harvest <F-arm h2h.sqlite> [U-arm unaided.csv] --out harvest.json
  *   bun ../examples/distill/run.ts extract harvest.json --out candidates.json [--only cmt-1,cmt-3] [--all]
  *   bun ../examples/distill/run.ts land candidates.json harvest.json --domain physics --out declare.json [--corpus cmt-0,cmt-2,…]
- *   bun ../examples/distill/run.ts probe declare.json harvest.json [--only <留出题>]
- *   bun ../examples/distill/run.ts pool candidates.json harvest.json --domain physics --out declare-pooled.json [--corpus ids] [--only ids] [--name topic] [--trigger "短语|短语"]（短语间 OR）
+ *   bun ../examples/distill/run.ts probe declare.json harvest.json [--only <held-out-tasks>]
+ *   bun ../examples/distill/run.ts pool candidates.json harvest.json --domain physics --out declare-pooled.json [--corpus ids] [--only ids] [--name topic] [--trigger "phrase|phrase"] (OR between phrases)
  *
- * `pool` 是第二级：按题抽的 skill 在两两不同的题库上互不触发（CMT 实测 0/25），就把它们并成
- * 一份领域级的，只按 domain 触发；指纹闸照过（对语料里每道题被判过的原文）。
+ * `pool` is the second level: task-specific skills do not trigger on disjoint task sets (0/25 measured in CMT), so merge them into a domain-level skill triggered only by domain. Still apply the fingerprint gate to the original graded text for every task in the corpus.
  *
- * `extract` 走 OpenRouter（`OPENROUTER_API_KEY`），模型默认跟六榜同一个 0731、同供应商钉法。
- * `land` 的 `--corpus` 限定探针语料 —— 做留出验证时只给训练那一半，留出题一个字都不许看。
+ * `extract` uses OpenRouter (`OPENROUTER_API_KEY`), defaulting to the same 0731 model and provider pinning as the six benchmarks.
+ * `land --corpus` restricts the probe corpus: for held-out validation, provide only the training half, never any text from held-out tasks.
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -108,7 +107,7 @@ if (cmd === "harvest") {
 } else if (cmd === "pool") {
   const [cp, hp] = pos;
   if (!cp || !hp || !opt.out || !opt.domain) throw new Error("pool candidates.json harvest.json --domain d --out declare.json [--corpus ids]");
-  // --only 限定并哪几道题的教训（按 topic 分组时用）；--trigger 给触发短语（`|` 分隔，全部 AND），不给就只按 domain
+  // --only selects which tasks’ lessons to pool (for topic grouping); --trigger supplies phrases (`|`-separated, all AND). Without it, trigger only by domain.
   const onlyIds = new Set(ids(opt.only));
   const cands = readJson<(Candidate & { error?: string })[]>(cp).filter((c) => !c.error && c.body && (!onlyIds.size || onlyIds.has(c.task)));
   const h = readJson<Harvest>(hp);
@@ -121,7 +120,7 @@ if (cmd === "harvest") {
   const triggers = (opt.trigger ?? "").split("|").map((x) => x.trim()).filter(Boolean);
   const p = await pool(cands, o, opt.domain);
   if (opt.name) p.identity = `distill.${opt.domain}.pooled.${opt.name}`;
-  // 指纹和别人答案两道闸照过；词和探针不适用（按 domain 触发）—— 用第一道题当来源、minMatch 0 让探针恒命中
+  // Still apply fingerprint and other-answer gates. Word and probe gates do not apply to domain triggers: use the first task as the source and minMatch 0 so the probe always matches.
   const src = corpus[0];
   const report = gate({ ...p, task: src.id, keywords: [] }, corpus, { minKeywords: 0, minMatch: 0, maxShare: 1, minHits: 1, maxBody: 4000 });
   console.log(`pooled from ${cands.length} lessons: ${p.body.length} chars; ${report.status}${report.problems.length ? "\n  ! " + report.problems.join("\n  ! ") : ""}`);
@@ -130,7 +129,7 @@ if (cmd === "harvest") {
   writeJson(opt.out, {
     skills: ok
       ? [{ identity: p.identity, does: p.does, params: {}, role: "skill", usable: true, body: `Distilled from earlier solved problems of this kind. It is about the class of problem, not this one:\n\n${p.body}`,
-          // 触发短语之间是 OR（一组一个短语）；不给短语就只按 domain
+          // Trigger phrases use OR (one phrase per group); without phrases, trigger only by domain.
           when: (triggers.length ? triggers : [""]).map((k) => [
             { dim: "task", key: "domain", op: "eq", value: opt.domain },
             { dim: "chain", key: "", op: "not_contains", value: ">" },

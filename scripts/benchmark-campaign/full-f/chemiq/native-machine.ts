@@ -3,16 +3,16 @@ async function freePort():Promise<number>{const s=Bun.serve({port:0,fetch:()=>ne
 export interface Machine {
   /** PID of the actual Bun engine, rather than a package-manager shim. */
   pid: number;
-  /** 打一个口。4xx/5xx 会把服务端说的话原样抛出来 —— 例子里最有用的就是那句话。 */
+  /** Call an endpoint. On 4xx/5xx, throw the server message verbatim; it is the most useful diagnostic in these examples. */
   api<T = unknown>(method: string, path: string, body?: unknown): Promise<T>;
-  /** 打一个口，**期待它失败**，把服务端回的那份 JSON 拿回来。 */
+  /** Call an endpoint, **expecting failure**, and return the server's JSON response. */
   bad(method: string, path: string, body?: unknown): Promise<Record<string, unknown>>;
   base: string;
   directory: string;
   stop(): Promise<void>;
 }
 
-/** 起一台临时引擎。 */
+/** Start a temporary engine. */
 export async function machine(llm: Record<string, string | number> = {}, options: { directory?: string; keep?: boolean } = {}): Promise<Machine> {
   const dir = options.directory ?? mkdtempSync(join(tmpdir(), "tgengin-example-"));
   const port = await freePort();
@@ -24,10 +24,10 @@ export async function machine(llm: Record<string, string | number> = {}, options
       `db: { file: ./data/h2h.sqlite, sealed: ./data/sealed.sqlite,`,
       `      pragmas: { journal_mode: WAL, synchronous: NORMAL, foreign_keys: ON, busy_timeout: 5000 } }`,
       `api: { prefix: /api, token: , allowQuery: true, allowWrite: true, maxRows: 500, defaultLimit: 100 }`,
-      // `config.yaml` 缺一个键就当场炸（那是故意的），所以这儿得跟着 Config 走 ——
-      // 漏了的表现是引擎起不来，而 `machine()` 只会一直等，看着像测试挂死。
-      // 例子可以顶掉其中几个 —— 比如把 `retryTimes` 调成 0，好让「打不通会怎样」
-      // 这一类的例子几秒钟跑完，而不是干等三轮退避。
+      // A missing `config.yaml` key fails immediately by design, so this must track Config.
+      // A missing key prevents startup, while `machine()` keeps waiting and looks like a hung test.
+      // Examples can override individual settings, such as setting `retryTimes` to 0 so that
+      // connection-failure scenarios finish in seconds instead of waiting through three backoffs.
       `llm: { ${Object.entries({
         maxTokens: 16384,
         retryTimes: 3,
@@ -61,7 +61,7 @@ export async function machine(llm: Record<string, string | number> = {}, options
     try {
       if ((await fetch(`${base}/health`)).ok) break;
     } catch {
-      // 还没起来，再等
+      // Not ready yet; keep waiting.
     }
     if (i === 99) {
       proc.kill();
@@ -111,7 +111,7 @@ export async function machine(llm: Record<string, string | number> = {}, options
       try {
         rmSync(dir, { recursive: true, force: true });
       } catch {
-        // Windows 上库文件可能还被占着，扔在临时目录里就是了
+        // Windows may still hold the database file open; leave it in the temporary directory.
       }
     },
   };

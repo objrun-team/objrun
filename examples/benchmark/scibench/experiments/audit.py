@@ -191,24 +191,24 @@ with (LOCAL / 'RESULTS.csv').open('w', newline='', encoding='utf-8-sig') as hand
     writer = csv.DictWriter(handle, fieldnames=list(delivery_rows[0]))
     writer.writeheader()
     writer.writerows(delivery_rows)
-lines = ['# SciBench 21题四组试跑结果', '', '范围：七教材各三题的独立开发集，排除于正式416题。', '',
-         '| 组别 | 有效 / 21 | 通过 / 21 | 实际美元 | 平均秒数 |', '|---|---:|---:|---:|---:|']
-labels = {'baseline': '单次', 'objrun': '完整ObjRun', 'independent': '独立采样，EX早停，最多5次', 'binary': '二值反馈，最多5次'}
+lines = ['# SciBench 21-Problem, Four-Arm Pilot Results', '', 'Scope: an independent development set of three problems from each of seven textbooks, excluded from the formal 416-problem set.', '',
+         '| Arm | Valid / 21 | Passed / 21 | Actual USD | Mean seconds |', '|---|---:|---:|---:|---:|']
+labels = {'baseline': 'Single attempt', 'objrun': 'Full ObjRun', 'independent': 'Independent sampling, early stop on EX pass, up to 5 attempts', 'binary': 'Binary feedback, up to 5 attempts'}
 for arm in cfg['arms']:
     s = arm_stats[arm]
     lines.append(f"| {labels[arm]} | {s['valid']} | {s['passed']} | {s['actualCostUsd']:.6f} | {s['meanSeconds']:.1f} |")
-lines += ['', f'实际费用合计 ${actual:.6f}，费用未知 {unknown} 笔，未知费用预留 ${unknown_upper:.6f}。',
-          'ObjRun 的 atkins-dev-001 与 atkins-dev-002 为接口异常：HTTP200仅有空白保活正文，约303秒后关闭，没有交付答案或generation ID。两条结果保留为未知，不按答错处理；原始请求、响应和费用预留完整保存。',
-          f"输出达到16k上限 {sum(r.get('finishReason') == 'length' for r in receipts)} 次，其中content为空 {length_empty} 次；保留费用和原始响应，不从thinking提取答案。",
-          f"审计 {len(checks)} 项，全部通过：{audit['allPassed']}。评分控制、反馈边界、固定wire参数、候选身份和费用守恒的细节见 AUDIT.json。",
-          '校验通过表示记录与协议核验通过，不表示84条均取得有效评分；本轮有效评分82条、接口异常2条。',
-          '', '模型：OpenRouter deepseek/deepseek-v4.1-flash，DigitalOcean，high，temperature=0，max_tokens=16384。纯文本，无检索与Python执行。',
-          '', f'正式实验建议三种多轮方法每题共同费用上限 ${recommended:.2f}；独立／二值最多5次，ObjRun保留c5/600秒/4分支/12units。',
-          f'按已记录请求及其最坏费用预留顺序回放该上限，{len(budget_replay)} 条试跑轨迹会提前停止；这不是重新调用模型的低预算实验。',
-          f'按试跑已知实际费用线性外推，416题四组约 ${formal_estimate:.2f}；计入未知费用预留后约 ${formal_upper_projection:.2f}，再加50%计划预留约 ${math.ceil(formal_upper_projection*1.5)}。这是开发集外推，不是账单保证；三组共同硬上限合计 ${416*3*recommended:.2f}，另计单次组。',
-          f'建议首批费用计划按5美元向上取整为 ${math.ceil(formal_upper_projection*1.5/5)*5}。若四组都采用每题${recommended:.2f}硬上限，全部416题的理论上限为${416*4*recommended:.2f}；费用计划与理论最坏上限含义不同。',
-          '600秒为任务求解时钟，报告耗时还包含引擎启动、API轮询和清理。有效ObjRun最终答案另从SQLite核对为求解截止前的真实submit，不使用超时后的答案或verify候选。',
-          '', '预算上限由费用决定，未依据试跑正确率选参。EX早停导致没有观察每题完整五次费用，因此使用已观察候选成本估计并额外保留一请求预留，细节见 FORMAL_BUDGET.json。',
-          '', '本次仅用于接入验收和预算校准；不据21题分数宣称方法收益或替代416题正式结果。正式实验尚未启动。']
+lines += ['', f'Total actual cost: ${actual:.6f}; {unknown} requests with unknown cost; reserve for unknown costs: ${unknown_upper:.6f}.',
+          'ObjRun records atkins-dev-001 and atkins-dev-002 had API failures: HTTP 200 with only whitespace keepalive content, closing after about 303 seconds without an answer or generation ID. Both remain unknown rather than incorrect; original requests, responses, and cost reserves are fully preserved.',
+          f"Output reached the 16k limit {sum(r.get('finishReason') == 'length' for r in receipts)} times, with empty content in {length_empty} cases. Costs and raw responses are retained; answers are not extracted from thinking.",
+          f"Audit: {len(checks)} checks; all passed: {audit['allPassed']}. See AUDIT.json for grading controls, feedback boundaries, fixed wire parameters, candidate identity, and cost reconciliation.",
+          'Passing verification means the records and protocol checks passed, not that all 84 records received valid grades. This run has 82 valid grades and 2 API failures.',
+          '', 'Model: OpenRouter deepseek/deepseek-v4.1-flash, DigitalOcean, high, temperature=0, max_tokens=16384. Text only, without search or Python execution.',
+          '', f'For the formal experiment, recommend a shared per-problem cost cap of ${recommended:.2f} for the three multi-round methods. Independent sampling/binary feedback allow up to 5 attempts; ObjRun retains c5/600 seconds/4 branches/12 units.',
+          f'Replaying recorded requests and their worst-case cost reserves in order under this cap would stop {len(budget_replay)} pilot trajectories early. This is not a low-budget experiment with fresh model calls.',
+          f'Linear extrapolation from known actual pilot costs gives approximately ${formal_estimate:.2f} for 416 problems across four arms, or ${formal_upper_projection:.2f} including reserves for unknown costs, and approximately ${math.ceil(formal_upper_projection*1.5)} with a further 50% planning reserve. This is a development-set projection, not a billing guarantee. The shared hard caps for three arms total ${416*3*recommended:.2f}, with the single-attempt arm counted separately.',
+          f'Recommend rounding the initial cost plan up to the next $5: ${math.ceil(formal_upper_projection*1.5/5)*5}. If all four arms use a per-problem hard cap of ${recommended:.2f}, the theoretical maximum for all 416 problems is ${416*4*recommended:.2f}. A cost plan and a theoretical worst-case bound have different meanings.',
+          'The 600-second limit is the task-solving clock; reported elapsed time also includes engine startup, API polling, and cleanup. Valid ObjRun final answers are independently checked in SQLite as actual submit calls before the solve deadline; answers after timeout and verify candidates are not used.',
+          '', 'Budget caps are determined by costs, without selecting parameters from pilot accuracy. Early stopping on EX pass prevents observing all five attempts for each problem, so estimates use observed candidate costs plus a reserve for one additional request. See FORMAL_BUDGET.json.',
+          '', 'This run is only for integration acceptance and budget calibration. Its 21-problem scores do not establish method gains or replace formal 416-problem results. The formal experiment has not started.']
 (LOCAL / 'REPORT.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
 print(json.dumps({'allPassed': audit['allPassed'], 'checks': len(checks), 'failures': audit['failures'][:10], 'arms': arm_stats, 'budget': budget}))

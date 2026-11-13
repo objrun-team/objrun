@@ -1,7 +1,7 @@
 # miniF2F formal
 
-保留 miniF2F 的数据准备、控制器、Lean 校验、结果核验及交付检查源码。输入、模型、并发和预算由对应脚本与配置定义；历史运行的源文件哈希和环境必须结合外置记录恢复。
+This directory retains miniF2F data preparation, controllers, Lean verification, result auditing, and delivery-check source code. Corresponding scripts and configurations define inputs, models, concurrency, and budgets; historical source hashes and environments must be reconstructed together with external records.
 
-本目录不包含原始实验正文、Lean 工具链或凭证。常用准备/核验入口见本目录脚本参数；运行旧的 ops 或恢复命令前，需要先提供完整的对应环境和运行目录。历史计划、当时的授权叙述及完成过程已移入仓库外备份。
+Original experiment narratives, the Lean toolchain, and credentials are not included. See script arguments for preparation and verification entry points. Old ops or recovery commands require the complete corresponding environment and run directory. Historical plans, contemporaneous authorization records, and completion narratives have moved to an external backup.
 
-参见 [Benchmark 实验总览](../../README.md) 和 [记录说明](../../../../experiments/records/README.md)。
+See the [Benchmark experiment overview](../../README.md) and [record guide](../../../../experiments/records/README.md).

@@ -88,13 +88,13 @@ def main():
     with (OUT/'results.csv').open('w',newline='',encoding='utf8') as f:
         fields=['protocolVersion','recordType','id','arm','subset','solverValid','idPassed','oodPassed','idNmse','oodNmse','actualCostUsd','unknownCostCount'];w=csv.DictWriter(f,fieldnames=fields);w.writeheader()
         for r in rows:w.writerow({'protocolVersion':r['protocolVersion'],'recordType':r['recordType'],'id':r['problemId'],**{k:r[k] for k in ['arm','subset','solverValid','actualCostUsd','unknownCostCount']},'idPassed':(r.get('id') or {}).get('passed'),'oodPassed':(r.get('ood') or {}).get('passed'),'idNmse':(r.get('id') or {}).get('nmse'),'oodNmse':(r.get('ood') or {}).get('nmse')})
-    lines=['# LLM-SRBench 发布版 240 题结果','', '四组960个映射：v1完成475、v2完成483、v1中断2。v1完整性审计失败保留；费用按完整journal统计。ID/OOD在所有候选冻结后评分，数值指标不称SA。','', '|组别|有效求解记录|ID通过|OOD通过|实际美元|未知费用记录|','|---|---:|---:|---:|---:|---:|']
+    lines=['# LLM-SRBench release: 240-task results','', 'Four arms, 960 mappings: v1 completed 475, v2 completed 483, and v1 interrupted 2. Preserve the v1 integrity-audit failure; costs use the complete journal. ID/OOD grading follows freezing of all candidates; numerical metrics are not SA.','', '|Arm|Valid solving records|ID passes|OOD passes|Actual USD|Unknown-cost records|','|---|---:|---:|---:|---:|---:|']
     for arm,a in summary['arms'].items():
         g=a['subsets']['all'];lines.append(f"|{arm}|{g['solverValid']}/240|{g['id']['success']}/240|{g['ood']['success']}/129|{a['actualCostUsd']:.6f}|{a['unknownCostCount']}|")
-    lines+=['','基础设施异常单列；成功率上下界、共同有效配对区间及各子集数据见summary.json。完整候选、参数、拟合记录、费用回执和ObjRun轨迹保留在tasks/。']
+    lines+=['','Infrastructure anomalies are listed separately. See summary.json for success-rate bounds, commonly valid paired intervals, and subset data. Complete candidates, parameters, fitting records, cost receipts, and ObjRun trajectories remain in tasks/.']
     if (OUT/'controls/reference-metadata-audit.json').exists():
         metadata=json.loads((OUT/'controls/reference-metadata-audit.json').read_text());summary['referenceMetadataAudit']=metadata
-        lines+=['','发布包参考字符串的状态函数记号、未实例化参数及异常数值参数名已单列核查；评分始终使用原始数值数组，不修改题单、测试标签，也不把数值成绩称为SA。']
+        lines+=['','State-function notation, uninstantiated parameters, and anomalous numerical parameter names in release reference strings were audited separately. Grading always uses original numerical arrays, without modifying the task list or test labels or calling numerical scores SA.']
         save(OUT/'summary.json',summary)
     (OUT/'REPORT.md').write_text('\n'.join(lines)+'\n',encoding='utf8');print(json.dumps({'records':len(rows),'cost':summary['accounting']}))
 if __name__=='__main__':main()

@@ -1,28 +1,26 @@
 # H2H
 
-程序的状态部件：一个 SQLite 库 + 用 Fastify 开出来的接口。库落在仓库根的 `data/`。
+The application's state component consists of a SQLite database and a Fastify API. The database lives in `data/` at the repository root.
 
-**配置只有一处：仓库根的 `config.yaml`。** 端口、库文件、PRAGMA、令牌、能不能写、
-一次最多几行，全在那儿；代码里不留第二处默认值可改。路径一律相对
-`config.yaml` 所在的目录，不是相对 cwd。
+**All configuration lives in the root `config.yaml`.** It defines the port, database file, PRAGMAs, token, write permissions, and row limits. There is no second set of editable defaults in the code. Paths resolve relative to the directory containing `config.yaml`, rather than the process working directory.
 
-这一份只讲接口和它的两条边界。怎么跑、怎么打包在根 `README.md`。
+This document covers the API and its two enforcement boundaries. See the root `README.md` for startup and build instructions.
 
-## 接口
+## API
 
-前缀来自 `api.prefix`（默认 `/api`）。
+The prefix comes from `api.prefix` (default: `/api`).
 
-| 方法 | 路径 | 干什么 |
+| Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/health` | 活着没、库在哪、写开没开。**不校验令牌**，好让探活能打 |
-| GET | `/tables` | 所有表和视图，带行数 |
-| GET | `/tables/:table/schema` | 列、索引、建表语句 |
-| GET | `/tables/:table/rows` | 读行。`?limit&offset&order&dir` |
-| POST | `/query` | `{sql, params}` 查。走**只读连接** |
-| POST | `/exec` | `{sql, params}` 写。要 `api.allowWrite` |
-| POST | `/tables/:table/rows` | 插一行，请求体就是那一行。要 `api.allowWrite` |
+| GET | `/health` | Liveness, database location, and write status. **No token check**, so health probes can access it |
+| GET | `/tables` | All tables and views, with row counts |
+| GET | `/tables/:table/schema` | Columns, indexes, and table creation statements |
+| GET | `/tables/:table/rows` | Read rows. `?limit&offset&order&dir` |
+| POST | `/query` | Query with `{sql, params}` through a **read-only connection** |
+| POST | `/exec` | Write with `{sql, params}`. Requires `api.allowWrite` |
+| POST | `/tables/:table/rows` | Insert one row supplied as the request body. Requires `api.allowWrite` |
 
-`params` 是数组就按位置绑（`?`），是对象就按名字绑（`:name`）。
+An array in `params` binds values by position (`?`); an object binds them by name (`:name`).
 
 ```
 curl 127.0.0.1:7801/api/health
@@ -30,17 +28,12 @@ curl -X POST 127.0.0.1:7801/api/query -H 'content-type: application/json' \
   --data-binary '{"sql":"select * from note where body = :b","params":{"b":"second"}}'
 ```
 
-## 两条边界
+## Two enforcement boundaries
 
-**只读是连接层面的。** `/query` 走一条 `readOnly: true` 的连接，写进去
-直接被 SQLite 挡成 `attempt to write a readonly database` —— 不是靠认
-SQL 里有没有 `update` 那种关键字，那种判法永远数不全，漏一次就是真写进去。
+**Read-only access is enforced by the connection.** `/query` uses a `readOnly: true` connection. SQLite rejects writes with `attempt to write a readonly database`. The implementation does not try to recognize SQL keywords such as `update`: a keyword list cannot cover every write, and one missed case would permit a real write.
 
-**表名和列名都先对着库核过。** 它们没法用占位符绑，所以拼进 SQL 之前
-一律去 `sqlite_master` / `table_info` 查一遍，对不上就 404 / 400。
+**Table and column names are checked against the database first.** Identifiers cannot be bound through placeholders, so every name is checked through `sqlite_master` or `table_info` before being interpolated into SQL. Unknown names produce a 404 or 400 response.
 
-## 令牌
+## Token
 
-`api.token` 留空 = 不校验（本地默认）。要校验就写 `${H2H_TOKEN}`，值放进
-仓库根的 `.env`（那个文件不进版本库），客户端发 `Authorization: Bearer <token>`。
-配置里任何值都能写 `${VAR}` 从环境变量取。
+An empty `api.token` disables authentication (the local default). To enable it, set the field to `${H2H_TOKEN}`, put the value in the root `.env` file (excluded from version control), and send `Authorization: Bearer <token>` from the client. Any configuration value can use `${VAR}` to read an environment variable.

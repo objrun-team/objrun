@@ -1,48 +1,49 @@
 /**
- * 在哪儿干 —— 转发层。
+ * Execution locations and forwarding.
  *
- * **调用工具本质上是转发给那个位置上的运行时。** 建立连接的时候把运行时送过去、
- * 起起来；之后每次调用走 MCP。
+ * **A tool call forwards to the runtime at its assigned place.** Establishing a connection
+ * ships and starts that runtime; subsequent calls use MCP.
  *
- * `local` 是特例：不用送，同进程直接调同一批工具。所以两条路的行为一样 ——
- * 装的是同一份实现。
+ * `local` is the special case: directly call the same tools in-process without shipping them.
+ * Both paths therefore use identical implementations and behavior.
  *
- * ## 位置就是一段命令前缀
+ * ## A location is a command prefix
  *
- * 「远程」在这儿没有第二种含义：`wsl -d X --` / `ssh box-7` / `docker exec -i c`
- * 都只是**套在运行时那条命令外面的前缀**。套完之后起个子进程、在 stdin/stdout
- * 上说 MCP —— 跟起一个本机的 MCP server 是同一件事。
+ * "Remote" has no additional meaning here. `wsl -d X --`, `ssh box-7`, and `docker exec -i c`
+ * are simply **prefixes around the runtime command**. Launch the resulting subprocess and
+ * speak MCP through stdin/stdout, just like a local MCP server.
  *
- * 所以这一层没有自己的协议：`ship` 把二进制送过去，`launch` 拼出命令，
- * 剩下的交给 `McpClient`。原先这儿有一个手写的 JSON 行客户端陪着运行时那套私有
- * 协议 —— 同一件事两份实现，而且那一份别人用不了。删了。
+ * This layer has no separate protocol: `ship` transfers the binary, `launch` builds the command,
+ * and `McpClient` handles communication. The old custom JSON-line client duplicated this work
+ * and could not be reused by other clients; it has been removed.
  *
- * ## 位置串怎么读
+ * ## Location syntax
  *
  * ```
  * local
- * wsl                        默认发行版
- * wsl:Ubuntu-24.04           指定发行版
+ * wsl                        default distribution
+ * wsl:Ubuntu-24.04           selected distribution
  * ssh://box-7
- * wsl/docker:build-01        WSL 里的容器
+ * wsl/docker:build-01        container inside WSL
  * ssh://box-7/docker:build-01
  * ```
  *
- * ## 「怎么到那个位置」是一条句柄，不是编译进来的
+ * ## Reaching a place is a handle, not a compiled-in policy
  *
- * 这个文件里的 `hops` / `launch` / `ship` 认得的是一个**封闭集合**：`wsl` /
- * `ssh` / `docker`，命令怎么拼也写死在里头。那套在「一台机器一个样」面前不够用
- * —— snap 装的 docker 只在登录 shell 的 PATH 上、送进去的路径它够不着、嵌套位置
- * 得一跳一跳接力送，这些全是**那台机器的性质**，不是位置这个概念的性质。
+ * `hops` / `launch` / `ship` support a **closed set** of transports: `wsl`, `ssh`, and `docker`,
+ * with fixed command construction. Machine-specific needs exceed that set: Docker installed
+ * through snap may appear only in a login shell's PATH; shipped paths may be inaccessible;
+ * nested destinations may need hop-by-hop transfer. These are **machine properties**, not
+ * properties of execution locations in general.
  *
- * 所以它跟工具、跟 G 的节点、跟推断函数一样，落成一条句柄（`registerPlace`）：
- * `workplace.identity` 指到哪儿，转发就由谁来办。这个文件提供的是**其中一条**
- * （`fn:place.hops`），不是唯一一条。
-
- * ## 连上没连上，不进库
+ * Forwarding is therefore a handle, like tools, G nodes, and inference functions. `registerPlace`
+ * registers it, and `workplace.identity` selects the implementation. This file supplies **one**
+ * implementation, `fn:place.hops`, rather than the only possible implementation.
  *
- * `workplace.usable` 是**登记**，不是探活。远端断没断、容器还在不在，是活状态 ——
- * 每次现探，不写回库。写回去的话，崩了重启读到的那一列就是过期的谎话。
+ * ## Connection liveness is not database state
+ *
+ * `workplace.usable` records configuration, not a health check. Remote connectivity and container
+ * existence are live facts to probe on demand. Persisting them would leave stale claims after a crash.
  */
 
 import { spawn } from "node:child_process";
@@ -53,17 +54,17 @@ import type { Registry } from "../engine/registry.ts";
 import { McpClient } from "../mcp/client.ts";
 import { TOOLS } from "../tools/index.ts";
 
-/** 一个能接工具调用的位置。 */
+/** A location capable of receiving tool calls. */
 export interface Place {
   place: string;
-  /** 转发一次工具调用。 */
+  /** Forward one tool call. */
   call(tool: string, args: Record<string, unknown>): Promise<unknown>;
-  /** 现探一下还通不通。**不写回库。** */
+  /** Probe current connectivity. **Do not persist the result.** */
   alive(): Promise<boolean>;
   close(): void;
 }
 
-// ── local：不用送，同进程调 ──────────────────────────────────────────────────
+// ── local: direct in-process invocation, without shipping a runtime ──
 
 const local = new Map(TOOLS.map((t) => [t.name, t]));
 
@@ -82,17 +83,17 @@ export function openLocal(): Place {
   };
 }
 
-// ── 位置串 → 一条能把运行时跑起来的命令 ─────────────────────────────────────
+// ── Location string → command that starts the runtime ──
 
 export interface Hop {
   kind: "wsl" | "ssh" | "docker";
   arg: string;
 }
 
-/** 把位置串拆成一层层的跳板。**认不得的写法当场炸** —— 猜的话会连到别的地方去。 */
+/** Parse a location into transport hops. **Reject unknown syntax immediately** rather than guessing and connecting elsewhere. */
 export function hops(place: string): Hop[] {
   if (place === "local") return [];
-  // `ssh://host` 里的 `//` 会被切出空段，先把它抹平成 `ssh:host`。
+  // Normalize `ssh://host` to `ssh:host` before splitting, so `//` does not create empty segments.
   return place.replace("://", ":").split("/").map((seg) => {
     if (seg === "wsl") return { kind: "wsl", arg: "" } as Hop;
     if (seg.startsWith("wsl:")) return { kind: "wsl", arg: seg.slice(4) } as Hop;
@@ -103,10 +104,10 @@ export function hops(place: string): Hop[] {
 }
 
 /**
- * 一层层套出来的命令：外层负责把内层送进去。
+ * Build nested commands, with each outer layer transporting its inner command.
  *
- * 出来的东西就是一个 MCP stdio server 的 `command` + `args` —— 你手写一条
- * `"command": "ssh", "args": ["box-7", "/tmp/…"]` 的声明，是同一件事。
+ * The result is exactly the `command` + `args` of an MCP stdio server, equivalent to manually
+ * declaring `"command": "ssh", "args": ["box-7", "/tmp/…"]`.
  */
 export function launch(place: string, remotePath: string): { cmd: string; argv: string[] } {
   const layers = hops(place);
@@ -119,13 +120,13 @@ export function launch(place: string, remotePath: string): { cmd: string; argv: 
   return { cmd: argv[0], argv: argv.slice(1) };
 }
 
-/** 把本机的运行时文件送到那个位置上去，返回它在那边的路径。 */
+/** Transfer the local runtime file to the destination and return its remote path. */
 export function ship(place: string, localFile: string, remotePath: string): { cmd: string; argv: string[] } {
   const layers = hops(place);
   const outer = layers[0];
   if (!outer) throw new Error("local needs no runtime shipped");
   if (outer.kind === "wsl") {
-    // WSL 把 Windows 盘挂在 /mnt 下，所以「送」就是一次 cp。
+    // WSL mounts Windows drives under /mnt, so transfer is a simple cp.
     const mnt = "/mnt/" + localFile[0].toLowerCase() + localFile.slice(2).replace(/\\/g, "/");
     const inner = `cp '${mnt}' '${remotePath}' && chmod +x '${remotePath}'`;
     return outer.arg
@@ -147,11 +148,11 @@ function run(cmd: string, argv: string[]): Promise<{ code: number; err: string }
 }
 
 /**
- * 打开一个位置。
+ * Open an execution location.
  *
- * `local` 直接回一个进程内的；别的先把运行时送过去，再当成一个 MCP stdio server
- * 起起来。`runtimeFile` 是本机那份运行时二进制的路径 —— 它登记在
- * `workplace.runtime`。
+ * `local` immediately returns an in-process implementation. Other locations receive the runtime
+ * and launch it as an MCP stdio server. `runtimeFile` is the local binary path registered in
+ * `workplace.runtime`.
  */
 export async function openPlace(place: string, runtimeFile?: string): Promise<Place> {
   if (place === "local") return openLocal();
@@ -165,7 +166,7 @@ export async function openPlace(place: string, runtimeFile?: string): Promise<Pl
   const l = launch(place, remotePath);
   const client = new McpClient(place, { command: l.cmd, args: l.argv });
   try {
-    // 握手 + 问它有哪些工具。**起来了但不应答**跟没起来一样糟，得当场发现。
+    // Handshake and list tools. **A started but unresponsive runtime** is as unusable as one that never started; detect it now.
     await client.tools();
   } catch (e) {
     client.close();
@@ -191,20 +192,20 @@ export async function openPlace(place: string, runtimeFile?: string): Promise<Pl
   };
 }
 
-/** 位置串换一个稳定的短名，给远端文件名用。 */
+/** Derive a stable short name from a location string for remote filenames. */
 function hash(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
   return h;
 }
 
-// ── 位置也是一个句柄 ────────────────────────────────────────────────────────
+// ── Locations are handles too ──
 
 /**
- * 开过的位置留着复用 —— 每次调用都重送一遍运行时的话，什么都别干了。
+ * Reuse connections to opened places; shipping the runtime for every invocation would be impractical.
  *
- * **这个池子是内置那条实现的私产**，不是位置这个概念的性质。别的实现（一条
- * `http://` 边车、一个插件）自己管自己的连接，跟这儿无关。
+ * **This pool belongs only to the built-in implementation**, not to the abstract concept of a place.
+ * Other implementations, such as an HTTP sidecar or plugin, manage their own connections.
  */
 export class Places {
   #open = new Map<string, Promise<Place>>();
@@ -214,7 +215,7 @@ export class Places {
     this.#db = db;
   }
 
-  /** 送什么过去，登记在 `workplace.runtime` 里 —— 不在代码里写死。 */
+  /** The runtime to transfer is registered in `workplace.runtime`, not hard-coded. */
   #runtimeOf(place: string): string | undefined {
     const row = all(this.#db, `select runtime from workplace where place = ?`, [place])[0] as
       | { runtime: string | null }
@@ -227,7 +228,7 @@ export class Places {
     if (!p) {
       p = openPlace(place, this.#runtimeOf(place));
       this.#open.set(place, p);
-      // 连不上就把这次的坑清掉，下次还能重试 —— 留着的话这个位置就永久废了
+      // Remove failed connection attempts from the pool so later calls can retry; retaining them would permanently disable the location.
       p.catch(() => this.#open.delete(place));
     }
     return p;
@@ -239,45 +240,46 @@ export class Places {
   }
 }
 
-/** 内置那条转发实现的句柄名。`workplace.identity` 写这个 = 要老行为。 */
+/** Built-in forwarding handle name. Set `workplace.identity` to this to retain the original behavior. */
 export const HOPS_HANDLE = "fn:place.hops";
 
-/** 转发一次调用要多久算死。**一次工具调用，不是一次求解。** */
+/** Timeout for forwarding **one tool call, not an entire solve**. */
 export const PLACE_EXPECT_MS = 120_000;
 
 /**
- * 一次转发请求 —— **位置句柄收到的就是这个形状**。
+ * Forwarding request: **the input contract of a location handle**.
  *
- * `op` 两个动作，都归同一个句柄：`call` 转发一次工具调用，`ping` 探一次活。
- * 分成两个句柄的话，写自定义转发的人得实现两个契约，而这两件本来就是同一件事的
- * 两面：**够得着才转得过去**。
+ * Two `op` values share one handle: `call` forwards a tool invocation, and `ping` probes liveness.
+ * Separate handles would require custom forwarders to implement two contracts for one concern:
+ * **a destination must be reachable for forwarding to work**.
  */
 export interface PlaceCall {
-  /** 哪个位置。地址串怎么读，是这个句柄自己的事。 */
+  /** Target location. The handle defines how its address string is interpreted. */
   place: string;
   op: "call" | "ping";
-  /** `op: "call"` 时：转发哪件工具。 */
+  /** For `op: "call"`, the tool to forward. */
   tool?: string;
-  /** `op: "call"` 时：那件工具的参数。 */
+  /** For `op: "call"`, the tool arguments. */
   args?: Record<string, unknown>;
 }
 
-/** `op: "ping"` 的回值。`call` 回的是那件工具自己的返回，这一层不解释。 */
+/** Result of `op: "ping"`. A call returns the tool's own result without interpretation by this layer. */
 export interface Pong {
   alive: boolean;
   why?: string;
 }
 
 /**
- * 把内置那条转发实现注册成句柄。
+ * Register the built-in forwarding implementation as a handle.
  *
- * **「怎么到那个位置」以前是编译进内核的**：`hops` 只认 `wsl` / `ssh` / `docker`
- * 三种，`launch` 和 `ship` 照那三种拼 argv。于是「这台机器上的 docker 装在 snap 里、
- * 只在登录 shell 的 PATH 上」这种**机器的性质**没地方安放，唯一的落点是改这三个函数。
+ * **Transport logic was previously compiled into the kernel**: `hops` recognized only
+ * `wsl` / `ssh` / `docker`, and `launch` / `ship` built their argv. Machine-specific properties,
+ * such as snap-installed Docker existing only in a login shell's PATH, could be accommodated
+ * only by editing those three functions.
  *
- * 现在它跟工具、跟 G 的节点、跟推断函数一样是一条句柄：`workplace.identity` 指到
- * 哪儿，转发就由谁来办。写这个名字 = 要老行为，一个字没变；写 `http://…` 或者一条
- * 带 `module` 的 `fn:` = 那台机器自己说了算，内核不用动。
+ * Now forwarding is a handle like tools, G nodes, and inference. `workplace.identity` selects
+ * its implementation. The built-in name preserves behavior unchanged; an `http://…` endpoint
+ * or a `fn:` with `module` supplies machine-specific behavior without kernel changes.
  */
 export function registerPlace(db: Conn, reg: Registry, places: Places): string {
   reg.register(db, HOPS_HANDLE, PLACE_EXPECT_MS, async (arg) => {
@@ -286,8 +288,9 @@ export function registerPlace(db: Conn, reg: Registry, places: Places): string {
     if (!place) throw new Error("a place call must say which place");
 
     if (a.op === "ping") {
-      // **探活走池子里那条连接**，不另开一条：要问的就是「现在在用的这条还通不通」。
-      // 另开一条问的是「还能不能再开一条」，那是另一个问题，而且要重送一遍运行时。
+      // **Probe the pooled connection already in use**, rather than opening another one. The question
+      // is whether the current connection works. A new connection would answer a different question
+      // and unnecessarily ship the runtime again.
       try {
         return { alive: await (await places.get(place)).alive() } satisfies Pong;
       } catch (e) {

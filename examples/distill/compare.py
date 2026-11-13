@@ -1,4 +1,4 @@
-"""两份 unaided.csv 在共同题上的对照：基线 vs 挂了沉淀 skill。只数共同题。"""
+r"""Compare two unaided.csv files on shared tasks: baseline versus a distilled skill. Count only shared tasks."""
 import csv, sys
 
 def load(p):

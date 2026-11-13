@@ -111,10 +111,10 @@ with (LOCAL/'MERGED_RESULTS.csv').open('w',encoding='utf-8-sig',newline='') as f
  w=csv.DictWriter(f,fieldnames=['arm','id','originalClassification','firstClassification','secondClassification','effectiveClassification','effectivePassed','secondAttemptId']);w.writeheader()
  for k,r in sorted(merged.items()):w.writerow({'arm':k[0],'id':k[1],'originalClassification':classify(orig[k]),'firstClassification':classify(first[k]) if k in first else '', 'secondClassification':classify(second[k]) if k in second else '', 'effectiveClassification':classify(r),'effectivePassed':r['grade'].get('passed') if r['grade'].get('valid') else '', 'secondAttemptId':attempts.get(k,{}).get('attemptId','')})
 fmt=lambda x:'—' if x is None else f'{x:.2%}'
-lines=['# SciBench 原始、两轮补跑与合并结果','',plan['mergeRule'],'','第二轮按用户新增授权包含首轮全部6条无效记录（4接口/基础设施、2原生预算/未提交），原始7条原生无效仍保留。每条仅一次新完整尝试，美元无上限，方法预算和接口链保持。','','|阶段|方法|完成/分母|有效|通过|总集EX率|有效样本EX率|','|---|---|---:|---:|---:|---:|---:|']
+lines=['# SciBench Original, Two Retry Rounds, and Merged Results','',plan['mergeRule'],'','Under the user’s additional authorization, round two includes all 6 invalid records from round one (4 API/infrastructure failures and 2 native budget/no-submission cases); the original 7 native invalid records remain preserved. Each receives only one new complete attempt, without a dollar cap, while method budgets and the API chain remain unchanged.','','|Stage|Method|Completed / denominator|Valid|Passed|Overall EX rate|EX rate on valid samples|','|---|---|---:|---:|---:|---:|---:|']
 for phase,arms in statistics.items():
  for arm,s in arms.items():lines.append(f"|{phase}|{arm}|{s['completed']}/{s['denominator']}|{s['valid']}|{s['passed']}|{fmt(s['EXRateAll'])}|{fmt(s['EXRateValidOnly'])}|")
-lines+=['',f"第二轮完成{len(second)}/6；合并后剩余无效{len(remaining)}条，见REMAINING_EXCEPTIONS.json。",'','费用仅为各独立来源账本之和；历史累计归档不重复相加。']
-for phase,s in fees.items():lines.append(f"- {phase}: 已知${s['actualCostUsd']:.9f}，未知/在飞{s['unknownCostCount']}笔，预留${s['unknownCostUpperBoundUsd']:.9f}，请求{s['modelCalls']}笔。")
+lines+=['',f"Round two completed {len(second)}/6 records; {len(remaining)} remain invalid after merging. See REMAINING_EXCEPTIONS.json.",'','Costs are summed only across independent source ledgers; cumulative historical archives are not added again.']
+for phase,s in fees.items():lines.append(f"- {phase}: known ${s['actualCostUsd']:.9f}, {s['unknownCostCount']} unknown-cost/in-flight requests, reserve ${s['unknownCostUpperBoundUsd']:.9f}, {s['modelCalls']} requests.")
 (LOCAL/'COMBINED_REPORT.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
 print(json.dumps({k:x for k,x in v.items() if k not in ['remainingExceptions','statistics']},ensure_ascii=False))

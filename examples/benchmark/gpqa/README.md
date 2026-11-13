@@ -1,21 +1,23 @@
-# GPQA Diamond —— G 设计表
+# GPQA Diamond — G design
 
-题库：官方 `gpqa_diamond.csv`，198 题四选一（gated：去 https://huggingface.co/datasets/Idavidrein/gpqa 接受条款，拿 token 下载到 `$TGENGIN_GPQA_DATA`）。
-判据：字母精确匹配。选项顺序按题号确定性洗牌（seed 42），和官方 simple-evals 的做法一致。
+Dataset: official `gpqa_diamond.csv`, 198 four-option questions (gated: accept the terms at https://huggingface.co/datasets/Idavidrein/gpqa and use a token to download it to `$TGENGIN_GPQA_DATA`).
+Criterion: exact letter match. Shuffle options deterministically by question ID (seed 42), following official simple-evals.
 
-## 四个字段
+## Four fields
 
-| 字段 | 现在的值 | 理由 |
+| Field | Current value | Rationale |
 |---|---|---|
-| 结构 | `parsed → correct` | 同 AIME |
-| 边界 | `noSearch` 挡 gpqa/idavidrein | 题库公开在 HF，一搜就是答案 |
-| **预算** | **`checks: 1`，`maxDeadSiblings: 2`** | **四选一：checks ≥ 3 等于把答案送给它**（零模型：答案空间 4 < 额度）。checks=1 + 最多 2 次重来 = 最多看 3 个字母，仍有 75% 枚举可达——所以 GPQA 的 F 臂本质上是「零模型的展示品」，报告里必须写明 |
-| 信息级别 | ℓ0 | — |
+| Structure | `parsed → correct` | Same as AIME |
+| Boundary | `noSearch` blocks gpqa/idavidrein | The dataset is public on HF; a search reveals the answers |
+| **Budget** | **`checks: 1`, `maxDeadSiblings: 2`** | **With four choices, checks ≥ 3 effectively gives away the answer** (null model: answer space 4 < allowance). checks=1 + at most 2 restarts permits 3 letters, still reaching 75% through enumeration. GPQA’s F arm is therefore essentially a null-model demonstration, which reports must disclose |
+| Feedback level | ℓ0 | — |
 
-## 零模型
-m = 4。任何 F 臂结果都要和「随机枚举在同样预算下的期望」对比：checks=1、K=2 → 3 次机会 → 枚举成功率 1 − (3/4)(2/3)(1/2) = 75%。**GPQA 上 Δ 的上限被预算而不是模型决定。** 建议主报 U 臂 pass@1，F 臂只作零模型对照。
+## Null model
 
-## 跑
+m = 4. Compare every F-arm result with expected random enumeration under the same budget: checks=1, K=2 → 3 opportunities → success probability 1 − (3/4)(2/3)(1/2) = 75%. **GPQA’s upper bound on Δ is determined by budget, not the model.** Report U-arm pass@1 as the main result and use F only as a null-model control.
+
+## Run
+
 ```
 BENCH=gpqa ARM=U RUN=gpqa-u-0731 bash runs/bench-arm.sh
 ```

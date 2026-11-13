@@ -394,39 +394,39 @@ def main(run, require_complete):
     output_json = OUT / "full-gpqa-inflight-audit.json"
     output_json.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     source_bad = len(source_results["executed_source_mismatches"]) + len(source_results["archive"]["member_manifest_mismatches"]) + len(source_results["archive"]["current_member_mismatches"])
-    markdown = f'''# GPQA 全量运行只读审计
+    markdown = f'''# Read-only audit of the full GPQA run
 
-观察开始：{start.isoformat()}；结束：{end.isoformat()}。run：`{run}`。本次只读原件，独立保存报告，未调用 LLM 或评分服务，没有计算 GPQA 成绩。
+Observation started: {start.isoformat()}; ended: {end.isoformat()}. Run: `{run}`. This audit only read originals and saved a separate report. It called no LLM or grading service and did not compute GPQA results.
 
-| 核对项 | 当前观察 |
+| Check | Current observation |
 |---|---|
-| 运行状态 | {report["running_observation"]["status"]} |
-| 任务记录 | 初始 {len(summary["records"])}，结束 {len(ending_summary["records"])}，计划 {summary["plannedTaskRuns"]} |
-| API 回执 | 初始 {len(calls)}；全部已 finished 的 {len(finished)} 条逐一核对；{len(unfinished)} 条仍在途 |
-| 完成回执异常 | {len(errors)} 条；已核对 gzip CRC、解压 SHA、实际请求参数、响应字段与 usage、逐条费用 |
-| 任务原件异常 | {len(task_errors)} 条；核对 candidate/trace/prompt 摘要、API回执副本和预先固定任务顺序 |
-| 供应商 token 上限 | completion 超实际wire上限 {len(report["provider_token_limit_and_usage_consistency"]["completion_usage_over_actual_wire_limit"])} 条；最大报告值 {report["provider_token_limit_and_usage_consistency"]["maximum_reported_completion_tokens"]} |
-| usage 分解 | total/cache hit/cache miss 不一致分别 {len(report["provider_token_limit_and_usage_consistency"]["usage_total_inconsistent"])} / {len(report["provider_token_limit_and_usage_consistency"]["cache_hit_fields_inconsistent"])} / {len(report["provider_token_limit_and_usage_consistency"]["cache_miss_inconsistent"])} 条；不可解释 {len(report["provider_token_limit_and_usage_consistency"]["uninterpretable_usage_or_limit"])} 条 |
-| 冻结源码 | 检查 {source_results["source_files_checked"]} 条源文件；执行源码/归档成员不一致共 {source_bad} 条 |
-| 费用闭合 | 已记账闭合：{cost_ledger["recorded_cost_closed"]}；在途预留闭合：{cost_ledger["reserved_cost_closed"]}；pending计数闭合：{cost_ledger["pending_routes_match_unfinished_receipts"]} |
+| Run state | {report["running_observation"]["status"]} |
+| Task records | Initially {len(summary["records"])}, finally {len(ending_summary["records"])}, planned {summary["plannedTaskRuns"]} |
+| API receipts | Initially {len(calls)}; all {len(finished)} finished receipts checked individually; {len(unfinished)} still in flight |
+| Completed-receipt anomalies | {len(errors)}; checked gzip CRC, decompressed SHA, actual request parameters, response fields and usage, and per-receipt costs |
+| Original task-artifact anomalies | {len(task_errors)}; checked candidate/trace/prompt digests, API receipt copies, and prespecified task order |
+| Provider token limits | {len(report["provider_token_limit_and_usage_consistency"]["completion_usage_over_actual_wire_limit"])} completion counts exceed the actual wire limit; maximum reported value {report["provider_token_limit_and_usage_consistency"]["maximum_reported_completion_tokens"]} |
+| Usage breakdown | Inconsistent total/cache hit/cache miss: {len(report["provider_token_limit_and_usage_consistency"]["usage_total_inconsistent"])} / {len(report["provider_token_limit_and_usage_consistency"]["cache_hit_fields_inconsistent"])} / {len(report["provider_token_limit_and_usage_consistency"]["cache_miss_inconsistent"])}; uninterpretable: {len(report["provider_token_limit_and_usage_consistency"]["uninterpretable_usage_or_limit"])} |
+| Frozen source | {source_results["source_files_checked"]} source files checked; {source_bad} execution-source/archive-member mismatches |
+| Cost closure | Recorded costs closed: {cost_ledger["recorded_cost_closed"]}; in-flight reservations closed: {cost_ledger["reserved_cost_closed"]}; pending counts closed: {cost_ledger["pending_routes_match_unfinished_receipts"]} |
 
-本次初始账本的 recorded usage upper bound 为 ${ledger["recordedUsageUpperBoundUsd"]:.9f}；已核对回执总和为 ${spent_sum:.9f}；在途预留为 ${ledger["reservedUpperBoundUsd"]:.9f}。这些是冻结费率下的费用上界，不是已支付金额或最终全量费用。实际 wire 参数分布、原始 usage、压缩及解压摘要全部保存在 [JSON报告](full-gpqa-inflight-audit.json)，不输出模型答案、推理正文或凭证。
+The initial ledger's recorded usage upper bound is ${ledger["recordedUsageUpperBoundUsd"]:.9f}; the verified receipt sum is ${spent_sum:.9f}; in-flight reservations are ${ledger["reservedUpperBoundUsd"]:.9f}. These are cost upper bounds at frozen rates, not amounts paid or final full-run costs. Actual wire parameter distributions, raw usage, and compressed/decompressed digests are all saved in the [JSON report](full-gpqa-inflight-audit.json), without emitting model answers, reasoning text, or credentials.
 
-`finish_reason=length` 为 {finish_reason_counts.get("length", 0)} 条，保留截断事实。未解释的usage不补零；hash和账目闭合只证明捕获/计算一致，不自动证明服务器遵守参数。servedModel与system fingerprint均不认证固定模型checkpoint。
+There are {finish_reason_counts.get("length", 0)} records with `finish_reason=length`; truncation is retained as a fact. Unexplained usage is not filled with zeros. Hash and accounting closure establish capture/computation consistency only, not automatic proof that the server honored parameters. Neither servedModel nor system fingerprint certifies a fixed model checkpoint.
 
-两个已知 I/O 边界分别是请求捕获/初始账本位于 try/finally 之外，以及 finally 中的账本写入无保护。本次证据结论：**{io_findings["evidence_based_conclusion"]}**。该结论只涉及已持久化的完成回执与本次闭合检查；不能据源码存在风险笼统废弃轨迹，也不能保证尚未 finished 的请求将来不会出错。
+The two known I/O boundaries are request capture/initial ledger writes outside try/finally, and unguarded ledger writes inside finally. Evidence-based conclusion from this audit: **{io_findings["evidence_based_conclusion"]}**. This conclusion concerns only persisted completion receipts and the present closure checks. Source-level risks alone do not justify discarding all traces, nor can this audit guarantee that unfinished requests will not fail later.
 
-summary 与 ledger 在审计期间是否变化：{report["running_observation"]["summary_changed_during_audit"]} / {report["running_observation"]["ledger_changed_during_audit"]}。在途 response、尚未创建的后续 task 文件和 `pending_after_all_generation` acceptance 都保持运行中状态。源码快照中未执行的其他 benchmark 文件若有变化，JSON会与实际归档执行文件分开列出。
+Did summary and ledger change during the audit: {report["running_observation"]["summary_changed_during_audit"]} / {report["running_observation"]["ledger_changed_during_audit"]}. In-flight responses, later task files not yet created, and `pending_after_all_generation` acceptance remain in progress. Changes to other unexecuted benchmark files in the source snapshot are listed separately in JSON from actual archived execution files.
 
-本目录可用独立日志文件：{len(independent_logs)}；另检查所有已记录 task trace 的结构化 system injection 与 runtime/generation 状态。主runner终端输出不在此目录，未声称已审阅其完整终端日志。
+Independent log files available in this directory: {len(independent_logs)}. Structured system injections and runtime/generation state were also checked in all recorded task traces. Main runner terminal output is not in this directory; this audit does not claim to have reviewed its complete terminal logs.
 
-结束后在项目目录复跑只读命令：
+After completion, rerun the read-only command from the project directory:
 
 ```powershell
 {report["closing_rerun_command"]}
 ```
 
-该命令仍只改本审计自己的 JSON/Markdown。`--require-complete` 会在观察到 campaign 未完成或仍有在途回执时退出非零，不触发新调用或修改 campaign。
+This command still changes only this audit's own JSON/Markdown. `--require-complete` exits nonzero if it observes an incomplete campaign or in-flight receipts; it does not trigger new calls or modify the campaign.
 '''
     (OUT / "full-gpqa-inflight-audit.md").write_text(markdown, encoding="utf-8")
     print(json.dumps({"observed_at_utc": end.isoformat(), "finished_receipts_audited": len(finished), "unfinished_receipts_observed": len(unfinished),

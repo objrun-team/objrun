@@ -1,36 +1,39 @@
 /**
- * 例子：**一句话没说完，接着说**（续写），以及**请求长成什么形状会被拒**。
+ * Example: **continue an unfinished response**, and test **which request shapes are rejected**.
  *
  * ```
  * bun test/integration/continue.ts
  * ```
  *
- * 模型把话说到一半就到 token 上限是常事 —— 它自己会说，`finish_reason = "length"`。
- * 这一层的做法是**把已经说出的那半截接在末尾，让它续**，而不是重问一遍：重问
- * 得到的是另一个开头，前面那半截白花。
+ * A model often reaches its token limit mid-response and reports `finish_reason = "length"`.
+ * This layer **appends the partial response and asks it to continue**, rather than asking
+ * the original question again. A new answer starts from scratch and wastes the partial output.
  *
- * ## 为什么不直接打真端点
+ * ## Why not call a real endpoint?
  *
- * 要验的是**被拒之后会怎样**，而真端点几乎不会在这一步拒绝你。所以这儿起一台
- * 假的 chat completions，照真网关那条规矩办事：
+ * The test concerns **what happens after rejection**, which a real endpoint rarely triggers
+ * at this step. A mock chat-completions service enforces the real gateway's rule:
  *
- * > **请求以助手消息结尾 = 你在要求我续写。** 那属于「思考模式的前缀续写」，
- * > 得把 `reasoning_content` 一起带回来，不带就 400。
+ * > **A request ending in an assistant message asks for continuation.** Reasoning-mode
+ * > prefix continuation must include `reasoning_content`; omitting it produces HTTP 400.
  *
- * 这条规矩把两种情况一网打尽，而它们的后果完全不同：
+ * This rule covers two cases with very different implications:
  *
- * | 谁让请求以助手消息结尾 | 后果 |
+ * | Why the request ends in an assistant message | Consequence |
  * | --- | --- |
- * | **我们自己**（续写，把半截话接在末尾） | 该续，被拒了就把半截交出去 |
- * | **上一站说了句纯文本就走**（不是我们要续） | 纯属形状拼错了，得修 |
+ * | **We requested continuation** by appending partial output | Continue; if rejected, return the partial output |
+ * | **The previous station ended with plain text**, without a continuation request | The assembled request shape is wrong and must be fixed |
  *
- * 第二种真丢过一道题：`messagesOf` 原先把这一轮的问话放在**历史前面**，于是
- * 上一站要是说了句话（没调工具），整个请求就以那句话结尾 —— 网关当成续写，
- * 拒收，那一站挂到 `expect_ms`，一个字都没交（cmt-3，submit#14）。上一站调了
- * 工具的话最后一条是 tool 结果，形状是对的，所以这个毛病看着像随机。
+ * The second case lost a real task. `messagesOf` placed the current question **before
+ * history**. If the previous station returned text without a tool call, its text ended
+ * the request. The gateway treated it as continuation and rejected it; the station
+ * waited until `expect_ms` and submitted nothing (cmt-3, submit#14). With a previous
+ * tool call, the last message was a tool result and the shape was valid, making the
+ * failure appear random.
  *
- * 假端点是**改一行数据**接进来的：`update api set base_url = ...`。以前这儿用的是
- * 一条环境变量，那意味着同一份库换个环境变量行为就不一样 —— 库也就当不成快照了。
+ * The mock endpoint is selected by **changing one data row**: `update api set base_url = ...`.
+ * An environment variable was previously used here, allowing identical databases to behave
+ * differently under different environments and preventing the database from being a snapshot.
  */
 
 import { done, machine, ok, part, show, step, until } from "../_lib.ts";
@@ -39,23 +42,23 @@ interface Call {
   messages: { role: string; content: unknown }[];
 }
 
-/** 假端点每一次收到的东西，跑完拿来对形状。 */
+/** Record every payload received by the mock endpoint for request-shape checks afterward. */
 const seen: Call[] = [];
 
-/** 真端点拒收时说的那句话。 */
+/** The actual endpoint's rejection message. */
 const REFUSED = "The reasoning_content in the thinking mode must be passed back to the API.";
 
-/** 第一趟说到一半就断。**后面那半句它永远不会说出来** —— 那正是要验的。 */
+/** Truncate the first response halfway through. **The remaining half is never produced**, which is the case under test. */
 const HALF = "The answer is 4 because ";
 
-/** 说完一句整话。 */
+/** Return one complete sentence. */
 const WHOLE = "Two plus two is four.";
 
-/** 认得出是哪一道题：一道说了半句，另一道一个字都没说。 */
+/** Identify the task: one produced a partial sentence; the other produced no visible text. */
 const CUT = "two plus two";
 const MUTE = "hexagon";
 
-/** 撞上限时它想了一堆，但可见文本一个字都没有。 */
+/** The model used its limit on reasoning without producing any visible text. */
 const THINKING = "A hexagon has six corners, let me double check by counting the vertices ...";
 
 const reply = (text: string, why: string, thinking = "") =>
@@ -77,8 +80,8 @@ const reply = (text: string, why: string, thinking = "") =>
     { headers: { "content-type": "application/json" } },
   );
 
-/** 每道题都是两站：第一站走完去第二站，第二站走完收工。**按题数，不按总次数** —— 
- * 按总次数的话第二道题一进来就直接收工，走不到重放那一步。 */
+/** Each task has two stations: advance after the first, finish after the second. **Count per task, not globally**;
+ * a global count would finish the second task immediately without reaching replay. */
 const hops: Record<string, number> = {};
 
 const fake = Bun.serve({
@@ -95,11 +98,11 @@ const fake = Bun.serve({
     const body = (await req.json()) as Call;
     seen.push(body);
     const tail = body.messages[body.messages.length - 1] as { role: string; reasoning_content?: string } | undefined;
-    /** 这一发是那道题的第一发么（刚 push 进去的这一条也算在内）。 */
+    /** Is this the task's first request, including the entry just pushed? */
     const first = (mark: string) => seen.filter((c) => JSON.stringify(c.messages).includes(mark)).length === 1;
 
-    // **真网关那条规矩。** 谁让请求以助手消息结尾，谁就是在要求续写 —— 思考模式下
-    // 得把 `reasoning_content` 一起带回来，不带就 400。带了就接着往下说。
+    // **The real gateway's rule:** an assistant message at the end requests continuation. In reasoning mode,
+    // `reasoning_content` must accompany it; otherwise return 400. Continue if it is included.
     if (tail?.role === "assistant") {
       if (!tail.reasoning_content) {
         return new Response(JSON.stringify({ error: { message: REFUSED, type: "invalid_request_error" } }), {
@@ -109,7 +112,7 @@ const fake = Bun.serve({
       }
       return reply(WHOLE, "stop");
     }
-    // 第一发：一道题说了半句就断，另一道题**一个字可见文本都没有，光在想**。
+    // First request: one task is truncated mid-sentence; the other **only reasons and has no visible text**.
     if (JSON.stringify(body.messages).includes(MUTE)) {
       return first(MUTE) ? reply("", "length", THINKING) : reply(WHOLE, "stop");
     }
@@ -117,8 +120,8 @@ const fake = Bun.serve({
   },
 });
 
-// **`retryTimes` 故意开着。** 这个例子要验的一件事就是「400 不该被重打」——
-// 关掉重试的话，不重打是因为压根没开重试，什么也没验到。
+// **Leave `retryTimes` enabled deliberately.** The test must establish that HTTP 400 is not retried;
+// disabling retries would prove nothing about error classification.
 const m = await machine({ retryTimes: 3, continueTimes: 2, maxTokens: 64 });
 const at = (path: string) => `http://127.0.0.1:${String(fake.port)}${path}`;
 
@@ -143,8 +146,8 @@ try {
   ok("the declaration went in", true);
 
   step("1b. point that model at the fake endpoint - by changing a row");
-  // **改地址是改数据。** 这一步同时也验了那件事：`api.base_url` 说了算，
-  // 代码里那份只是注册时的种子。
+  // **Changing the address is a data change.** This also verifies that `api.base_url` controls the endpoint;
+  // the code value is only the registration seed.
   await m.api("POST", "/exec", {
     sql: `update api set base_url = '${at("")}' where model = 'deepseek-v4-flash'`,
   });
@@ -190,9 +193,9 @@ try {
   ok("what it had managed to say was handed back", said.rows.some((r) => r.body.includes(HALF.trim())), said.rows);
 
   step("5. and the NEXT station is not poisoned by that half sentence");
-  // 这一条焊的就是丢掉的那道题。上一站的最后一条是助手说的半句话；这一站要是
-  // 把这一轮的问话摆在历史**前面**，整个请求就以那半句结尾 —— 网关当成续写请求，
-  // 400，而这一次是 round 0，抛出去就是一整道题没了。
+  // This regression covers the lost task. The previous station ends with a partial assistant response.
+  // If this round's question is placed **before history**, that partial response ends the request,
+  // the gateway interprets it as continuation and returns 400, and throwing at round 0 loses the whole task.
   const asks = seen.filter((c) => c.messages[c.messages.length - 1]?.role !== "assistant");
   const last = asks[asks.length - 1];
   show("the roles in the last real question we asked:", last.messages.map((mm) => mm.role));
@@ -208,9 +211,9 @@ try {
   );
   ok("so the second station ran and answered", said.rows.some((r) => r.body.includes(WHOLE)), said.rows);
   step("6. a request the other side calls invalid is not sent again");
-  // 400 说的是「这个请求本身不合法」，再打一百次还是同一个 400 —— 重打只是把
-  // 时间烧掉，然后以完全一样的方式失败。真跑里烧掉的是 30 秒（0+5+10+15 的退避），
-  // 而那一站随后还要空挂到 expect_ms。哪些错值得再打，是 `api.retry_on` 那一列说了算。
+  // HTTP 400 means the request itself is invalid. Repeating it a hundred times yields the same 400;
+  // retries only waste time before failing identically. A real run lost 30 seconds to 0+5+10+15 backoff,
+  // then left the station idle until expect_ms. The `api.retry_on` column decides which errors merit retries.
   const refused = seen.filter((c) => c.messages[c.messages.length - 1]?.role === "assistant");
   show("how many times the refused shape went out:", refused.length);
   ok(
@@ -219,10 +222,10 @@ try {
     refused.length,
   );
   step("7. it hit the limit while still thinking - the thinking is what gets carried back");
-  // **这一条焊的是「截断被当成断线」。** 撞上限时最常见的形态是一个字可见文本都
-  // 还没写出来。门槛要是「说过话没有」，这一轮就退化成把原题原样再问一遍 ——
-  // 那是断线的处理办法，而断线本来就有人管。实测重发出来的思维链**开头逐字等于
-  // 丢掉的那份**：同样的输入，它走同样的路，再撞同一堵墙。
+  // **This regression distinguishes truncation from a dropped connection.** Often the token limit is reached
+  // before any visible text is produced. Requiring visible output would repeat the original question unchanged,
+  // which is connection-recovery behavior already handled elsewhere. In the observed retry, the reasoning
+  // **began word-for-word identically** to the discarded reasoning: identical input followed the same path into the same limit.
   await m.api("POST", "/tasks", {
     id: "t-mute", mode: "talk", agent: "bot", place: "local", source: "user",
     description: "how many corners has a hexagon", solveSeconds: 60,
@@ -257,9 +260,9 @@ try {
   );
 
   step("8. and the next station hears what it was thinking, not just what it said");
-  // 同一条规矩的另一半：厂商说带 `tools` 时历史轮次的 `reasoning_content` 都该回传。
-  // 库里 `thought` 一直存着，以前只是重放时不发 —— 于是下一站接手的是一份被抹掉了
-  // 推导过程的历史。
+  // The other half of the same rule: the provider requires historical `reasoning_content` whenever `tools` is supplied.
+  // `thought` was always stored in the database but omitted from replay, so the next station inherited history
+  // with its derivation removed.
   const fresh = seen.filter(
     (c) =>
       JSON.stringify(c.messages).includes(MUTE) &&

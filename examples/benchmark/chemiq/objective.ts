@@ -1,29 +1,21 @@
 /**
- * ChemIQ 这套题的 G。**一份定义，发批和续跑都读它。**
+ * ChemIQ's G. **Batch submissions and resumed runs share one definition.**
  *
- * 两个节点，句柄名就是台子的地址：
+ * Two nodes whose handles are the grader URLs:
  *
  * ```
- *   parsed ──→ correct      parsed ：官方 AnswerParser 从回答里抠得出一个答案吗
- *                           correct：官方 AnswerVerifier.check_answer 说对吗（根）
+ *   parsed ──→ correct      parsed: can official AnswerParser extract an answer?
+ *                           correct: does official AnswerVerifier.check_answer accept it? (root)
  * ```
  *
- * 根**必须有入边** —— 没有的话它的值跟候选无关，G 恒定，发布这一关就拒（`objective/spec.ts`）。
+ * The root **must have an incoming edge**; otherwise it is independent of the candidate and G is constant, so publication rejects it (`objective/spec.ts`).
  *
- * 这两格正好是官方 `analysis.ipynb` 里的两步：先 `parser.parse(uuid, raw)`，再
- * `verifier.check_answer(uuid, parsed)`。抠不出来的官方记成 False、直接判错。我们没有
- * 另立尺子，只是把官方那两步拆开两格读。
+ * These are the two steps in official `analysis.ipynb`: `parser.parse(uuid, raw)` followed by `verifier.check_answer(uuid, parsed)`. Upstream represents failed extraction as False and rejects it. We expose the official steps separately rather than inventing another criterion.
  *
- * 判卷只回 bool，题面是一句话短答 —— 所以这份 G 跟 cmt 一样薄。
+ * Grading returns bool and statements request short answers, so this G is as small as CMT's.
  */
 
-/**
- * **一轮里能问几次这个盒子。**
- *
- * 这套题有 226 道整数题（数碳 3–27、数环 1–6、最短路 3–20），答案空间小到能猜：
- * 问得多了，命中量的是答案空间不是它会不会数。给 3：够「答一版 → 验一次 → 照 note 改 →
- * 再验」一个来回，不够把 1–27 扫一遍。理由见 G.md「budget」。
- */
+/** **Maximum queries per attempt.** There are 226 integer questions (carbon counts 3–27, ring counts 1–6, shortest paths 3–20). With enough queries, success measures the small answer space rather than counting ability. Allow 3: enough to answer, check, revise from the note, and check again, but not enumerate 1–27. See the budget section in G.md. */
 export const CHECKS = Number(process.env.TGENGIN_CHEMIQ_CHECKS ?? 3);
 
 export interface Objective {

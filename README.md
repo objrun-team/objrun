@@ -1,14 +1,10 @@
-<p align="center">
-  <strong>English</strong> | <a href="README.zh-CN.md">简体中文</a>
-</p>
-
 <h1 align="center">ObjRun</h1>
 
 <p align="center">Objective Engineering for Agentic Science</p>
 
 <p align="center">
   <a href="https://objrun-team.github.io/#video">
-    <img src="site/media/objrun-poster.png" alt="Watch the ObjRun overview video" width="720">
+    <img src="https://objrun-team.github.io/media/objrun-poster.png" alt="Watch the ObjRun overview video" width="720">
   </a>
 </p>
 
@@ -31,7 +27,7 @@ Models, tools, and search strategies are declared as data. All 20 benchmarks in 
 Requires [Git](https://git-scm.com/), [Bun](https://bun.sh), and an API key for the model provider you use.
 
 ```bash
-git clone https://github.com/Deref-IO/objrun.git
+git clone https://github.com/objrun-team/objrun.git
 cd objrun
 cp .env.example .env
 ```
@@ -61,7 +57,7 @@ Follow the [examples](examples/README.md) to declare an agent and send your firs
 ## How It Works
 
 <p align="center">
-  <img src="paper/current/figs/main-0-system.png" alt="ObjRun system overview (paper Fig. 2)" width="760">
+  <a href="https://objrun-team.github.io/paper.pdf">System overview (paper Fig. 2)</a>
 </p>
 
 <p align="center"><sub>Define and seal the objective → attempt, check, and retry → compute results from recorded verdicts.</sub></p>
@@ -78,7 +74,7 @@ See the [execution loop](docs/loop.md) for validation rules, submission handling
 The headline runs use DeepSeek V4.1 Flash. **U** is the single-attempt baseline; **F** is a run with an attached objective and a budget for checks and retries. Seventeen benchmarks have local U/F comparisons using the same model. DeepSWE, Terminal-Bench 2.1, and SkillsBench 1.1 use external single-attempt references.
 
 <p align="center">
-  <img src="paper/current/figs/fig1-vs-published.png" alt="U, published reference results, and F across 20 benchmarks (paper Fig. 1)" width="820">
+  <a href="https://objrun-team.github.io/paper.pdf">Benchmark comparison (paper Fig. 1)</a>
 </p>
 
 <p align="center"><sub><b>Fig. 1</b>　Single-response results (light gray), published reference results (dark gray), and ObjRun (blue) across 20 benchmarks.</sub></p>
@@ -97,7 +93,7 @@ The paper also examines four scientific problems from recent papers. Each had a 
 | RNA designability (Repetitious Sequences 8/10) | Upper bound 0.18740 | Upper bound 0.15770 | Envelope enumeration over all assignments |
 
 <p align="center">
-  <img src="paper/current/figs/discovery-runs.png" alt="Verification results for the four scientific case studies" width="820">
+  <a href="https://objrun-team.github.io/paper.pdf">Verification of the four scientific case studies</a>
 </p>
 
 Read the [case study blog](https://objrun-team.github.io/blog/) for the process behind each result.
@@ -127,16 +123,16 @@ app/src/             Runtime, API, tools, and built-in interface
 config.yaml          Runtime configuration
 examples/            Runnable examples and benchmark integrations
 experiments/         Benchmark sources and experiment records
-paper/current/       Paper source, figures, and plotting data
 scripts/             Shared runners and maintenance tools
-site/                Website, run replays, and case studies
 docs/                Architecture, execution loop, and database schemas
 test/                Unit, integration, and benchmark tests
 ```
+
+The full local checkout also contains `site/` and `paper/`, which are excluded from this public repository. The [website](https://objrun-team.github.io/) and [paper PDF](https://objrun-team.github.io/paper.pdf) are published separately.
 
 ## Documentation
 
 - [Examples](examples/README.md) — agents, tasks, tools, and objectives.
 - [Architecture and API](docs/README.md) — execution loop, protocols, and data tables.
 - [Experiments](experiments/README.md) — benchmark sources and recorded runs.
-- [Paper source](paper/README.md) — manuscript, figures, and build instructions.
+- [Paper (PDF)](https://objrun-team.github.io/paper.pdf) — methods, figures, and experimental results.

@@ -1,8 +1,7 @@
 /**
- * 动态 skill：`body` 留空的那一种。触发那一刻内核来调它，它现拼一段话回去。
+ * A dynamic skill: the kind with an empty `body`. The kernel calls it when triggered, and it constructs text on demand.
  *
- * 拿到的是这一轮的**事实**（跟触发条件比的是同一份），所以能按这个任务、这一站
- * 的具体情况说话 —— 写死的那种做不到。
+ * It receives this round’s **facts**, the same ones used by trigger conditions, so it can respond to this task and execution unit’s specific circumstances, unlike a static skill.
  */
 
 export async function run(arg: unknown): Promise<unknown> {

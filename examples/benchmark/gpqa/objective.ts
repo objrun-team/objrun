@@ -1,28 +1,22 @@
 /**
- * GPQA Diamond 的 G。**一份定义，发批和续跑都读它。**
+ * G for GPQA Diamond. **Batch launch and resume share one definition.**
  *
- * 两个节点，句柄名就是台子的地址：
+ * Two nodes, whose handles are the service addresses:
  *
  * ```
- *   parsed ──→ correct       parsed ：官方正则从回答里抠得出一个 A–D 吗
- *                            correct：抠出来的那个字母是不是正确选项（根）
+ *   parsed ──→ correct       parsed: can the official regex extract an A–D answer?
+ *                            correct: is that letter the correct option (root)?
  * ```
  *
- * 根**必须有入边**（`objective/spec.ts`：没有的话 G 恒定，发布就拒）。这两格正好是
- * 官方 `run_baseline.py` 自己的两步：`parse_sampled_answer` 回 None 就记一次 refusal
- * 并且**不比对**，抠得出来才 `LETTER_TO_INDEX[letter] == correct_index`。我们没有另立
- * 一把尺子，只是把官方那把拆开两段读。
+ * The root **must have an incoming edge** (`objective/spec.ts`: otherwise G is constant and publication is rejected). These two nodes are exactly the two steps in the official `run_baseline.py`: `parse_sampled_answer` returning None counts as a refusal and **skips comparison**; otherwise compare `LETTER_TO_INDEX[letter] == correct_index`. We introduce no new criterion, only read the official one in two stages.
  */
 
 /**
- * **一轮里能问几次这个盒子。**
+ * **How often the box may be queried in one round.**
  *
- * 四选一，m = 4。按 N = (K+1)(c+1)+1，**只要 c ≥ 1 且 K ≥ 1 就 N ≥ 5 ≥ m** ——
- * 全部 198 道都枚举可达，问几次都是在量「答案空间多大」而不是「会不会做」。
- * 所以这儿给 1，而且 K 也该给 0（见 G.md「答案空间」）。
+ * There are four choices, m = 4. From N = (K+1)(c+1)+1, **c ≥ 1 and K ≥ 1 already imply N ≥ 5 ≥ m**: enumeration can reach every one of the 198 tasks, so repeated queries measure answer-space size rather than problem-solving ability. Set this to 1, and K should be 0 too (see “Answer space” in G.md).
  *
- * **给不了 0。** `parseObjective` 把 0 当「没给」，换成默认的 5（`objective/spec.ts`）。
- * 1 已经是内核能表达的最小值。
+ * **Zero cannot be expressed.** `parseObjective` treats 0 as absent and replaces it with the default 5 (`objective/spec.ts`). 1 is the smallest value the kernel can express.
  */
 export const CHECKS = Number(process.env.TGENGIN_GPQA_CHECKS ?? 1);
 

@@ -1,70 +1,74 @@
 /**
- * 例子：**给一道题绑一个目标（验证函数 G）**。
+ * Example: **attach an objective (verification function G) to a task**.
  *
  * ```
  * bun test/integration/objective.ts
  * ```
  *
- * G 回答的是「**这道题算不算做成了**」。它跟别的注册不一样，有三条硬规矩：
+ * G decides **whether the task has been accomplished**. Unlike other registrations,
+ * it has three strict rules:
  *
- * 1. **绑定发生在发布那一刻，是准入条件。** 不是发完再挂上去 —— 过不了定义期
- *    检测就**拒收整个任务**。与其让一道必然算不出结果的题混进系统，不如它根本
- *    别发布
- * 2. **定义存在单独一个库（封存区），主库够不着。** 主库是全接口开放的，G 存主库
- *    等于没有墙。红线靠「够不着」，不靠「规定不许」
- * 3. **智能体派生的任务不许带 G。** 放行的话，智能体就能给自己（或自己派生的
- *    下一层）设定成功标准 —— 那是自提权，判据不再是判据
+ * 1. **Binding occurs at publication and is an admission requirement**. It cannot be
+ *    added later. Failed definition-time validation **rejects the whole task** rather
+ *    than admitting a task whose result could never be evaluated.
+ * 2. **The definition lives in a separate sealed database, unreachable from the main
+ *    database**. The main database API is unrestricted; storing G there would remove
+ *    the boundary. Enforcement depends on inaccessibility, not a rule forbidding access.
+ * 3. **Agent-derived tasks cannot carry G**. Otherwise an agent could set its own
+ *    success criteria, or those of a derived task: self-escalation would invalidate
+ *    the grading criteria.
  *
- * ## G 是一张 DAG
+ * ## G is a DAG
  *
- * 每个节点是一个句柄，值域封闭（`bool` / `bool[n]`）。这个例子里每个节点都是
- * 一条外部 `http://` 句柄，跑在例子自己那台小服务器上。
+ * Each node is a handle with a closed domain (`bool` / `bool[n]`). Every node in
+ * this example is an external `http://` handle hosted by the example's small server.
  */
 
 import { done, machine, ok, outside, part, show, step, until } from "../_lib.ts";
 
 const m = await machine();
 
-/** G 的节点被调了几次、拿到什么 —— 用来验它是**真跑了**，不是摆设。 */
+/** Record how often G's nodes were called and what they received, proving they **actually executed**. */
 const graded: Record<string, unknown>[] = [];
 
 const out = await outside({
   "/unit": () => ({ role: "assistant", kind: "prompt", body: "I say I am done" }),
   "/infer": () => null,
-  // 一个**永远慢**的执行单元 —— 用来验超时那条路真的会把任务判掉。
+  // A **consistently slow** execution unit verifies that timeout really finalizes the task.
   "/slow": async () => {
     await Bun.sleep(30_000);
     return { role: "assistant", kind: "prompt", body: "too late" };
   },
 
-  // ── G 的节点。**回的必须落在声明的值域里** ────────────────────────────
+  // -- G nodes: **returns must belong to the declared domain** ------------------
   //
-  // 值域是 `bool` 就回 `true` / `false`，不是回一个 `{pass: 1}` 对象。回错形状
-  // 不会让 G 报错崩掉 —— 它**归 0，并且把原因带出来**：全函数，不引入第三个值。
+  // A `bool` domain returns `true` / `false`, not an object such as `{pass: 1}`. An invalid shape
+  // does not crash G: it **becomes 0 with an explanation**, keeping evaluation total without a third value.
 
-  /** 观测节点：这一版看什么都说「成」。 */
+  /** Observation node: this version accepts every candidate. */
   "/look-pass": (a) => {
     graded.push({ who: "look-pass", input: a.input });
     return true;
   },
-  /** 观测节点：这一版看什么都说「不成」。 */
+  /** Observation node: this version rejects every candidate. */
   "/look-fail": (a) => {
     graded.push({ who: "look-fail", input: a.input });
     return false;
   },
   /**
-   * 观测节点：判「不成」，**并且说清为什么**。
+   * Observation node: reject **and explain why**.
    *
-   * 回的是 `{ value, note }` —— 判卷台那一侧常常手里有整份报告（哪一条没过、
-   * 报的什么错）。光回一个 `false` 的话那些话就地蒸发，模型只拿得到一句
-   * 「evaluated to false」，下一轮多半原样再来一遍。`why` 那一栏没动 ——
-   * 它说的是「这一格根本没算出来」，跟「算出来是假」不是一回事。
+   * Return `{ value, note }`. The grader often has a complete report of failed
+   * checks and errors. Returning only `false` would discard it, leaving the model
+   * with "evaluated to false" and encouraging the same attempt again. `why` is
+   * unchanged: it describes failure to evaluate a node, distinct from a successfully
+   * evaluated false result.
    */
   "/look-fail-loud": (a) => {
     graded.push({ who: "look-fail-loud", input: a.input });
     return { value: false, note: { failed: ["shape", "units"], hint: "two of the three parts are missing" } };
   },
-  /** 输出节点：把上游喂进来的那一位原样接出去。 */
+  /** Output node: pass through the upstream boolean unchanged. */
   "/verdict": (a) => {
     const feed = (a.feed ?? []) as { value: unknown }[];
     graded.push({ who: "verdict", feed });
@@ -73,19 +77,20 @@ const out = await outside({
 });
 
 /**
- * 一张最小的**合法** G：两个节点。
+ * A minimal **valid** G has two nodes.
  *
  * ```
- *   look（直接观测世界，入度 0）──→ verdict（输出节点，值域 bool）
+ *   look (observes the world directly; indegree 0) --> verdict (output node; bool domain)
  * ```
  *
- * 为什么最小是两个而不是一个 —— 定义期那几条检测里有这么一条：
- * **输出节点没有任何入边 ⇒ 它的值跟候选无关 ⇒ G 恒定 ⇒ 无效目标**。
- * 一个节点自己当输出，就是那种恒定的 G：不管智能体干了什么它都回同一个答案，
- * 那不叫判据。
+ * Why two rather than one? Definition-time validation requires:
+ * **No incoming edge at the output -> candidate-independent value -> constant G -> invalid objective**.
+ * A single node acting as its own output is such a constant G: it returns the same
+ * answer regardless of the agent's work, so it is not a grading criterion.
  *
- * 另外两条也体现在这儿：`sink` 的值域**必须是 bool**（成/不成，没有第三种）；
- * 除根之外每个输出端口都得被某条边消费，不许有悬空的输出。
+ * Two other constraints are represented here: `sink` **must have domain bool**
+ * (success/failure, no third value), and every output port except the root's must
+ * be consumed by an edge; dangling outputs are forbidden.
  */
 const G = (look: string) => ({
   nodes: [
@@ -97,7 +102,7 @@ const G = (look: string) => ({
 });
 
 try {
-  // ═══════════════ 第一部分：注册（= 发布那一刻的准入） ═══════════════
+  // =============== Part 1: registration (publication-time admission) ===============
   part("Part one: registration (a grading function is bound at publish time)");
 
   const base = {
@@ -169,7 +174,7 @@ try {
   const inDb = await m.api<{ total: number }>("GET", "/tasks");
   ok("a task that fails the gate is never published", inDb.total === 0, inDb);
 
-  // ═══════════════ 第二部分：使用层次的校验 ═══════════════
+  // =============== Part 2: actual-use validation ===============
   part("Part two: checks at the level of use");
   console.log("  Bound is not the same as actually judged. See whether it really ran and wrote the verdict back.");
 
@@ -244,9 +249,9 @@ try {
   ok("no grading function, no verdict", noG.objective.has === false && noG.objective.verdict === null, noG.objective);
   ok("finishing is done", noG.state === "done", noG.state);
   step("10. a task that runs past solveSeconds really gets marked failed");
-  // 这条闸断过两次，两次都吃掉一整跑：第一次是任务级的 deadline 根本没进定时器，
-  // 第二次是那句 SQL 少了一对引号（`state = failed` 被当成列名），run 抛出去，
-  // 后面连 G 都没叫。两次的表现都一样 —— 日志里写着 expired，库里却一直是 claimed。
+  // This gate failed twice, losing an entire run each time. First, task-level deadlines were never added to the timer;
+  // second, SQL omitted quotes (`state = failed` treated failed as a column name), causing run to throw
+  // before G was called. Both failures logged expired while the database remained claimed indefinitely.
   await m.api("POST", "/declare", {
     handles: [{ name: out.url("/slow"), expectMs: 60_000 }],
     agents: [{ name: "slowbot", apis: [], unit: out.url("/slow") }],

@@ -1,21 +1,23 @@
 /**
- * 声明多了一列的时候，**老库接着用**。
+ * **Keep existing databases usable** when a declaration adds a column.
  *
  * ```
  * bun test/integration/migrate.ts
  * ```
  *
- * 装表器原本是「形状对不上就炸，一个字不改」。那条对**改了已有的列**是对的：改类型、
- * 改约束都得重建整张表，重建就是在猜想要哪种改法，猜错的代价是数据。
+ * The installer originally rejected every schema mismatch without changing anything.
+ * That is appropriate for **changes to existing columns**: changing types or constraints
+ * requires rebuilding the table, which means guessing the intended migration and risking data.
  *
- * 但「少了一列」不是那种：补一列不动任何已有的行。原先一并炸掉的后果是，加一列就等于
- * 老库全部作废 —— 而库里躺着的是跑了一整天的东西。
+ * A missing column is different: adding it need not alter existing rows. Rejecting
+ * this case invalidated every old database whenever a column was added, including
+ * databases containing a full day's work.
  *
- * 所以这儿钉三件：
+ * This test verifies three cases:
  *
- * 1. 少一列 → **补上，老数据一行不动**
- * 2. 再装一遍 → 什么都不做
- * 3. 改了已有的列 → **照旧炸，而且什么都没改**
+ * 1. Missing column -> **add it without changing any existing row**.
+ * 2. Install again -> do nothing.
+ * 3. Changed existing column -> **reject as before, leaving everything untouched**.
  */
 
 import { mkdtempSync, rmSync } from "node:fs";
@@ -36,7 +38,7 @@ part("A declaration that grew a column, and a database that did not");
 
 step("1. a database from before that column existed");
 install(db);
-// 上一版建的那份库就是这个样子：把新列拆掉，再放一行进去。
+// Reproduce a database from the previous version by omitting the new column and inserting a row.
 db.exec(`alter table api drop column compress_at`);
 run(db, `insert into api (key_env, model, handle, modes, base_url, retry_on) values (?, ?, ?, ?, ?, ?)`, [
   "OLD_KEY",
@@ -70,7 +72,7 @@ const again = install(db);
 ok("nothing added, nothing created", again.added.length === 0 && again.create.length === 0, again);
 
 step("4. a column whose type changed still stops everything");
-// 把 api 换成一张 `retry_on` 是 integer 的表 —— 这就是「已有的列变了」。
+// Replace api with a table whose `retry_on` is integer, representing a changed existing column.
 db.exec(`alter table api rename to api_old`);
 db.exec(
   `create table "api" ("key_env" text not null, "model" text not null, "handle" text not null,
@@ -100,11 +102,11 @@ ok(
 
 store.rw.close();
 store.ro.close();
-// Windows 上库刚关，文件句柄未必马上放开 —— 删不掉不算这一趟失败：那是个临时目录，
-// 不是这个测试要验的东西。
+// Windows may retain a database handle briefly after close. Cleanup failure in a temporary directory
+// is not the behavior under test and must not fail this run.
 try {
   rmSync(dir, { recursive: true, force: true });
 } catch {
-  /* 留在临时目录里就留着 */
+  /* Leave the temporary directory if cleanup is unavailable. */
 }
 done();

@@ -1,50 +1,51 @@
 /**
- * 接口的声明 —— **契约长在接口上，不在旁边的文档里。**
+ * Endpoint declarations: **the contract belongs to the endpoint, not a separate document**.
  *
- * ## 为什么不写文档
+ * ## Why not maintain separate documentation
  *
- * 另写一份文档，它就会**悄悄漂**：文档说一套、代码做一套，而没有任何一刻会报错。
- * 客户端照着文档写，撞上去才发现对不上，那时候他只能去读我们的表 —— 一旦开始读表，
- * 两端就焊死了。
+ * A separate document can **drift silently**: its description and the implementation diverge
+ * without any error. Clients discover the mismatch only when they make a request, then resort
+ * to reading our tables. At that point, the two sides become tightly coupled.
  *
- * 所以一个口的说明和它的实现**是同一份东西**：
+ * Instead, an endpoint's description and implementation are **one declaration**:
  *
  * ```
- *              ┌── 生成 help（客户端 curl 一下就知道怎么用）
- * 一份声明 ────┼── 校验进来的请求（少了、多了、类型不对、取值不在范围内 → 400）
- *              └── 装路由（handler 挂在同一行上）
+ *                     +-- Generate help, directly readable with curl
+ * One declaration ----+-- Validate requests (missing/extra fields, types, ranges -> 400)
+ *                     +-- Install the route, with its handler on the same record
  * ```
  *
- * **它漂不了** —— 漂了的话请求会被错误地拒，当场就看得出来。这跟这个仓库别处
- * 一贯的做法是同一件事：表是声明出来的，工具是声明出来的，接口也是。
+ * **Drift becomes visible**: mismatches reject requests incorrectly, exposing the problem
+ * immediately. This follows the repository's consistent approach: tables, tools, and APIs
+ * are all declared.
  *
- * ## 参数表就是操作范围
+ * ## The parameter table defines the allowed operations
  *
- * 声明里有参数表和返回形状，这两样已经足够把客户端能做的事框死了：
- * **没声明的参数一律拒收**，不是忽略。忽略的话，客户端写错一个字段名
- * （`maxUnits` 打成 `max_units`）会被静静吞掉，然后拿到一个不是他要的结果，
- * 而两边都不报错 —— 这正是这台机器一路在防的那种失败。
+ * Parameters and response shapes fully describe the client's available operations.
+ * **Reject undeclared parameters rather than ignoring them.** Silently swallowing a typo such
+ * as `max_units` instead of `maxUnits` would produce the wrong result without either side
+ * reporting an error, exactly the kind of failure this system is designed to prevent.
  */
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
-/** 一个参数能是什么。**只这几种** —— 再多的形状交给 `shape` 那一层去说。 */
+/** Allowed parameter types. **Only these types**; more complex structures belong in `shape`. */
 export type Kind = "string" | "int" | "number" | "boolean" | "object" | "array";
 
 export interface Param {
   name: string;
-  /** 在哪儿：路径段 / 查询串 / 请求体里的一个字段。 */
+  /** Location: a path segment, query-string parameter, or request-body field. */
   in: "path" | "query" | "body";
   kind: Kind;
-  /** 不给就得有 `def`，两样都没有 = 缺了就拒。 */
+  /** An omitted value needs `def`; without either, reject the request. */
   required?: boolean;
-  /** 没给时用什么。**写在这儿，不写在 handler 里** —— 不然 help 说不出真正的默认值。 */
+  /** Default for an omitted value. **Declare it here, not in the handler**, so help can show the actual default. */
   def?: unknown;
-  /** 取值只能是这几个。写错一个字母当场拒，不是「那条永远不命中」。 */
+  /** Allowed values. Reject misspellings immediately instead of letting a condition never match. */
   only?: readonly string[];
-  /** 这是什么，以及**写错了会怎样**。后半句才是真正有用的那半句。 */
+  /** What this means and **what happens when it is wrong**. The latter is the most useful part. */
   note: string;
-  /** 数组/对象里面长什么样，用一句话说清。 */
+  /** A concise description of an array or object's internal structure. */
   of?: string;
 }
 
@@ -54,7 +55,7 @@ export interface Errs {
 }
 
 export type Handler = (
-  /** 已经校验、已经填好默认值的那一份。**handler 不再自己取参数。** */
+  /** The validated values with defaults applied. **Handlers must not retrieve parameters independently.** */
   arg: Record<string, unknown>,
   req: FastifyRequest,
   reply: FastifyReply,
@@ -62,21 +63,21 @@ export type Handler = (
 
 export interface Route {
   method: "GET" | "POST" | "PUT" | "DELETE";
-  /** 不带前缀，如 `/tasks/:id/messages`。 */
+  /** Path without its prefix, such as `/tasks/:id/messages`. */
   path: string;
-  /** 归到哪一组，help 按它分节。 */
+  /** Group used to organize help sections. */
   group: string;
-  /** 一句话：这个口干什么。 */
+  /** One sentence describing the endpoint's operation. */
   does: string;
   /**
-   * 为什么要有这个口 —— **客户端自己拼的话会怎样**。
+   * Why this endpoint exists: **what would happen if a client assembled the operation itself**.
    *
-   * 不是客套话：一个口如果说不出这一句，多半说明它只是把库里的行原样倒出来，
-   * 那客户端迟早会绕过它直接读表。
+   * This must be substantive. If an endpoint cannot explain this, it probably just exposes database
+   * rows unchanged, and clients will eventually bypass it and read tables directly.
    */
   why?: string;
   params?: Param[];
-  /** 回什么。一个**真实形状**的例子，不是类型名 —— 客户端照着它写解析。 */
+  /** Response example with the **actual structure**, not a type name: clients use it to implement parsing. */
   returns?: unknown;
   errs?: Errs[];
   handler: Handler;
@@ -93,7 +94,7 @@ class Bad extends Error {
 }
 
 function coerce(p: Param, raw: unknown): unknown {
-  // 路径段和查询串一律是字符串，得按声明的类型翻过来。请求体里本来就是 JSON。
+  // Path and query parameters arrive as strings and need conversion to their declared types. Request bodies are already JSON.
   if (p.kind === "string") {
     if (typeof raw !== "string") throw new Bad(`${p.name} must be a string`, p.name);
     return raw;
@@ -122,11 +123,11 @@ function coerce(p: Param, raw: unknown): unknown {
 }
 
 /**
- * 照着声明把一次请求校出来。
+ * Validate a request against its declaration.
  *
- * **没声明的参数一律拒收**，不是忽略 —— 忽略的话，客户端把 `maxUnits` 打成
- * `max_units` 会被静静吞掉，然后拿到一个不是他要的结果，而两边都不报错。
- * 拒收的时候要**把认得的列出来**，不然他还得去猜正确的拼法是什么。
+ * **Reject undeclared parameters rather than ignoring them.** Otherwise a typo such as
+ * `max_units` instead of `maxUnits` would silently produce an unintended result.
+ * When rejecting a field, **list the recognized fields**, so callers need not guess its spelling.
  */
 export function take(r: Route, req: FastifyRequest): Record<string, unknown> {
   const params = r.params ?? [];
@@ -143,7 +144,7 @@ export function take(r: Route, req: FastifyRequest): Record<string, unknown> {
   }
   const bag = (body ?? {}) as Record<string, unknown>;
 
-  // 多给的：查询串和请求体都查一遍。路径段不用 —— 那是路由自己切出来的。
+  // Check extra fields in query strings and request bodies. Path segments are already selected by the router.
   const known = new Set(params.map((p) => p.name));
   const qNames = params.filter((p) => p.in === "query").map((p) => p.name);
   for (const k of Object.keys(query)) {
@@ -175,10 +176,10 @@ export function take(r: Route, req: FastifyRequest): Record<string, unknown> {
   return out;
 }
 
-// ── help：跟校验读的是同一份声明 ────────────────────────────────────────────
+// ── Help reads the same declarations as validation ──
 
 function pad(s: string, n: number): string {
-  // 中日韩字符在终端里占两格。不算的话参数表会对不齐，而这张表全靠对齐才读得下去。
+  // CJK characters occupy two terminal columns. Account for this to keep the parameter table aligned and readable.
   let w = 0;
   for (const ch of s) w += /[⺀-꓏가-힣豈-﫿︰-﹏＀-｠【】、—]/.test(ch) ? 2 : 1;
   return s + " ".repeat(Math.max(n - w, 1));
@@ -186,16 +187,16 @@ function pad(s: string, n: number): string {
 
 function paramLine(p: Param): string[] {
   const must = p.required ? "required" : p.def !== undefined ? `default ${JSON.stringify(p.def)}` : "optional";
-  // 取值只有那几个的时候，**列出来比写个类型名有用得多** —— 客户端照着填就行。
+  // When only a few values are allowed, **listing them is far more useful than a type name**: clients can copy a valid value.
   const kind = p.only ? p.only.join("|") : p.kind;
   const out = [`      ${pad(p.name, 16)}${pad(p.in, 7)}${pad(kind, 20)}${pad(must, 12)}${p.note}`];
-  // 里面长什么样单独一行。塞进类型那一列的话，一个长形状会把后面的列全顶飞，
-  // 而这张表全靠对齐才读得下去。
+  // Put the internal structure on a separate line. A long structure in the type column would
+  // push every following column out of alignment and make the table unreadable.
   if (p.of) out.push(`      ${" ".repeat(16)}inside: ${p.of}`);
   return out;
 }
 
-/** 一份能直接在终端里读的说明。**curl 一下就知道怎么用**，不用去翻别的地方。 */
+/** Terminal-readable documentation: **one curl request explains the API**, without consulting another source. */
 export function asText(prefix: string, routes: Route[], q?: string): string {
   const hit = q
     ? routes.filter((r) => (r.path + r.does + r.group).toLowerCase().includes(q.toLowerCase()))
@@ -223,7 +224,7 @@ export function asText(prefix: string, routes: Route[], q?: string): string {
   return out.join("\n") + "\n";
 }
 
-/** 机器读的那一份。**跟上面那份是同一个来源**，不是另抄一遍。 */
+/** Machine-readable documentation from **the same source**, not a second copy. */
 export function asJson(prefix: string, routes: Route[]) {
   return {
     prefix,
@@ -251,11 +252,11 @@ export function asJson(prefix: string, routes: Route[]) {
 }
 
 /**
- * 照着声明把路由装上，顺带把 `help` 装出来。
+ * Install routes and generate `help` from their declarations.
  *
- * **handler 拿到的是已经校验、已经填好默认值的那一份** —— 它不再自己从
- * `req.query` 里取、不再自己写默认值。写在 handler 里的默认值 help 说不出来，
- * 于是客户端看到的和实际跑的就是两回事。
+ * **Handlers receive validated parameters with defaults applied.** They must not independently
+ * read `req.query` or specify defaults. Defaults hidden inside handlers cannot appear in help,
+ * which would make the documented API differ from actual behavior.
  */
 export function mount(app: FastifyInstance, prefix: string, routes: Route[]): void {
   for (const r of routes) {
@@ -265,7 +266,7 @@ export function mount(app: FastifyInstance, prefix: string, routes: Route[]): vo
         arg = take(r, req);
       } catch (e) {
         if (e instanceof Bad) {
-          // 报错里带上这个口的用法 —— 客户端不用回头去查 help 就能改对。
+          // Include endpoint usage in errors so clients can correct a request without separately consulting help.
           return reply.code(400).send({
             error: e.message,
             at: e.at,
@@ -286,9 +287,9 @@ export function mount(app: FastifyInstance, prefix: string, routes: Route[]): vo
 }
 
 /**
- * 把 `help` 装上。**全部口装完之后调一次** —— 路由是分几处装的（库那一层一处、
- * 内核那一层一处），help 却必须列全：漏掉一组的话，客户端就会以为那组不存在，
- * 然后去读表。
+ * Install `help` **once, after every endpoint is registered**. Database and kernel routes are
+ * registered separately, but help must list all of them. Omitting a group would make clients
+ * assume it does not exist and fall back to reading tables.
  */
 export function mountHelp(app: FastifyInstance, prefix: string, all: Route[]): void {
   const list = [...all].sort((a, b) => a.group.localeCompare(b.group) || a.path.localeCompare(b.path));
@@ -298,7 +299,7 @@ export function mountHelp(app: FastifyInstance, prefix: string, all: Route[]): v
     if (q.format === "json") return asJson(prefix, hit);
     return reply.type("text/plain; charset=utf-8").send(asText(prefix, list, q.q));
   };
-  // 光打前缀也给说明 —— 拿到一个地址，第一件事就是往上打一下看看这是什么。
+  // Show help at the bare prefix too: callers commonly probe a new address to learn what it provides.
   app.get(prefix, help);
   app.get(`${prefix}/help`, help);
 }

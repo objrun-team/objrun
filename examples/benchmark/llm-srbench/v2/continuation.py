@@ -126,6 +126,6 @@ def finalize(r):
     assert versions=={'v1':477,'v2':483}
     save(OUT/'combined-analysis-audit.json',{'coveragePassed':True,'mapping':960,'completedSolverRecords':958,'interrupted':2,'versions':dict(versions),'v1AuditPassed':False,'v2AuditPassed':True,'inheritedIntegrityFailure':True,'allVersionsIntegrityPassed':False})
     text=(ao/'REPORT.md').read_text()
-    text+='\n\nv1 与 v2 属于不同协议版本及不同题目队列，不能据此声称纯 v2 在240题上的结果。v1 原始费用行差异、11条设施异常、2条中断和原版审计失败保留。分版本统计见 summary.json 的 protocolVersions。\n'
+    text+='\n\nv1 and v2 use different protocol versions and task cohorts, so this does not establish a pure-v2 result on all 240 tasks. Preserve v1 original cost-row discrepancies, 11 infrastructure anomalies, 2 interruptions, and original audit failures. See protocolVersions in summary.json for version-specific statistics.\n'
     (OUT/'REPORT.md').write_text(text,encoding='utf8')
     shutil.copy2(ao/'summary.json',OUT/'summary.json');shutil.copy2(ao/'results.csv',OUT/'results.csv')

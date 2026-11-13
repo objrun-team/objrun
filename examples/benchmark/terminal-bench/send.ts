@@ -1,19 +1,19 @@
 /**
- * 把 Terminal-Bench 2.1 的题拼成一批任务发给引擎（照 deepswe/send.ts，加了 U 臂）。
+ * Assemble Terminal-Bench 2.1 tasks into a batch for the engine (based on deepswe/send.ts, with a U arm).
  *
- *   cd app && bun ../examples/benchmark/terminal-bench/send.ts [几道] [这一跑叫什么] [种子]
+ *   cd app && bun ../examples/benchmark/terminal-bench/send.ts [count] [run-name] [seed]
  *
- * 环境变量：TGENGIN_BASE、TGENGIN_TB_STAND（台子，默认 7903）、TGENGIN_TB_CHECKS（c）、
- * TGENGIN_TB_DEAD（K，maxDeadSiblings）、TGENGIN_TB_SECONDS（T 上限；默认不封，用官方 timeout）、
- * TGENGIN_TB_AT_ONCE、TGENGIN_TB_UNAIDED=1（U 臂：不挂 G，描述末尾拼同一段验收标准）、
- * TGENGIN_TB_ONLY（逗号分隔题号）、TGENGIN_SKIP_EXISTING=1（续发）。
+ * Environment variables: TGENGIN_BASE, TGENGIN_TB_STAND (service, default 7903), TGENGIN_TB_CHECKS (c),
+ * TGENGIN_TB_DEAD (K, maxDeadSiblings), TGENGIN_TB_SECONDS (T cap; uncapped by default, using the official timeout),
+ * TGENGIN_TB_AT_ONCE, TGENGIN_TB_UNAIDED=1 (U arm: no G; append the same acceptance criteria to the description),
+ * TGENGIN_TB_ONLY (comma-separated task IDs), TGENGIN_SKIP_EXISTING=1 (resume submission).
  *
- * 题面进 description；参考解、隐藏测试不出台子那个进程。
+ * The problem statement becomes description; reference solutions and hidden tests stay in the service process.
  */
 import { objectiveOf } from "./objective.ts";
 
 const BASE = process.env.TGENGIN_BASE ?? "http://127.0.0.1:7801/api";
-/** 引擎设了 api.publisherToken 时，绑判据要带这把钥匙（X-TGEngin-Publisher）。从环境变量取；没设就是空对象，老行为不变。 */
+/** When api.publisherToken is configured, attaching grading criteria requires this key (X-TGEngin-Publisher). Read it from the environment; if unset, use an empty object to preserve existing behavior. */
 const PUBLISHER: Record<string, string> = process.env.TGENGIN_PUBLISHER_TOKEN ? { "x-tgengin-publisher": process.env.TGENGIN_PUBLISHER_TOKEN } : {};
 const STAND = process.env.TGENGIN_TB_STAND ?? "http://127.0.0.1:7903";
 const GRADER_TOKEN = process.env.TGENGIN_GRADER_TOKEN ?? "";
@@ -78,7 +78,7 @@ const tasks = items.filter((it) => !skip.has(`${RUN}/${it.id}`)).map((it) => {
     source: "user",
     domain: "software",
     workdir: it.workdir,
-    // T：官方 task.toml 的 agent timeout_sec（不另编）。TGENGIN_TB_SECONDS 可封顶。
+    // T: use agent timeout_sec from official task.toml, not an invented value. TGENGIN_TB_SECONDS can cap it.
     solveSeconds: seconds,
     maxBranches: 4,
     maxDeadSiblings: DEAD,

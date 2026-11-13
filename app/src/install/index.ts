@@ -1,15 +1,16 @@
 /**
- * 装表。
+ * Install tables.
  *
- * **表是声明出来的，不是写死的。** 这个文件不认得任何一个表名、列名 ——
- * 它只干三件事：照着声明把没有的建出来；把已有的跟声明比一遍，对不上就炸；
- * 照着库里的数据把子表长出来。
+ * **Tables are declared rather than hard-coded.** This module knows no specific table or column
+ * names. It creates missing tables from declarations, checks existing tables against their
+ * declarations and fails on mismatches, then derives subtables from database content.
  *
- * 「对不上就炸」不是洁癖：声明改了而库还是老形状，系统照样跑，只是那一列
- * 永远是空的、那个查询永远查不到 —— 零报错。所以在装的这一刻就问清楚。
+ * Immediate failure is intentional: when declarations change but the database retains an old
+ * shape, the application can keep running with permanently empty columns or queries returning
+ * nothing, without errors. Check the schema during installation instead.
  *
- * 声明是 `import` 进来的，不是运行时读文件 —— 它随程序走，打包成单文件之后
- * 也在。运行时才读的是 `config.yaml`，那是配置，两回事。
+ * Declarations are imported modules bundled with the program, so they survive compilation into
+ * one executable. Only `config.yaml` is read from disk at runtime; configuration is a separate concern.
  */
 
 import type { Conn } from "../H2H/db.ts";
@@ -44,7 +45,7 @@ function ident(s: string, what: string): string {
   return s;
 }
 
-/** 一张表的建表语句。列的顺序就是声明里的顺序。 */
+/** A table creation statement, with columns in declaration order. */
 export function ddl(t: TableDecl): string {
   ident(t.name, "table name");
   if (t.columns.length === 0) throw new Error(`table ${t.name} has no columns`);
@@ -67,9 +68,9 @@ export function ddl(t: TableDecl): string {
 }
 
 /**
- * 表名里塞进去的东西不一定是合法标识符（`researcher-01` 就不是），
- * 统一换成下划线。**换完撞车了当场炸** —— 悄悄合成一张表的话，
- * 两个智能体的上下文会混在一起，而那不报错。
+ * Values embedded in table names may not be valid identifiers (`researcher-01`, for example).
+ * Normalize them with underscores. **Fail immediately on collisions**: silently sharing a table
+ * would mix two agents' contexts without reporting an error.
  */
 export function tableNameOf(pattern: string, value: string): string {
   const safe = value.replace(/[^A-Za-z0-9_]/g, "_");
@@ -77,7 +78,7 @@ export function tableNameOf(pattern: string, value: string): string {
   return ident(name, "grown table name");
 }
 
-/** 库里现在有这张表没有；有的话它是什么形状。 */
+/** Whether the table exists and, if it does, its current schema. */
 function shapeOf(db: Conn, table: string) {
   const rows = all(db, `pragma table_info("${table}")`) as {
     name: string;
@@ -87,12 +88,12 @@ function shapeOf(db: Conn, table: string) {
   return rows.length === 0 ? null : rows;
 }
 
-/** 照着库里的数据，把子表该有哪些算出来。数据是空的就一张都不长。 */
+/** Derive required subtables from database rows. Empty source data creates no subtables. */
 export function subTables(db: Conn): TableDecl[] {
   const out: TableDecl[] = [];
   const seen = new Map<string, string>();
   for (const t of decl.templates as TemplateDecl[]) {
-    if (shapeOf(db, t.source.table) === null) continue; // 源表还没建，谈不上长
+    if (shapeOf(db, t.source.table) === null) continue; // The source table does not exist yet, so no subtables can be derived.
     const rows = all(
       db,
       `select distinct "${ident(t.source.column, "column name")}" as v from "${ident(t.source.table, "table name")}"`,
@@ -114,7 +115,7 @@ export function subTables(db: Conn): TableDecl[] {
 export interface Plan {
   create: string[];
   ok: string[];
-  /** 这一趟补上去的列，`表.列`。 */
+  /** Columns added during this invocation, as `table.column`. */
   added: string[];
   drift: { table: string; why: string[] }[];
   extra: string[];
@@ -132,9 +133,10 @@ function compare(db: Conn, want: TableDecl[], plan: Plan, declared: Set<string>)
     for (const c of t.columns) {
       const hit = got.find((g) => g.name === c.name);
       if (!hit) {
-        // **少一列是能补的**，跟「原来那列变了」不是一回事：补一列不动任何已有的
-        // 数据，而改一列的类型或者约束要重建整张表，那才是在猜你想要哪种改法。
-        // 带 not null 又没有默认值的除外 —— sqlite 加不上去，已有的行填什么都是编的。
+        // **A missing column can be added**, unlike modifying an existing column. Adding a column
+        // preserves current data; changing its type or constraints requires rebuilding the table and
+        // guessing the intended migration. A NOT NULL column without a default is an exception:
+        // SQLite cannot add it without inventing values for existing rows.
         if (c.notnull) why.push(`missing column ${c.name}, and it is not null - that cannot be added to rows that already exist`);
         else plan.added.push(`${t.name}.${c.name}`);
         continue;
@@ -154,7 +156,7 @@ function compare(db: Conn, want: TableDecl[], plan: Plan, declared: Set<string>)
   }
 }
 
-/** 只看不动：声明跟库现在差在哪。 */
+/** Inspect without modifying: differences between declarations and the current database. */
 export function plan(db: Conn): Plan {
   const p: Plan = { create: [], ok: [], added: [], drift: [], extra: [] };
   const declared = new Set<string>();
@@ -170,14 +172,14 @@ export function plan(db: Conn): Plan {
 }
 
 /**
- * 把表建出来。
+ * Create tables.
  *
- * **幂等**：已经在且形状对的跳过，跑第二遍什么都不做。
- * **不改已有的表**：形状对不上就炸 —— 自动 ALTER 是在猜你想要哪种改法，
- * 猜错的代价是数据。
+ * **Idempotent**: skip existing tables with the correct shape; a second invocation does nothing.
+ * **Do not modify existing tables**: reject mismatched schemas. Automatically applying ALTER
+ * would guess the intended migration, with existing data at risk if that guess is wrong.
  *
- * 分两趟：先建固定的那些，再照着库里的数据长子表 —— 子表长成什么样，
- * 得等固定表里有行了才知道。
+ * Run in two passes: create fixed tables first, then derive subtables from database content.
+ * Their shape cannot be known until the fixed tables contain rows.
  */
 export function install(db: Conn): Plan {
   const all: TableDecl[] = [...(decl.tables as TableDecl[])];
@@ -197,8 +199,8 @@ export function install(db: Conn): Plan {
   for (const name of sub.create) db.exec(ddl(grown.find((t) => t.name === name)!));
   add(db, all, sub.added);
 
-  // 报的是**这一趟真建了什么**，不是建完之后再看一眼的样子 ——
-  // 后者永远是「一张没建，全都在」，等于什么都没说。
+  // Report **what this invocation actually created**, not the post-installation state.
+  // The latter would always say every table already exists and therefore convey nothing useful.
   const after = plan(db);
   return {
     ...after,
@@ -209,10 +211,10 @@ export function install(db: Conn): Plan {
 }
 
 /**
- * 把少掉的那几列补上去。**只加列，不动已有的数据。**
+ * Add missing columns. **Only add columns; do not change existing data.**
  *
- * 加完就是老库能接着用：原来那些行照旧，新列是空的。声明里改了某一列的类型或者
- * 约束的话走不到这儿 —— 那种在 `bail` 那儿就停了。
+ * Existing rows remain usable with empty values in the new columns. Type or constraint changes
+ * to existing columns cannot reach this code; `bail` rejects them first.
  */
 function add(db: Conn, want: TableDecl[], columns: string[]): void {
   for (const one of columns) {
@@ -226,10 +228,12 @@ function add(db: Conn, want: TableDecl[], columns: string[]): void {
 }
 
 /**
- * 形状对不上就停。**这儿拦的只剩「原来那些列变了」** —— 类型变了、约束变了、
- * 库里多出声明里没有的列。少一列那种在 `compare` 那儿已经归到「补一列」里了。
+ * Stop on incompatible schemas. **Only changes to existing columns remain here**:
+ * changed types or constraints, or extra database columns absent from the declaration.
+ * `compare` already classified missing columns as additions.
  *
- * 拦的这几种都要重建整张表，而重建就是在猜你想要哪种改法，猜错的代价是数据。
+ * The rejected changes require rebuilding the table, which would guess the intended migration
+ * and risk data loss if that guess is wrong.
  */
 function bail(p: Plan) {
   if (!p.drift.length) return;

@@ -1,77 +1,77 @@
-# 九圈六边形振幅（平面 N=4 SYM，六胶子 MHV）的 G
+# G for the nine-loop hexagon amplitude (planar N=4 SYM, six-gluon MHV)
 
-草稿，2026-09-27。**没跑过、没装过判卷台**；物理细节凭记忆写，标了「待核」的 arXiv 号和数字发前必须对原文。
-这不是一张"题库"，是一道题：把 Anthropic 2026-09-25 那次计算写成 TgEngin 的目标对象，看它和 miniF2F 差在哪。
+Draft, 2026-09-27. **Neither run nor installed as a grading service**. Physics details were written from memory; arXiv identifiers and numbers marked "to verify" must be checked against the originals before publication.
+This is one problem, not a question bank: express Anthropic's 2026-09-25 calculation as a TgEngin objective object and examine how it differs from miniF2F.
 
-| 字段 | 内容 |
+| Field | Content |
 | --- | --- |
-| **来源** | 题：Matt von Hippel 2026-08-07 公开挑战之二，"六粒子（六边形）振幅在平面 N=4 SYM 的九圈"。前纪录八圈：Dixon & Liu 2023（待核 arXiv:2308.08199，经反足自对偶间接得到）。六、七圈：Caron-Huot, Dixon, Dulat, von Hippel, McLeod, Papathanasiou 2019（待核 arXiv:1903.10890）。结果：Anthropic 研究页 [yes-claude-can-do-nine-loops](https://www.anthropic.com/research/yes-claude-can-do-nine-loops)（2026-09-25）；何颂、Jing、Li 的九圈 symbol 数据集 Zenodo 2026-09-17。**输入数据钉版**：一到八圈的振幅（Dixon–Liu 公开数据文件）、Steinmann 六边形函数空间到权 16、三点形状因子到八圈（Dixon, McLeod, Wilhelm 2022，待核 arXiv:2204.11901）。这些是题面的一部分，求解侧允许读 |
-| **cand** | 一个权 18 的六边形函数 $\mathcal{E}^{(9)}(u,v,w)$（BDS-like 归一化的 MHV 余项），交付形态是**余积坐标**：对 9 个字母 $\{u,v,w,1{-}u,1{-}v,1{-}w,y_u,y_v,y_w\}$ 各给一个 $\{17,1\}$ 余积分量，每个分量表示为权 17 基底的有理数系数向量，外加权 ≤17 的 MZV 常数项。也接受纯 symbol（权 18 张量，稀疏）作为降级候选，那时只能过前两格 |
-| **structure** | `parsed → hexagon → physical → antipodal`，根 `antipodal`。`parsed`：字母 ∈ 字母表、权 = 18、系数域 = ℚ ⊕ ℚ·MZV（权匹配）、每个余积分量维数与基底一致。`hexagon`：可积性（$d^2=0$）、首项 ∈ {u,v,w}、Steinmann（同一道的字母不相邻）、扩展 Steinmann——即"它是一个六边形函数"。`physical`：二面体对称 $S_3\times\mathbb{Z}_2$、末项 ∈ MHV 允许集、共线极限归一（$w\to0,\ u+v\to1$ 时 $\mathcal{E}\to$ 已知值）、多 Regge 欧氏区消失、2→4 MRK 与全圈 BFKL 预测一致、OPE 领头阶 $T^1$（可能再要 $T^2$）与通量管（BSV）预测一致。`antipodal`：把候选 symbol 做反足映射并按已知字母替换，结果必须满足**三点形状因子那套**约束（6 字母、首项、Steinmann、形状因子末项、形状因子 OPE 领头阶）。四格全部是线性代数 + 极限展开，**没有 LLM 判卷** |
-| **h_r** | 这里没有"官方判卷器"这个东西。每条约束的出处：可积性/首项/Steinmann 是六边形函数的定义（Dixon 等 2011–2014 系列）；MRK 全圈预测来自 Del Duca 等的 MRK 全阶结果（待核 arXiv:1912.00188）；OPE 预测来自 Basso–Sever–Vieira 通量管（待核 arXiv:1306.2058），领头阶到任意圈可算；反足对偶来自 Dixon, Gürdoğan, McLeod, Wilhelm 2021（待核 arXiv:2112.06243）。判卷台要**自己实现**这些检查，等于重建 Dixon 组的 `hexagon` 代码库的一部分。Dixon 本人核对花了两周 |
-| **boundary** | **没有标准答案可藏，也没有便宜的验证**。miniF2F 一次编译 5–60 秒；这里一次完整判卷是"把一个 300 亿项的对象做线性代数"，单位是小时到天，判卷成本与求解成本同量级。这是与 Lean 的根本差别。数据污染：Anthropic 的坐标文件、何颂组的 Zenodo symbol 都已公开，求解侧必须关 `web_search`，`noSearch` 写上 "nine-loop hexagon symbol Zenodo" 和 Anthropic 研究页。一到八圈数据**允许读**，它们是题面 |
-| **budget** | **c=3, K=4, T=7 天**。c=3 是因为一次判卷要几小时以上，且候选不是"试一下"能改的东西；K=4 同理；T 照 Anthropic 那次的实际用时（96 核约一周）。分格计费：`parsed` 秒级、`hexagon` 小时级、`physical` 中 OPE 与 MRK 是主要开销、`antipodal` 再一次全量 symbol 运算。建议 `hexagon` 用 symbol 层先判，过了才做函数层 |
-| **level** | 0：只 bit。1：哪一格断的 + 断在哪条约束（可积性 / 首项 / Steinmann / 对称 / 末项 / 共线 / MRK / OPE / 反足）。2：+ 第一个违反处的位置（张量位置、极限展开的阶、失配的系数）。3：+ 违反处的完整系数差（≤40 条）。**不给** OPE/MRK 的预测值本身：那是判卷台的私有数据，给了等于送 $T^1$ 系数 |
-| **m** | **∞**（函数）。N=(K+1)(c+1)+1=21，枚举无意义。但有一个真实先验：Dixon 组的经验是约束多到解空间只剩一维，也就是说**这道题的答案空间在约束下是一个点**——难的不是猜，是把约束算出来。这和 miniF2F 的"hammer 先验"是对偶的：那里解便宜、验便宜；这里解贵、验一样贵 |
-| **已知坑** | 见下 |
+| **Source** | Problem: the second of Matt von Hippel's public challenges on 2026-08-07, "the six-particle (hexagon) amplitude in planar N=4 SYM at nine loops." Previous record, eight loops: Dixon & Liu 2023 (arXiv:2308.08199, to verify), obtained indirectly via antipodal self-duality. Six and seven loops: Caron-Huot, Dixon, Dulat, von Hippel, McLeod, Papathanasiou 2019 (arXiv:1903.10890, to verify). Result: Anthropic research page [yes-claude-can-do-nine-loops](https://www.anthropic.com/research/yes-claude-can-do-nine-loops), 2026-09-25; nine-loop symbol dataset by Song He, Jing, and Li on Zenodo, 2026-09-17. **Pin the input data**: one- through eight-loop amplitudes (Dixon–Liu public files), the Steinmann hexagon function space through weight 16, and the three-point form factor through eight loops (Dixon, McLeod, Wilhelm 2022; arXiv:2204.11901, to verify). These are part of the problem statement and may be read by the solver. |
+| **cand** | A weight-18 hexagon function $\mathcal{E}^{(9)}(u,v,w)$ (BDS-like normalized MHV remainder), delivered as **coproduct coordinates**: one $\{17,1\}$ coproduct component for each of the nine letters $\{u,v,w,1{-}u,1{-}v,1{-}w,y_u,y_v,y_w\}$, each expressed as a rational coefficient vector in the weight-17 basis, plus MZV constant terms of weight ≤17. A pure symbol (sparse weight-18 tensor) is accepted as a reduced candidate, but can pass only the first two cells. |
+| **structure** | `parsed → hexagon → physical → antipodal`, root `antipodal`. `parsed`: letters belong to the alphabet, weight = 18, coefficient domain = ℚ ⊕ ℚ·MZV with matching weights, and each coproduct component has the basis dimension. `hexagon`: integrability ($d^2=0$), first entries in {u,v,w}, Steinmann (letters in the same channel are not adjacent), and extended Steinmann: in other words, it is a hexagon function. `physical`: dihedral symmetry $S_3\times\mathbb{Z}_2$, final entries in the MHV allowed set, collinear normalization ($\mathcal{E}$ approaches a known value as $w\to0,\ u+v\to1$), vanishing in the Euclidean multi-Regge region, agreement of 2→4 MRK with all-loop BFKL predictions, and agreement of leading-order $T^1$ OPE (possibly also $T^2$) with flux-tube (BSV) predictions. `antipodal`: apply the antipodal map and known letter substitutions to the candidate symbol; the result must satisfy **three-point form-factor** constraints (six letters, first entries, Steinmann, form-factor final entries, leading-order form-factor OPE). All four cells use linear algebra and limit expansions, **without LLM grading**. |
+| **h_r** | There is no official grader here. Constraint sources: integrability/first entries/Steinmann define hexagon functions (Dixon et al., 2011–2014 series); all-loop MRK predictions come from Del Duca et al.'s all-order MRK results (arXiv:1912.00188, to verify); OPE predictions come from the Basso–Sever–Vieira flux tube (arXiv:1306.2058, to verify), whose leading order is computable at arbitrary loop order; antipodal duality comes from Dixon, Gürdoğan, McLeod, Wilhelm 2021 (arXiv:2112.06243, to verify). The grading service must **implement these checks itself**, effectively rebuilding part of the Dixon group's `hexagon` codebase. Dixon's own verification took two weeks. |
+| **boundary** | **No reference answer to hide, and no cheap verification**. miniF2F compilation takes 5–60 seconds; a full check here performs linear algebra on a 30-billion-term object, taking hours to days. Verification and solving have comparable costs: the fundamental difference from Lean. Contamination: Anthropic's coordinate files and Song He's group's Zenodo symbols are already public. Disable solver-side `web_search`; set `noSearch` to "nine-loop hexagon symbol Zenodo" and the Anthropic research page. One- through eight-loop data **may be read** as part of the statement. |
+| **budget** | **c=3, K=4, T=7 days**. c=3 because one check takes at least hours and a candidate cannot be casually revised for another try; K=4 follows the same reasoning. T follows Anthropic's actual run, about one week on 96 cores. Account for costs per cell: `parsed` takes seconds, `hexagon` hours; OPE and MRK dominate `physical`; `antipodal` requires another full-symbol operation. Recommendation: check `hexagon` at symbol level before proceeding to function level. |
+| **level** | 0: bit only. 1: failing cell and constraint (integrability / first entry / Steinmann / symmetry / final entry / collinear / MRK / OPE / antipodal). 2: adds the first violation's location (tensor position, limit-expansion order, mismatched coefficient). 3: adds full coefficient differences at violations (≤40). **Do not provide** the OPE/MRK prediction values: they are private grader data, and revealing them gives away the $T^1$ coefficients. |
+| **m** | **∞** (functions). N=(K+1)(c+1)+1=21; enumeration is meaningless. There is a real prior, however: the Dixon group's experience is that the constraints reduce the solution space to one dimension, meaning **the answer space under the constraints is a single point**. The difficulty is calculating the constraints, not guessing. This is dual to miniF2F's "hammer prior": there, solving and checking are cheap; here both are expensive. |
+| **Known pitfalls** | See below. |
 
-## 结构说明
+## Structure
 
 ```
-parsed ──→ hexagon ──→ physical ──→ antipodal      sink = antipodal；checks = 3
+parsed ──→ hexagon ──→ physical ──→ antipodal      sink = antipodal; checks = 3
 ```
 
-- `hexagon` 是**定义层**：不过它就不是六边形函数，不用谈物理。
-- `physical` 是**理论层**：每条都有独立来源（对称性、BFKL、通量管可积性），失配意味着候选与已知物理矛盾。
-- `antipodal` 是**独立路线层**：它用的是另一套对象（形状因子）的约束，候选没法靠"拟合六边形约束"混过去。Anthropic 那次正是跑了两条路线取一致；这一格把"第二条路线"内化成判卷。
-- 根不放"与 Anthropic/何颂的答案逐项相等"。原因：那会把一次公开结果当 gold，而它本身也是 bootstrap 出来的，没有比这四格更强的地位。要对表，放在报告里作为附加对照，不进 G。
+- `hexagon` is the **definition layer**. A candidate that fails is not a hexagon function; physical properties are not yet relevant.
+- `physical` is the **theory layer**. Each constraint has an independent source (symmetry, BFKL, flux-tube integrability); a mismatch contradicts known physics.
+- `antipodal` is an **independent route**. It uses constraints on a different object, the form factor, so a candidate cannot pass merely by fitting hexagon constraints. Anthropic ran two routes and required agreement; this cell incorporates the second route into grading.
+- The root does not require term-by-term equality with Anthropic's or Song He's answer. Doing so would treat a public result as gold, even though it was itself bootstrapped and has no stronger standing than these four checks. Put such comparisons in the report as an additional control, outside G.
 
-## 约束的认识论地位（发论文前必须写清）
+## Epistemic status of the constraints (must be explicit before publishing a paper)
 
-| 约束 | 地位 | 若错会怎样 |
+| Constraint | Status | Consequence if wrong |
 | --- | --- | --- |
-| 可积性、首项、Steinmann | 六边形函数的定义 | 不会错 |
-| 扩展 Steinmann | 到七、八圈经验成立，**无证明** | 解空间可能被砍多了，真答案被排除 |
-| 二面体对称、末项 | MHV 振幅的定理级性质 | 不会错 |
-| 共线、MRK 消失 | 定理级 | 不会错 |
-| MRK 全阶预测 | 依赖 BFKL 因子化的全阶假设 | 判卷器本身错 |
-| OPE 通量管预测 | 依赖 AdS/CFT 可积性 | 判卷器本身错 |
-| 反足对偶 | 到八圈观察到，**无证明** | 根节点判 0 但候选其实对 |
-| 余作用/宇宙 Galois 原理 | 经验原理，**本 G 没用** | — |
+| Integrability, first entries, Steinmann | Definition of hexagon functions | Cannot be wrong |
+| Extended Steinmann | Empirically holds through seven/eight loops; **unproved** | May overconstrain the space and exclude the true answer |
+| Dihedral symmetry, final entries | Theorem-level properties of MHV amplitudes | Cannot be wrong |
+| Collinear, MRK vanishing | Theorem-level | Cannot be wrong |
+| All-order MRK predictions | Depend on the all-order BFKL factorization assumption | The grader itself is wrong |
+| Flux-tube OPE predictions | Depend on AdS/CFT integrability | The grader itself is wrong |
+| Antipodal duality | Observed through eight loops; **unproved** | The root returns 0 for a correct candidate |
+| Coaction / cosmic Galois principle | Empirical principle; **not used in this G** | — |
 
-结论：这个 G 的根建立在两条未证明的对偶/原理上。这不是缺陷，是这个领域现在的真实状态；Dixon 2023 的八圈本身就是靠反足自对偶得到的。但**必须写在 record 里**，不能像 Lean 那样说"内核过了就是对"。
+The root of this G rests on two unproved dualities/principles. This reflects the field's current state, rather than a defect: Dixon's 2023 eight-loop result itself used antipodal self-duality. However, this **must be recorded in the record**; passing cannot be equated with correctness as it is for the Lean kernel.
 
-## 与 miniF2F 的对照
+## Comparison with miniF2F
 
 | | miniF2F | hexagon9 |
 | --- | --- | --- |
-| 验证器 | Lean 内核，外部、完备 | 自建线性代数，内部、依赖两条猜想 |
-| 一次判卷 | 5–60 s | 小时到天 |
-| 判卷成本 / 求解成本 | ≪ 1 | ≈ 1 |
-| gold | 无，证明即答案 | 无，唯一解即答案 |
-| 便宜点 | 23% 题一条 hammer 即中 | 无；但输入数据（八圈）就占了答案的大半结构 |
-| 数据污染 | 证明公开 | 答案公开（2026-09-17 起） |
-| 题数 | 488 | **1** |
+| Verifier | Lean kernel; external, complete | Custom linear algebra; internal, depends on two conjectures |
+| One grading call | 5–60 s | Hours to days |
+| Verification cost / solving cost | ≪ 1 | ≈ 1 |
+| Gold | None; the proof is the answer | None; the unique solution is the answer |
+| Cheap solutions | One hammer solves 23% of questions | None; however, eight-loop input data already provides much of the answer's structure |
+| Contamination | Public proofs | Public answers since 2026-09-17 |
+| Number of problems | 488 | **1** |
 
-题数为 1 意味着它不是 benchmark，是**一次验收**。要变成榜，得把同一条流水线在低圈重跑：给一到 L−1 圈，让引擎求 L 圈，L=4…8 各一题，每题的判卷器都能用 Dixon 已发表的 L 圈结果做自检。这样才有 U/F 两臂和 Δ 可报。
+With one problem, this is **one acceptance test**, not a benchmark. A leaderboard would require rerunning the pipeline at lower loop orders: supply loops 1 through L−1 and ask the engine for loop L, one problem each for L=4…8. Each grader can self-test against Dixon's published L-loop result. Only then are U/F arms and Δ meaningful to report.
 
-## 已知坑
+## Known pitfalls
 
-| 坑 | 说明 |
+| Pitfall | Details |
 | --- | --- |
-| **判卷台不存在** | Dixon 组的 `hexagon` 代码不公开（部分数据文件公开）。要自己写：symbol 代数、余积、极限展开、BSV 领头阶、反足映射。工作量以周计，和写引擎补丁不是一个量级 |
-| **内存** | 权 18 的 symbol 展开有 ~3×10¹⁰ 项。不能展开，只能在余积坐标上算；每个 $\{17,1\}$ 分量要在权 17 基底上做秩计算。96 核一周是 Anthropic 的用量，Sherlock 上要 `bigmem` 分区 |
-| **3821 个未认证坐标** | Anthropic 自己承认部分坐标未经全部约束认证。说明本 G 的 `physical` 在他们那次也没有全过；根节点在真实候选上可能就是 0 或"未定"。record 里要能区分「违反」和「约束不够没测到」 |
-| **待核的引用** | 本文所有 arXiv 号是凭记忆写的，用户会核查引用，发前逐条对 |
-| **反足映射的字母表** | 六边形 9 字母 ↔ 形状因子 6 字母的对应关系我没有从原文核对，写代码前必须查 2112.06243 |
-| **Sherlock 环境** | 需要 Python 3.12 + SymPy/FLINT 或 Mathematica（Sherlock 有 `ml math mathematica`？待查）；何颂组的数据格式（Zenodo）可作 `parsed` 格式参考和自检对照 |
+| **The grading service does not exist** | The Dixon group's `hexagon` code is private, although some data files are public. Symbol algebra, coproducts, limit expansions, leading-order BSV, and the antipodal map must be implemented. This takes weeks, far beyond an engine patch. |
+| **Memory** | Expanding the weight-18 symbol yields ~3×10¹⁰ terms. Work in coproduct coordinates instead; each $\{17,1\}$ component needs a rank computation in the weight-17 basis. Anthropic used 96 cores for a week; Sherlock would require the `bigmem` partition. |
+| **3,821 uncertified coordinates** | Anthropic acknowledges that some coordinates were not certified against every constraint. Thus their run did not fully pass this G's `physical`; the root for the real candidate may be 0 or "undetermined". Records must distinguish violations from constraints that were insufficiently checked. |
+| **References to verify** | All arXiv identifiers here were written from memory. The user will check references; verify each against the original before publication. |
+| **Antipodal-map alphabet** | I have not checked the correspondence between nine hexagon letters and six form-factor letters against the paper. Read 2112.06243 before implementation. |
+| **Sherlock environment** | Requires Python 3.12 + SymPy/FLINT or Mathematica (does Sherlock provide `ml math mathematica`? To check). Song He's group's Zenodo format can guide the `parsed` contract and supply self-test comparisons. |
 
-## 未验证
+## Not yet verified
 
-全部。列一下第一步该做什么：
+Everything. Initial steps:
 
-1. 拉何颂组 Zenodo 数据集，看格式，把 `parsed` 的合同定成他们的格式或其子集。
-2. 用一到七圈公开数据自检 `hexagon`（可积性、首项、Steinmann 三条在低圈应全过）。
-3. 用八圈数据自检 `physical` 里的 MRK 和 OPE 检查——这是判卷器最容易写错的地方，低圈过不了就别往上走。
-4. 用形状因子八圈 + 振幅八圈自检 `antipodal`。
-5. 以上四步通过后，才谈 L=4…8 的阶梯榜。
+1. Fetch Song He's group's Zenodo dataset, inspect its format, and define the `parsed` contract as that format or a subset.
+2. Self-test `hexagon` on public one- through seven-loop data. Integrability, first entries, and Steinmann should all pass at lower loops.
+3. Self-test `physical` MRK and OPE checks on eight-loop data. These are the likeliest sources of grader bugs; do not proceed to higher loops until lower loops pass.
+4. Self-test `antipodal` using the eight-loop form factor and eight-loop amplitude.
+5. Only after those four steps pass, consider an L=4…8 ladder leaderboard.

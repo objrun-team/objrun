@@ -1,18 +1,20 @@
 /**
- * 发出去之前那道闸：**调用和结果配不上，就摘掉那一小段，不回退。**
+ * The final outbound gate: **remove a mismatched call/result fragment without reverting the context**.
  *
  * ```
  * bun test/integration/mend.ts
  * ```
  *
- * 撞过的那次：拼上下文的收尾里，「补齐没人答的调用」排在了压缩**后面**。补齐靠
- * `kind='tool'` 认「这个调用答过了」，而压过的那份里，收口节点的调用和结果都已经是
- * 一段文字 —— 它一个都认不出来，该补的漏掉；补齐一动手又把整份换回原文，于是原文里
- * 那个悬空的调用一路发到那一端，SDK 本地就拒：`Tool result is missing for tool call …`。
- * 八站栽在这儿，全是交卷站。
+ * In the observed failure, missing-call repair ran **after** compression. Repair
+ * recognized answers by `kind='tool'`, but closed-node calls and results had already
+ * become plain text, so it missed unanswered calls. Starting repair also replaced
+ * the compressed context with originals, sending a dangling call to the SDK, which
+ * rejected it locally: `Tool result is missing for tool call …`.
+ * Eight stations failed this way, all submission stations.
  *
- * 顺序已经改回来了（补齐在前、压缩在后）。这儿钉的是**最后那道闸**：万一以后又有谁
- * 往这条路上加东西，闸得自己拦住，而且拦住的时候要说话。
+ * The order is now repair first, compression second. This test guards **the final
+ * validation step**: future additions to the path must not bypass it, and rejecting
+ * a malformed fragment must produce a diagnostic.
  */
 
 import { mendPairs, type Pair } from "../../app/src/msg/deliver.ts";
@@ -47,7 +49,7 @@ ok("the row stays, minus that one call", kept.calls.length === 1 && kept.calls[0
 ok("the result that did come is still there", b.rows.length === 3, b.rows.map((r) => r.kind));
 
 step("3. a row that is left with nothing goes entirely");
-// 一个调用都不剩、话也没说 —— 留下的是一条空消息，而有的家直接拒收空 content。
+// No calls or text remain, leaving an empty message; some providers reject empty content.
 const c = mendPairs([said(1, "do it"), call(2, ["x"])]);
 show("what came back:", c.rows.map((r) => `${r.kind}`));
 ok("the empty assistant row is gone", c.rows.length === 1 && c.rows[0].kind === "user", c.rows);
@@ -60,15 +62,15 @@ ok("the row survives", d.rows.length === 1, d.rows.length);
 ok("with its text and no calls", left.text.includes("look at the file") && left.calls.length === 0, left);
 
 step("5. a result nobody asked for is taken out too");
-// 反过来那一句：`Messages with role 'tool' must be a response to a preceding message
-// with 'tool_calls'` —— 一样是整份拒收。
+// The reverse mismatch: `Messages with role 'tool' must be a response to a preceding message
+// with 'tool_calls'` also causes rejection of the entire request.
 const e = mendPairs([said(1, "do it"), result(2, "ghost")]);
 ok("the stray result is gone", e.rows.length === 1, e.rows.map((r) => r.kind));
 ok("and it said which one", e.dropped[0].includes("ghost"), e.dropped);
 
 step("6. the kernel's own verdict is judged by the same rule");
-// `graded` 那一对是内核事后记的（id 以 g- 开头），形状跟模型自己调的一样，
-// 所以走同一条判据 —— 另开一条的话，两边迟早会不一样。
+// A `graded` pair is recorded by the kernel after the fact (id starts with g-) but has the same shape as a model call,
+// so it uses the same validation rule. Separate rules would eventually diverge.
 const graded: Pair = {
   unit: 4, seq: 4, role: "assistant", kind: "graded",
   body: JSON.stringify({ text: "", calls: [{ id: "g-1", name: "verify", input: {} }] }),
@@ -79,9 +81,9 @@ const g = mendPairs([graded]);
 ok("a verdict with no answer is taken out", g.rows.length === 0 && g.dropped.length === 1, g);
 
 step("7. an error says what actually went wrong, not just the wrapper");
-// 撞过的那次：AI SDK 收到 200，把返回体映射成自己的结构那一步失败，包一句
-// `Failed to process successful response` —— 真正的原因挂在 `cause` 上，而日志
-// 只打了外面那句，于是十几条错误长得一模一样，查不下去。
+// Observed failure: the AI SDK received HTTP 200 but failed while mapping the response into its own structures.
+// It wrapped the error as `Failed to process successful response`, with the actual cause stored in `cause`.
+// Logging only the wrapper made more than ten failures indistinguishable and impossible to diagnose.
 const inner = new Error("Unexpected end of JSON input");
 const outer = Object.assign(new Error("Failed to process successful response"), {
   cause: inner,

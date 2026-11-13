@@ -386,29 +386,29 @@ def save_report(report: dict, output: Path):
 
 def write_markdown(report: dict, output: Path):
     volume = report["volumeMetadata"]
-    lines = ["# SkillsBench 官方预检与镜像清单", "", "日期：2026-10-08。检查已有题库与镜像；未调用 LLM，未拉取或构建镜像。", "",
-             f"完整分母 **{report['denominator']}**；精确任务环境缓存 **{report['cachedTaskCount']}**；empty/oracle 对照通过、可启动新 LLM 实验的任务 **{len(report['readyTaskIds'])}**。", "",
-             "当前每题均缺少绑定真实环境指纹的完整任务镜像，所以官方空候选和参考解没有实际执行。这里的 blocked 表示环境尚不可启动，不能作为模型失败或 oracle 失败。", "",
-             f"题库记录的 commit 为 `{report['source'].get('commit')}`，与固定 v1.1 commit 匹配；每个 task.md、environment、oracle/solve.sh 和 verifier 的 SHA256 已保存到 JSON。", "",
-             f"当前 Docker 有 {report['docker']['uniqueImageCount']} 个 image ID、{report['docker']['tagCount']} 个 tag，其中没有任何一个匹配87题的完整环境。", "",
-             "## 缺项体积：仅记录可知元数据", "",
-             f"87题已有构建输入合计 **{volume['existingBuildContextBytes'] / 1024 ** 2:.1f} MiB**，已经位于本地，无需再次下载。这是 context 文件大小，不能等同于完整镜像或新增层大小。", "",
-             f"{volume['tasksWithAtLeastOneCachedExternalBase']}题至少有一个 FROM 基底已缓存。已知、去重的基底镜像 Size 合计 **{volume['knownCachedBaseImageBytes'] / 1024 ** 2:.1f} MiB**，这些同样已经占用磁盘。基底不能替代包含题目输入和依赖的最终任务镜像。", "",
-             f"缺少最终任务镜像：**{volume['missingTaskImageCount']}**。缺少或无法确认的外部 FROM 引用共 **{len(volume['uncachedExternalBaseReferences'])}** 个：", "",
+    lines = ["# SkillsBench official preflight and image inventory", "", "Date: 2026-10-08. Existing task bank and images inspected; no LLM calls, image pulls, or builds.", "",
+             f"Full denominator **{report['denominator']}**; exact task environments cached **{report['cachedTaskCount']}**; tasks passing empty/oracle controls and ready for a new LLM experiment **{len(report['readyTaskIds'])}**.", "",
+             "Every task currently lacks a complete task image bound to an actual environment fingerprint, so official empty candidates and reference solutions were not actually executed. Here blocked means the environment cannot yet start, not model failure or oracle failure.", "",
+             f"Recorded task-bank commit `{report['source'].get('commit')}` matches the pinned v1.1 commit; SHA256 for each task.md, environment, oracle/solve.sh, and verifier is saved in JSON.", "",
+             f"Docker currently has {report['docker']['uniqueImageCount']} image IDs and {report['docker']['tagCount']} tags; none matches a complete environment for any of the 87 tasks.", "",
+             "## Missing volume: known metadata only", "",
+             f"Existing build inputs for 87 tasks total **{volume['existingBuildContextBytes'] / 1024 ** 2:.1f} MiB** and are already local, requiring no new download. This is context-file size, not complete image size or additional layer size.", "",
+             f"{volume['tasksWithAtLeastOneCachedExternalBase']} tasks have at least one FROM base cached. Known deduplicated base-image Size totals **{volume['knownCachedBaseImageBytes'] / 1024 ** 2:.1f} MiB**, also already on disk. Bases cannot replace final task images containing task inputs and dependencies.", "",
+             f"Missing final task images: **{volume['missingTaskImageCount']}**. Missing or unconfirmed external FROM references: **{len(volume['uncachedExternalBaseReferences'])}**:", "",
              ", ".join(f"`{ref}`" for ref in volume["uncachedExternalBaseReferences"]), "",
-             "apt/pip/npm/模型下载会产生多少新增层没有已知可靠元数据，因此最终镜像下载/构建体积为**未知**，不能按其他基准的平均镜像大小凑出估算。F盘当前约2.3 GiB可用，这不是全量构建87题环境的可行性证明。", "",
-             "## 恢复与资源边界", "",
-             "原 Apptainer SKIP11 在 Docker 中尚无官方对照通过证据；本次没有删除或覆盖这些旧失败理由。下表保留87题，未执行的 empty/oracle 不计0。", "",
-             "预检脚本只消费已有精确镜像，禁止 pull/build；同一时刻最多一个自己创建的任务/评分容器。官方 CPU、内存和阶段时限不放宽；默认只准入 ≤2 GiB、≤2 CPU 的任务。对超过上限的题记录资源阻塞，不降低限额后伪报 oracle 失败。", "",
-             "运行时 CLI 输出限制为每流1 MiB，容器不使用额外 swap，监视可写层512 MiB与宿主剩余空间2 GiB；整体预检默认1800秒。到达运行边界记录操作性阻塞，保留分母和已完成结果。候选先拍快照并移除，再启动独立评分实例。", "",
-             "复现命令（仓库根目录）：", "", "```powershell", "python TgEngin/scripts/benchmark-repair/software-preflight.py --inventory-only", "python TgEngin/scripts/benchmark-repair/software-preflight.py --max-tasks 3", "```", "",
-             "若缓存与资源已补齐，第二条命令优先检查旧SKIP的低预算任务；每题必须 empty<1、oracle=1 且评分有效、参考解执行成功，才进入 readyTaskIds。此前必须先获得实际任务环境，不能用 `python:...` 基底替代。", "",
-             "## 完整87题清单", "", "| 任务ID | 原Apptainer跳过 | CPU / MiB | 求解 / 评分秒 | 本地context MiB | 完整镜像 | empty / oracle | 状态 |", "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+             "No reliable metadata establishes how much new layer data apt/pip/npm/model downloads will produce, so final image download/build volume is **unknown**; it cannot be estimated by borrowing average image sizes from other benchmarks. Drive F currently has about 2.3 GiB free, which does not establish feasibility of building all 87 environments.", "",
+             "## Recovery and resource boundaries", "",
+             "Original Apptainer SKIP11 tasks still lack evidence of passing official controls in Docker; this review neither deletes nor overwrites those old failure reasons. The table retains all 87 tasks; unexecuted empty/oracle controls are not scored 0.", "",
+             "The preflight script uses only existing exact images and prohibits pull/build; at most one task/grading container created by it exists at a time. Official CPU, memory, and phase time limits are not relaxed; default admission is limited to tasks requiring ≤2 GiB and ≤2 CPUs. Tasks over the limits are recorded as resource-blocked; do not lower limits and falsely report oracle failures.", "",
+             "Runtime CLI output is limited to 1 MiB per stream; containers use no additional swap, with a 512 MiB writable-layer limit and 2 GiB host-free-space threshold monitored. Overall preflight defaults to 1800 seconds. Reaching an operational boundary is recorded as an operational block, preserving the denominator and completed results. Snapshot and remove the candidate before starting an independent grading instance.", "",
+             "Reproduction commands (repository root):", "", "```powershell", "python TgEngin/scripts/benchmark-repair/software-preflight.py --inventory-only", "python TgEngin/scripts/benchmark-repair/software-preflight.py --max-tasks 3", "```", "",
+             "Once caches and resources are available, the second command prioritizes low-budget old SKIP tasks. A task enters readyTaskIds only if empty<1, oracle=1, grading is valid, and reference-solution execution succeeds. First obtain the actual task environment; a `python:...` base is not a substitute.", "",
+             "## Complete 87-task inventory", "", "| Task ID | Original Apptainer skip | CPU / MiB | Solve / grade seconds | Local context MiB | Complete image | empty / oracle | State |", "| --- | --- | --- | --- | --- | --- | --- | --- |"]
     for row in report["tasks"]:
         budget, pf = row["officialBudget"], row["preflight"]
         def reward(result):
-            return str(result.get("reward")) if result else "未执行"
-        lines.append(f"| {row['taskId']} | {'是' if row['legacyApptainerSkip'] else '否'} | {budget['cpus']} / {budget['memoryMB']} | {budget['agentSeconds']} / {budget['verifierSeconds']} | {row['environment']['buildContextBytes'] / 1024 ** 2:.2f} | {'缓存' if row['image']['cached'] else '缺失'} | {reward(pf['empty'])} / {reward(pf['oracle'])} | {pf['status']} |")
+            return str(result.get("reward")) if result else "not executed"
+        lines.append(f"| {row['taskId']} | {'yes' if row['legacyApptainerSkip'] else 'no'} | {budget['cpus']} / {budget['memoryMB']} | {budget['agentSeconds']} / {budget['verifierSeconds']} | {row['environment']['buildContextBytes'] / 1024 ** 2:.2f} | {'cached' if row['image']['cached'] else 'missing'} | {reward(pf['empty'])} / {reward(pf['oracle'])} | {pf['status']} |")
     output.with_suffix(".md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 

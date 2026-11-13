@@ -1,24 +1,21 @@
 /**
- * 把这个目录底下的 skill 注册进引擎。
+ * Register the skills in this directory with the engine.
  *
  * ```
  * bun examples/benchmark/cmt/parmeras/load.ts [--dry]
  * ```
  *
- * 一个 `.md` = frontmatter（`name` / `description`）+ 正文。这边一行 `skills[]`
- * 要的正好是这三样：
+ * Each `.md` contains frontmatter (`name`/`description`) plus a body, exactly the three values needed by a `skills[]` row:
  *
- * | `.md` | → | `skills[]` |
+ * | `.md` | -> | `skills[]` |
  * | --- | --- | --- |
  * | `name` | | `identity` |
  * | `description` | | `does` |
- * | frontmatter 之后那一整段 | | `body` |
+ * | All text after frontmatter | | `body` |
  *
- * ## `when` 是这儿定的，不是搬来的
+ * ## Define `when` here rather than copying it
  *
- * 老系统的触发维度叫 `constants`，这边是 `agent/task/cycle/chain/moment/place`，
- * **没有 constants 这一维**。所以门得重新写，而且写死在 `GATE` 里 ——
- * 挑出来的东西就把门也说清楚，不靠名字前缀去猜。
+ * The old system used a `constants` trigger dimension. This system has `agent/task/cycle/chain/moment/place`, **with no constants dimension**. Rewrite the gates explicitly in `GATE`; each selected skill declares its applicability rather than relying on name-prefix inference.
  */
 
 const BASE = process.env.TGENGIN_BASE ?? "http://127.0.0.1:7801/api";
@@ -28,74 +25,66 @@ const HERE = new URL(".", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$
 type Term = { dim: string; key: string; op: string; value: string };
 
 /**
- * 每个搬过来的 skill 适用于什么处境。**没写在这儿的不注册。**
+ * Applicability of each migrated skill. **Do not register anything absent from this mapping.**
  *
- * ## `trigger` 是一张关键词匹配表
+ * ## `trigger` is a keyword-matching table
  *
- * 一个 `value` 一个关键词（带空格会被 `check` 拦下来：「拆成同一组的两条，别让系统
- * 猜」）。三层结构齐了：
+ * Each `value` contains one keyword. `check` rejects spaces and asks for two rows in the same group rather than making the system guess. The three levels are:
  *
  * ```
- *   组          之间 or            trigger.group
- *   组内一条条  之间 and           同组多行
- *   一条内的同义词  or             op: "in"，value 是一份 JSON 列表
+ *   Groups                    OR     trigger.group
+ *   Rows within a group       AND    multiple rows sharing a group
+ *   Synonyms within one row   OR     op: "in", with a JSON list as value
  * ```
  *
- * 老仓库那个 `constants: [[["coding"], ["fits","card"]]]` 一比一就是这个形状，
- * 什么都不缺 —— 所以搬过来不用加维、不用加列。
+ * The old `constants: [[["coding"], ["fits","card"]]]` maps exactly to this structure, with no missing information and no new dimensions or columns required.
  *
- * ## 关键词从扩展自己身上来
+ * ## Keywords come from the extension itself
  *
- * 这是关键的一条。同样是 `description contains "symmetry"`，**词是哪儿来的**决定了
- * 它是正经匹配还是按样本拟合：
+ * For the same `description contains "symmetry"` rule, **keyword provenance** distinguishes legitimate matching from fitting the sample:
  *
- * | 词的来源 | |
+ * | Keyword source | Assessment |
  * | --- | --- |
- * | 扩展自己声明的（名字 / 描述 / 正文里的标记） | ✔ 它在说「我是干这个的」，跟数据集里命中几道无关 |
- * | 我翻了 50 道题挑出来的 | ✘ 拿样本挑样本，给一部分题开小灶，分数虚高还查不出来 |
+ * | The extension's declared name, description, or body markers | Valid: describes its purpose independently of how many dataset questions match |
+ * | Keywords chosen after inspecting the 50 questions | Invalid: selecting samples from the samples gives some questions special treatment and silently inflates scores |
  *
- * 下面这个 skill 自己声明得很清楚：名字 `cmt-pre-symmetry-projection`、描述
- * 「对称性投影（CMT）」、正文头一行 `=== 边际处境标记 + 通用方法(symmetry_projection)===`。
- * 关键词就取自这儿。
+ * This skill declares its purpose in its name `cmt-pre-symmetry-projection`, its description (symmetry projection for CMT), and the opening body marker (boundary-context marker + general method, `symmetry_projection`). Those declarations supply the keywords.
  *
- * 还试过几种错的，记着免得再犯：`task.run`（绑在某一次考试上，换一跑就没了）、
- * `agent.name` 单独一条（焊死在一台机器上）、`domain = "physics.cmt.hf"`
- * （把层级塞进一个串里 —— 维已经分好了，不该在值里再分一遍）。
+ * Previous incorrect approaches are recorded to avoid repetition: `task.run` ties the rule to one run; `agent.name` alone binds it to one machine; `domain = "physics.cmt.hf"` packs a hierarchy into one string even though the dimensions are already separate.
  */
 const GATE: Record<string, { why: string; when: Term[][] }> = {
   /**
-   * 它自己声明的处境，逐段翻成条件：
+   * Translate the skill's declared applicability into conditions:
    *
-   * | 它说自己是什么 | 翻成 |
+   * | Self-description | Condition |
    * | --- | --- |
-   * | 描述里的「（CMT）」 | `task.domain = physics` |
-   * | 名字里的 `-pre-`（边际处境标记，开工时投） | `cycle.cycle = ask`｜`moment = unit_start` |
-   * | 名字/正文里的 `symmetry_projection` | `task.description` 上两条关键词，同组 and |
-   * | 「只投方法不投答案」 = 给模型开口那一站用 | `task.mode = solve`（有 ask/act 两站的那种机制） |
+   * | CMT in its description | `task.domain = physics` |
+   * | `-pre-` in its name (a boundary-context marker injected at startup) | `cycle.cycle = ask` / `moment = unit_start` |
+   * | `symmetry_projection` in its name/body | Two keywords on `task.description`, AND within one group |
+   * | Method only, not the answer; intended for the model-speaking station | `task.mode = solve`, with ask/act stations |
    */
   "cmt-pre-symmetry-projection": {
     why: "Injected at the asking station of the solving mechanism, on physics problems involving symmetry. The keywords come from its own name and the marker in its body",
     when: [
       [
-        // 面对什么问题
+        // Problem category.
         { dim: "task", key: "domain", op: "eq", value: "physics" },
         { dim: "task", key: "description", op: "contains", value: "symmetry" },
-        // 在做什么事
+        // Activity.
         { dim: "task", key: "mode", op: "eq", value: "solve" },
         { dim: "task", key: "source", op: "in", value: '["user","eacn"]' },
-        // 什么时候
+        // Timing.
         //
-        // **不能写 `moment`。** skill 是在 `#advance` 里 fire 的，那份 facts 不带
-        // moment（只有规则走的 `#atMoment` 才设），写了就永远不中 —— 而且不报错。
+        // **Do not set `moment`.** Skills fire in `#advance`, whose facts do not contain moment. Only rules handled by `#atMoment` set it. A moment condition would silently never match.
         { dim: "cycle", key: "cycle", op: "eq", value: "ask" },
-        // 在哪儿
+        // Execution place.
         { dim: "place", key: "", op: "eq", value: "local" },
       ],
     ],
   },
 };
 
-/** 抠 frontmatter。要读的就两样，`description` 会折行，续行以空格开头。 */
+/** Extract frontmatter. Only two fields are needed; `description` may wrap onto indented continuation lines. */
 function front(text: string): { name?: string; does?: string; body: string } {
   if (!text.startsWith("---")) return { body: text };
   const end = text.indexOf("\n---", 3);

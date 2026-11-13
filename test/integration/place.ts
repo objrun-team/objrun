@@ -1,35 +1,37 @@
 /**
- * 例子：**加一个干活的地方**。
+ * Example: **add a place to execute work**.
  *
  * ```
  * bun test/integration/place.ts
  * ```
  *
- * 「在哪儿干」是一条**带层级的地址串**，一层套一层：
+ * A workplace is a **hierarchical address**, with nested layers:
  *
  * ```
- *   local                        本机，同进程直接调
- *   wsl                          默认发行版
- *   wsl:Ubuntu-24.04             指定发行版
+ *   local                        local machine, direct in-process calls
+ *   wsl                          default distribution
+ *   wsl:Ubuntu-24.04             specified distribution
  *   ssh://box-7
- *   wsl/docker:build-01          WSL 里的容器
+ *   wsl/docker:build-01          container inside WSL
  *   ssh://box-7/docker:build-01
  * ```
  *
- * 调工具本质上是**转发给那个位置上的运行时**：建立连接的时候把运行时送过去、
- * 起起来，之后每次调用发一行 JSON 过去、收一行回来。
+ * Tool execution **forwards calls to the runtime at that location**. Connection
+ * setup transfers and starts the runtime; each subsequent call sends one JSON
+ * line and receives one JSON line.
  *
- * **「怎么到那个位置」是一条句柄**（`workplace.identity`），跟工具、跟 G 的节点、
- * 跟推断函数一样。内置那条是 `fn:place.hops`（`wsl` / `ssh` / `docker` 那套
- * 命令前缀）；换成一条 `http://` 的，那台机器怎么进就由那个进程说了算 ——
- * 内核不用认得任何一种容器。
+ * **How to reach the location is itself a handle** (`workplace.identity`), just
+ * like tools, G nodes, and inference functions. The built-in `fn:place.hops`
+ * constructs `wsl` / `ssh` / `docker` command prefixes. An `http://` handle instead
+ * lets another process define access; the kernel need not understand containers.
  *
- * ## 两条容易踩的
+ * ## Two common pitfalls
  *
- * 1. **`usable` 是登记，不是探活。** 远端断没断是活状态 —— 每次现探，不写回库。
- *    写回去的话，崩了重启读到的那一列就是过期的谎话
- * 2. **开了转发但白名单是空的** —— 合法，但一个工具都不会转过去。一定不是本意，
- *    所以在声明这一关就说出来
+ * 1. **`usable` is registration state, not a health probe.** Remote connectivity
+ *    is live state, checked afresh and never stored. Persisting it would leave
+ *    stale claims in the database after a restart.
+ * 2. **Forwarding enabled with an empty allowlist** is valid but forwards no tool.
+ *    This is almost certainly unintended and is reported during declaration.
  */
 
 import { done, machine, ok, outside, part, show, step, until } from "../_lib.ts";
@@ -38,13 +40,13 @@ const m = await machine();
 const out = await outside({
   "/unit": (u) => ({ role: "assistant", kind: "prompt", body: `I am working on ${u.place}` }),
   "/infer": () => null,
-  // **一条自己写的转发器。** 它认得的地址写法内核一个字都不认识，命令怎么拼、
-  // 送不送东西过去，全在这个进程里 —— 内核只知道一个名字。
+  // **A custom forwarder.** The kernel does not understand its address syntax; this process decides
+  // how to construct commands and whether to transfer files. The kernel knows only a handle name.
   "/forwarder": (a) => (a.op === "ping" ? { alive: true } : { ran: a.tool, on: a.place }),
 });
 
 try {
-  // ═══════════════ 第一部分：注册 ═══════════════
+  // =============== Part 1: registration ===============
   part("Part one: registration");
 
   step("1. forwarding is on, but the place string uses a form nothing recognises");
@@ -160,7 +162,7 @@ try {
         runtime: "/tmp/tgengin-runtime",
         forward: true,
         tools: [{ tool: "bash", policy: "always" }, { tool: "read", policy: "agent" }],
-        // 登记着，但标成不可用 —— 这是**登记**，不是探活的结果
+        // Registered but marked unusable: this is **registration state**, not a health-check result.
         usable: false,
       },
     ],
@@ -175,7 +177,7 @@ try {
   const ssh = places.find((p) => String(p.place).startsWith("ssh://")) as { tools: unknown[]; identity: string };
   ok("the allow-list was kept, and so was the name of who carries the calls there", ssh.tools.length === 2 && ssh.identity === "fn:place.hops", places);
 
-  // ═══════════════ 第二部分：使用层次的校验 ═══════════════
+  // =============== Part 2: actual-use validation ===============
   part("Part two: checks at the level of use");
   console.log("  Registered is not the same as reachable. usable is a registration; reachability has to be probed on the spot.");
 

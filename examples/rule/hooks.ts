@@ -1,13 +1,12 @@
 /**
- * 两条规则，一个文件。**挂在时刻上就是钩子。**
+ * Two rules in one file. **Attaching a rule to a moment makes it a hook.**
  *
- * | 导出 | 挂哪一刻 | 干什么 |
+ * | Export | Moment | Action |
  * | --- | --- | --- |
- * | `audit` | `pre_send` | 出站前记一笔：这一站要往哪条轨上发 |
- * | `archive` | `task_done` | 任务收尾时往 `done.log` 里追一行 |
+ * | `audit` | `pre_send` | Record which rail this execution unit will send to |
+ * | `archive` | `task_done` | Append a line to `done.log` when the task finishes |
  *
- * 两条句柄落在同一个文件上 = 同一个 worker、同一份模块状态，所以 `audit` 数的那个
- * 计数 `archive` 看得见 —— 归档那一行里的「审了几次」就是这么来的。
+ * Both handles reference the same file, so they share a Worker and module state. `archive` can read the count maintained by `audit`, providing the audit count in the archived line.
  */
 
 import { appendFile } from "node:fs/promises";
@@ -15,7 +14,7 @@ import { join } from "node:path";
 
 const LOG = process.env.TGENGIN_RULE_LOG ?? join(process.cwd(), "examples", "rule", "done.log");
 
-/** 这一趟审了几次。活在这个 worker 的内存里，不落库。 */
+/** Audit count for this run. Stored in this Worker’s memory, not in the database. */
 let audited = 0;
 
 interface At {

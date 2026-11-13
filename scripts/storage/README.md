@@ -1,44 +1,44 @@
-# 实验记录与本地归档工具
+# Experiment records and local archive tools
 
-当前代码仓库只保存 `experiments/records/` 的索引、摘要与校验清单。完整正文和详细映射已移出并清理 Git 历史，完整候选集现已上传至私有 HF Dataset [imontlaji/objrun-records](https://huggingface.co/datasets/imontlaji/objrun-records)，供后续筛选和修改。地址及固定版本见 `experiments/records/external-storage.json`。`records.py runs` 可直接读取仓库内索引；读取、提取和核验正文必须用 `--root` 或 `OBJRUN_RECORDS_ROOT` 指向完整外置记录目录。下载与读取用法见 [记录说明](../../experiments/records/README.md)。不需要恢复此前的 Restic 原档才能读取这份完整导出。
+The code repository retains only the indexes, summaries, and verification manifests under `experiments/records/`. Complete content and detailed mappings were moved out and removed from Git history. The complete candidate collection is now uploaded to the private HF Dataset [imontlaji/objrun-records](https://huggingface.co/datasets/imontlaji/objrun-records) for subsequent selection and editing. See `experiments/records/external-storage.json` for its address and pinned revision. `records.py runs` reads the repository index directly. Reading, extracting, and verifying content requires `--root` or `OBJRUN_RECORDS_ROOT` to point to a complete external record directory. See the [record guide](../../experiments/records/README.md) for download and reading instructions. Restoring the earlier Restic originals is not required to read this complete export.
 
-`curate_records.py --root INPUT --output NEW_DIRECTORY --workspace WORKSPACE` 从已验证导出中生成本轮确认的选择集：保留真实记录，解码已确认的模型响应，归档冻结源码副本及合成批量夹具，保留自测摘要、生成器和独有诊断。输入只读，输出必须为新目录；逐文件决定写入 manifests/selection-decisions-*，不删除未选中的原件。该选择规则对应本轮人工确认范围，不应直接用于未知的新来源。
+`curate_records.py --root INPUT --output NEW_DIRECTORY --workspace WORKSPACE` creates the selection confirmed for this round from a verified export: it retains real records, decodes confirmed model responses, archives frozen source copies and synthetic batch fixtures, and retains self-test summaries, generators, and unique diagnostics. Input is read-only and output must be a new directory. Per-file decisions are written to manifests/selection-decisions-*; unselected originals are not deleted. These selection rules match the scope confirmed by a person for this round and should not be applied directly to unknown new sources.
 
-`export_records.py` 支持 `--work`、`--output`、`--only` 和 `--benches`，新导出使用独立工作目录；`--compression-level` 调节压缩级别。压缩包内的 SQLite 与 WAL 先按成员路径配对，再从一致性副本导出，WAL 在 TAR/ZIP 中出现的先后顺序不影响处理。未配对侧文件或无法核验的数据库必须登记，不能冒充完整记录。
+`export_records.py` supports `--work`, `--output`, `--only`, and `--benches`. New exports use separate working directories; `--compression-level` controls compression. SQLite databases and WAL files inside archives are first paired by member path, then exported from consistent copies. Their order within a TAR/ZIP does not affect processing. Unpaired sidecar files and unverifiable databases must be registered and cannot be presented as complete records.
 
-`append_records.py --base EXISTING_RECORDS --supplement VERIFIED_EXPORT --output NEW_DIRECTORY --label UNIQUE_LABEL --partial workspace-tmp` 按哈希复用已有片段，原压缩分片保持不变，新增片段进入带标签的新分片。输出必须为新目录；新来源存在待核验条目时停止。`--partial` 标明仅选取了部分 Bench 的来源，不能视作整批完成。
+`append_records.py --base EXISTING_RECORDS --supplement VERIFIED_EXPORT --output NEW_DIRECTORY --label UNIQUE_LABEL --partial workspace-tmp` reuses existing fragments by hash. Original compressed shards remain unchanged; new fragments enter newly labeled shards. Output must be a new directory. Processing stops if a new source contains entries awaiting verification. `--partial` indicates that only sources for selected benchmarks are included, not that the entire batch is complete.
 
-`records.py read --collection COLLECTION --path outer.zip --member inner.tar.gz --member run.sqlite --table events` 可读取嵌套压缩包内的表。`verify` 同时核对这些嵌套数据库的行数。回归检查运行 `python -B scripts/storage/test_records_export.py`，使用临时合成小样本核验真实 WAL 依赖、嵌套读取、脱敏和增量去重，不访问原档或网络。
+`records.py read --collection COLLECTION --path outer.zip --member inner.tar.gz --member run.sqlite --table events` reads tables inside nested archives. `verify` also checks row counts in these nested databases. Run regression checks with `python -B scripts/storage/test_records_export.py`. They use small temporary synthetic samples to verify real WAL dependencies, nested reads, redaction, and incremental deduplication without accessing original archives or the network.
 
-剩余来源的增量整理使用下列工具；每次输出均使用新目录，原档只读：
+Use the following tools for incremental curation of remaining sources. Each output uses a new directory; original archives are read-only:
 
-- `recover_tar_records.py` 恢复损坏 TAR 中实际可读的成员。截断正文保留可用字节和声明长度，不能把恢复部分内容说成完整原件。
-- `repair_database_pairs.py` 根据已核对的原始封存清单配对改名后的 SQLite/WAL；先核对原始内容哈希，再导出一致性副本并登记配对依据。普通 `.sqlite-wal.snapshot` 命名由导出器直接识别。
-- `curate_embedded_payloads.py` 识别 JSON 中 Base64 编码的资源本体，保留大小、哈希和路径；文本工具证据不截断，嵌入文本中的凭证同样脱敏。转换清单明确区分原件哈希与导出哈希。
-- `redact_record_findings.py` 根据核验产生的对象哈希修正上传副本，报告不写匹配值；随后必须再次运行筛选打包与完整核验，确保旧分片中的未脱敏字节也不进入提交。
-- `resume_export.py` 在清单写入失败后按原始内容哈希复用已导出记录，再顺序读取原档补齐缺项。缓存输出只是中间目录，可能包含未引用片段，必须经过增量合并与筛选后才能发布。
-- `prepare_incremental.py` 比较来源路径和哈希，将新增及修复条目编入独立来源清单。`--resource-hashes` 接受经过内容核查的排除证据。此工具会登记未读条目，登记本身不代表已充分检索或恢复；应先完成内容检查。
-- `append_records.py` 合并准备清单及其 `entry_overrides`。旧路径可通过 `records.py` 定位到已修复条目，旧分片仍保留。
-- `finalize_incremental.py` 依据带证据的 JSON 路径规则排除资源，只重新打包尚未发布的片段；`--base` 指定的已发布分片字节不变。它会重建运行索引并登记排除项。
-- `verify_incremental.py` 复用基线分片证明，对新分片完整解压、核验哈希及重组，检查数据库行数并扫描新增正文、跨片边界和解码后的元数据。读取范围限制在候选记录目录内。
-- `verify_samples.py` 按选择清单恢复真实运行的数据库输入、输出、工具记录、状态以及独立请求/响应/结果；禁止读取记录目录以外的原档。样例成功只证明该样例，不证明所有运行完整。
-- `coverage_records.py` 从当前有效索引生成逐 Bench 覆盖表，分别统计外层文件、嵌套记录引用、数据库状态和来源运行范围；这些数字不能作为独立实验次数。
-- `shard_object_index.py --root RECORDS` 在最终验收前将对象索引拆成不超过 25 MiB 的独立 gzip 分片，逐片登记哈希并检查映射往返一致。`records.py` 同时兼容旧单文件索引和新 `manifests/object-index.json`；正文分片不变。
-- `compact_record_reports.py --root RECORDS` 将较大的逐项资源排除清单转为带哈希的压缩分片，摘要仍可直接阅读，排除项不会因报告压缩而丢失。
+- `recover_tar_records.py` recovers readable members from damaged TAR files. Truncated content retains its available bytes and declared length; partial recovery must not be described as a complete original.
+- `repair_database_pairs.py` pairs renamed SQLite/WAL files using verified original sealing manifests. It checks original content hashes before exporting consistent copies and records the basis for each pairing. The exporter recognizes ordinary `.sqlite-wal.snapshot` names directly.
+- `curate_embedded_payloads.py` identifies Base64-encoded resource bodies in JSON and retains their sizes, hashes, and paths. Textual tool evidence is not truncated; credentials embedded in text are also redacted. Conversion manifests explicitly distinguish original and export hashes.
+- `redact_record_findings.py` corrects upload copies using object hashes identified by verification. Reports do not include matched values. Selection, packaging, and full verification must then be rerun to ensure that unredacted bytes in old shards cannot enter the commit either.
+- `resume_export.py` reuses exported records by original content hash after a manifest write failure, then reads originals sequentially to fill gaps. Cached output is an intermediate directory that may contain unreferenced fragments; incremental merging and selection are required before publication.
+- `prepare_incremental.py` compares source paths and hashes and places new or repaired entries in a separate source manifest. `--resource-hashes` accepts exclusion evidence verified against content. The tool registers unread entries, but registration alone does not establish a sufficient search or recovery; inspect the content first.
+- `append_records.py` merges preparation manifests and their `entry_overrides`. Old paths resolve to repaired entries through `records.py`; old shards remain retained.
+- `finalize_incremental.py` excludes resources using evidence-backed JSON path rules and repacks only unpublished fragments. Published shards selected by `--base` retain their bytes. The tool rebuilds run indexes and records exclusions.
+- `verify_incremental.py` reuses baseline shard evidence, fully decompresses new shards, verifies hashes and reconstruction, checks database row counts, and scans new content, shard boundaries, and decoded metadata. Reads are restricted to the candidate record directory.
+- `verify_samples.py` reconstructs real-run database inputs, outputs, tool records, states, and independent requests/responses/results using the selection manifest. Reading originals outside the record directory is prohibited. A successful sample proves only that sample, not completeness of all runs.
+- `coverage_records.py` generates per-benchmark coverage tables from the current valid indexes, counting outer files, nested record references, database states, and source run scopes separately. These counts cannot be treated as numbers of independent experiments.
+- `shard_object_index.py --root RECORDS` splits the object index into independent gzip shards of at most 25 MiB before final acceptance, records each hash, and checks mapping round trips. `records.py` supports both the old single-file index and the new `manifests/object-index.json`; content shards remain unchanged.
+- `compact_record_reports.py --root RECORDS` converts large item-level resource-exclusion lists into hashed compressed shards. Summaries remain directly readable, and report compression does not discard exclusions.
 
-`catalog.json` 的 `entry_overrides` 保存旧来源路径到修复条目的映射。`source_sha256` 始终描述原件，导出内容哈希描述转换后的记录。资源排除、凭证脱敏、归档展开、数据库导出和原始截断分别记录。
+`catalog.json` stores mappings from old source paths to repaired entries in `entry_overrides`. `source_sha256` always describes the original; the exported-content hash describes the transformed record. Resource exclusions, credential redaction, archive expansion, database export, and original truncation are recorded separately.
 
-下面的 Restic 工具仅维护本地核对原件及历史完整环境恢复；本轮保留原档，不将其作为发布资产。
+The Restic tools below maintain local originals for verification and recovery of complete historical environments only. The originals are retained in this round and are not publication assets.
 
-归档数据位于工作区根目录的 `_objrun-archive/`，不进入 Git。需 Python 3.12+ 和 Restic 0.19.1；本次 Windows 清理脚本使用 PowerShell 7。当前工具保留普通文件的完整字节、原路径与修改时间；不依赖 Windows ACL 来恢复实验记录。
+Archive data lives in `_objrun-archive/` at the workspace root and is excluded from Git. Python 3.12+ and Restic 0.19.1 are required; this round's Windows cleanup scripts use PowerShell 7. The current tools preserve complete regular-file bytes, original paths, and modification times. They do not rely on Windows ACLs to restore experiment records.
 
-一次收集的流程：
+The workflow for one collection:
 
-1. `archive_collection.py` 清点静止目录、以 TAR 流传入 Restic，写入逐文件 SHA-256 清单并检查快照结构。相同内容块跨收集去重，使用最高压缩等级。
-2. `verify_collection.py` 完整读取归档内每个文件，核对 SHA-256、路径、长度与链接目标，并重新检查来源目录未变化。
-3. `retire_collection.ps1` 默认只预览。显式 `-Apply` 才清理已验证的展开文件；逐路径核对，目录仅做非递归删除，出现新文件会停止。保留项目所需的小型输入文件，跳过已登记的不可读目录。
+1. `archive_collection.py` inventories a quiescent directory, streams TAR data into Restic, writes per-file SHA-256 manifests, and checks snapshot structure. Identical content blocks are deduplicated across collections using the highest compression level.
+2. `verify_collection.py` reads every archived file in full, verifies SHA-256, paths, lengths, and link targets, and rechecks that the source directory has not changed.
+3. `retire_collection.ps1` previews by default. Only explicit `-Apply` removes verified expanded files. It checks each path, removes directories nonrecursively, and stops when new files appear. It retains small inputs required by the project and skips registered unreadable directories.
 
-还原示例（PowerShell，变量应使用实际工作区与工具位置）：
+Restore example (PowerShell; use the actual workspace and tool locations):
 
 ```powershell
 $workspace = 'F:\git\TgEngin-handoff-2026-10-07'
@@ -48,24 +48,24 @@ python "$workspace\objrun\scripts\storage\restore_collection.py" `
   --destination 'F:\git\objrun-restored-runs'
 ```
 
-`--destination` 默认必须为空。显式 `--merge-existing` 可恢复到保留了小型项目输入的旧目录，但已有文件必须与归档的 SHA-256 相同；不同内容不会被覆盖。恢复后逐文件重新核对 SHA-256。
+`--destination` must be empty by default. Explicit `--merge-existing` allows restoration into an old directory retaining small project inputs, but existing files must match the archived SHA-256; differing content is never overwritten. Every file's SHA-256 is rechecked after restoration.
 
-只查看清单或提取单个日志，不必展开整个历史目录：
+To inspect a manifest or extract a single log without expanding the full historical directory:
 
 ```powershell
 python "$workspace\objrun\scripts\storage\inspect_collection.py" `
   --workspace $workspace --name legacy-runs list --limit 20
 python "$workspace\objrun\scripts\storage\inspect_collection.py" `
   --workspace $workspace --name legacy-runs extract `
-  --path '清单中的相对文件路径' --output 'F:\git\selected-log.txt' --restic $restic
+  --path 'RELATIVE_FILE_PATH_FROM_MANIFEST' --output 'F:\git\selected-log.txt' --restic $restic
 ```
 
-单文件提取同样核对 SHA-256，拒绝覆盖已有输出。TAR 收集需要顺序读取到匹配内容，节省的是展开空间，不保证即时随机读取。
+Single-file extraction also verifies SHA-256 and refuses to overwrite existing output. TAR collections must be read sequentially up to the matching content. This saves extraction space but does not guarantee immediate random access.
 
-目录链接/符号链接的目标保存在来源清单及收集目录的 `last-restored-links.json`，TAR 恢复时不会自动建立这些链接。WSL 特殊符号链接还保留原始重解析数据。硬链接在收集内恢复。历史脚本中的绝对路径保持原文，重新运行时需结合路径迁移表处理；归档恢复不代表旧容器可以直接启动。
+Directory-link/symlink targets are stored in source manifests and the collection directory's `last-restored-links.json`; TAR restoration does not recreate these links automatically. Raw reparse data is also retained for special WSL symlinks. Hard links are restored within each collection. Absolute paths in historical scripts remain verbatim; rerunning them requires consulting the path-migration map. Archive restoration does not imply that old containers can start directly.
 
-每个收集目录包括 `record.json`、压缩的路径清单、逐文件 SHA-256、完整性检查结果及清理日志。只有 `restore_verified: true` 的收集可以清理原展开文件。`excluded` 是未读取、未删除的范围；`kept_files` 是本批清理时保留的文件，后续批次可能再归档其中一部分。总索引中的 `expanded_kept_files` 表示当前仍在原路径的文件。
+Each collection directory contains `record.json`, compressed path manifests, per-file SHA-256 values, integrity-check results, and cleanup logs. Only collections with `restore_verified: true` may have their original expanded files removed. `excluded` identifies unread, undeleted scope. `kept_files` lists files retained during that cleanup batch; later batches may archive some of them. `expanded_kept_files` in the overall index identifies files still at their original paths.
 
-`--external-readonly` 用于工作区外已登记的实验输出；它只读取原件，清理工具明确拒绝删除这类来源。本次 SciCode 输出及早期运行目录链接的实际目标使用这一方式。链接与实际档案的对应关系见 `experiments/provenance/external-source-map.json`。
+`--external-readonly` supports registered experiment outputs outside the workspace. It only reads originals, and the cleanup tool explicitly refuses to delete such sources. This mode is used for this round's SciCode output and the actual targets of earlier run-directory links. See `experiments/provenance/external-source-map.json` for the correspondence between links and actual archives.
 
-本地 Restic 仓库使用空密码；它与原始本地文件遵循相同的文件系统访问权限，不作为加密保密措施。原档保留本地核对，当前所有收集仍为 `uploaded: false`；新方案不上传这些原档。
+The local Restic repository uses an empty password. It follows the same filesystem access controls as the original local files and is not an encryption-based confidentiality measure. Originals are retained for local verification, and every collection currently remains `uploaded: false`; the new arrangement does not upload these originals.

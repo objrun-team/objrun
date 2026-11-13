@@ -1,27 +1,21 @@
 /**
- * 把一个节点压成三份，以及内置的那几种压法。
+ * Compress a node into three versions, and provide the built-in compression methods.
  *
- * ## 什么时候压
+ * ## When to compress
  *
- * **节点收口那一刻**（那一站拿到了终止状态）。还在出的节点不压 —— 它的话正在被用，
- * 而且下一站可能还要接着说。所以**当前节点永远是原文**，压的只有已经收口的祖先。
+ * **When a node closes** (its station reaches a terminal state). Do not compress a node still producing output: its messages are in use, and the next station may continue the exchange. Thus **the current node always retains the original text**; only closed ancestors are compressed.
  *
- * 压完写进库（`press` + `press_l1/l2/l3`，`task_{mode}.press` 指过去），不是发的时候
- * 现算：现算的话同一格每次请求压出来的都不一样，而一份在模型底下自己会变的上下文，
- * 出了问题谁也复现不了。
+ * Store the results (`press` + `press_l1/l2/l3`, referenced by `task_{mode}.press`) instead of computing them when sending a request. On-demand computation could compress the same slot differently for every request; failures cannot be reproduced if context changes underneath the model.
  *
- * ## 谁说了算
+ * ## Who decides
  *
- * 一条消息拆成哪几部分，只看**消息本来就得有的形状**（`thought` 那一列、`body.text`、
- * `body.calls[]`、`kind`、`role`）；工具返回是哪一类，看那件工具自己填的 `tool.gives`。
- * 每一部分在每一级怎么办，查 `msg_part`；怎么办由 `press_how.identity` 那个句柄去做。
+ * Split a message using only **its intrinsic structure** (`thought`, `body.text`, `body.calls[]`, `kind`, `role`). A tool's own `tool.gives` declares its return category. Look up each part's treatment at each level in `msg_part`; the `press_how.identity` handle performs it.
  *
- * 所以这个文件里**没有一个工具名，也没有一句「哪种更要紧」** —— 那些全在表里。
+ * This file therefore contains **no tool names and no judgments about relative importance**: those belong in the tables.
  *
- * ## 内置的那几种压法
+ * ## Built-in methods
  *
- * `keep` / `drop` / `cut` / `sample` 是纯函数，随二进制发。`ask`（丢给模型换一段话）
- * 不在这儿：它得有个模型，而挑哪个模型是外面的事 —— 声明一个句柄进来就是了。
+ * `keep` / `drop` / `cut` / `sample` are pure functions shipped with the binary. `ask` (having a model rewrite a passage) is not here: it needs a model, and choosing that model is an external concern. Declare a handle for it.
  */
 
 import { createHash } from "node:crypto";
@@ -31,7 +25,7 @@ import { all, run } from "../H2H/db.ts";
 import type { Registry } from "../engine/registry.ts";
 import { tableNameOf } from "../install/index.ts";
 
-/** 一次压缩请求。 */
+/** One compression request. */
 export interface Press {
   part: string;
   name?: string;
@@ -40,32 +34,29 @@ export interface Press {
   bytes?: number;
 }
 
-/** `cut` 留多少字节。 */
+/** Bytes to retain with `cut`. */
 export const CUT_BYTES = 2_000;
-/** `sample` 留几行头、几行尾。 */
+/** Leading and trailing lines to retain with `sample`. */
 export const SAMPLE_HEAD = 3;
 export const SAMPLE_TAIL = 3;
-/** `top` 留几行、`tail` 留几行。一屏 —— 一段栈、一次测试的结论，都在这个量级上。 */
+/** Lines retained by `top` and `tail`. About one screen: a stack trace or a test result is typically this size. */
 export const TOP_LINES = 20;
 export const TAIL_LINES = 20;
 
 /**
- * 级别的列名。**顺序就是从轻到重**，选级别时按这个顺序往下降。
+ * Level column names, **ordered from lightest to strongest compression**. Move through this order when selecting a level.
  *
- * 有四列，但**设好了的只算前三级** —— `l4` 在 `msg_part` 里还空着（见 `readyLevels`）。
- * 空着的那一级不写、也不发。先把列留出来，是因为下一级要来的那种压法（把一段丢给模型
- * 换一句话）是从外面声明进来的，而声明发生在一个正在跑的库上 —— 那时候再加列就是一次迁移。
+ * There are four columns, but **only the first three are configured**: `l4` remains empty in `msg_part` (see `readyLevels`). Neither write nor send an unconfigured level. Reserve the column now because the next compression method (having a model replace a passage with a sentence) is declared externally against a running database. Adding a column then would require a migration.
  */
 export const LEVELS = ["l1", "l2", "l3", "l4"] as const;
 export type Level = (typeof LEVELS)[number];
 
 /**
- * 哪几级是**真设好了的**：`msg_part` 里每一行都说了这一级拿它怎么办。
+ * Levels that are **fully configured**: every `msg_part` row specifies how that level handles it.
  *
- * 判据是「**每一行**都填了」，不是「有行填了」。填了一半的话，那一级里有的部分按策略走、
- * 有的部分不知道该怎么办 —— 而两种都说得通、都不报错。
+ * The criterion is **every row**, not merely some rows. Partial configuration would give some parts a policy and leave others unspecified, with multiple plausible interpretations and no error.
  *
- * 一行都没有（表还没灌）时回空：那是「什么都没设」，不是「四级全设好了」。
+ * Return an empty list when there are no rows (the table is not seeded): nothing is configured, rather than all four levels being ready.
  */
 export function readyLevels(db: Conn): Level[] {
   const rows = all(db, `select ${LEVELS.map((l) => `"${l}"`).join(", ")} from msg_part`) as Record<string, string | null>[];
@@ -78,10 +69,9 @@ const B = (s: string) => Buffer.byteLength(s, "utf8");
 const id = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 32);
 
 /**
- * 头留一段，末尾记一句还剩多少。
+ * Keep the beginning and append a note describing how much remains.
  *
- * 记那一句是有代价的（几十字节），但**不记的话模型不知道自己看的是半截**，
- * 而它会照着半截往下判断 —— 那种错查起来最费劲，因为看上去它读到的是完整的。
+ * The note costs a few dozen bytes, but **without it the model cannot know the text is truncated** and will reason from the fragment. Such failures are especially hard to diagnose because the input appears complete.
  */
 export function cut(body: string, keep = CUT_BYTES): string {
   const size = B(body);
@@ -90,23 +80,21 @@ export function cut(body: string, keep = CUT_BYTES): string {
 }
 
 /**
- * 前几行，末尾记一句还剩多少行。
+ * Keep the first few lines and append a note with the remaining line count.
  *
- * 跟 `cut` 是一件事的两种量法：`cut` 数字节，`top` 数行。**有行的东西按行留** ——
- * 按字节切会停在半行上，而半行读起来跟整行一样理直气壮。
+ * This is `cut` measured differently: `cut` counts bytes; `top` counts lines. **Preserve line-oriented content by line**. A byte cut may leave half a line that looks just as authoritative as a complete one.
  */
 export function top(body: string, keep = TOP_LINES): string {
   const lines = body.split("\n");
-  // 只多出一行就别留了：省下一行，却要花一行去说省了一行。
+  // Do not truncate just one extra line: saving one line would cost one line to announce the saving.
   if (lines.length <= keep + 1) return body;
   return [...lines.slice(0, keep), `... (${lines.length - keep} more lines)`].join("\n");
 }
 
 /**
- * 后几行，开头记一句前面还有多少行。
+ * Keep the last few lines and prepend a note with the omitted line count.
  *
- * `top` 的反面，给**结论在末尾**的那些东西：一次测试跑完的那几行、一段栈的最后一层、
- * 一份构建日志真正报错的地方。这类东西留头等于留了一堆铺垫，正好把要看的那段丢掉。
+ * The opposite of `top`, for content whose **conclusion comes last**: the final test-run lines, the last stack frame, or the actual failure in a build log. Keeping the beginning would retain the setup and discard exactly the part needed.
  */
 export function tail(body: string, keep = TAIL_LINES): string {
   const lines = body.split("\n");
@@ -114,14 +102,14 @@ export function tail(body: string, keep = TAIL_LINES): string {
   return [`... (${lines.length - keep} earlier lines)`, ...lines.slice(-keep)].join("\n");
 }
 
-/** 头几行 + 尾几行，中间记个数。按行抽，不按字节 —— 半行没有意义。 */
+/** Leading lines + trailing lines, with an omitted count in between. Sample lines, not bytes: half a line is meaningless. */
 export function sample(body: string, head = SAMPLE_HEAD, foot = SAMPLE_TAIL): string {
   const lines = body.split("\n");
   if (lines.length <= head + foot + 1) return body;
   return [...lines.slice(0, head), `... (${lines.length - head - foot} more lines)`, ...lines.slice(-foot)].join("\n");
 }
 
-/** 把内置的那几种注册进去。**回注册了哪几个句柄名。** */
+/** Register the built-in methods. **Return the registered handle names.** */
 export function registerPress(db: Conn, reg: Registry): string[] {
   const names: string[] = [];
   const one = (name: string, f: (p: Press) => { body?: string }) => {
@@ -130,8 +118,8 @@ export function registerPress(db: Conn, reg: Registry): string[] {
     names.push(handle);
   };
   one("keep", (p) => ({ body: say(p.body) }));
-  // **回一个没有 body 的东西，不是回空串。** 两者在库里长得一样，但读的人分得出
-  // 「这一部分不出现」和「它出现了，内容是空的」。
+  // **Return an object without body, not an empty string.** They look alike in the database, but readers distinguish
+  // an absent part from a present part with empty content.
   one("drop", () => ({}));
   one("cut", (p) => ({ body: cut(say(p.body)) }));
   one("sample", (p) => ({ body: sample(say(p.body)) }));
@@ -140,12 +128,12 @@ export function registerPress(db: Conn, reg: Registry): string[] {
   return names;
 }
 
-// ── 拆 ──────────────────────────────────────────────────────────────────────
+// ── Split ─────────────────────────────────────────────────────────────
 
-/** 一条消息拆出来的一块。 */
+/** One part of a split message. */
 export interface Piece {
   part: string;
-  /** 属于哪件工具。不属于任何工具就是空。 */
+  /** The tool this part belongs to; empty if it belongs to none. */
   name: string;
   body: string;
 }
@@ -160,10 +148,9 @@ interface Row {
 }
 
 /**
- * 一条消息拆成几块。**判据只有形状**，见文件头。
+ * Split a message into parts. **Structure is the sole criterion**; see the file header.
  *
- * `gives` 是「工具名 → 它的返回算哪一类」，调用方从 `tool` 表读一次传进来 ——
- * 每拆一行查一次库的话，一个节点就是几百次查询。
+ * `gives` maps tool names to return categories. The caller reads it once from `tool` and passes it in: querying for each split row would mean hundreds of queries per node.
  */
 export function piecesOf(r: Row, first: boolean, gives: Map<string, string>): Piece[] {
   const out: Piece[] = [];
@@ -179,7 +166,7 @@ export function piecesOf(r: Row, first: boolean, gives: Map<string, string>): Pi
     const text = say(v.text).trim();
     if (text) out.push({ part: "said", name: "", body: text });
     for (const c of v.calls ?? []) {
-      // `graded` 是系统事后记下的一次裁决 —— 判据是 kind，不是那件工具叫什么。
+      // `graded` is a verdict recorded afterward by the system: identify it by kind, not the tool name.
       out.push({
         part: r.kind === "graded" ? "verdict" : "call",
         name: say(c.name),
@@ -197,8 +184,8 @@ export function piecesOf(r: Row, first: boolean, gives: Map<string, string>): Pi
       return out;
     }
     const name = say(v.name);
-    // 那件工具自己说它的返回算哪一类。**没说 = `event`** —— 把拿不回来的当成能再拿
-    // 一次，是唯一赔不起的那个方向。
+    // The tool declares its own return category. **Unspecified = `event`**:
+    // treating irrecoverable information as recoverable is the one direction of error we cannot afford.
     out.push({ part: gives.get(name) || "event", name, body: JSON.stringify(v.value ?? null) });
     return out;
   }
@@ -207,14 +194,14 @@ export function piecesOf(r: Row, first: boolean, gives: Map<string, string>): Pi
     if (r.body.trim()) out.push({ part: "said", name: "", body: r.body });
     return out;
   }
-  // `inject` 一个值管两样：世界注入是 role=user，进消息流；内核记账是 role=system，
-  // 走 instructions。**必须连 role 一起看。**
+  // `inject` covers two cases: world injection uses role=user and enters the message stream; kernel bookkeeping uses role=system and enters instructions.
+  // **Inspect role as well.**
   if (r.kind === "inject") {
     out.push({ part: r.role === "system" ? "ledger" : "world", name: "", body: r.body });
     return out;
   }
   if (r.kind === "user" || r.kind === "voice") {
-    // 题面跟人说话是同一个 kind，只有位置分得开：实例的第一条就是题面。
+    // The problem statement shares a kind with human messages; position distinguishes them: the first instance message is the problem statement.
     out.push({ part: first ? "task" : "person", name: "", body: r.body });
     return out;
   }
@@ -226,20 +213,20 @@ export function piecesOf(r: Row, first: boolean, gives: Map<string, string>): Pi
   return out;
 }
 
-// ── 压 ──────────────────────────────────────────────────────────────────────
+// ── Compress ──────────────────────────────────────────────────────────
 
 interface Policy {
-  /** 部分名 → 每一级各用哪种压法。没设的那一级是空串。 */
+  /** Part name → compression method at each level. An unconfigured level is an empty string. */
   part: Map<string, Record<Level, string>>;
-  /** 哪几级是设好了的。**只有这几级会被写、被发。** */
+  /** Configured levels. **Only these levels are written and sent.** */
   ready: Level[];
-  /** 压法名 → 干这件事的句柄。空的那种（没实现）不在里面。 */
+  /** Compression-method name → implementing handle. Omit methods with no implementation. */
   how: Map<string, string>;
-  /** 工具名 → 它的返回算哪一类。 */
+  /** Tool name → return category. */
   gives: Map<string, string>;
 }
 
-/** 把三张表读一次。**一个节点读一次，不是一块读一次。** */
+/** Read the three tables once. **Once per node, not once per part.** */
 export function policyOf(db: Conn): Policy {
   const part = new Map<string, Record<Level, string>>();
   for (const r of all(db, `select name, ${LEVELS.join(", ")} from msg_part`) as Record<string, string | null>[]) {
@@ -265,21 +252,21 @@ export function policyOf(db: Conn): Policy {
 }
 
 /**
- * 一格压成一段话。
+ * Compress one slot into a passage.
  *
- * 每一块前面挂一个标记，不挂的话工具返回和模型说的话拼在一起分不出是谁说的。
- * 一块都没剩下就回空串 —— 那一格在这一级上整个不出现。
+ * Prefix each part with a marker so tool results remain distinguishable from model text when combined.
+ * Return an empty string if no parts remain: omit that slot entirely at this level.
  */
 export async function pressUnit(reg: Registry, pieces: Piece[], level: Level, p: Policy): Promise<string> {
   const out: string[] = [];
   for (const one of pieces) {
     const how = p.part.get(one.part)?.[level] ?? "keep";
-    // 空 = 这一级 `msg_part` 里根本没填。压到这儿是调用方的错（该先看 `ready`），
-    // 而按 keep 放过去的话，一个「压过的」级别里装的会是原文。
+    // Empty = this level is not configured in `msg_part`. Reaching it is a caller error (check `ready` first).
+    // Falling back to keep would place original text in a supposedly compressed level.
     if (!how) throw new Error(`msg_part says nothing about ${one.part} at ${level}`);
     const handle = p.how.get(how);
-    // **没实现的压法当场炸。** 悄悄按 keep 放过去的话，说好要压的东西原样发了出去，
-    // 而唯一的表现是「怎么还是这么大」。
+    // **Fail immediately for an unimplemented method.** Silently falling back to keep would send content unchanged
+    // when compression was promised, with the only symptom being an unexpectedly large context.
     if (!handle) throw new Error(`msg_part says ${one.part} is ${how} at ${level}, but no handle implements ${how}`);
     const back = (await reg.get(handle).call({
       part: one.part,
@@ -296,9 +283,9 @@ export async function pressUnit(reg: Registry, pieces: Piece[], level: Level, p:
 }
 
 /**
- * 把一个节点的每一格都压成三份，落库。**回压了几格。**
+ * Compress every slot in a node into three versions and store them. **Return the number of compressed slots.**
  *
- * 已经压过的格子跳过：节点收口只有一次，但重装、重放都可能再走到这儿。
+ * Skip slots already compressed: a node closes only once, but reinstallation or replay may reach here again.
  */
 export async function pressNode(
   db: Conn,
@@ -332,8 +319,8 @@ export async function pressNode(
     const at3: Record<string, string> = {};
     for (const level of p.ready) {
       const body = await pressUnit(reg, pieces, level, p);
-      // **一段话一行，按内容做 id** —— 两格压出同样的东西就落在同一行上，不用谁去比对，
-      // 「几格合起来只用这一段话表示」也就自然成立了。
+      // **One passage per row, with a content-derived id**: two slots compressing to identical text share a row automatically,
+      // so several slots can naturally be represented by one passage.
       const rid = id(body);
       run(db, `insert into "press_${level}" (id, body, bytes) values (?, ?, ?) on conflict(id) do nothing`, [
         rid,
@@ -342,8 +329,8 @@ export async function pressNode(
       ]);
       at3[level] = rid;
     }
-    // id 按**所有**级别算，空着的那几级也算进去 —— 将来 `l4` 有了内容，同样两格就不该
-    // 再落在同一行上，而那时候这个 id 自己会变。
+    // Derive the id from **all** levels, including empty ones. When `l4` gains content, two previously identical slots
+    // may need separate rows; the id will change automatically.
     const pid = id(LEVELS.map((l) => at3[l] ?? "").join(" "));
     const cols = LEVELS.filter((l) => at3[l]);
     run(
@@ -357,7 +344,7 @@ export async function pressNode(
   return done;
 }
 
-/** 一行消息，只用得上这几列。 */
+/** A message row; only these columns are needed. */
 export interface Line {
 unit: number;
 seq: number;
@@ -368,16 +355,13 @@ thought: string | null;
 }
 
 /**
- * 把**已经收口的那些节点**换成它们压过的那一份。当前节点原样不动 —— 它的话正被用着。
+ * Replace **closed nodes** with their compressed versions. Leave the current node untouched: its messages are still in use.
  *
- * 按**节点**换，不按格换：一次调用和它的结果落在相邻两格上，只换其中一格的话，
- * 上下文里会留下一个没有调用的结果，而模型那边直接拒收整份。
+ * Replace by **node**, not slot: a call and its result occupy adjacent slots. Replacing only one would leave an orphaned result, causing the model to reject the entire context.
  *
- * 没压过的节点（`press` 是空的）照原文发 —— 压是收口那一刻做的，做不成不该让这一发
- * 也跟着完蛋。
+ * Send original text for uncompressed nodes (empty `press`). Compression occurs at closure; its failure must not also prevent this request from being sent.
  *
- * **发请求的那条路和事后重建那条路用的是这一个函数**（`engine/loop.ts` 和
- * `scripts/request.ts`）。各写一份的话，重建出来的那份量的是脚本，不是那次请求。
+ * **Request dispatch and later reconstruction share this function** (`engine/loop.ts` and `scripts/request.ts`). Separate implementations would make reconstruction measure the script rather than the actual request.
  */
 export function swapClosed(
 db: Conn,
@@ -408,17 +392,17 @@ level: Level,
       out.push(r);
       continue;
     }
-    // 这一格属于压过的节点：它自己那几行不出，取而代之的是那一段话 —— 而且**同一段
-    // 只出一次**（几格合用一段是常态，`bodiesAt` 已经去过重）。
+    // This slot belongs to a compressed node: replace its own rows with the compressed passage.
+    // **Emit each passage only once**; sharing across slots is common, and `bodiesAt` already deduplicates them.
     const body = bodies.get(u);
     if (body === undefined) {
-      // 没压过：`bodiesAt` 里根本没有这一格 → 照原文发。
+      // Uncompressed: this slot is absent from `bodiesAt`, so send its original text.
       if (!bodies.size) out.push(r);
       continue;
     }
     if (out.some((x) => Number(x.unit) === u)) continue;
-    // 压出来是空的（那一格里每一部分在这一级都被丢了）就整格不出。发一条空消息是
-    // 白花一条：有的供应商直接拒收空 content，而拒的时候说的是「消息列表有问题」。
+    // If compression produces an empty string (every part was dropped at this level), omit the entire slot.
+    // An empty message wastes an entry; some providers reject empty content with only a generic message-list error.
     if (!body.trim()) continue;
     out.push({ unit: u, seq: 1, role: "user", kind: "user", body, thought: null } as unknown as Line);
   }
@@ -426,8 +410,8 @@ level: Level,
 }
 
 /**
- * 这几格在某一级上的正文。**同一行只出一次** —— 好几格指着同一段话是常态，
- * 每格都出一遍的话，省下来的又原样加回去了。
+ * Bodies for these slots at a given level. **Emit each row only once**: multiple slots commonly reference one passage.
+ * Repeating it for every slot would add back all the content saved.
  */
 export function bodiesAt(db: Conn, sub: string, task: string, units: number[], level: Level): Map<number, string> {
   if (units.length === 0) return new Map();

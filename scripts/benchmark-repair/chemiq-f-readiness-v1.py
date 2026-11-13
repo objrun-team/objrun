@@ -325,38 +325,38 @@ def main(output):
     for item in report["strata"]:
         table.append(f"| {item['category']} | {item['subCategory']} | {item['method']} | {item['count']} |")
     pilot_table = [f"| {item['officialIndex']} | {item['officialId']} | {item['category']}/{item['subCategory']} |" for item in pilot_proposal]
-    summary = f"""ChemIQ F 正式重跑的固定分母是 **816 题、816 次 F**。本文件只准备范围；没有生成模型答案、评分或启动正式实验。目前 `formalPaidReady=false`。
+    summary = f"""The fixed denominator for the formal ChemIQ F rerun is **816 tasks, 816 F runs**. This file prepares the scope only; it does not generate model answers, grade, or start the formal experiment. Currently `formalPaidReady=false`.
 
-| 数据/计划 | 分母与实际状态 | 时间与显式检查 | 评分及结论 |
+| Data/plan | Denominator and actual state | Time and explicit checks | Grading and conclusion |
 |---|---|---|---|
-| 旧 `chemiq-f-0731` | 816；存680通过，DB仍4claimed，scorecard却计0running | 900秒，checks3，K8，search3 | 旧source未验证、finalvalidity0；不认证修复成绩 |
-| 旧 `chemiq-f-c5kinf-0929` | 816；存633通过，仍6claimed；303次search全HTTP402 | 900秒，checks5，K100000，search3 | 不替换成新正式成绩 |
-| 10月8日真实试跑 | F10，3通过；全部NMR/zinc_2d，U另10 | 180秒，checks5，branch4，无search | 固定localOPSIN2.8/raw-input-length；原shutdown超时保留，laterclosing独立通过 |
-| 本次正式F提案 | 原题序全部816，F一次/题；未执行 | **600/900秒待选择**，checks5，branch4，K100000，无search | 新模型deepseek-flash/8192/temp0/seed42/reasoningnone；独立新协议 |
+| Old `chemiq-f-0731` | 816; 680 stored passes, DB still has 4 claimed, but scorecard reports 0 running | 900 seconds, checks3, K8, search3 | Old source unverified, finalvalidity0; no certification of repaired results |
+| Old `chemiq-f-c5kinf-0929` | 816; 633 stored passes, still 6 claimed; all 303 searches returned HTTP402 | 900 seconds, checks5, K100000, search3 | Not replaced with new formal results |
+| October 8 live pilot | F10, 3 passes; all NMR/zinc_2d, plus a separate U10 | 180 seconds, checks5, branch4, no search | Pinned localOPSIN2.8/raw-input-length; original shutdown timeout retained, laterclosing passed independently |
+| Current formal F proposal | All 816 in original order, one F per task; not executed | **600/900 seconds pending selection**, checks5, branch4, K100000, no search | New model deepseek-flash/8192/temp0/seed42/reasoningnone; independent new protocol |
 
-原F实际900秒；600秒来自此前新方案。当前两者都是待确认提案，Root基于“修复后正式”的时间可比性倾向900秒，但此件不替用户选定时限。即使沿900秒，模型、搜索、预算与评分协议仍有差异。题库 commit `63826f64990802e87f1b11b9192606a20838d522`，803,509字节，SHA `{BOOK_SHA}`。全部F范围提案及promptSHA见 [task-scope.json](task-scope.json)，scheduleSHA `{schedule_sha}`。仅公共字段参与prompt计算，参考答案没有写入清单；这不是完整执行协议的正式冻结。
+Original F runs actually used 900 seconds; 600 seconds came from an earlier new proposal. Both currently await confirmation. For time comparability of a formal run after repair, Root favors 900 seconds, but this artifact does not choose the limit for the user. Even at 900 seconds, models, search, budgets, and grading protocols differ. Task-bank commit `63826f64990802e87f1b11b9192606a20838d522`, 803,509 bytes, SHA `{BOOK_SHA}`. All proposed F scope and promptSHAs are in [task-scope.json](task-scope.json), scheduleSHA `{schedule_sha}`. Only public fields enter prompt computation; references are not written to the manifest. This is not a formal freeze of the complete execution protocol.
 
-| 类别 | 子类 | 判卷方法 | 题数 |
+| Category | Subcategory | Grading method | Tasks |
 |---|---|---|---|
 {chr(10).join(table)}
 
-评分器明确采用本地 OPSIN2.8.0（JAR SHA `{provenance['profile']['opsin']['jar_sha256']}`）、官方parser/RDKit和原判等函数；不回退REST。原子映射只将200字长度限制放在交付原文，修复30题解析加空格后的误拒。它是独立修订协议，不能写成旧未知REST或完全未改官方parsed-length的等价成绩。历史观察环境为Python3.12.11、RDKit2024.9.6、NumPy1.26.4、requests2.34.2、Java1.8.0_341；必须重新核实际环境，而非仅引用旧记录。
+The grader explicitly uses local OPSIN2.8.0 (JAR SHA `{provenance['profile']['opsin']['jar_sha256']}`), the official parser/RDKit, and original equivalence functions, with no REST fallback. Atom mapping applies the 200-character limit only to delivered raw text, fixing 30 false rejections caused by added spaces after parsing. This is a separately revised protocol, not equivalent to old results using an unknown REST service or completely unchanged official parsed-length grading. The historically observed environment was Python3.12.11, RDKit2024.9.6, NumPy1.26.4, requests2.34.2, and Java1.8.0_341; the actual environment must be checked again rather than merely citing old records.
 
-同一stand源码的正控已通过 **782/816**（非OPSIN616、IUPAC166），错误值/结构与格式负控各816全拒绝。缺34个可验证的IUPAC正参考，random/canonical各17。JSON给出全部34准确ID。它们不是已知答错或不可判题，不减分母；正式“修复完成”认证应先补齐私有正确名称及其本地判等正控，否则只能明确标为暂定协议。
+Positive controls on the same stand source have passed **782/816** (616 non-OPSIN, 166 IUPAC); all 816 incorrect-value/structure and 816 format negative controls were rejected. There are 34 missing verifiable IUPAC positive references, 17 random and 17 canonical. JSON lists all 34 exact IDs. These are neither known incorrect answers nor ungradable tasks, and the denominator is not reduced. Formal certification of completed repair requires private correct names and their local equivalence positive controls first; otherwise the protocol must be explicitly labeled provisional.
 
-建议最小代表性F试跑 **16题**：按原题序每个14子类/判法取首题，再加semi-canonical/random各一题25原子映射（紧凑原文181字，解析后230字）。全部16已有正控；选择未使用模型成绩。它比原NMR单类试跑覆盖完整，但不认证全部816或34缺参考。补参考后可再加JSON预定的两道缺口题作为诊断，不按模型成败换题。
+The recommended minimum representative F pilot has **16 tasks**: the first task in original order for each of 14 subcategories/grading rules, plus one semi-canonical and one random 25-atom mapping task (181 characters in compact raw text, 230 after parsing). All 16 have positive controls; selection did not use model results. Coverage is broader than the original NMR-only pilot but does not certify all 816 tasks or the 34 missing references. After supplying references, the two gap tasks prespecified in JSON can be added for diagnostics; tasks must not be replaced based on model success or failure.
 
-| 原题索引(0起) | 固定taskID | 类别/子类 |
+| Original task index (0-based) | Pinned taskID | Category/subcategory |
 |---|---|---|
 {chr(10).join(pilot_table)}
 
-试跑与后续正式F应采用同一选定600/900秒、模型、判卷与明确预算；时限未选择，未执行。既有冻结scientific入口仍发U/F，其16题calibration选择规则也不同。应新增独立F-only入口/审核/sourcefreeze，不改原81源。试跑是否作为正式预定子集，必须生成前确定；修改协议后的试跑不能拼接成正式分数。显式verify5与runtime自动判卷/最终独立判卷分别记账，不能说所有物理G调用只有5次或U/F等预算因果对比。
+The pilot and subsequent formal F runs should use the same selected 600/900-second limit, model, grading, and explicit budgets; the time limit is not selected and execution has not started. The existing frozen scientific entry point still dispatches U/F, with a different 16-task calibration rule. Add an independent F-only entry point/review/source freeze without changing the original 81 sources. Whether the pilot is a prespecified formal subset must be decided before generation; pilots under a modified protocol cannot be spliced into formal scores. Account separately for explicit verify5, automatic runtime grading, and independent final grading; do not claim only 5 physical G calls overall or a causal comparison under equal U/F budgets.
 
-费用和空间只能做场景：原F10共1223请求，USD峰价估计1.255906728；以同NMR180秒形状外推F816约USD102.48，600/180压力约USD341.61，900/180压力约USD512.41。独立按实际token与CNY峰价计算分别约CNY683.21/2277.38/3416.07；完全无缓存时约CNY4867.57/16225.23/24337.84。这些是非代表样本场景，不是发票、汇率转换、收费上界或余额。16题相应缓存峰价场景约CNY13.40/44.65/66.98，仍不能据此自动发请求。用户表示会充值不代表已到账；Root需临近启动实际刷新余额、价格TTL、独立现金envelope，并保留原4未知8.39218CNY责任。
+Cost and storage figures are scenarios only: original F10 had 1223 requests, with an estimated USD peak-rate cost of 1.255906728. Extrapolating the same NMR180-second pattern to F816 gives about USD102.48, a 600/180 stress scenario about USD341.61, and a 900/180 scenario about USD512.41. Independent calculations from actual tokens and CNY peak rates give about CNY683.21/2277.38/3416.07, or CNY4867.57/16225.23/24337.84 with no caching. These nonrepresentative sample scenarios are not invoices, currency conversions, billing upper bounds, or balances. Corresponding cached peak-rate scenarios for 16 tasks are about CNY13.40/44.65/66.98; they still do not authorize automatic requests. The user's intent to top up does not mean funds have arrived; Root must refresh the actual balance, price TTL, and independent cash envelope near startup, retaining responsibility for the original 4 unknown costs totaling CNY8.39218.
 
-旧全JSON逐请求重写不能直接扩大到完整816；现有append journal可作为新入口基础，但cash.count全历史遍历和128MiB单Pin/256MiB现金元数据限制仍须考虑。实际memory/disk、OPSIN共享队列延迟、任务证据增量均需16题先测；本文件不提供硬时间或资源保证。密钥、私有GT/正控名称不进模型/公开包；原始请求响应、候选/trace摘要、真实servedmodel/token/费用、各类评分及清理证据必须保全。无效评分保持无效，不能当模型0分。
+The old per-request full-JSON rewrite cannot scale directly to all 816 tasks. The current append journal can underpin the new entry point, but cash.count full-history traversal and limits of 128MiB per pin / 256MiB cash metadata still need consideration. Actual memory/disk use, shared OPSIN queue latency, and evidence growth per task must first be measured on 16 tasks; this file gives no hard time or resource guarantees. Keys and private GT/positive-control names must not enter the model/public package. Preserve original requests/responses, candidate/trace digests, actual servedmodel/token/cost records, all grading categories, and cleanup evidence. Invalid grades remain invalid and must not become model scores of 0.
 
-全部当前输入及源码在本次读取前后逐SHA一致。完整 [readiness.json](readiness.json)：{report_pin['bytes']} 字节，SHA `{report_pin['sha256']}`。现有论文、旧分数、原包、冻结执行源码均未改。
+Every current input and source SHA was identical before and after this read. Complete [readiness.json](readiness.json): {report_pin['bytes']} bytes, SHA `{report_pin['sha256']}`. The existing paper, old scores, original packages, and frozen execution sources are unchanged.
 """
     markdown_pin = save_new(output / "readiness.md", summary.encode(), raw=True)
     print(json.dumps({"report": report_pin, "scope": scope_pin, "markdown": markdown_pin,

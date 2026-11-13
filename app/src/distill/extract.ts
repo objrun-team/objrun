@@ -1,12 +1,13 @@
 /**
- * 抽 —— 让模型从一道题的判决史里写出一份**给别的题用的** skill。
+ * Extract a skill **for other tasks** from one task's verdict history using a model.
  *
- * 模型看到的是：题面、每个 node 上验过什么 / 判了什么 / 判卷台说了什么、模型当时的话。
- * 它**看不到**标准答案（库里本来就没有）。它要交的是：一句 `does`、一段 `body`、
- * 几个从题面里**原样**抄的触发词、一个类别标签。
+ * The model sees the problem statement, what was checked at each node, verdicts and grader
+ * feedback, and the model's accompanying messages. It **cannot see** the reference answer,
+ * which is absent from the database. It must produce a one-sentence `does`, a `body`, trigger
+ * terms copied **verbatim** from the statement, and a category label.
  *
- * 这一步只负责「写出来」。写得对不对、有没有夹带答案，是 `gate.ts` 的事 ——
- * 提示词里的规矩再严也挡不住模型，闸才挡得住。
+ * This step only generates the candidate. `gate.ts` decides whether it is valid or leaks answers.
+ * Strict prompt instructions alone cannot enforce those constraints; the gate can.
  */
 
 import type { HarvestTask } from "./harvest.ts";
@@ -16,10 +17,10 @@ export interface ExtractOptions {
   model: string;
   apiKey: string;
   baseURL: string;
-  /** 请求体里额外的字段（OpenRouter 钉供应商那一段）。 */
+  /** Extra request-body fields, such as OpenRouter provider pinning. */
   extra?: Record<string, unknown>;
   reasoningEffort?: string;
-  /** 题面截断。 */
+  /** Truncate the problem statement. */
   maxStatement?: number;
 }
 
@@ -121,7 +122,7 @@ Return exactly one JSON object in a \`\`\`json fence:
 
 Hard rules: no answers, no problem-specific claims, no problem ids.`;
 
-/** 第二级：把多份单题教训并成一份**领域级**的。触发只按 domain，不按词。 */
+/** Second level: combine lessons from individual tasks into a **domain-level** skill. Trigger by domain, not keywords. */
 export async function pool(cands: Candidate[], o: ExtractOptions, domain: string): Promise<Candidate & { raw: string }> {
   const user = cands.map((c, i) => `# Lesson ${i + 1}: ${c.label}\n${c.body}`).join("\n\n");
   const raw = await chat(o, POOL_SYSTEM, user);

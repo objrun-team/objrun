@@ -1,14 +1,15 @@
-# 任务机制
+# Task modes
 
-[← 例子](../) ｜ [tool](../tool/) · [meet-join](../meet-join/) · [meet-book](../meet-book/) · [place](../place/) · [rule](../rule/) · [skill](../skill/) · **mode** · [cmtbench](../benchmark/cmt/)
+Instructions and illustrative declarations are in English. Captured responses and logs below are English renderings of earlier Chinese-language output, preserving IDs, timestamps, paths, and numbers. Original archived evidence is unchanged.
 
-一种机制 = **一张图**（几个周期，靠 `from`/`next` 连起来）+ **一个推断函数**
-（`infer`，决定这一站走完之后去哪儿）。图和推断函数都在外面，一行内核代码不用改。
+[← Examples](../) ｜ [tool](../tool/) · [meet-join](../meet-join/) · [meet-book](../meet-book/) · [place](../place/) · [rule](../rule/) · [skill](../skill/) · **mode** · [cmtbench](../benchmark/cmt/)
+
+A mode = **a graph** (cycles connected by `from`/`next`) + **an inference function** (`infer`, deciding where to go after this station completes). Both the graph and inference function are external; no kernel code changes are needed.
 
 ```
   plan ──→ work ──→ wrap
              ↑         │
-             └─────────┘      work 觉得没干完就自己转自己，够了才去 wrap
+             └─────────┘      work loops until ready, then enters wrap
 ```
 
 ```bash
@@ -19,12 +20,11 @@ BASE=http://127.0.0.1:7801/api
 
 ---
 
-## 图先验，再写
+## Validate the graph before writing it
 
-**模式是一张图，而 insert 是一行一行的。** 写第三行的时候没人知道第一行的 `next`
-指错了地方 —— 图的完整性只有全部写完才成立。所以整份收、整份验、一处不过整份不写。
+**A mode is a graph, but inserts happen one row at a time.** Writing the third row cannot reveal that the first row's `next` points to the wrong place; graph integrity exists only once all rows are present. Accept and validate the whole declaration; if any part fails, write none of it.
 
-`next` 指到一个不存在的周期：
+A `next` reference to a nonexistent cycle:
 
 ```bash
 R=E:/sgu-bzhc/EACN_EX/TgEngin
@@ -36,45 +36,43 @@ curl -s -X POST $BASE/declare -H 'content-type: application/json' -d @- <<JSON
 JSON
 ```
 ```json
-{"error":"这份声明有 1 处不对，什么都没写",
- "problems":["mode three/work：next 指的 shipit 不在这个模式里"]}
+{"error":"This declaration has 1 problem; nothing was written",
+ "problems":["mode three/work: next references shipit, which is not in this mode"]}
 ```
 
-每个周期的 `from` 都非空 —— 这张图没有入口：
+Every cycle has a nonempty `from`, so the graph has no entry point:
 
 ```json
-{"error":"这份声明有 4 处不对，什么都没写","problems":[
-  "mode three：一个起点都没有（每个周期的 from 都非空），这个模式进不去",
-  "mode three/plan：从起点走不到它 —— 这个周期永远不会被用上",
-  "mode three/work：从起点走不到它 —— 这个周期永远不会被用上",
-  "mode three/wrap：从起点走不到它 —— 这个周期永远不会被用上"]}
+{"error":"This declaration has 4 problems; nothing was written","problems":[
+  "mode three: no entry point (every cycle has a nonempty from); this mode cannot be entered",
+  "mode three/plan: unreachable from any entry point; this cycle will never be used",
+  "mode three/work: unreachable from any entry point; this cycle will never be used",
+  "mode three/wrap: unreachable from any entry point; this cycle will never be used"]}
 ```
 
-不验的话得到的是一台**看着像好的、实际走不通的机器**：任务发得出去，走到某一步停住，
-状态永远是 `claimed`，零报错。
+Without validation, the result **looks functional but has no traversable path**: tasks can be submitted, then stall at a step, remaining `claimed` forever without an error.
 
 ---
 
-## 灌一张对的
+## Load a valid graph
 
-[`steps.ts`](./steps.ts) 是推断函数。内核只认三种回答：
+[`steps.ts`](./steps.ts) supplies the inference function. The kernel recognizes only three return shapes:
 
-| 回什么 | 意思 |
+| Return value | Meaning |
 | --- | --- |
-| `null` | 到此为止 |
-| `"周期名"` | 走那个周期，**从当前这一行接** |
-| `{to, from_cycle, from_unit, status}` | 走那个周期，**从指定那一行接**，顺带给当前这一行盖个终止状态 |
+| `null` | Stop here |
+| `"cycle-name"` | Enter that cycle, **continuing from the current row** |
+| `{to, from_cycle, from_unit, status}` | Enter that cycle, **continuing from the specified row**, and mark the current row with a terminal status |
 
-第三种是给树用的：判死之后要在**同一个父**底下开兄弟，回退时要接到**祖先**上 ——
-都不是「从当前行接」。内核只认这个形状，不认得「兄弟」「回退」是什么意思。
+The third shape supports trees: after marking a node dead, create a sibling under **the same parent**; when backtracking, reconnect to an **ancestor**. Neither continues from the current row. The kernel understands this shape, not the meanings of “sibling” or “backtracking.”
 
 ```ts
 export async function infer(arg: unknown): Promise<unknown> {
   const a = (arg ?? {}) as At;
   const here = a.cycle?.cycle;
   if (here === "plan") return "work";
-  if (here === "work") return said(a.result, "收尾") ? "wrap" : "work";
-  return null;                                   // wrap 是终点
+  if (here === "work") return said(a.result, "wrap up") ? "wrap" : "work";
+  return null;                                   // wrap is terminal
 }
 ```
 
@@ -104,8 +102,7 @@ JSON
  "entries":{"three":["plan"],"loose":["one"]}}
 ```
 
-`tables` 是这一趟长出来的子表 —— **一个模式一张**。`entries` 是每个模式的入口周期，
-不止一个的话发任务得指定 `cycle`。
+`tables` lists child tables created by this declaration, **one per mode**. `entries` lists each mode's entry cycles; if there is more than one, task submission must specify `cycle`.
 
 ```bash
 curl -s $BASE/modes
@@ -118,25 +115,25 @@ curl -s $BASE/modes
 
 ---
 
-## 走一趟
+## Run through the graph
 
 ```bash
 curl -s -X POST $BASE/tasks -H 'content-type: application/json' -d @- <<'JSON'
 { "id":"t-1","mode":"three","agent":"bot","place":"local","source":"user","solveSeconds":300,
-  "description":"先列个一句话的计划，然后干活。干活那一轮如果你觉得还没完就接着说，觉得可以了就在话里写上「收尾」两个字。" }
+  "description":"First give a one-sentence plan, then do the work. During a work round, continue speaking if more remains; when ready, include the literal phrase 'wrap up' in your text." }
 JSON
 ```
 ```json
 {"id":"t-1","mode":"three","cycle":"plan","instance":"t-1#1","objective":false}
 ```
 
-推断函数每一步说了什么（引擎 stdout）：
+What inference returned at each step (English rendering of captured engine stdout; labels identify candidate cycles):
 
 ```
-[steps] t-1 plan#1 → work（候选 work）
-[steps] t-1 work#2 → work（候选 work、wrap）
-[steps] t-1 work#3 → work（候选 work、wrap）
-[steps] t-1 work#4 → wrap（候选 work、wrap）
+[steps] t-1 plan#1 → work (candidate work)
+[steps] t-1 work#2 → work (candidates work, wrap)
+[steps] t-1 work#3 → work (candidates work, wrap)
+[steps] t-1 work#4 → wrap (candidates work, wrap)
 ```
 
 ```bash
@@ -150,45 +147,41 @@ curl -s $BASE/tasks/t-1/tree | grep -o '"chain":"[^"]*"'
 "chain":"three/plan#1 > three/work#2 > three/work#3 > three/work#4 > three/wrap#5"
 ```
 
-`work` 自己转了自己两次才去 `wrap`。**编号在一个任务里单调递增，不按周期重新数** ——
-`maxUnits` 限的是「这个周期名下有几行」，跟编号无关。
+`work` looped back to itself twice before entering `wrap`. **Numbers increase monotonically within a task; they do not restart per cycle.** `maxUnits` limits the number of rows under this cycle name, independently of their numbers.
 
 ---
 
-## 内核不许它自由发挥
+## The kernel constrains inference
 
-`fn:infer.wild` 推一个候选之外的周期出来：
+`fn:infer.wild` returns a cycle outside the candidate set:
 
 ```ts
 export async function wild(arg: unknown): Promise<unknown> {
-  return "nowhere";                              // 候选是 ["two"]
+  return "nowhere";                              // Candidates are ["two"]
 }
 ```
 
 ```bash
 curl -s -X POST $BASE/tasks -H 'content-type: application/json' -d @- <<'JSON'
 { "id":"t-2","mode":"loose","agent":"bot","place":"local","source":"user","solveSeconds":120,
-  "description":"说句话" }
+  "description":"Say something" }
 JSON
 curl -s $BASE/tasks/t-2/why
 ```
 ```json
 {"id":"t-2","state":"claimed","movable":false,"problems":[
-  "整道题超过 solveSeconds=120s 了 —— 内核会判 failed",
-  "one#1：内核推它的时候炸了 —— fn:infer.wild 推出来的 nowhere 不在候选里（候选是 two）"],
+  "The whole task exceeded solveSeconds=120s; the kernel will mark it failed",
+  "one#1: kernel advancement failed; fn:infer.wild returned nowhere, outside the candidate set (candidate: two)"],
  "stuckAt":null}
 ```
 
-**候选是数据里的 `next`，不是推断函数说了算。** 而且这句话是从接口上问出来的，
-不用去翻服务器日志。
+**Candidates come from `next` in the data; the inference function cannot redefine them.** This explanation is available through the API, without searching server logs.
 
 ---
 
-## 一条纯问答的机制里，工具没人跑
+## A chat-only mode has no tool executor
 
-系统工具（`read` / `write` / `bash` 那一组）是**无条件挂上去的**，不看条件。
-而这个机制每一站都是 `apiMode: chat`，没有哪一站走 `fn:unit.tools` —— 所以模型
-请求的工具**没有人跑**：
+System tools (`read` / `write` / `bash` and the rest) are **attached unconditionally**, without checking triggers. Every station in this mode uses `apiMode: chat`; none runs `fn:unit.tools`, so **nothing executes** the tools requested by the model:
 
 ```bash
 curl -s "$BASE/tasks/t-1/messages?limit=200" | grep -o '"kind":"[a-z]*"' | sort | uniq -c
@@ -199,36 +192,31 @@ curl -s "$BASE/tasks/t-1/messages?limit=200" | grep -o '"kind":"[a-z]*"' | sort 
       1 "kind":"user"
 ```
 
-五站全是 `call`，一条 `tool` 都没有。模型说的话在 `call` 那一行的 `parsed.text` 里：
+All five stations contain `call` records, with no `tool` records. The model's text is in the `call` row's `parsed.text`:
 
 ```bash
 curl -s "$BASE/tasks/t-1/messages?kind=call" | grep -o '"parsed":{"text":"[^"]\{0,50\}'
 ```
 ```
-"parsed":{"text":"我先列一句话计划，然后动手。\n\n**计划**：先探查当前工作区里有什么文件
-"parsed":{"text":"好，先说计划。\n\n**一句话计划：** 先看项目结构和现有代码，理清需求
+"parsed":{"text":"I will give a one-sentence plan, then start.\n\n**Plan**: first inspect files in the current workspace
+"parsed":{"text":"First, the plan.\n\n**One-sentence plan:** inspect the project structure and existing code to clarify the requirements
 ```
 
-配不上 `tool` 的那一行**内核在拼上下文时会摘掉**（库里那一行不动）。不摘的话模型那边
-一律要求「有 tool_call 就得有对应的 tool result」，缺了直接拒
-（`Tool result is missing for tool call …`）—— 整条链路从此每一站都发不出去，
-任务卡到超时，而错看着像模型那边的毛病。
+**When assembling context, the kernel removes a call without a matching `tool` result** (leaving the database row intact). Otherwise model providers require a tool result for every tool_call and reject the request with `Tool result is missing for tool call …`. No subsequent station in the chain can send a request, and the task stalls until timeout while the error appears to be a model-side fault.
 
-要真跑工具，得给这个机制加一站 `apiMode` 留空的周期，走 `fn:unit.tools`。
-见 [`../tool/`](../tool/) 里那个 `ask` / `act` 的两周期机制。
+To actually execute tools, add a cycle with `apiMode` left empty that runs `fn:unit.tools`. See the two-cycle `ask` / `act` mode in [`../tool/`](../tool/).
 
-## 字段
+## Fields
 
 `modes[].cycles[]`
 
 | | |
 | --- | --- |
-| `cycle` | 周期名 |
-| `apiMode` | 这一站要哪种调用形状（`chat` / `duplex` / …）。**留空 = 这一站不用模型，走 `agent.unit`** |
-| `maxUnits` | 这个周期名下最多几行。默认 1 |
-| `from` | 一般从哪几个周期转过来。**空 = 它是入口** |
-| `next` | 一般下一个是哪几个。**空 = 到此为止**，而且这一站不会去调推断函数 |
-| `infer` | 推断函数 → 一条句柄 |
+| `cycle` | Cycle name |
+| `apiMode` | Call shape for this station (`chat` / `duplex` / …). **Empty = no model call; run `agent.unit`** |
+| `maxUnits` | Maximum rows under this cycle name; default 1 |
+| `from` | Cycles that normally precede this one. **Empty = entry point** |
+| `next` | Normal candidate successors. **Empty = stop here**; the station does not call inference |
+| `infer` | Inference function → a handle |
 
-推断函数收到 `{ agent, task, cycle, chain, place, next, result, sub, unit }` ——
-`next` 是候选，`result` 是这一站模型回的那份。
+The inference function receives `{ agent, task, cycle, chain, place, next, result, sub, unit }`: `next` contains candidates, and `result` is this station's model response.

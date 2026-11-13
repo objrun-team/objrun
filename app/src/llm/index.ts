@@ -1,31 +1,25 @@
 /**
- * 模型适配层。
+ * Model adapter layer.
  *
- * **一次调用刚好是一个执行单元** —— 不是一次 HTTP。内核递过来这个单元的全部
- * 家当（上下文、挂上的工具、在哪儿干），适配器还回来该落库的那一行。中间怎么
- * 拼消息、怎么给工具、各家字段叫什么，都在适配器里面，上面那层不认得。
+ * **One call is exactly one execution unit**, not necessarily one HTTP request. The kernel supplies everything for that unit (context, attached tools, workplace); the adapter returns the row to store. Message construction, tool declarations, and provider-specific fields remain inside the adapter, unknown to the layer above.
  *
- * ## 不自己搓
+ * ## Use the SDK
  *
- * HTTP、消息格式、工具格式、重试，用 [AI SDK](https://ai-sdk.dev)（`ai` +
- * `@ai-sdk/openai-compatible`）。纯 JS，没有 native，能打进单文件包 —— 那两道闸
- * 还在。自己搓的那版已经删了。
+ * Use [AI SDK](https://ai-sdk.dev) (`ai` + `@ai-sdk/openai-compatible`) for HTTP, message and tool formats, and retries. Pure JS, no native dependencies, bundleable into one file: both constraints still hold. The handwritten implementation has been removed.
  *
- * ## 按 mode 分，不是按供应商分
+ * ## Separate by mode, not provider
  *
- * `api.modes` 那一列（`chat` / `tools` / `vision` / `duplex`）分的才是**调用形状**：
+ * `api.modes` (`chat` / `tools` / `vision` / `duplex`) identifies **call shapes**:
  *
- * - `chat`：一问一答。**一次 `generateText` = 一个执行单元**，这个文件做的就是它。
- * - `duplex`：实时双向（语音那种）。它不是「一次调用」，是一条会话；一个执行单元
- *   对应会话里的一个来回，会话本身活在那条不结束的生命周期上。在 `./duplex.ts`，
- *   **签名跟这儿一模一样** —— 内核不认得「会话」这回事。
+ * - `chat`: request-response. **One `generateText` = one execution unit**, implemented in this file.
+ * - `duplex`: realtime bidirectional interaction, such as speech. It is a session rather than a single call; one execution unit corresponds to one exchange within a longer-lived session. Implemented in `./duplex.ts` with **exactly the same signature**: the kernel does not know about sessions.
  *
- * 一个智能体可以同时挂两条轨 —— `agent.apis` 是个列表就是为了这个。
+ * An agent may attach both tracks; that is why `agent.apis` is a list.
  *
- * ## 密钥
+ * ## Credentials
  *
- * 库里只有环境变量的**名字**（`api.key_env`），值从 `process.env` 现取。
- * 密钥不进库、不进日志、不进上下文。
+ * The database stores only the environment-variable **name** (`api.key_env`). Read its value from `process.env` when needed.
+ * Credentials never enter the database, logs, or context.
  */
 
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
@@ -40,37 +34,30 @@ import { ROLES as DELIVER_ROLES } from "../msg/deliver.ts";
 type Row = Record<string, unknown>;
 
 /**
- * 认得的几家。**这儿是种子，地址的家在 `api.base_url`** —— 注册时把这份默认值写
- * 进那一行，之后以表为准。改地址是改数据，不用动代码，也不用重新编译。
+ * Known providers. **These are seeds; addresses belong in `api.base_url`**. Registration writes the defaults to rows; the table is authoritative afterward. Change an address as data, without code changes or recompilation.
  *
- * `ws` 是这家实时轨的地址。**没有就是这家没有实时轨** —— 不填一个假的，
- * 填了的话 `duplex` 那条句柄会给它注册出来，而真调的时候才发现连不上。
+ * `ws` is the provider's realtime endpoint. **Absent means no realtime track**. Do not invent a placeholder: it would register a duplex handle that fails only when called.
  */
 /**
- * `searches` = 这一家**自己跑检索**：它的 `/responses` 端点认
- * `tools: [{"type": "web_search"}]`，搜什么、开哪些页都在它那一端完成。
+ * `searches` means this provider **runs search itself**: its `/responses` endpoint accepts `tools: [{"type": "web_search"}]`, and performs queries and page access on its side.
  *
- * **值在代码里，跟 `MODES` 是同一个道理** —— 实现试过、认得的才写上。往表里插一行
- * 说某家能搜，实现不认得，那条路就是永远挑不中而且零报错。这一栏决定的是
- * `web_search` 这件工具**发不发**：一家都不认得就一件都不发，而不是发一件调用起来
- * 才报错的。
+ * **Values belong in code, like `MODES`**, listing only tested implementations. Merely inserting a row claiming search support cannot teach the implementation; it would silently leave the route unselectable. This field determines **whether to offer** `web_search`: if no supported provider exists, offer none instead of a tool that fails when called.
  */
 /**
- * `extra` = 这一家每次请求都要多带的字段（塞进请求体，跟 `reasoning_effort` 走同一条
- * 中间件）。OpenRouter 用它钉死供应商和量化：不钉的话每次调用可能落到不同的供应商、
- * 不同的量化上，同一个模型名跑出来的不是同一个模型。
+ * `extra` contains fields required in every request to this provider, merged into the body by the same middleware as `reasoning_effort`.
+ * OpenRouter uses it to pin providers and quantization. Without pinning, calls may reach different providers and precisions, so one model name no longer identifies the same model.
  */
 export const VENDORS: Record<string, { baseURL: string; keyEnv: string; ws?: string; searches?: boolean; extra?: Record<string, unknown> }> = {
   deepseek: { baseURL: "https://api.deepseek.com/v1", keyEnv: "DEEPSEEK_API_KEY", searches: true },
-  // 第三方托管的开源权重。DeepSeek 官方 2026-09-10 把 V4-Flash 退役、把旧名字指到 V4.1，
-  // 而论文里那一跑（2026-09-01）用的是 V4-Flash-0731 —— 同一个模型只剩这条路还能调到。
-  // 钉 fp8（DeepSeek 原生精度）+ 固定供应商顺序，不许回退到别家。
+  // Third-party hosting of open weights. DeepSeek retired V4-Flash on 2026-09-10 and redirected its old name to V4.1,
+  // while the paper's 2026-09-01 run used V4-Flash-0731. This is the remaining route to that same model.
+  // Pin fp8 (DeepSeek's native precision) and a fixed provider order, with no fallback to other providers.
   openrouter: {
     baseURL: "https://openrouter.ai/api/v1",
     keyEnv: "OPENROUTER_API_KEY",
-    // 顺序按实测吞吐（2026-09-25，2500 token 输出）：BaseTen 447 tok/s、Baidu 227、CoreWeave 180、
-    // GMICloud 168；OpenInference 只有 24（一次调用 8 分钟，一小时的题限就不可比了）。
-    // 官方 DeepSeek 在 9-01 那跑约 110 tok/s。
+    // Order follows measured throughput (2026-09-25, 2500 output tokens): BaseTen 447 tok/s, Baidu 227, CoreWeave 180,
+    // GMICloud 168; OpenInference only 24 (8 minutes per call, making a one-hour problem limit incomparable).
+    // Official DeepSeek delivered about 110 tok/s in the 9-01 run.
     extra: { provider: { order: ["BaseTen", "Baidu", "CoreWeave", "GMICloud"], allow_fallbacks: false, quantizations: ["fp8"] } },
   },
   dashscope: {
@@ -81,12 +68,9 @@ export const VENDORS: Record<string, { baseURL: string; keyEnv: string; ws?: str
 };
 
 /**
- * `api.modes` 那一列的**全部合法取值** —— 也就是「调用形状」有哪几种。
+ * **All valid values** of `api.modes`: the available call shapes.
  *
- * **取值就是实现认得的这几个**，跟 `msg_kind` 那张表一个套路：值在代码里（实现
- * 认得什么就是什么），`mode` 表是**灌进去给人和 `check` 查的**，不是让谁去填的。
- * 反过来的话，往 `mode` 表里手插一行 `duplx` 就成了「合法」，而实现照样不认 ——
- * 那条轨永远挑不中，系统照常跑，零报错。
+ * **Values are exactly those recognized by the implementation**, following `msg_kind`: code defines what is supported; the `mode` table is **seeded for people and `check` to inspect**, not for arbitrary additions. Otherwise manually inserting `duplx` would make it "valid" despite unsupported behavior, leaving the track silently unselectable while the system continues running.
  */
 export const MODES: [string, string][] = [
   ["chat", "One question, one answer. One call = one execution unit"],
@@ -95,10 +79,10 @@ export const MODES: [string, string][] = [
   ["duplex", "Realtime, both directions. Not a call but a session; one execution unit = one turn in it"],
 ];
 
-/** 光是名字，比对用。 */
+/** Names only, for comparison. */
 export const MODE_NAMES = new Set(MODES.map(([n]) => n));
 
-/** 把认得的调用形状灌进 `mode` 表。幂等 —— 跟 `seedKinds` 是同一件事。 */
+/** Seed known call shapes into `mode` idempotently, just like `seedKinds`. */
 export function seedModes(db: Conn): string[] {
   for (const [name, note] of MODES) {
     db.run(`insert into mode (name, note) values (?, ?) on conflict(name) do update set note = excluded.note`, [
@@ -110,36 +94,30 @@ export function seedModes(db: Conn): string[] {
 }
 
 /**
- * 哪个句柄接得住哪几种 mode。**注册的那一刻填，`checkData` 照它核对。**
+ * Modes supported by each handle. **Populate at registration; `checkData` validates against it.**
  *
- * `api` 的主键是 `(key_env, model)`，一行只有一个 `handle` —— 所以一行的 `modes`
- * 必须全都是那个句柄接得住的。手写一行 `modes = "chat,duplex"` 而 `handle` 是
- * chat 那个，内核会照 `duplex` 挑中它、然后调进 chat 适配器：**不报错，只是那一站
- * 的行为完全不是你想的那样**。这张表就是拿来在检查里把它抓出来的。
+ * `api` is keyed by `(key_env, model)` and has one `handle` per row, so every listed mode must be supported by that handle. A row declaring `modes = "chat,duplex"` with a chat handle would be selected for duplex but call the chat adapter: **no error, just completely unintended station behavior**. This mapping catches that during validation.
  *
- * 外面注册进来的 `http://` 句柄不在这儿 —— 它接得住什么我们不知道，跳过不查。
+ * Externally registered `http://` handles are absent because their capabilities are unknown; skip them.
  */
 export const SERVES = new Map<string, Set<string>>();
 
 /**
- * 断连重试几次。
+ * Number of disconnection retries.
  *
- * **不是保守起见**：老代码注释里写着，DeepSeek 那个端点常瞬时断连
- * （ServerDisconnected / 500），只试一次的话一次抖动就把整趟求解带崩。
+ * **Not merely precautionary**: old-code comments documented frequent transient DeepSeek disconnections (ServerDisconnected / 500). A single attempt would let one transient fault derail the entire solve.
  */
 export const RETRIES = 6;
 
 /**
- * `api.retry_on` 的默认值 —— 新注册一行时给的那份。**只是默认值，不是规矩**：
- * 库里改成什么就是什么，改它不用动代码。
+ * Default `api.retry_on` for newly registered rows. **A default, not a rule**: the database value is authoritative and requires no code change.
  *
- * 里头是「对面暂时不行」那一类：限流、网关抖、连接根本没建起来。
- * **4xx 一个都不在**（429 除外）—— 那一类说的是「你发的东西有问题」，
- * 重试改变不了任何事。
+ * It covers temporary provider failures: rate limits, gateway instability, and connections that never opened.
+ * **Exclude all 4xx except 429**: they indicate an invalid request, which retries cannot fix.
  */
 export const RETRY_ON = JSON.stringify([408, 409, 425, 429, 500, 502, 503, 504, "network"]);
 
-/** 把那一列读成一个集合。读不动就当空的 —— 空 = 一律不重试，比乱重试安全。 */
+/** Parse that column into a set. On failure use an empty set: never retrying is safer than indiscriminate retries. */
 function retrySet(raw: string): Set<string> {
   try {
     const v = JSON.parse(raw) as unknown;
@@ -150,20 +128,19 @@ function retrySet(raw: string): Set<string> {
 }
 
 /**
- * 这个错在不在名单里。
+ * Whether this error is on the retry list.
  *
- * **没有状态码 = 根本没打通**（DNS、连接被掐、读超时）。那属于「对面暂时不行」，
- * 跟「对面收到了，说你发错了」是两回事，所以它在名单里有自己的名字：`network`。
+ * **No status code means no successful connection** (DNS, a dropped connection, read timeout). That is a temporary connectivity failure, distinct from a provider receiving and rejecting an invalid request. Give it its own list entry: `network`.
  */
 function listed(e: unknown, on: Set<string>): boolean {
   const code = (e as { statusCode?: number } | null)?.statusCode;
   return on.has(code === undefined ? "network" : String(code));
 }
 
-/** 整次调用的硬墙。老代码里这条端点挂死过 27~31 分钟，只能从外面掐。 */
+/** Hard deadline for the whole call. The old endpoint hung for 27–31 minutes and required external termination. */
 export const HARD_WALL_MS = 900_000;
 
-/** 内核递过来的那一份。**两条轨收的是同一份** —— duplex 那边 import 的就是它。 */
+/** Input passed by the kernel. **Both tracks receive the same shape**; duplex imports this definition. */
 export interface Unit {
   agent: Row;
   task: Row;
@@ -172,35 +149,33 @@ export interface Unit {
   place: string;
   instance: string;
   unit: number;
-  /** 内核挑好的那条轨。**适配器不再自己挑** —— 挑的地方只许有一个。 */
-  /** 内核挑好的那条轨。`compress_at` = 上下文到多少 token 就先压再发，空 = 不压。 */
+  /** Track selected by the kernel. **The adapter does not select again**: selection must have one authority. */
+  /** Track selected by the kernel. `compress_at` is the token threshold for pre-send compression; empty disables it. */
   api: { key_env: string; model: string; base_url: string; retry_on: string; compress_at?: number | null } | null;
   context: { seq: number; role: string; kind: string; body: string; thought?: string | null }[];
   /**
-   * 哪种 role 出站时去哪儿 —— **从 `msg_role` 表读的，内核给过来。**
+   * Outbound destination for each role, **read from `msg_role` and supplied by the kernel**.
    *
-   * 以前这份对照只活在这个文件的一个常量里。那意味着「一份库取出来就能打给
-   * 模型」这句话不成立：还得同时拿着那一版代码，才知道哪几行该进消息流。
+   * Previously this mapping existed only as a constant here, so a database alone could not reconstruct a model request: the matching code version was also needed to identify message-stream rows.
    */
   sentAs: Record<string, string>;
   /**
-   * 这一站非调不可的那个工具。**空 = 它自己挑。**
+   * The tool this station must call. **Empty = the model chooses.**
    *
-   * 摆什么工具决定它**能**调什么，这一列决定它**必须**调什么 —— 两件事。只摆一个
-   * 工具挡不住它一句话都不调就走，而有些站（比如交卷）「没调」就等于这一步没做。
+   * The offered tools define what it **can** call; this column defines what it **must** call. Offering only one tool does not force a call, and at stations such as submission, no call means the required step was not performed.
    */
   mustCall: string | null;
   /**
-   * 这一轮的任务视图。**内核每轮现算的事实**，不是上下文里的一条消息 ——
-   * 消息跟着单链走，兄弟分支爬不到；视图人人有份。
+   * This round's task view. **Facts computed afresh by the kernel each round**, not a context message.
+   * Messages follow a single chain and are inaccessible to siblings; every branch receives the view.
    */
   view?: {
     task: Row;
     here: { cycle: string; unit: number; chain: string; next?: string[] };
     tried: { node: number; at: string; status: string | null; done: boolean; mine?: boolean }[];
     /**
-     * 还剩多少额度。**只有事实** —— 该在哪一站交卷、用哪个工具交，是声明层说的事
-     * （流转表上摆着有哪几站，规矩写在 skill / 任务描述里）。
+     * Remaining allowance. **Facts only**. The declaration layer decides which station and tool to use for submission:
+     * stations appear in the transition table; rules belong to skills or the task description.
      */
     budget?: {
       units?: { cycle: string; used: number; cap: number; left: number }[];
@@ -213,13 +188,11 @@ export interface Unit {
 }
 
 /**
- * 这一次真正生效的那几个旋钮：**整跑的配置打底，智能体自己那份盖在上面。**
+ * Effective knobs for this call: **run-wide configuration as the base, overridden by the agent's own settings**.
  *
- * 放在智能体身上是因为它是智能体的性质，不是这一跑的性质 —— 一个「去查、把查到的
- * 说清楚」的智能体不需要思考，而它服务的求解者要想得越多越好，一个旋钮当不了两件事。
- * 实测同一个问题 `none` 是 14.5 秒、`low` 是 113 秒。
+ * These belong to the agent rather than the run. A lookup-and-report agent needs no reasoning, while its solver should reason as much as possible; one knob cannot control both. In measurements on the same question, `none` took 14.5 seconds and `low` took 113 seconds.
  *
- * 读不出来就当没有：那一列写坏了不该让这一站发不出去，落回整跑的配置照样能跑。
+ * Treat unreadable settings as absent: malformed data must not prevent this station from sending a request. Run-wide defaults remain usable.
  */
 function knobsOf<T extends Record<string, unknown>>(u: Unit, run: T): T {
   const raw = u.agent.knobs;
@@ -233,16 +206,11 @@ function knobsOf<T extends Record<string, unknown>>(u: Unit, run: T): T {
 }
 
 /**
- * 往请求体里补几个字段 —— **这条 provider 不认得，但那一端认得的那些。**
+ * Add fields to the request body that **this provider adapter does not recognize but the endpoint does**.
  *
- * `providerOptions` 这条路是不通的：实测 `@ai-sdk/openai-compatible@3` 收下
- * `providerOptions: { deepseek: { reasoning_effort } }`，而发出去的 body 里只有
- * `model` 和 `messages` —— 那一栏根本没上线。**这意味着在补上这个之前，
- * 配置里的思考强度从来没有生效过**，每一跑都跑在那一家的默认档上，而且不报错。
+ * `providerOptions` does not work here: measured with `@ai-sdk/openai-compatible@3`, it accepted `providerOptions: { deepseek: { reasoning_effort } }` but emitted only `model` and `messages`. The field never reached the wire. **Before this fix, configured reasoning effort had never taken effect**; every run silently used the provider default.
  *
- * SDK 给的正路是 `fetch` 这个钩子（它自己的文档：可以当中间件用来拦请求）。
- * 所以这儿仍然不是手搓 —— HTTP、重试、错误分类全都还在 SDK 手里，我们只在最后
- * 一刻把几个字段并进去。
+ * The SDK's supported route is the `fetch` hook, documented as request middleware. This remains SDK-managed rather than handwritten HTTP: HTTP, retries, and error classification stay in the SDK; we merge a few fields at the last moment.
  */
 function withExtra(extra: Record<string, unknown>): FetchFunction {
   const wrapped = async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
@@ -251,8 +219,8 @@ function withExtra(extra: Record<string, unknown>): FetchFunction {
     }
     return await fetch(input, init);
   };
-  // 这个运行时的 `fetch` 身上还挂着别的东西（Bun 有 `preconnect`），而这一层要能
-  // 顶替它。**原样转发，不自己造一个** —— 造一个空壳的话，用到它的那条路会静默失效。
+  // The runtime's `fetch` has additional properties (Bun's `preconnect`), and this wrapper must substitute for it.
+  // **Forward them unchanged rather than creating a shell**; otherwise paths using them would silently break.
   return Object.assign(wrapped, { preconnect: fetch.preconnect.bind(fetch) });
 }
 
@@ -263,52 +231,37 @@ function key(keyEnv: string): string {
 }
 
 /**
- * 这一行该不该发给模型。**一处定义，两条轨读同一个判据。**
+ * Whether to send this row to the model. **One definition shared by both tracks.**
  *
- * 不发的是内核那条记账（这一轮告诉了模型有哪些工具）—— 发过去等于把账本念给它听。
- * `system` 那几条走各自的 instructions 通道，不进消息流。
+ * Exclude kernel bookkeeping about tools offered this round: sending it would read the ledger aloud. System messages use their instructions channels rather than the message stream.
  *
- * **判据得连 `role` 一起看，不能只看 `kind = 'inject'`。** `inject` 是两样东西共用
- * 的一个值（见 `deliver.ts` 那张推断表）：内核的记账是 `inject` + `role=system`，
- * 系统注入的用户侧消息是 `inject` + `role=user`。而**非真人发的任务，描述那一条正是
- * 后者** —— 一刀切掉 `inject` 的话，`source` 不是 `user` 的任务出站时消息是空的，
- * 模型那边直接回「messages must not be empty」。
+ * **Inspect `role` too, not just `kind = 'inject'`.** `inject` represents two things (see the inference table in `deliver.ts`): kernel bookkeeping is `inject` + `role=system`, while system-injected user-side content is `inject` + `role=user`. **Descriptions of tasks submitted by nonhuman sources use the latter**. Dropping all inject rows would empty the outbound messages for tasks whose `source` is not `user`, yielding "messages must not be empty".
  *
- * chat 和 duplex 各写一份的话，就是 `deliver.ts` 开头警告的那件事：同一个 bug
- * 有两份副本，而修的时候多半只修一份。
+ * Separate chat and duplex copies would recreate the duplication warned about in `deliver.ts`: two copies of a bug, usually only one fixed.
  */
 export function sendable(r: { role: string; kind: string }, sentAs: Record<string, string>): boolean {
   return sentAs[r.role] === "messages";
 }
 
 /**
- * 认得的 role。**取值就是 `msg_role` 表里的行** —— 那张表说了每种 role 出站时
- * 去哪儿（`sent_as`），种子在 `msg/deliver.ts`。这个文件里以前有一份同样的对照，
- * 删掉了：两处各存一份的话，改了一处漏了另一处不报错，只表现为某一路悄悄按
- * 错误的身份进了上下文。
+ * Known roles. **Values come from `msg_role` rows**, which define each role's outbound destination (`sent_as`); seeds live in `msg/deliver.ts`.
+ * An identical mapping formerly in this file was removed. Two copies could drift without error, silently presenting one source under the wrong identity.
  */
 /**
- * 库里那一行怎么变回一条模型消息。
+ * Convert a database row back into a model message.
  *
- * `kind = "call"` 那条的 `body` 是个 JSON（文本 + 它请求的调用），`kind = "tool"`
- * 那条是工具的返回 —— 消息表只有一列 `body`，这两样没有自己的列，所以塞在里面。
- * 两头都是我们，约定一致就行；哪天觉得该有一列再补。
+ * A `kind = "call"` body's JSON contains text and requested calls; a `kind = "tool"` body contains a tool result. The message table has only one `body` column, so both shapes are stored there. We own both ends and need only a consistent contract; dedicated columns can be added when warranted.
  */
 function toMsg(
   r: { role: string; kind: string; body: string; thought?: string | null },
   sentAs: Record<string, string>,
 ): ModelMessage | null {
-  // **当时想的那份跟着回去。** 厂商把这一条写死在文档里：请求带 `tools` 时，
-  // 历史轮次的 `reasoning_content` 都该回传（不带 `tools` 才是「传了也忽略」）。
-  // 而这套机制每一次请求都带 `tools`。
+  // **Return the reasoning from that turn as well.** Provider documentation requires historical `reasoning_content` when requests include `tools` (it is ignored only without tools). This mechanism includes tools in every request.
   //
-  // 这跟「思考不进 `body`」那条决定不冲突：`body` 还是那份谁都认得的重放材料，
-  // 思考另占一列，出站时才拼进消息里。库里存着、发得出去，两边都要得到。
+  // This does not conflict with keeping reasoning outside `body`: body remains a universally understood replay shape, reasoning has a separate column, and outbound conversion joins them. Preserve it in the database and make it sendable.
   const thought = String(r.thought ?? "");
-  // `graded` 跟 `call` 长得一样、也照样念给模型听 —— 差别只在**谁写的**：
-  // `call` 是模型要的，得有人去跑；`graded` 是系统事后记下的一次外部裁决，
-  // 结果当场就配好了，没有人该去跑它。分不开的话，跑工具那一站会把判决当成
-  // 一次待办的请求又执行一遍 —— 同一个 id 两条结果，整条链路发不出去。
+  // `graded` has the same shape as `call` and is also shown to the model. Only **authorship** differs:
+  // `call` is a model request requiring execution; `graded` is a system-recorded external verdict with a result already attached and nothing to execute. Conflating them would rerun a verdict as a pending tool request, yielding two results for one id and making the chain unsendable.
   if (r.kind === "call" || r.kind === "graded") {
     const v = JSON.parse(r.body) as { text?: string; calls?: { id: string; name: string; input: unknown }[] };
     return {
@@ -355,19 +308,17 @@ function toMsg(
 }
 
 /**
- * 这一次要告诉模型的那段 `instructions`：工具的用法约定 + 上下文里那几条 system。
+ * Instructions for this request: tool usage conventions plus system entries from context.
  *
- * **chat 每个单元都重发一遍** —— 一个执行单元就是一次调用，它没有「上一轮说过」
- * 这回事。duplex 那边不一样：会话记得住，所以只在**开会话那一刻**发一次。
- * 两边拼法相同，所以在这儿只拼一次。
+ * **Chat resends them per unit**: each unit is a fresh call with no memory of previous instructions. Duplex sessions remember, so send only **when opening the session**. Both construct the same content, so share this implementation.
  *
- * （AI SDK 7 不许 system 混在 messages 里，混进去当场拒 —— 不是悄悄丢，这点很好。）
+ * (AI SDK 7 rejects system messages inside messages rather than silently discarding them, which is useful.)
  */
 export function instructionsOf(u: Unit): string {
   return [
     ...u.tools.map((t) => String(t.prompt ?? "")),
-    // 走 instructions 那一档的都收进来 —— `system` 和 `skill`。
-    // 内核那条记账（`kind: "inject"`）除外：那是给我们看的账本，不念给模型听。
+    // Collect roles routed to instructions: `system` and `skill`.
+    // Exclude kernel bookkeeping (`kind: "inject"`), which is our ledger, not model-facing text.
     ...u.context.filter((r) => u.sentAs[r.role] === "instructions" && r.kind !== "inject").map((r) => r.body),
   ]
     .filter(Boolean)
@@ -375,21 +326,15 @@ export function instructionsOf(u: Unit): string {
 }
 
 /**
- * 把内核算好的那份任务视图念成一段话。**内核只给事实，这儿才拼词。**
+ * Render the kernel-computed task view as text. **The kernel supplies facts; wording is assembled here.**
  *
- * ## 它进消息流，不进 instructions
+ * ## Put it in the message stream, not instructions
  *
- * 一开始放在 `instructions` 里，错了：**根级兄弟的消息流是空的**（它没有祖先，
- * 自己那站还没说过话），于是 `messages: []`，模型那边直接拒
- * （`Invalid prompt: messages must not be empty`）。视图有内容也救不了 ——
- * instructions 不是消息。
+ * It initially lived in `instructions`, incorrectly: **root-level siblings have no messages** (no ancestors and no speech yet), yielding `messages: []` and `Invalid prompt: messages must not be empty`. Nonempty instructions cannot fix an empty message list.
  *
- * 而且从意思上它本来就该是消息：老仓库那句是「你所在**单链的完整上下文**已默认
- * 接入」——**上下文**，不是系统交代。它是这一轮摆在模型面前的东西（题目、你在树的
- * 哪儿、别人试过哪几条），跟「工具怎么用」那种交代不是一回事。
+ * Semantically it belongs in context too. The old repository said the complete context of the current chain is included by default: **context**, not system instructions. The view presents this round's problem, tree position, and other attempts, distinct from tool-usage directions.
  *
- * 树那一段**只在真分叉了才写**：单链的机制（一条道走到黑）本来就是直接继承上下文，
- * 给它一张只有一个节点的树，除了占地方没有别的作用。
+ * Include the tree section **only after actual branching**. Single-chain mechanisms already inherit context directly; a one-node tree would only occupy space.
  */
 export function viewOf(u: Unit): string {
   const v = u.view;
@@ -404,9 +349,8 @@ export function viewOf(u: Unit): string {
     }${t.objective ? " | this task is graded by a verification function" : ""}`,
   ];
 
-  // **你在哪一站。** 流转表上的事实：站名，以及这一站之后还能去哪几站。
-  // 「没有下一站」是这里唯一多说的一句 —— 那也是事实（`next` 是空的），
-  // 而它决定了这一站说的话有没有下一站接得住。
+  // **Which station you are at.** Facts from the transition table: station name and possible successors.
+  // "No next station" is the only extra statement, also a fact (empty `next`), establishing whether another station can continue this one's output.
   const next = v.here.next;
   lines.push(
     "",
@@ -419,8 +363,8 @@ export function viewOf(u: Unit): string {
           : ` - after this comes one of: ${next.join(", ")}`),
   );
 
-  // 额度只报事实。**该在哪一站交卷、用哪个工具交，是声明层说的事** ——
-  // 流转表上摆着有哪几站，规矩写在 skill / 任务描述里。内核不在这儿塞口径。
+  // Report allowance facts only. **Which station and tool perform submission belongs to the declaration layer**:
+  // the transition table lists stations, and skills or task descriptions state the rules. The kernel adds no policy wording here.
   const b = v.budget;
   if (b) {
     const units = (b.units ?? []).map((x) => `${x.cycle} ${x.used}/${x.cap}`).join(", ");
@@ -433,13 +377,13 @@ export function viewOf(u: Unit): string {
     );
   }
 
-  // 只有一个节点 = 还没分叉，那就是单链，树这一段没有意义。
+  // One node means no branching yet: this is a single chain, and the tree section adds nothing.
   if (v.tried.length > 1) {
     lines.push(
       "",
       "## This tree",
-      // 说的是**节点**：一个节点是一次完整的尝试，好几个执行单元拼起来。
-      // `node_load` 认的也是节点号 —— 两处得说同一种话，不然它会拿行号去问。
+      // Describe **nodes**: each is a complete attempt spanning several execution units.
+      // `node_load` also accepts node ids. Both must use the same vocabulary, or the model may query row ids instead.
       `You are at ${v.here.chain}. Attempts so far:`,
       ...v.tried.map(
         (n) =>
@@ -455,29 +399,21 @@ export function viewOf(u: Unit): string {
 }
 
 /**
- * 拼这一轮发出去的消息：**任务视图打头，然后是上下文里该发的那些。**
+ * Build outbound messages: **task view first, then sendable context**.
  *
- * 视图排在最前是因为它是「这道题是什么」——上下文是接着它往下说的。
- * 而且它保证消息流不空：根级兄弟没有祖先，不给它这一条就是 `messages: []`，
- * 模型那边直接拒。
+ * The view defines the problem, and context continues from it. It also guarantees a nonempty message stream: root-level siblings have no ancestors and would otherwise produce `messages: []`, rejected by the model.
  *
- * 两条轨共用（duplex 那边 import 的就是它）—— 一份判据不许有两处实现。
+ * Shared by both tracks (duplex imports it). One criterion must not have two implementations.
  */
 /**
- * 这一次发过去的消息流：**历史在前，这一轮的问话在最后。**
+ * The outbound message stream: **history first, this round's question last**.
  *
- * 视图（任务是什么、走到哪儿了、还剩多少预算、这棵树长什么样）是**每个执行
- * 单元现生成一份**的，它就是这一轮的问话。放在历史前面有两个坏处：
+ * The view (task, current progress, remaining budget, tree shape) is **generated afresh for every execution unit**, making it this round's question. Placing it before history has two problems:
  *
- * 1. 最新的信息落在最旧的位置，后面几十条历史把它埋掉
- * 2. **整个请求会以助手消息结尾** —— 上一站要是说了句纯文本（没调工具），
- *    那条就是最后一条。有的网关把这种形状当成「续写前缀」，于是要求把
- *    `reasoning_content` 一起带回来，不带就直接拒收：
- *    `The reasoning_content in the thinking mode must be passed back to the API.`
- *    一道题就这么整个卡死在交卷站上（cmt-3，submit#14）。
+ * 1. Newest information occupies the oldest position, buried under dozens of historical messages.
+ * 2. **The request can end with an assistant message** if the previous station produced plain text without tools. Some gateways treat that as a continuation prefix and require `reasoning_content`, rejecting its absence with `The reasoning_content in the thinking mode must be passed back to the API.` This stranded an entire problem at submission (cmt-3, submit#14).
  *
- * 上一站调了工具的话，最后一条是 tool 结果，形状是对的 —— 所以这个毛病只在
- * 「上一站说了句话就走」的时候犯，看着像随机。
+ * After tool calls, the final message is a tool result and the shape works. The bug therefore appears only after a station speaks without tools, making it seem random.
  */
 export function messagesOf(u: Unit): ModelMessage[] {
   const view = viewOf(u);
@@ -488,10 +424,10 @@ export function messagesOf(u: Unit): ModelMessage[] {
 }
 
 /**
- * 注册每家一个适配器。**这个句柄同时是 `api.handle` 和 `agent.unit`** ——
- * 一次调用就是一个执行单元，两者本来就是一回事，不该分成两层。
+ * Register one adapter per provider. **The handle is both `api.handle` and `agent.unit`**:
+ * one call is one execution unit, the same operation rather than two layers.
  *
- * `seed` 里那几行 `api` 是**数据**，给几个能直接用的；改它不用动代码。
+ * The `api` rows in `seed` are **data**, supplying ready-to-use examples that can change without code edits.
  */
 export function registerVendors(
   db: Conn,
@@ -508,46 +444,40 @@ export function registerVendors(
   },
 ): string[] {
   for (const [vendor, v] of Object.entries(VENDORS)) {
-    // 这条句柄接得住哪几种 mode。**duplex 不在里面** —— 它是另一条句柄。
+    // Modes this handle supports. **Excludes duplex**, which has its own handle.
     SERVES.set(`fn:api.${vendor}`, new Set(["chat", "tools", "vision"]));
     reg.register(db, `fn:api.${vendor}`, HARD_WALL_MS, async (arg) => {
       const u = arg as unknown as Unit;
-      // 内核按周期表的 `api_mode` 已经挑好了这一站走哪条轨，这儿直接用。
+      // The kernel already chose this station's track from the cycle table's `api_mode`; use it directly.
       if (!u.api) throw new Error(`fn:api.${vendor} was called, but the kernel did not say which model this station uses`);
       const { model, key_env: keyEnv } = u.api;
       const officialOpenRouter = vendor === "openrouter" && model === "deepseek/deepseek-v4.1-flash";
       const retryOn = retrySet(u.api.retry_on);
-      // 这一次生效的旋钮 —— 整跑的打底，这个智能体自己那份盖上去。**得在建 provider
-      // 之前算**：思考强度是靠 fetch 中间件塞进请求体的，而中间件是建 provider 时挂的。
+      // Effective knobs: run-wide defaults overridden by the agent's settings. **Compute before creating the provider**:
+      // reasoning effort enters the body through fetch middleware, attached during provider creation.
       const knobs = knobsOf(u, runKnobs);
-      // 见下面建 provider 那儿：钉死工具的站不能思考。
+      // See provider creation below: stations requiring a specific tool cannot enable reasoning.
       const effort = officialOpenRouter ? "high" : u.mustCall ? "none" : knobs.reasoningEffort;
-      // 请求体里要多带的：这一家固定的那几样（`VENDORS[…].extra`）+ 思考强度。
+      // Extra request-body fields: the provider's fixed settings (`VENDORS[…].extra`) plus reasoning effort.
       const extra: Record<string, unknown> = { ...(v.extra ?? {}), ...(effort ? { reasoning_effort: effort } : {}) };
       if (officialOpenRouter) {
         extra.provider = { only: ["digitalocean"], allow_fallbacks: false, max_price: { prompt: 0.3, completion: 1.2 } };
         extra.reasoning = { enabled: true, effort: "high", exclude: false };
         extra.seed = undefined;
       }
-      // **地址从表里来。** 以前它写死在 `VENDORS` 里，后来我又加了一条环境变量去顶
-      // 它 —— 那条更糟：同一份库，换个环境变量行为就不一样，而库里、代码里都看不
-      // 出来。库要能当一份跟内核无关的快照用，这种东西一个都不能有。
+      // **The endpoint comes from the table.** It was once hard-coded in `VENDORS`, then overridden by an environment variable, which was worse: identical databases could behave differently under another environment without any clue in the database or code. A database must remain a kernel-independent snapshot, so such hidden inputs cannot remain.
       //
-      // 进了表就顺带解决了另一件事：假端点不用再靠环境变量接进来，改一行数据就行。
-      // 思考强度**从这儿走，不走 `providerOptions`** —— 后者收下但不发（见 `withExtra`）。
-      // 空字符串当成不给：那一家有自己的默认，我们不替它选。
+      // Storing the endpoint also lets tests use a fake endpoint by changing one row, without an environment-variable override.
+      // Reasoning effort **uses this path, not `providerOptions`**, which accepts but does not transmit it (see `withExtra`). Treat an empty string as unspecified and let the provider choose its default.
       const provider = createOpenAICompatible({
         name: vendor,
         baseURL: u.api.base_url,
         apiKey: key(keyEnv),
-        // **这一站要是钉死了必须调某个工具，思考就得关掉。**
+        // **If this station requires a specific tool call, disable reasoning.**
         //
-        // 不是我们的选择，是那一端的规矩：思考模式下 `tool_choice` 一律 400
-        // （`Thinking mode does not support this tool_choice`）。两样都要的话，
-        // 请求根本发不出去。
+        // This is the endpoint's constraint, not our preference: reasoning mode rejects `tool_choice` with HTTP 400 (`Thinking mode does not support this tool_choice`). Requesting both cannot work.
         //
-        // 而这两件事本来也不冲突：会钉死工具的站（比如交卷）要的是「把已经算好的
-        // 东西交出去」，不是再想一遍。
+        // Their purposes are compatible: stations requiring a tool, such as submission, need to send an already computed answer, not reason again.
         ...(Object.keys(extra).length ? { fetch: withExtra(extra) } : {}),
       });
 
@@ -555,8 +485,8 @@ export function registerVendors(
         ? `This station requires calling the ${u.mustCall} tool exactly once. A text-only response does not submit the task. Use the available tool.` : ""].filter(Boolean).join("\n\n");
       const messages = messagesOf(u);
 
-      // 工具**只声明不执行**：没有 execute，SDK 就只把调用请求还回来。
-      // 真去跑它是下一个执行单元的事 —— 在这儿跑掉的话，那一步就从库里消失了。
+      // Tools are **declared, not executed**. Without execute, the SDK only returns call requests.
+      // Actual execution belongs to the next execution unit; running tools here would erase that step from the database.
       const tools = Object.fromEntries(
         u.tools.filter(t => !officialOpenRouter || !u.mustCall || t.name === u.mustCall).map((t) => [
           String(t.name),
@@ -570,29 +500,23 @@ export function registerVendors(
       const wall = new AbortController();
       const timer = setTimeout(() => wall.abort(), HARD_WALL_MS);
       try {
-        // ── 一次调用 = 一个执行单元；但**一个执行单元不等于一次 HTTP** ─────────
+        // ── One call = one execution unit, but **one unit is not one HTTP request** ──
         //
-        // 没说完就接着说，最多续 `continueTimes` 次。
+        // Continue unfinished output up to `continueTimes` times.
         //
-        // 为什么要这一档：思考型模型的输出预算是**思考和可见文本共用**的。额度一刀切
-        // 的话，它把预算全花在思考上，最后可见文本是空的 —— 实测 19 条答复里 12 条
-        // 全空，三道题一个字都没答，而成绩单上只表现为「答错」。
+        // Reasoning models share one output budget between **reasoning and visible text**. A hard cutoff may consume all of it on reasoning and leave no visible answer. Measurements found 12 of 19 responses empty, with three problems receiving no answer at all; the report showed only incorrect answers.
         //
-        // **「没答」和「没答完」是两回事**：前者该判错，后者该让它说完。判据是
-        // `finishReason === "length"` —— 那是模型自己说的「我被截断了」，不是我们猜的。
+        // **No answer differs from an unfinished answer**: the former should fail; the latter should be allowed to finish. Use `finishReason === "length"`, the model's own truncation signal, rather than guessing.
         //
-        // 续的时候把已经说出来的那半截当成 assistant 的话接在最后，它会顺着往下写。
+        // Append existing output as an assistant message so continuation proceeds from that prefix.
         /**
-         * 打一发，炸了就重打，每次多等 5 秒。
+         * Send one request, retrying failures with an additional 5-second delay each time.
          *
-         * SDK 自己那层 `maxRetries` 管的是 HTTP（连不上、5xx、429），管不了
-         * **「200 回来了但读不懂」**（`Failed to process successful response`）——
-         * 那是它把返回体映射成自己的结构时失败，重试逻辑够不着。
+         * The SDK's `maxRetries` covers HTTP failures (connection errors, 5xx, 429), but not **an HTTP 200 response it cannot decode** (`Failed to process successful response`). That failure occurs while mapping the body into its own structure, outside the retry path.
          *
-         * 而炸在这儿之后内核按设计不重试（醒了就是原地热循环），那一站只能挂着等
-         * `expect_ms` —— 一次偶发抖动烧掉 15 分钟。所以这一层得自己扛。
+         * The kernel deliberately does not retry after such failures (waking it would create a hot loop). The station otherwise waits for `expect_ms`, wasting 15 minutes on a transient fault. This layer must handle it.
          *
-         * **递增等待**：抖动多半自己会过去，等一等比立刻再打有用。
+         * **Increasing delays** allow transient faults to clear; waiting helps more than immediately retrying.
          */
         const ask = async (msgs: ModelMessage[]) => {
           let boom: unknown;
@@ -605,11 +529,8 @@ export function registerVendors(
                 ...(instructions ? { instructions } : {}),
                 ...(Object.keys(tools).length ? { tools } : {}),
                 maxOutputTokens: knobs.maxTokens,
-                // **钉死这一站要调的那个工具。** 有的家在思考模式下拒收它
-                // （DeepSeek V4 回 400：`Thinking mode does not support this
-                // tool_choice`）—— 那是那一列跟思考强度对不上，不是这儿的错，
-                // 错误原样抛出去，看得见就改得动（清空 `cycle.must_call`，或者
-                // 把思考关掉）。
+                // **Require this station's designated tool.** Some providers reject it in reasoning mode
+                // (DeepSeek V4 returns 400: `Thinking mode does not support this tool_choice`). That is a configuration conflict between the column and reasoning effort. Propagate the error unchanged so it can be fixed by clearing `cycle.must_call` or disabling reasoning.
                 ...(u.mustCall && tools[u.mustCall]
                   ? officialOpenRouter ? { toolChoice: "auto" as const } : { toolChoice: { type: "tool" as const, toolName: u.mustCall } }
                   : {}),
@@ -622,11 +543,10 @@ export function registerVendors(
                 abortSignal: wall.signal,
               });
             } catch (e) {
-              // 整次调用的硬墙到了就别再重打了 —— 那不是抖动，是这一站超时了。
+              // Stop retrying when the whole-call deadline expires: that is a station timeout, not a transient fault.
               if (wall.signal.aborted) throw e;
-              // **白名单说了才重打。** 不在名单里的原样抛出去。400 说的是「这个请求
-              // 本身不合法」—— 再打一百次还是同一个 400，重试只是把时间烧掉，然后
-              // 以完全一样的方式失败。实测烧掉的是 30 秒（0+5+10+15 的退避）。
+              // **Retry only when the allowlist permits it.** Propagate other errors unchanged. A 400 means the request itself is invalid;
+              // a hundred retries still yield the same 400. Retrying only wastes time before identical failure: 30 seconds observed with 0+5+10+15 backoff.
               if (!listed(e, retryOn)) throw e;
               boom = e;
             }
@@ -638,37 +558,30 @@ export function registerVendors(
         let thought = "";
         let calls: { id: string; name: string; input: unknown }[] = [];
         let this_broke = "";
-        // **一次调用花了多少，得攒着。** 续写是好几轮 `generateText`，每轮报自己那一份；
-        // 只留最后一轮的话，续过写的那些格子会把前面几轮的开销记成零。
+        // **Accumulate usage for the whole call.** Continuation spans multiple `generateText` rounds, each reporting its own usage.
+        // Keeping only the final round would record earlier rounds as free.
         const spent = { prompt_tokens: 0, completion_tokens: 0, reasoning_tokens: 0, cached_tokens: 0 };
         for (let round = 0; ; round++) {
-          // 已经产出的那半截接在末尾 —— 让它续，而不是重来一遍。
+          // Append the output already produced so the model continues instead of restarting.
           //
-          // **思考那半截也得带回去。** 思考型模型把上一轮的思考当成这一轮的前提，
-          // 只回传可见文本的话，有的厂商直接拒收：
+          // **Return the reasoning fragment too.** Reasoning models use the previous round's thought as the next round's premise. Some providers reject visible text alone:
           //   The `reasoning_content` in the thinking mode must be passed back to the API.
-          // 实测一整道题就这么卡死在续写的第一轮上。
+          // An entire observed problem stalled at its first continuation this way.
           //
-          // ## 门槛是「产出过东西没有」，不是「说过话没有」
+          // ## Test whether anything was produced, not whether anything was spoken
           //
-          // 撞上限最常见的形态是**它一直在想，一个字可见文本都还没写**。这时候
-          // `text` 是空的 —— 拿它当门槛的话这一轮就退化成 `messages` 原样再发一遍，
-          // 也就是**原地重问**。而重发是断线的处理办法（那条本来就有人管：SDK 的
-          // `maxRetries` 管 HTTP，外面 `retryTimes` 配 `api.retry_on` 管厂商认的
-          // 可重试错误），不是截断的：截断意味着上一轮产出了满满一屏 token，
-          // 只是没说完，扔掉重走同一条路是**系统性无效**的 —— 输入一样，它会想到
-          // 同一个地方、同样撞上限。
+          // The common truncation case is **reasoning with no visible text yet**. `text` is empty; gating on it would resend messages unchanged, **reasking the same question**. Resending handles disconnections (already covered by SDK `maxRetries` for HTTP and outer `retryTimes` with `api.retry_on` for provider retryable errors), not truncation. Truncation means a full budget of tokens was produced but remains unfinished. Discarding it and retracing the same path is **systematically ineffective**: identical input reaches the same reasoning point and limit.
           //
-          // 拿真的一次截断打过三档（同一道题、同一段历史、同一个 16 万字的思考）：
+          // Three experiments on one real truncation used the same problem, history, and 160,000-character reasoning trace:
           //
-          // | 这一轮怎么发 | 结果 |
+          // | Request strategy | Result |
           // | --- | --- |
-          // | 什么都不带，重发 | `length`，4,096 全是思考，文本 0 字，29 秒；**新思维链开头逐字等于丢掉那份** |
-          // | 带上思考 | `tool_calls`，7 秒，只新想了 423 个 token，接着上次的推导往下走 |
-          // | 前缀续写（`/beta` + `prefix`） | 400 `Function call should not be used with prefix` —— 带工具就用不了 |
+          // | Resend without prior output | `length`, all 4,096 tokens spent reasoning, 0 visible characters, 29 seconds; **the new reasoning began verbatim like the discarded trace** |
+          // | Include reasoning | `tool_calls`, 7 seconds, only 423 new reasoning tokens, continuing the prior derivation |
+          // | Prefix continuation (`/beta` + `prefix`) | 400 `Function call should not be used with prefix`: incompatible with tools |
           //
-          // 代价是那份思考要作为输入再发一遍（上面那次 66,886 个输入 token）。
-          // 换回来的是不用再吐一轮输出，而卡着这类任务的是钟。
+          // The cost is resending reasoning as input (66,886 input tokens in that experiment).
+          // The benefit is avoiding another full output round, and wall time is the bottleneck for these tasks.
           const so_far: ModelMessage[] =
             text || thought
               ? [
@@ -682,9 +595,8 @@ export function registerVendors(
                   },
                 ]
               : messages;
-          // **续写这一轮炸了，不该把整道题带走。** 已经说出半截了，那半截就是答案的
-          // 一部分；这儿抛出去的话，这一站挂到 expect_ms，一道题直接没了。截断着交
-          // 比什么都没有强 —— 第一轮除外，那时候手上一个字都没有。
+          // **A continuation failure must not lose the whole problem.** The partial output is already part of the answer.
+          // Throwing here would leave the station waiting until expect_ms and lose the problem. A truncated answer is better than none, except on the first round when nothing exists yet.
           let out;
           try {
             out = await ask(so_far);
@@ -696,8 +608,8 @@ export function registerVendors(
             break;
           }
           text += out.text;
-          // `reasoningText` 不是每家都填得上 —— openai-compatible 认不认得那家的
-          // `reasoning_content`，取决于版本。两处都捞一下，捞不到就当没有。
+          // Not every provider fills `reasoningText`; recognition of its `reasoning_content` by openai-compatible depends on the version.
+          // Check both locations; if neither supplies it, treat it as absent.
           thought +=
             out.reasoningText ||
             (out.reasoning ?? []).map((r) => ("text" in r ? String(r.text) : "")).join("");
@@ -710,29 +622,25 @@ export function registerVendors(
             error.name = "RequiredToolCallMissing";
             throw error;
           }
-          // 用量按轮累加。**捞不到就记 0，不猜** —— 一个猜出来的数比没有这个数更坏，
-          // 因为它看起来像量出来的。哪一家不报，那一列就是 0，看得出来。
+          // Accumulate usage by round. **Record missing values as 0; do not guess**. A guessed number looks measured and is worse than no number.
+          // A provider that does not report usage leaves that column at 0, visibly.
           spent.prompt_tokens += Number(out.usage?.inputTokens ?? 0);
           spent.completion_tokens += Number(out.usage?.outputTokens ?? 0);
           spent.reasoning_tokens += Number(out.usage?.outputTokenDetails?.reasoningTokens ?? 0);
           spent.cached_tokens += Number(out.usage?.inputTokenDetails?.cacheReadTokens ?? 0);
 
-          // 要工具了就停：那是一次完整的表态，续不下去也不该续。
+          // Stop on a tool request: it is a complete action declaration that cannot and should not be continued.
           if (calls.length > 0) break;
-          // 它自己说完了，或者续满了。
+          // The model finished, or the continuation limit was reached.
           if (out.finishReason !== "length" || round >= knobs.continueTimes) break;
         }
 
         if (this_broke) log.warn(`${model} could not continue; handing back what it had said. ${this_broke}`);
-        // **思考跟着回去，但不进 `body`。**
+        // **Return reasoning alongside the result, but outside `body`.**
         //
-        // 这儿以前的决定是「思考不落库」，理由到今天还成立：`body` 是**重放要用的那一份**，
-        // 而有的网关不认得带思考的助手消息 —— 重放这条路一直是好的，不能拿它换。
+        // Previously reasoning was not stored. The original rationale still holds for `body`: it is **the replay representation**, and some gateways reject assistant messages containing reasoning. Preserve the working replay path.
         //
-        // 但那个理由只管住「别放进 body」，管不住「别记」。思考另占一列，重放照旧只读
-        // `body`，两边都要得到：跨执行单元重发的还是那份网关认得的，而**它当时到底想了
-        // 什么**留在了库里。这条以前是丢的 —— 一次调用 174 秒、可见输出才 350 个 token，
-        // 那两百多秒去哪了，快照里一个字都答不上来。
+        // That rationale forbids placing reasoning in body, not recording it at all. Give it a separate column while replay continues reading body. Both requirements then hold: cross-unit replay retains the gateway-compatible shape, and the database preserves **what the model actually thought**. Previously this was lost: one call took 174 seconds for only 350 visible tokens, while the snapshot could say nothing about where those two hundred-odd seconds went.
         const said = { thought, ...spent };
         if (calls.length > 0) {
           return { role: "assistant", kind: "call", body: JSON.stringify({ text, calls }), ...said };

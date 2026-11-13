@@ -1,33 +1,25 @@
 /**
- * 一个本机浏览器标签页上的那几个工具。
+ * Tools for one tab in the local browser.
  *
  * ```
- * bun examples/place/tab-server.ts <那一页的链接> [调试端口]
+ * bun examples/place/tab-server.ts <page-url> [debug-port]
  * ```
  *
- * 链接是**这个地方的身份**，所以要整条给，不是给一截让它去猜 —— 同时开着两个
- * deck 的时候，猜会连错一个，而且连错了看不出来。
+ * The URL is **the place’s identity**, so provide it in full, not a fragment to guess from. With two decks open, guessing can connect to the wrong one without making the error apparent.
  *
- * ## 它连的是什么
+ * ## What it connects to
  *
- * Chrome 带 `--remote-debugging-port=9222` 起着的时候，`GET /json/list` 会列出
- * 所有开着的标签页，每一个带一个 `webSocketDebuggerUrl`。连上那条 WS 就是
- * CDP —— 这儿只用一个方法：`Runtime.evaluate`，在**那一个标签页**里求值。
+ * When Chrome runs with `--remote-debugging-port=9222`, `GET /json/list` lists all open tabs, each with a `webSocketDebuggerUrl`. Connecting to that WebSocket gives CDP. This server uses only `Runtime.evaluate`, evaluating code in **that specific tab**.
  *
- * ## 为什么不做成通用的浏览器工具
+ * ## Why not generic browser tools?
  *
- * 这四个工具是**这一页**的操作面：`deck.html` 自己在 `window.deck` 上摆出了
- * `next / prev / goto / state`，工具照着调。换一页就是另一套工具 —— 页面定操作面，
- * 工具只负责把它接出来。做成 `browser_click(x, y)` 那种通用的，模型就得自己猜
- * 这一页长什么样。
+ * These four tools are **this page’s interface**: `deck.html` exposes `next / prev / goto / state` on `window.deck`, and tools call those methods. A different page supplies a different tool set: the page defines the interface, and tools expose it. Generic `browser_click(x, y)` tools would make the model guess the page’s layout.
  *
- * ## 跟 workplace 的关系
+ * ## Relationship to workplace
  *
- * 引擎那边这个地方叫 `tab:deck`（一行 `workplace`）；浏览器那边它是哪个标签页，
- * 由这个 server 的参数说了算。两边各自认各自的，中间靠**声明**对上：
- * 工具的 `when` 写 `dim: place, op: eq, value: tab:deck`。
+ * The engine calls this place `tab:deck` (one `workplace` row); this server’s arguments identify its browser tab. Each side uses its own identity, joined by **declaration**: tools specify `dim: place, op: eq, value: tab:deck` in `when`.
  *
- * 这个地方 `forward` 是关的 —— 工具不用转发到别处去，它本来就在本机。
+ * `forward` is disabled for this place: the tools already run locally and need no remote forwarding.
  */
 
 const LINK = process.argv[2] ?? "";
@@ -114,11 +106,9 @@ let opening: Promise<WebSocket> | null = null;
 let live: string | null = null;
 
 /**
- * 连一条，**只连一条** —— 同时来三个调用不该开出三条 WS 各排各的队。
+ * Open one connection, **only one**: three concurrent calls should not create three WebSockets with separate queues.
  *
- * 每次都先 `target()` 核一遍那条链接。**同一个标签页导航到别处，target id 不变、
- * WS 也不断**，缓存着直接用的话，求值会落在新页上：拿回来的是
- * 「window.deck 是 undefined」，看着像页面写坏了，其实是这个地方已经不在了。
+ * First recheck the URL with `target()` every time. **Navigating the same tab keeps its target ID and WebSocket alive**. Reusing the cache directly would evaluate on the new page and return “window.deck is undefined”, resembling a broken page when the original place no longer exists.
  */
 async function socket(): Promise<WebSocket> {
   const t = await target();
@@ -138,14 +128,14 @@ async function open(t: Target): Promise<WebSocket> {
   });
   s.onmessage = (e: MessageEvent) => {
     const m = JSON.parse(String(e.data)) as { id?: number; result?: unknown; error?: { message?: string } };
-    if (m.id === undefined) return; // CDP 的事件，没人在等
+    if (m.id === undefined) return; // A CDP event; no caller is waiting for it.
     const w = waiting.get(m.id);
     if (!w) return;
     waiting.delete(m.id);
     if (m.error) w.fail(new Error(m.error.message ?? "CDP reported an error"));
     else w.ok(m.result);
   };
-  // 标签页关了、刷新了、浏览器退了 —— 在途的全得结掉，不然调用方挂到超时。
+  // Tab closed, refreshed, or browser exited: settle every pending request so callers do not wait until timeout.
   s.onclose = () => {
     for (const w of waiting.values()) w.fail(new Error("the connection to that tab dropped"));
     waiting.clear();
@@ -158,7 +148,7 @@ async function open(t: Target): Promise<WebSocket> {
   return s;
 }
 
-/** 在那个标签页里求值。**页面自己抛的错原样带回来** —— 不然只看到「没成」。 */
+/** Evaluate in the selected tab. **Return page-thrown errors unchanged**, rather than reporting only failure. */
 async function evaluate(expr: string): Promise<unknown> {
   const s = await socket();
   const id = ++seq;
@@ -211,8 +201,8 @@ async function handle(m: { id?: number; method?: string; params?: unknown }): Pr
       const out = await call(String(p.name), p.arguments ?? {});
       return reply({ content: [{ type: "text", text: JSON.stringify(out) }], structuredContent: out });
     } catch (e) {
-      // 标签页关了、页面换了 —— 是这一次没干成，不是协议错。走 isError，
-      // 模型看得见原因，也就知道不该接着翻。
+      // A closed tab or changed page is a failed operation, not a protocol error. Use isError so the model
+      // sees the cause and knows not to keep advancing slides.
       const why = e instanceof Error ? e.message : String(e);
       process.stderr.write(`[tab] failed: ${why}\n`);
       return reply({ content: [{ type: "text", text: why }], isError: true });
@@ -224,8 +214,8 @@ async function handle(m: { id?: number; method?: string; params?: unknown }): Pr
 
 process.stderr.write(`[tab] up, bound to ${LINK}, debug port ${PORT}\n`);
 let buf = "";
-// 在途几个。stdin 关了就该收摊，但**手上还有没答完的不能走** ——
-// 那条 WS 会把进程一直吊着，所以收摊这件事得自己数着来。
+// Count in-flight requests. Close after stdin ends, but **not while responses remain outstanding**.
+// The WebSocket keeps the process alive, so track shutdown explicitly.
 let busy = 0;
 let bye = false;
 function maybeBye(): void {

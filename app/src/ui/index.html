@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -87,16 +87,16 @@ ul{margin:0;padding-left:20px}
   <nav id="nav"></nav>
   <div id="health">
     <span class="dot"></span><span id="hl">…</span>
-    <label>刷新 <select id="auto"><option value="0">关</option><option value="5">5s</option><option value="15">15s</option><option value="60">60s</option></select></label>
-    <button id="tokbtn" title="config.yaml 里 api.token 配了才需要">令牌</button>
+    <label>Refresh <select id="auto"><option value="0">Off</option><option value="5">5s</option><option value="15">15s</option><option value="60">60s</option></select></label>
+    <button id="tokbtn" title="Required only when api.token is set in config.yaml">Token</button>
   </div>
 </header>
 <main id="main"></main>
 <div id="err"></div>
 <script>
 'use strict';
-// 这张页是又一个客户端：看的全是 /api 下那些口，一行表都不读。
-// 状态取值、消息类型不写死，开机从 /about 拿 —— 那边加一种，这边自动就有。
+// This page is another client: it uses only /api endpoints and never reads tables.
+// Discover states and message types from /about at startup instead of hard-coding them; new values appear automatically.
 const PREFIX = "__PREFIX__";
 const BASE = location.origin + PREFIX;
 const $ = (s, el = document) => el.querySelector(s);
@@ -127,13 +127,13 @@ function fmtDur(ms) {
   return (neg ? '-' : '') + parts.join('');
 }
 const clipText = (s, n) => { s = String(s ?? ''); return s.length > n ? s.slice(0, n) + '…' : s; };
-// 长文本先给一截，点了再给全 —— 不摘要、不改写，只是晚一点给。
+// Show a portion of long text first, then the full text on click. No summarizing or rewriting, only deferred display.
 function clip(text, mode) {
   const LIM = 1500; text = String(text ?? '');
   const el = h(mode === 'pre' ? 'pre' : 'div', { class: 'clip' });
   if (text.length <= LIM) { el.textContent = text; return el; }
   const body = h('span', null, text.slice(0, LIM) + '…');
-  const btn = h('button', { on: { click: () => { body.textContent = text; btn.remove(); } } }, `展开全部 (${text.length} 字)`);
+  const btn = h('button', { on: { click: () => { body.textContent = text; btn.remove(); } } }, `Show all (${text.length} characters)`);
   el.append(body, h('div', null, btn));
   return el;
 }
@@ -162,7 +162,7 @@ async function api(path, opts = {}) {
   return data;
 }
 
-// ── 状态与路由 ──────────────────────────────────────────────
+// ── State and routing ──────────────────────────────────────────────
 const S = {
   about: null, view: 'tasks',
   task: null, unit: null, kind: '',
@@ -170,7 +170,7 @@ const S = {
   detail: null, msgs: { rows: [], total: 0 }, msgTask: null,
   run: null, runs: [],
 };
-const VIEWS = [['tasks', '任务'], ['bench', '跑分'], ['declared', '声明'], ['check', '诊断'], ['new', '发任务']];
+const VIEWS = [['tasks', 'Tasks'], ['bench', 'Benchmarks'], ['declared', 'Declarations'], ['check', 'Diagnostics'], ['new', 'New task']];
 function route() {
   const m = location.hash.replace(/^#\/?/, '').split('/');
   const v = VIEWS.some(([k]) => k === m[0]) ? m[0] : 'tasks';
@@ -189,10 +189,10 @@ async function health() {
   try {
     const hh = await api('/health');
     $('#health .dot').className = 'dot ok';
-    $('#hl').textContent = `${S.about ? 'v' + S.about.version + ' · ' : ''}${String(hh.db || '').split(/[\\/]/).pop()} · ${hh.tables} 表 · 写${hh.write ? '开' : '关'} · 起了 ${fmtDur(hh.uptimeMs)}`;
+    $('#hl').textContent = `${S.about ? 'v' + S.about.version + ' · ' : ''}${String(hh.db || '').split(/[\\/]/).pop()} · ${hh.tables} tables · writes ${hh.write ? 'on' : 'off'} · uptime ${fmtDur(hh.uptimeMs)}`;
   } catch (e) {
     $('#health .dot').className = 'dot';
-    $('#hl').textContent = '连不上 ' + BASE;
+    $('#hl').textContent = 'Cannot connect to ' + BASE;
   }
 }
 
@@ -205,7 +205,7 @@ async function render() {
   if (S.view === 'new') return renderNew(main);
 }
 
-// ── 任务 ────────────────────────────────────────────────────
+// ── Tasks ────────────────────────────────────────────────────
 async function renderTasks(main) {
   if (main.dataset.view !== 'tasks') {
     main.dataset.view = 'tasks'; main.replaceChildren();
@@ -213,10 +213,10 @@ async function renderTasks(main) {
     const reload = () => { S.offset = 0; loadTasks().catch(showErr); };
     const bar = h('div', { class: 'bar' },
       h('select', { on: { change: (e) => { S.filters.state = e.target.value; reload(); } } },
-        h('option', { value: '' }, '全部状态'), states.map((s) => h('option', { value: s, selected: S.filters.state === s }, s))),
+        h('option', { value: '' }, 'All states'), states.map((s) => h('option', { value: s, selected: S.filters.state === s }, s))),
       h('select', { on: { change: (e) => { S.filters.run = e.target.value; reload(); } } },
-        h('option', { value: '' }, '全部 run'), S.runs.map((r) => h('option', { value: r.run, selected: S.filters.run === r.run }, `${r.run} (${r.total ?? r.n ?? '?'})`))),
-      h('input', { type: 'text', placeholder: '搜描述', value: S.filters.q, on: { change: (e) => { S.filters.q = e.target.value.trim(); reload(); } } }),
+        h('option', { value: '' }, 'All runs'), S.runs.map((r) => h('option', { value: r.run, selected: S.filters.run === r.run }, `${r.run} (${r.total ?? r.n ?? '?'})`))),
+      h('input', { type: 'text', placeholder: 'Search descriptions', value: S.filters.q, on: { change: (e) => { S.filters.q = e.target.value.trim(); reload(); } } }),
       h('span', { id: 'f-count', class: 'mut sm', style: 'margin-left:auto' }),
       h('button', { on: { click: () => { S.offset = Math.max(0, S.offset - S.limit); loadTasks().catch(showErr); } } }, '‹'),
       h('button', { on: { click: () => { if (S.list && S.offset + S.limit < S.list.total) { S.offset += S.limit; loadTasks().catch(showErr); } } } }, '›'),
@@ -225,7 +225,7 @@ async function renderTasks(main) {
   }
   if (!S.list) await loadTasks(); else drawList();
   if (S.task) await loadTask(S.task);
-  else { S.detail = null; $('#detail').replaceChildren(h('div', { class: 'empty' }, '左边点一个任务')); }
+  else { S.detail = null; $('#detail').replaceChildren(h('div', { class: 'empty' }, 'Select a task on the left')); }
 }
 
 async function loadTasks() {
@@ -241,7 +241,7 @@ function timeCell(t) {
 
 function drawList() {
   const d = S.list; const box = $('#list'); if (!box || !d) return;
-  $('#f-count').textContent = d.total ? `${d.offset + 1}–${Math.min(d.offset + d.rows.length, d.total)} / ${d.total}` : '0 条';
+  $('#f-count').textContent = d.total ? `${d.offset + 1}–${Math.min(d.offset + d.rows.length, d.total)} / ${d.total}` : '0 items';
   const rows = d.rows.map((t) => h('tr', { class: 'row' + (t.id === S.task ? ' sel' : ''), title: clipText(t.description, 300), on: { click: () => go('tasks', t.id) } },
     h('td', { class: 'mono' }, t.id),
     h('td', null, badge(t.state)),
@@ -253,8 +253,8 @@ function drawList() {
     h('td', null, t.hasObjective ? 'G' : ''),
   ));
   box.replaceChildren(h('table', null,
-    h('thead', null, h('tr', null, ['id', '状态', 'mode', 'agent', 'run', '单元', '时间', ''].map((x) => h('th', null, x)))),
-    h('tbody', null, rows.length ? rows : h('tr', null, h('td', { colspan: 8, class: 'empty' }, '没有任务')))));
+    h('thead', null, h('tr', null, ['id', 'State', 'mode', 'agent', 'run', 'Units', 'Time', ''].map((x) => h('th', null, x)))),
+    h('tbody', null, rows.length ? rows : h('tr', null, h('td', { colspan: 8, class: 'empty' }, 'No tasks')))));
 }
 
 async function fetchTask(id) {
@@ -265,7 +265,7 @@ async function fetchTask(id) {
 async function loadTask(id) {
   if (S.msgTask !== id) { S.msgs = { rows: [], total: 0 }; S.unit = null; S.kind = ''; S.msgTask = id; }
   S.detail = await fetchTask(id);
-  if (S.task !== id) return; // 还没回来人就点了别的
+  if (S.task !== id) return; // The user selected another task before this response arrived.
   drawList(); drawDetail();
   await loadMsgs(true);
 }
@@ -273,9 +273,9 @@ async function loadTask(id) {
 const active = (t) => t && (t.state === 'open' || t.state === 'claimed');
 function timeLine(t) {
   const limit = t.solve && t.solve.limitSeconds ? fmtDur(t.solve.limitSeconds * 1000) : '∞';
-  if (active(t)) return `${fmtDur(t.solve && t.solve.elapsedMs)} / ${limit}${t.solve && t.solve.overdue ? ' · 超时' : ''}`;
+  if (active(t)) return `${fmtDur(t.solve && t.solve.elapsedMs)} / ${limit}${t.solve && t.solve.overdue ? ' · overdue' : ''}`;
   const t0 = Number(t.created_at); const last = Math.max(t0, ...(t.units || []).map((u) => Number(u.at) || 0));
-  return `最后一站开在 +${fmtDur(last - t0)} · 上限 ${limit}`;
+  return `Last station started at +${fmtDur(last - t0)} · limit ${limit}`;
 }
 
 function drawTree(tree, t0) {
@@ -283,16 +283,16 @@ function drawTree(tree, t0) {
   const walk = (n, d) => {
     out.push(h('div', { class: 'tn mono' + (S.unit === n.unit ? ' sel' : ''), style: `padding-left:${6 + d * 16}px`, title: n.chain || '', on: { click: () => pickUnit(n.unit) } },
       `${n.cycle}#${n.unit} `, badge(n.phase), n.status ? [' ', badge(n.status)] : null,
-      h('span', { class: 'mut' }, ` +${fmtDur(n.at - t0)}${n.deadlineInMs != null ? ' · 剩 ' + fmtDur(n.deadlineInMs) : ''}`)));
+      h('span', { class: 'mut' }, ` +${fmtDur(n.at - t0)}${n.deadlineInMs != null ? ' · remaining ' + fmtDur(n.deadlineInMs) : ''}`)));
     const kids = n.children || [];
     for (const c of kids) walk(c, kids.length > 1 ? Math.min(d + 1, 14) : d);
   };
   for (const r of tree.roots || []) walk(r, 0);
   if ((tree.orphans || []).length) {
-    out.push(h('div', { class: 'mut sm', style: 'margin-top:6px;color:var(--bad)' }, '孤儿（父节点不在，数据断了）：'));
+    out.push(h('div', { class: 'mut sm', style: 'margin-top:6px;color:var(--bad)' }, 'Orphans (missing parents; broken data):'));
     for (const o of tree.orphans) walk(o, 0);
   }
-  return out.length ? out : [h('div', { class: 'mut' }, '还没有执行单元')];
+  return out.length ? out : [h('div', { class: 'mut' }, 'No execution units yet')];
 }
 const branchy = (tree) => { let b = false; const walk = (n) => { if ((n.children || []).length > 1) b = true; for (const c of n.children || []) walk(c); }; for (const r of tree.roots || []) walk(r); return b; };
 function pickUnit(u) { S.unit = S.unit === u ? null : u; drawDetail(); loadMsgs(true).catch(showErr); }
@@ -306,35 +306,35 @@ function drawDetail() {
   let verdict = null;
   if (v && typeof v === 'object') {
     const pass = Number(v.pass) === 1;
-    verdict = h('div', { class: 'verdict ' + (pass ? 'pass' : 'fail') }, h('b', null, pass ? '判 1 · 通过' : '判 0 · 未过'),
+    verdict = h('div', { class: 'verdict ' + (pass ? 'pass' : 'fail') }, h('b', null, pass ? 'Verdict 1 · Passed' : 'Verdict 0 · Failed'),
       v.why ? h('div', null, v.why) : null, v.note ? h('div', { class: 'mut sm' }, v.note) : null);
   } else if (v) verdict = h('div', { class: 'verdict' }, String(v));
 
-  // replaceChildren 收到 null 会写成一个 "null" 文本节点 —— 先滤掉
+  // replaceChildren converts null to a "null" text node; filter it out first.
   box.replaceChildren(...[
     h('div', { class: 'card' },
       h('div', { style: 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px' },
         h('b', { class: 'mono', style: 'font-size:15px' }, t.id), badge(t.state),
-        t.objective && t.objective.has ? h('span', { class: 'b' }, 'G' + (t.objective.agentReadable ? ' · 智能体可读' : '')) : null,
+        t.objective && t.objective.has ? h('span', { class: 'b' }, 'G' + (t.objective.agentReadable ? ' · agent-readable' : '')) : null,
         h('a', { href: BASE + '/tasks/' + enc(t.id), target: '_blank', class: 'sm', style: 'margin-left:auto' }, 'JSON')),
       kv([['mode', t.mode], ['place', t.place], ['source', t.source], ['run', t.run], ['domain', t.domain], ['workdir', t.workdir],
-        ['发布', fmtAt(t.created_at)],
-        ['用时', timeLine(t)]]),
+        ['Published', fmtAt(t.created_at)],
+        ['Elapsed', timeLine(t)]]),
       verdict,
-      h('details', { open: String(t.description || '').length < 500 }, h('summary', null, '题目描述'), h('pre', null, t.description || '(空)'))),
-    why && why.problems && why.problems.length ? h('div', { class: 'card', style: 'border-color:var(--warn)' }, h('h3', null, '为什么不动'), h('ul', null, why.problems.map((p) => h('li', null, p)))) : null,
-    h('div', { class: 'card' }, h('h3', null, `执行树 · ${(t.units || []).length} 单元` + (branchy(tree) ? '' : ' · 单链，缩进只在分叉处')), h('div', { class: 'tree' }, drawTree(tree, t0))),
+      h('details', { open: String(t.description || '').length < 500 }, h('summary', null, 'Problem description'), h('pre', null, t.description || '(empty)'))),
+    why && why.problems && why.problems.length ? h('div', { class: 'card', style: 'border-color:var(--warn)' }, h('h3', null, 'Why it is stalled'), h('ul', null, why.problems.map((p) => h('li', null, p)))) : null,
+    h('div', { class: 'card' }, h('h3', null, `Execution tree · ${(t.units || []).length} units` + (branchy(tree) ? '' : ' · single chain; indented only at branches')), h('div', { class: 'tree' }, drawTree(tree, t0))),
     h('div', { class: 'card' },
-      h('div', { class: 'bar' }, h('h3', { style: 'margin:0' }, '上下文'),
-        S.unit != null ? h('button', { on: { click: () => pickUnit(S.unit) } }, `只看 #${S.unit} ×`) : h('span', { class: 'mut sm' }, '点树上的节点只看那一站'),
+      h('div', { class: 'bar' }, h('h3', { style: 'margin:0' }, 'Context'),
+        S.unit != null ? h('button', { on: { click: () => pickUnit(S.unit) } }, `Only #${S.unit} ×`) : h('span', { class: 'mut sm' }, 'Select a tree node to view that station'),
         h('select', { on: { change: (e) => { S.kind = e.target.value; loadMsgs(true).catch(showErr); } } },
-          h('option', { value: '' }, '全部类型'), kinds.map((k) => h('option', { value: k, selected: S.kind === k }, k))),
+          h('option', { value: '' }, 'All types'), kinds.map((k) => h('option', { value: k, selected: S.kind === k }, k))),
         h('span', { id: 'm-count', class: 'mut sm', style: 'margin-left:auto' })),
       h('div', { id: 'msgs' }),
-      h('button', { id: 'm-more', hidden: true, on: { click: () => loadMsgs(false).catch(showErr) } }, '再取 200 条'),
+      h('button', { id: 'm-more', hidden: true, on: { click: () => loadMsgs(false).catch(showErr) } }, 'Load 200 more'),
       active(t) ? h('div', { style: 'margin-top:10px' },
-        h('textarea', { id: 'say', placeholder: '往它正在跑的上下文里插一句', value: typed }),
-        h('button', { class: 'primary', on: { click: () => intervene().catch(showErr) } }, '插进去')) : null),
+        h('textarea', { id: 'say', placeholder: 'Add a message to the active context', value: typed }),
+        h('button', { class: 'primary', on: { click: () => intervene().catch(showErr) } }, 'Add message')) : null),
   ].filter(Boolean));
   drawMsgs();
 }
@@ -360,11 +360,11 @@ function msgBody(m) {
       out.push(h('div', { class: 'call' }, h('b', null, c.name || c.tool || c.function || '?'), ' ',
         h('code', null, clipText(typeof input === 'string' ? input : JSON.stringify(input), 800))));
     }
-    return out.length ? out : [h('span', { class: 'mut' }, '(空)')];
+    return out.length ? out : [h('span', { class: 'mut' }, '(empty)')];
   }
   if (p !== undefined) return [clip(typeof p === 'string' ? p : JSON.stringify(p, null, 2), 'pre')];
   const text = m.text != null ? m.text : (m.body || '');
-  return [String(text).trim() ? clip(text) : h('span', { class: 'mut' }, '(空)')];
+  return [String(text).trim() ? clip(text) : h('span', { class: 'mut' }, '(empty)')];
 }
 
 function drawMsgs() {
@@ -375,7 +375,7 @@ function drawMsgs() {
     h('div', { class: 'hd' }, h('span', { class: 'mono' }, `#${m.unit}.${m.seq}`), h('span', null, m.role), badge(m.kind), m.human ? badge('human') : null,
       h('span', { style: 'margin-left:auto', title: fmtAt(m.at) }, '+' + fmtDur(m.at - t0))),
     h('div', { class: 'bd' }, msgBody(m)))));
-  if (!rows.length) box.append(h('div', { class: 'empty' }, '没有消息'));
+  if (!rows.length) box.append(h('div', { class: 'empty' }, 'No messages'));
   $('#m-more').hidden = rows.length >= total;
 }
 
@@ -386,7 +386,7 @@ async function intervene() {
   await loadMsgs(false);
 }
 
-// ── 跑分 ────────────────────────────────────────────────────
+// ── Benchmarks ────────────────────────────────────────────────────
 async function renderBench(main) {
   main.dataset.view = 'bench';
   S.runs = (await api('/bench')).runs || [];
@@ -396,10 +396,10 @@ async function renderBench(main) {
       h('td', { class: 'mono' }, r.run), h('td', { class: 'num' }, total), h('td', { class: 'num' }, passed),
       h('td', { class: 'num' }, total ? Math.round(passed / total * 100) + '%' : '-'));
   });
-  const left = h('table', null, h('thead', null, h('tr', null, ['run', '总', '过', '通过率'].map((x) => h('th', null, x)))),
-    h('tbody', null, rows.length ? rows : h('tr', null, h('td', { colspan: 4, class: 'empty' }, '还没跑过'))));
+  const left = h('table', null, h('thead', null, h('tr', null, ['run', 'Total', 'Passed', 'Pass rate'].map((x) => h('th', null, x)))),
+    h('tbody', null, rows.length ? rows : h('tr', null, h('td', { colspan: 4, class: 'empty' }, 'No runs yet'))));
   main.replaceChildren(h('div', { class: 'split' }, h('div', null, left), h('div', { id: 'score' })));
-  if (S.run) await loadScore(S.run); else $('#score').append(h('div', { class: 'empty' }, '左边点一跑'));
+  if (S.run) await loadScore(S.run); else $('#score').append(h('div', { class: 'empty' }, 'Select a run on the left'));
 }
 
 async function loadScore(run) {
@@ -407,9 +407,9 @@ async function loadScore(run) {
   const stat = (n, l) => h('div', { class: 'stat' }, h('b', null, n == null ? 0 : n), h('span', null, l));
   box.replaceChildren(
     h('div', { class: 'card' }, h('h3', null, run), h('div', { class: 'stats' },
-      stat(s.total, '总'), stat(s.passed, '过'), stat(s.failed, '败'), stat(s.running, '跑着'), stat(s.open, '没领'),
-      stat(s.total ? Math.round((s.passed || 0) / s.total * 100) + '%' : '-', '通过率'))),
-    h('table', null, h('thead', null, h('tr', null, ['id', '状态', '判语'].map((x) => h('th', null, x)))),
+      stat(s.total, 'Total'), stat(s.passed, 'Passed'), stat(s.failed, 'Failed'), stat(s.running, 'Running'), stat(s.open, 'Unclaimed'),
+      stat(s.total ? Math.round((s.passed || 0) / s.total * 100) + '%' : '-', 'Pass rate'))),
+    h('table', null, h('thead', null, h('tr', null, ['id', 'State', 'Verdict'].map((x) => h('th', null, x)))),
       h('tbody', null, (s.tasks || []).map((t) => {
         let r = null; try { r = t.result ? JSON.parse(t.result) : null; } catch { r = { why: t.result }; }
         return h('tr', { class: 'row', on: { click: () => go('tasks', t.id) } }, h('td', { class: 'mono' }, t.id), h('td', null, badge(t.state)),
@@ -417,61 +417,61 @@ async function loadScore(run) {
       }))));
 }
 
-// ── 声明 ────────────────────────────────────────────────────
+// ── Declarations ────────────────────────────────────────────────────
 const whenText = (w) => (w || []).map((g) => (g || []).map((t) => `${t.dim}${t.key ? '.' + t.key : ''} ${t.op} ${t.value == null ? '' : t.value}`).join(' ∧ ')).join('  ∨  ') || '—';
-const fires = (r) => r.neverFires ? h('span', { class: 'b bad' }, '永远不触发') : whenText(r.when);
+const fires = (r) => r.neverFires ? h('span', { class: 'b bad' }, 'Never triggers') : whenText(r.when);
 const okBadge = (b) => badge(b ? 'ok' : 'bad');
 
 async function renderDeclared(main) {
   main.dataset.view = 'declared';
-  main.replaceChildren(h('div', { class: 'empty' }, '取声明…'));
+  main.replaceChildren(h('div', { class: 'empty' }, 'Loading declarations…'));
   const [ag, mo, pl, to, ru, sk] = await Promise.all(['/agents', '/modes', '/places', '/tools', '/rules', '/skills'].map((p) => api(p)));
   const table = (title, cols, rows) => h('div', { class: 'card' }, h('h3', null, `${title} · ${rows.length}`),
     rows.length ? h('table', null, h('thead', null, h('tr', null, cols.map((c) => h('th', null, c[0])))),
-      h('tbody', null, rows.map((r) => h('tr', null, cols.map((c) => h('td', { class: c[2] || '' }, c[1](r))))))) : h('div', { class: 'mut' }, '没有'));
+      h('tbody', null, rows.map((r) => h('tr', null, cols.map((c) => h('td', { class: c[2] || '' }, c[1](r))))))) : h('div', { class: 'mut' }, 'None'));
   main.replaceChildren(
     table('agents', [['name', (r) => r.name, 'mono'], ['state', (r) => badge(r.state)], ['unit', (r) => r.unit, 'mono'],
-      ['tracks', (r) => (r.tracks || []).map((t) => h('div', { class: 'sm' }, `${t.model} [${(t.modes || []).join(',')}] ${t.keyEnv} `, t.keySet ? '✓' : h('span', { style: 'color:var(--bad)' }, '✗ 钥匙没配')))],
+      ['tracks', (r) => (r.tracks || []).map((t) => h('div', { class: 'sm' }, `${t.model} [${(t.modes || []).join(',')}] ${t.keyEnv} `, t.keySet ? '✓' : h('span', { style: 'color:var(--bad)' }, '✗ Key not configured')))],
       ['modes', (r) => (r.modes || []).join(', ')], ['running', (r) => r.running, 'num']], ag.agents || []),
     table('modes', [['mode', (r) => r.mode, 'mono'], ['cycles', (r) => r.cycles, 'num'], ['entries', (r) => (r.entries || []).join(', ')],
       ['walkable', (r) => okBadge(r.walkable)], ['agents', (r) => (r.agents || []).join(', ')], ['running', (r) => r.runningTasks, 'num'], ['note', (r) => r.note || '', 'sm']], mo.modes || []),
-    table('places', [['place', (r) => r.place, 'mono'], ['identity', (r) => r.identity || '-', 'mono sm'], ['forward', (r) => r.forward ? '转发' : '本进程'], ['usable', (r) => okBadge(r.usable)],
+    table('places', [['place', (r) => r.place, 'mono'], ['identity', (r) => r.identity || '-', 'mono sm'], ['forward', (r) => r.forward ? 'Forwarded' : 'In-process'], ['usable', (r) => okBadge(r.usable)],
       ['runtime', (r) => r.runtime || '-', 'mono'], ['tools', (r) => (r.tools || []).map((t) => t.tool + (t.policy && t.policy !== 'always' ? `(${t.policy})` : '')).join(', '), 'sm']], pl.places || []),
-    table('tools', [['name', (r) => r.name, 'mono'], ['identity', (r) => r.identity, 'mono'], ['does', (r) => r.does || '', 'sm'], ['system', (r) => r.system ? '系统' : ''],
+    table('tools', [['name', (r) => r.name, 'mono'], ['identity', (r) => r.identity, 'mono'], ['does', (r) => r.does || '', 'sm'], ['system', (r) => r.system ? 'System' : ''],
       ['usable', (r) => okBadge(r.usable)], ['when', fires, 'sm']], to.tools || []),
     table('rules', [['identity', (r) => r.identity, 'mono'], ['when', fires, 'sm']], ru.rules || []),
-    table('skills', [['identity', (r) => r.identity, 'mono'], ['role', (r) => r.role], ['dynamic', (r) => r.dynamic ? '生成' : '固定'],
+    table('skills', [['identity', (r) => r.identity, 'mono'], ['role', (r) => r.role], ['dynamic', (r) => r.dynamic ? 'Generated' : 'Static'],
       ['usable', (r) => okBadge(r.usable)], ['when', fires, 'sm']], sk.skills || []),
   );
 }
 
-// ── 诊断 ────────────────────────────────────────────────────
+// ── Diagnostics ────────────────────────────────────────────────────
 async function renderCheck(main) {
   main.dataset.view = 'check';
   const d = await api('/check');
   const list = (title, rows, f) => h('div', { class: 'card' }, h('h3', null, `${title} · ${rows.length}`),
-    rows.length ? h('ul', null, rows.map((r) => h('li', null, f(r)))) : h('div', { style: 'color:var(--ok)' }, '没有问题'));
+    rows.length ? h('ul', null, rows.map((r) => h('li', null, f(r)))) : h('div', { style: 'color:var(--ok)' }, 'No issues'));
   main.replaceChildren(
-    h('p', { class: 'mut sm' }, '条件写错不报错，那条规则只是永远不触发。这一页就是查这个的。'),
-    list('触发条件', d.trigger || [], (r) => `${r.owner_kind} ${r.owner} · 组 ${r.group}：${r.why}`),
-    list('数据一致性', d.data || [], (r) => `${r.what}：${r.why}`));
+    h('p', { class: 'mut sm' }, 'Invalid conditions can silently prevent a rule from triggering. Check for them here.'),
+    list('Trigger conditions', d.trigger || [], (r) => `${r.owner_kind} ${r.owner} · group ${r.group}: ${r.why}`),
+    list('Data consistency', d.data || [], (r) => `${r.what}: ${r.why}`));
 }
 
-// ── 发任务 ──────────────────────────────────────────────────
+// ── New task ──────────────────────────────────────────────────
 async function renderNew(main) {
   main.dataset.view = 'new';
   const [mo, pl] = await Promise.all([api('/modes'), api('/places')]);
   const modes = mo.modes || [];
-  const modeSel = h('select', null, modes.map((m) => h('option', { value: m.mode }, `${m.mode}${m.walkable ? '' : '（走不通）'}`)));
+  const modeSel = h('select', null, modes.map((m) => h('option', { value: m.mode }, `${m.mode}${m.walkable ? '' : ' (unreachable)'}`)));
   const agentSel = h('select');
   const fillAgents = () => { const m = modes.find((x) => x.mode === modeSel.value); agentSel.replaceChildren(...((m && m.agents || []).map((a) => h('option', { value: a }, a)))); };
   modeSel.addEventListener('change', fillAgents); fillAgents();
   const placeSel = h('select', null, (pl.places || []).map((p) => h('option', { value: p.place }, p.place)));
   const idIn = h('input', { type: 'text', value: 't-' + new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '') });
-  const desc = h('textarea', { placeholder: '任务描述', style: 'min-height:140px' });
-  const workdir = h('input', { type: 'text', placeholder: '空 = 那台机器的 cwd' });
+  const desc = h('textarea', { placeholder: 'Task description', style: 'min-height:140px' });
+  const workdir = h('input', { type: 'text', placeholder: 'Empty = the machine’s cwd' });
   const domain = h('input', { type: 'text', placeholder: 'physics / chem / coding …' });
-  const secs = h('input', { type: 'number', placeholder: '不填用默认' });
+  const secs = h('input', { type: 'number', placeholder: 'Leave empty for default' });
   const out = h('pre', { style: 'margin-top:12px' });
   const submit = async () => {
     const body = { id: idIn.value.trim(), mode: modeSel.value, agent: agentSel.value, place: placeSel.value, source: 'user', description: desc.value };
@@ -484,12 +484,12 @@ async function renderNew(main) {
   main.replaceChildren(h('form', { class: 'new', on: { submit: (e) => { e.preventDefault(); submit(); } } },
     h('label', null, 'id'), idIn, h('label', null, 'mode'), modeSel, h('label', null, 'agent'), agentSel, h('label', null, 'place'), placeSel,
     h('label', null, 'domain'), domain, h('label', null, 'workdir'), workdir, h('label', null, 'solveSeconds'), secs,
-    h('label', { class: 'full' }, '描述'), h('div', { class: 'full' }, desc),
-    h('div', { class: 'full' }, h('button', { class: 'primary', type: 'submit' }, '发布'), ' ',
-      h('span', { class: 'mut sm' }, 'source=user。带判卷函数 G 的任务用 curl 发，用法见 ', h('a', { href: BASE + '/help', target: '_blank' }, PREFIX + '/help')))), out);
+    h('label', { class: 'full' }, 'Description'), h('div', { class: 'full' }, desc),
+    h('div', { class: 'full' }, h('button', { class: 'primary', type: 'submit' }, 'Publish'), ' ',
+      h('span', { class: 'mut sm' }, 'source=user. Use curl to submit tasks with a verifier G; see ', h('a', { href: BASE + '/help', target: '_blank' }, PREFIX + '/help')))), out);
 }
 
-// ── 自动刷新 / 令牌 / 启动 ──────────────────────────────────
+// ── Auto-refresh / token / startup ──────────────────────────────────
 let timer = null;
 function setAuto(sec) {
   clearInterval(timer); timer = null; localStorage.setItem('tg.auto', String(sec));
@@ -508,7 +508,7 @@ async function refresh() {
 }
 function tokenPrompt() {
   const cur = localStorage.getItem('tg.token') || '';
-  const v = prompt('api.token（留空 = 清掉）', cur);
+  const v = prompt('api.token (empty = clear)', cur);
   if (v === null) return;
   if (v) localStorage.setItem('tg.token', v); else localStorage.removeItem('tg.token');
   S.list = null; route();
@@ -519,7 +519,7 @@ function tokenPrompt() {
   auto.addEventListener('change', (e) => setAuto(Number(e.target.value)));
   $('#tokbtn').addEventListener('click', tokenPrompt);
   try { S.about = await api('/about'); } catch (e) { showErr(e); }
-  try { S.runs = (await api('/bench')).runs || []; } catch (e) { /* 没有 bench 也能看 */ }
+  try { S.runs = (await api('/bench')).runs || []; } catch (e) { /* The page remains usable without bench. */ }
   await health();
   setAuto(Number(auto.value));
   route();

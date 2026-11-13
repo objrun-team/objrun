@@ -1,7 +1,6 @@
 # docker compose -f examples/benchmark/cmt/compose.yaml up -d --build
 #
-# `127.0.0.1:7901:7901` 里的 `127.0.0.1:` **别去掉** —— 不写的话 Docker 会把这个口
-# 发布到所有网卡上，判卷台就从「本机一个进程」变成「局域网里谁都能打」。
+# **Keep `127.0.0.1:`** in `127.0.0.1:7901:7901`. Without it, Docker publishes the port on every network interface and turns a local grading process into a service accessible throughout the LAN.
 services:
   grader:
     build:
@@ -11,7 +10,7 @@ services:
     ports:
       - "127.0.0.1:7901:7901"
     restart: unless-stopped
-    # 判卷台不写任何文件，题库和判据在镜像里。
+    # The grading service writes no files; its corpus and grader are inside the image.
     read_only: true
     tmpfs:
       - /tmp

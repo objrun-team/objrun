@@ -1,15 +1,13 @@
-"""判卷台的公共骨架。每个榜的 grader.py 只写三样：题库怎么读、题面怎么发、每个节点怎么判。
+r"""Shared grading-service skeleton. Each benchmark's grader.py defines only how to load problems, expose problem statements, and grade each node.
 
     from gradelib import serve
     serve(book=BOOK, view=view, nodes={"parsed": judge_parsed, "correct": judge_correct}, port=7911)
 
-- `book`: {id: item}，item 里可以带答案 —— 答案只活在这个进程里
-- `view(item)`: 发给引擎那侧的题面（**不许带答案**），至少 {"id", "prompt"}
-- `nodes`: 节点名 -> fn(answer_text, item) -> bool。一次交卷所有节点一起算、缓存住，
-  引擎按节点分别来问时回同一次判卷的那一栏
-- POST /<node>  body {"input":{"task":{"id":..,"result":..}}}  -> 裸 bool
-- GET /health, GET /problems?n=N&only=a,b
-"""
+- `book`: {id: item}; items may contain answers, which remain inside this process.
+- `view(item)`: the problem statement sent to the engine (**must not contain answers**), with at least {"id", "prompt"}.
+- `nodes`: node name -> fn(answer_text, item) -> bool. Evaluate and cache all nodes for a submission together; per-node requests return the corresponding field from that same grading result.
+- POST /<node> body {"input":{"task":{"id":..,"result":..}}} -> bare bool
+- GET /health, GET /problems?n=N&only=a,b"""
 from __future__ import annotations
 
 import json
@@ -22,7 +20,7 @@ _BOXED = re.compile(r"\\boxed\{((?:[^{}]|\{[^{}]*\})*)\}", re.DOTALL)
 
 
 def last_boxed(text: str) -> str | None:
-    """最后一个 \\boxed{...} 的内容；没有就 None。"""
+    r"""Contents of the final \boxed{...}, or None if absent."""
     if not text:
         return None
     m = _BOXED.findall(text)
@@ -131,7 +129,7 @@ def serve(book: dict, view: Callable, nodes: dict[str, Callable], port: int, tag
 
 
 def selftest(book: dict, nodes: dict[str, Callable], gt: Callable, n: int = 5) -> bool:
-    """拿题库自己的答案当回答喂进去，每个节点都该是 True。"""
+    r"""Use each problem's own reference answer as the submission; every node should return True."""
     bad = 0
     for i, tid in enumerate(list(book)[:n]):
         item = book[tid]

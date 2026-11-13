@@ -1,16 +1,18 @@
 /**
- * 基础工具。
+ * Basic tools.
  *
- * **这些工具跑在它们所在的那个位置上**，所以这里直接用 `node:fs` / 子进程 ——
- * 转发发生在调用的边界（见 `../place/`），不在工具体里面。`local` 是同进程调
- * 这一批；别的位置是把运行时送过去，那个运行时里装的也是这一批，一份实现两边通用。
+ * **Tools execute at their assigned location**, so implementations use `node:fs` and subprocesses
+ * directly. Forwarding occurs at the invocation boundary (`../place/`), not inside tool bodies.
+ * `local` calls these implementations in-process; other places receive a runtime containing
+ * the same implementations.
  *
- * 描述、参数、返回值 schema 抄自 DeepSeek Harness（MIT, Copyright (c) 2026 DeepSeek，
- * github.com/deepseek-ai/deepseek-harness）：那几个上限和「唯一匹配」之类的约定是
- * 踩出来的，不是随手定的。壳子是我们自己的 —— 它那套是插件 + 容器，我们这套是表行。
+ * Descriptions, parameter schemas, and output schemas come from DeepSeek Harness (MIT,
+ * Copyright (c) 2026 DeepSeek, github.com/deepseek-ai/deepseek-harness). Its limits and contracts,
+ * such as requiring a unique match, reflect practical experience. Our integration differs:
+ * that project uses plugins and containers; this one uses table rows.
  *
- * **grep / glob 没有用 ripgrep**：它是一个外部二进制，进不了单文件包，
- * 一引就把交叉编译废掉。宁可纯 TS 慢一点。
+ * **grep / glob do not use ripgrep** because an external binary cannot be included in the
+ * single-file package and would prevent cross-compilation. Accept slower pure TypeScript instead.
  */
 
 import { spawn, spawnSync } from "node:child_process";
@@ -21,77 +23,83 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import { python } from "./python.ts";
 
 /**
- * **一次搜索最多往回带多少。** 一个池子，装满就当场中断，回一个「截断了」的结果。
+ * **Maximum data returned by one search.** Stop immediately when the shared allowance is
+ * exhausted and return an explicit truncation indication.
  *
- * 不压缩、不摘要：带回来的每一条都是原样的，只是到点不再往下走。压缩是拿真东西
- * 换一个看起来完整的假象，而这两件工具的用处正是「看见真的那几行」。
+ * Do not compress or summarize matches: every returned result is unchanged, and traversal
+ * simply stops at the limit. These tools exist to show the actual lines, not a shortened account
+ * that falsely appears complete.
  *
- * 按 token 定量（5000），换算成字节按 4 —— 量过一道题的整份上下文，4234989 字节
- * 对模型报的 1033906 token。
+ * The limit is 5000 tokens, estimated at 4 bytes each. A measured task context contained
+ * 4234989 bytes for the model-reported 1033906 tokens.
  *
- * `read` 不用这个池子截断，它**先算再决定**：一次要的范围超了就整个拒掉，一行都
- * 不给。给半份的话它读到的是一个看着完整的残缺文件，而那种错要等到改坏了才看得出来。
+ * `read` does not truncate against this allowance. It **calculates the requested size first**
+ * and rejects the whole range if oversized. Returning a partial file that appears complete
+ * could lead to incorrect edits before the truncation is discovered.
  */
 export const TOOL_POOL_TOKENS = 5_000;
 export const TOOL_POOL_BYTES = TOOL_POOL_TOKENS * 4;
 
-/** grep 的一条命中里，正文最多留多少字符。一行几十万字符的话，一条就把池子吃光了。 */
+/** Maximum text characters per grep match. A single line hundreds of thousands of characters long must not consume the entire allowance. */
 export const READ_MAX_LINE_LENGTH = 2000;
 
 /**
- * 一条命令的输出最多带回多少字节，**stdout 和 stderr 各算一份**。
+ * Maximum returned bytes from one command, **separately for stdout and stderr**.
  *
- * 没有上限的时候实测过一次：`grep` 扫进 `node_modules`，一次返回 3.9 MB，
- * 那一条落进上下文之后这道题再也发不出去 ——「requested 1443851 tokens」，
- * 而模型的上限是 1048576。之后每一站都是同一句，直到这一站被判死。
+ * Without a limit, one grep through `node_modules` returned 3.9 MB. After that result entered
+ * context, every subsequent model request failed with "requested 1443851 tokens", above the
+ * 1048576 limit, until the execution unit was marked dead.
  *
- * 比搜索那个池子松：一条命令的输出（编译报错、测试结果）是它接着往下走的依据，
- * 而搜索是拿来定位的，定位不需要一次看两百条。
+ * This allowance is larger than search output: compiler diagnostics and test results guide
+ * subsequent work, whereas search primarily locates relevant files and need not return hundreds
+ * of matches at once.
  */
 export const SH_MAX_BYTES = 50 * 1024;
 
-/** 一个工具：给模型看的那几样 + 真正干活的那个函数。 */
+/** A tool: model-facing metadata plus its implementation function. */
 export interface Tool {
   name: string;
-  /** 给模型看的描述。 */
+  /** Model-facing description. */
   does: string;
-  /** 给模型看的参数 schema。 */
+  /** Model-facing parameter schema. */
   params: Record<string, unknown>;
-  /** 给模型看的返回值 schema。 */
+  /** Model-facing result schema. */
   output: Record<string, unknown>;
-  /** 往系统提示里加的用法约定 —— 跟 `does` 不是一回事：这条说怎么用才不出错。 */
+  /** Usage instructions added to the system prompt. Unlike `does`, this explains how to use the tool correctly. */
   prompt: string;
-  /** 能不能跟别的工具同时跑。 */
+  /** Whether the tool may execute concurrently with others. */
   concurrent: boolean;
   /**
-   * 它的返回是哪一类东西 → `msg_part.name`。**压上下文的时候按这个决定丢什么。**
+   * Result category, referencing `msg_part.name`. **Context compression uses it to decide what to discard.**
    *
-   * - `look` 状态：**再看一眼就有，而且会过期**。读到的是文件当时的样子，同一个文件
-   *   后来被改过的话，留着那一份比丢了还糟 —— 模型照着一段已经不成立的内容往下推
-   * - `event` 事件：**拿不回来了**。跑了四分钟的测试、一次判决，丢了就是丢了
-   * - `receipt` 回执：「这件事办成了」的一行账，几十个字节
-   * - `recall` 回放：**把这次对话自己的上下文读回来**（那棵树、另一个节点）。压的时候
-   *   哪一级都丢：库里本来就有，留着等于在一个节点的摘要里夹着另一个节点的摘要
+   * - `look`: state that **can be retrieved again and may become stale**. A file read records an
+   *   earlier file version; retaining it after edits can mislead the model more than removing it.
+   * - `event`: **irrecoverable observations**, such as a four-minute test run or a verdict.
+   * - `receipt`: a small accounting record confirming an operation completed, typically tens of bytes.
+   * - `recall`: **retrieved context from this same conversation**, such as its tree or another node.
+   *   Discard it at every compression level because the database already stores it; retaining it
+   *   would nest one node's summary inside another.
    *
-   * 不填 = `event`。把拿不回来的当成能再拿一次，是唯一赔不起的那个方向。
+   * Default to `event`. Misclassifying irrecoverable information as retrievable is the costly error.
    */
   gives: string;
-  /** 预期多久，超过判死。 */
+  /** Expected duration; exceeding it marks the invocation dead. */
   expectMs: number;
   /**
-   * 什么时候摆给模型。**不填 = 谁都有、不看条件**（读写那一组就是这样）。
+   * When the tool is offered to the model. **Omitted means universally available without conditions**,
+   * as with the basic file tools.
    *
-   * 填了就落成 `trigger` 里的行，这一件工具也就从「系统工具」那一档退出来，
-   * 归条件管。一组里每条都得中，组之间是或 —— 跟外面声明的工具同一套规矩，
-   * 内核不为随二进制发的这几件另开一条路。
+   * Supplied conditions become `trigger` rows and remove the tool from the unconditional system-tool
+   * category. Require all conditions within a group and any matching group, just as with externally
+   * declared tools. Bundled tools do not get a separate kernel path.
    */
   when?: { dim: string; key: string; op: string; value: string }[][];
   run(args: Record<string, unknown>): Promise<unknown>;
 }
 
 /**
- * 参数 schema。**存进 `tool.params` 的必须是真的 JSON Schema** ——
- * 供应商那边照着它校验，形状不对直接 400，而那是在真调模型的时候才发现。
+ * Parameter schema. **`tool.params` must contain actual JSON Schema**. Providers validate it and
+ * return 400 for invalid structure; otherwise that problem appears only during a real model call.
  */
 function schema(properties: Record<string, unknown>, required: string[]): Record<string, unknown> {
   return { type: "object", properties, required, additionalProperties: false };
@@ -152,8 +160,8 @@ export const read: Tool = {
     const offset = Math.max(1, Math.trunc(num(args, "offset", 1)));
     const limit = Math.max(1, Math.trunc(num(args, "limit", Number.MAX_SAFE_INTEGER)));
 
-    // **文件比池子还大的时候连读都不读。** 一个几百兆的文件读进内存再回一句「太大了」，
-    // 那句话本身没错，代价却已经付掉了。这一层只看 `stat`。
+    // **Do not even read files larger than the allowance.** Reading hundreds of megabytes before
+    // reporting "too large" has already incurred the cost. Check `stat` first.
     const size = (await stat(path)).size;
     if (size > TOOL_POOL_BYTES && !("limit" in args)) {
       return {
@@ -165,14 +173,14 @@ export const read: Tool = {
 
     const text = await readFile(path, "utf8");
     const all = text.split(/\r?\n/);
-    // 末尾的换行会切出一个空段，那不是一行。
+    // A trailing newline creates an empty split segment, not an additional line.
     if (all.length > 1 && all[all.length - 1] === "") all.pop();
 
     const want = all.slice(offset - 1, offset - 1 + limit);
-    // 要多少算多少 —— 行号和换行也在这份账里，因为它们也要出现在返回里。
+    // Count the exact requested output, including line numbers and newlines because they are returned too.
     const bytes = want.reduce((n, t) => n + Buffer.byteLength(t, "utf8") + 12, 0);
-    // **拒了就一行都不给**，不给半份。给半份的话它读到的是一个看着完整的残缺文件，
-    // 而那种错要等到改坏了才看得出来。
+    // **Return no lines on rejection**, never a partial file that appears complete. Such truncation
+    // may be discovered only after an incorrect edit.
     if (bytes > TOOL_POOL_BYTES) {
       return {
         path,
@@ -251,7 +259,7 @@ export const edit: Tool = {
     const newStr = str(args, "new_string", false);
     const replaceAll = Boolean(args.replace_all ?? false);
 
-    // 这三条 schema 表达不了，但每一条不挡住都会变成一次静默的空改。
+    // These three constraints cannot be expressed by the schema; failing to enforce any of them permits a silent no-op edit.
     if (path.trim().length === 0) throw new Error("file_path cannot be empty");
     if (oldStr.length === 0) throw new Error("old_string cannot be empty");
     if (oldStr === newStr) throw new Error("old_string and new_string are identical - this edit would change nothing");
@@ -283,14 +291,15 @@ function count(hay: string, needle: string): number {
 const SKIP = new Set([".git", "node_modules", ".hg", ".svn"]);
 
 /**
- * 走树最多看几个文件、最多走多久。
+ * Maximum files visited and elapsed time during traversal.
  *
- * **期限得有人去停，不能只记在账上。** `expectMs` 是内核放弃这一站的时刻，工具
- * 自己不会因此停下 —— 实测过一条 `grep -rln … /` 从根目录扫起，工具那边早就交回
- * 「超时」了，活还在容器里烧着，50 分钟一直占着一整个核。
+ * **Someone must actually stop work at the deadline.** `expectMs` tells the kernel when to
+ * abandon a unit but does not stop its tool. An observed `grep -rln … /` kept a full container
+ * CPU busy for 50 minutes even though the tool had already reported timeout.
  *
- * 池子满了会中断，可**一次命中都没有的时候池子一直是满的** —— 从 `/` 走起，那就
- * 一直走。这两道闸管的是那种。
+ * Output limits stop traversal after enough matches, but **with no matches the full allowance
+ * remains unused**, so a search starting at `/` could continue indefinitely. These two limits
+ * bound that case.
  */
 const WALK_MAX_FILES = 20_000;
 const WALK_MS = 20_000;
@@ -325,8 +334,8 @@ export const glob: Tool = {
   async run(args) {
     const pattern = str(args, "pattern");
     const root = resolve(str(args, "path", false) || ".");
-    // 没有分隔符的式子按 basename 比 —— 这条是 dsh 的约定，抄过来的：
-    // 不这么定的话 "*.ts" 只匹配顶层，而人写它的时候想的是整棵树。
+    // Match separator-free patterns against basename, following dsh's convention. Otherwise
+    // "*.ts" would match only top-level files despite the caller expecting the entire tree.
     const onBase = !pattern.includes("/");
     const re = globToRegExp(pattern);
 
@@ -344,21 +353,21 @@ export const glob: Tool = {
       left -= cost;
       found.push({ path: file, mtimeMs: st.mtimeMs });
     });
-    // **「最新的在前」是在收到的这些里面排**，不是整棵树里最新的那几个：装满就中断，
-    // 后面还有什么根本没看过。
+    // "Newest first" sorts **only collected results**, not the newest files in the entire tree.
+    // Traversal stops when full, leaving later files unexamined.
     found.sort((a, b) => b.mtimeMs - a.mtimeMs);
     return { files: found.map((f) => f.path), truncated: cut || full };
   },
 };
 
-/** glob 式子转正则。`**` 跨目录，`*` 不跨，`?` 一个字符，`{a,b}` 二选一。 */
+/** Convert glob syntax to regex: `**` crosses directories, `*` does not, `?` matches one character, and `{a,b}` selects either alternative. */
 export function globToRegExp(pattern: string): RegExp {
   let out = "";
   for (let i = 0; i < pattern.length; i++) {
     const c = pattern[i];
     if (c === "*") {
       if (pattern[i + 1] === "*") {
-        // `**/` 要能匹配零层目录，否则 "**/*.ts" 匹配不到顶层的文件。
+        // `**/` must also match zero directories so "**/*.ts" includes top-level files.
         if (pattern[i + 2] === "/") {
           out += "(?:.*/)?";
           i += 2;
@@ -377,10 +386,11 @@ export function globToRegExp(pattern: string): RegExp {
 }
 
 /**
- * 走一棵树。**回 true 表示没走完就停了** —— 上限到了，或者调用方说够了。
+ * Traverse a directory tree. **Return true if traversal stopped before completion**, because
+ * of a limit or the caller's request.
  *
- * `hit` 回 `"stop"` 就当场收工。之前那一版走不完不回话，于是 `grep` 命中够了
- * 之后接着把整棵树走完，走的那部分一条结果都不会多出来。
+ * Stop immediately when `hit` returns `"stop"`. The old implementation continued walking the
+ * whole tree after grep had enough results, doing work that could produce no further output.
  */
 async function walk(
   dir: string,
@@ -391,7 +401,7 @@ async function walk(
   try {
     entries = await readdir(dir, { withFileTypes: true });
   } catch {
-    return false; // 读不动的目录跳过，不让一个权限问题毁掉整次搜索
+    return false; // Skip unreadable directories rather than failing the entire search on one permission error.
   }
   for (const e of entries) {
     if (budget.files <= 0 || Date.now() > budget.until) return true;
@@ -404,7 +414,7 @@ async function walk(
       try {
         if ((await hit(p, await stat(p))) === "stop") return true;
       } catch {
-        /* 中途没了就算了 */
+        /* Ignore files that disappear during traversal. */
       }
     }
   }
@@ -449,7 +459,7 @@ export const grep: Tool = {
 
     const matches: { path: string; line: number; text: string }[] = [];
     let truncated = false;
-    // 池子按**真要带回去的那份**扣：一条命中的路径、行号、正文加起来多少字节。
+    // Charge the allowance for **the actual returned payload**: path, line number, and matched text.
     let left = TOOL_POOL_BYTES;
 
     const scan = async (file: string): Promise<void | "stop"> => {
@@ -459,17 +469,17 @@ export const grep: Tool = {
       try {
         text = await readFile(file, "utf8");
       } catch {
-        return; // 二进制或读不动的跳过
+        return; // Skip binary or unreadable files.
       }
       const lines = text.split(/\r?\n/);
       for (let i = 0; i < lines.length; i++) {
         if (!re.test(lines[i])) continue;
         const t = lines[i];
         const one = { path: file, line: i + 1, text: t.length > READ_MAX_LINE_LENGTH ? t.slice(0, READ_MAX_LINE_LENGTH) + "…" : t };
-        // 加一是把它跟上一条之间那个逗号也算上 —— 池子量的是**真发出去的那串 JSON**，
-        // 只按元素算的话，一百多条就差出一百多字节，刚好翻过线。
+        // Add one byte for the comma separating this element from the previous one. The allowance
+        // covers **the actual serialized JSON**, and omitting hundreds of commas can cross the limit.
         const cost = Buffer.byteLength(JSON.stringify(one), "utf8") + 1;
-        // **装不下就当场中断**，不塞半条进去。
+        // **Stop immediately when a result cannot fit**; do not insert a partial result.
         if (cost > left) {
           truncated = true;
           return "stop";
@@ -522,10 +532,10 @@ export const bash: Tool = {
 };
 
 /**
- * Windows 上用哪个 PowerShell。
+ * Select a PowerShell executable on Windows.
  *
- * 有 `pwsh`（7+）就用它 —— Windows PowerShell 5.1 里 `&&` 和 `||` 是语法错误，
- * 而模型十有八九会写。探一次记下来，别每条命令都探。
+ * Prefer `pwsh` (7+): Windows PowerShell 5.1 treats `&&` and `||` as syntax errors, while models
+ * commonly use them. Probe once and cache the result instead of probing for every command.
  */
 let PWSH: string | null = null;
 function pwsh(): string {
@@ -537,28 +547,29 @@ function pwsh(): string {
 }
 
 /**
- * 输出超了就**掐掉中间**，两头留着，中间记一句掐了多少。
+ * When output exceeds its limit, **remove the middle**, retaining both ends and reporting how
+ * much was omitted.
  *
- * 掐中间不掐尾巴：一条命令要紧的往往在最后几行（跑挂了的那条断言、`exit 1` 前
- * 那句话），只留开头的话，最要紧的那段正好是丢掉的那段。
+ * Command output often contains the decisive diagnostic at the end: a failed assertion or the
+ * message before `exit 1`. Keeping only the beginning would discard that important information.
  */
 function cut(s: string): string {
   const bytes = Buffer.byteLength(s, "utf8");
   if (bytes <= SH_MAX_BYTES) return s;
   const half = Math.floor(SH_MAX_BYTES / 2);
   const buf = Buffer.from(s, "utf8");
-  // 按字节切会把一个多字节字符劈成两半，`toString` 那儿变成一个替换符 —— 一个字
-  // 的事，不值得为它多绕一层。
+  // A byte boundary may split one multibyte character, which `toString` replaces with a replacement
+  // character. That single-character loss does not justify another processing layer.
   const head = buf.subarray(0, half).toString("utf8");
   const tail = buf.subarray(bytes - half).toString("utf8");
   return `${head}\n... (${bytes - SH_MAX_BYTES} more bytes cut from the middle of this output)\n${tail}`;
 }
 
 /**
- * 把一条命令连同它起的活一起停掉。
+ * Stop a command together with all work it spawned.
  *
- * POSIX：进程组的号就是组长的 pid，`kill(-pid)` 送给整组。Windows 没有进程组这
- * 回事，用 `taskkill /T`（连着子孙一起）。
+ * POSIX process-group ids equal the leader's pid; `kill(-pid)` signals the whole group.
+ * Windows uses `taskkill /T` to include descendants instead.
  */
 function stop(p: { pid?: number; kill: (sig?: NodeJS.Signals) => boolean }): void {
   const pid = p.pid;
@@ -567,31 +578,31 @@ function stop(p: { pid?: number; kill: (sig?: NodeJS.Signals) => boolean }): voi
     if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(pid), "/T", "/F"], { windowsHide: true });
     else process.kill(-pid, "SIGKILL");
   } catch {
-    // 已经没了，或者组长不在了 —— 补一刀给它自己，杀不掉就算了
+    // The process or group leader may already be gone. Try terminating the process itself and ignore failure.
     try {
       p.kill("SIGKILL");
     } catch {
-      /* 已经走了 */
+      /* Already exited. */
     }
   }
 }
 
-/** 跑一条命令。**一定要有上限** —— 没有的话一个不返回的命令能把整个位置钉死。 */
+/** Execute a command. **Always impose a timeout**, or a non-returning command can block the entire execution location. */
 export function sh(
   command: string,
   cwd: string | undefined,
   timeoutMs: number,
 ): Promise<{ code: number; stdout: string; stderr: string; timedOut: boolean }> {
   return new Promise((done) => {
-    // Windows 上不能直接把命令串丢给 cmd：命令行是按控制台代码页解的（中文机器是
-    // GBK），命令里的中文**在进去的路上就烂了**，出来的输出也烂 —— 而且两头都不报错。
-    // 走 PowerShell 的 -EncodedCommand：参数是 UTF-16 的 base64，进去这一路不经过
-    // 代码页；再在里面把输出编码钉成 UTF-8，出来这一路也就对了。
+    // On Windows, passing command text directly to cmd uses the console code page, commonly GBK
+    // on Chinese systems. Chinese input and output can become corrupted without errors.
+    // PowerShell -EncodedCommand accepts UTF-16 base64, bypassing the input code page; explicitly
+    // set UTF-8 output encoding to preserve the return path too.
     const win = process.platform === "win32";
-    // POSIX 上 `detached` 让子进程自成一个进程组，超时那一下才杀得动**整组** ——
-    // 不这么起的话 `p.kill()` 只送走那个 shell，它起的活（`grep -r /` 那种）被
-    // init 收养接着跑。实测：六个容器各占一整个核，最久的一条烧了 50 分钟，而工具
-    // 那边早就交回「超时」了。
+    // On POSIX, `detached` creates a process group so timeout can terminate **all descendants**.
+    // Otherwise `p.kill()` kills only the shell; children such as `grep -r /` are adopted by init
+    // and continue. In one observation, six containers each consumed a full core for up to
+    // 50 minutes after the tools had already reported timeouts.
     const spawned = win
       ? spawn(
           pwsh(),
@@ -637,16 +648,16 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
-/** 全部基础工具。**内核不认得这个名单** —— 它只查 `tool` 表。 */
+/** All basic tools. **The kernel does not know this list**; it reads the `tool` table. */
 /**
- * **交卷站一个工具都不摆，除了交卷本身。**
+ * **Offer no tools at the submission station except submission itself.**
  *
- * 跑工具的只有动作站；交卷站是模型站、它的下一站也是模型站 —— 在那儿请求任何
- * 工具都没有人会去跑，那次调用会一直挂着，最后被补一条「没跑成」。而交卷本来
- * 也不需要工具：交的是那次 `submit` 调用里的答案。
+ * Only action stations execute tools. Submission is a model station followed by another model
+ * station, so other requested calls would remain unexecuted until completion repair adds failure
+ * results. Submission itself only needs the answer in the `submit` call.
  *
- * 写成条件挂在每一件上，而不是让内核去认「哪一站是交卷站」——**表说了算**，
- * 想让某件工具在那儿也摆着，改这一行数据就行。
+ * Attach this as a condition to each tool rather than teaching the kernel which station is
+ * submission. **The data determines availability**; changing a tool's row can make it available there.
  */
 const NOT_AT_HAND_IN = [[{ dim: "cycle", key: "cycle", op: "ne", value: "submit" }]];
 

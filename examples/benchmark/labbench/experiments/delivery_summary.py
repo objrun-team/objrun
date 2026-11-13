@@ -43,29 +43,29 @@ def main():
     (LOCAL/'RESULTS.json').write_text(json.dumps(results,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     def bounds(s):return f"{s['accuracyBounds'][0]*100:.2f}%–{s['accuracyBounds'][1]*100:.2f}%"
     def link(name,path):return f'[{name}]({Path(path).as_posix()})'
-    lines=['# LAB-Bench 实验结果与交付','','708 题 × 单次尝试 / 完整 ObjRun，共 1416 条终态；8 条基础设施未知保留，完整归档回传与本地核验通过。',
-           '','|题集|组别|有效/总数|已知通过|基础设施未知|全分母准确率范围|','|---|---|---:|---:|---:|---|']
-    for category,arms in list(summary['categories'].items())+[('全部',summary['arms'])]:
+    lines=['# LAB-Bench results and delivery','','708 tasks × single-shot / full ObjRun, totaling 1416 terminal states. Eight infrastructure unknowns are retained; full archive retrieval and local verification passed.',
+           '','|Task set|Arm|Valid/total|Known passes|Infrastructure unknowns|Full-denominator accuracy bounds|','|---|---|---:|---:|---:|---|']
+    for category,arms in list(summary['categories'].items())+[('All',summary['arms'])]:
         for arm,s in arms.items():lines.append(f"|{category}|{arm}|{s['valid']}/{s['tasks']}|{s['passed']}|{s['unknown']}|{bounds(s)}|")
-    lines+=['','未知不强记为答错；表中范围只反映这些未知的最坏/最好取值。正常格式失败属于已知方法失败。',
-            '', '|组别|有效答案 precision|全分母 coverage|格式无效|长度截断|','|---|---:|---:|---:|---:|']
+    lines+=['','Unknowns are not forced into wrong-answer counts. Bounds reflect only their worst/best possible outcomes. Normal format failures are known method failures.',
+            '', '|Arm|Valid-answer precision|Full-denominator coverage|Invalid format|Length truncation|','|---|---:|---:|---:|---:|']
     for arm,s in summary['arms'].items():lines.append(f"|{arm}|{s['precision']*100:.2f}%|{s['coverage']*100:.2f}%|{s['formatInvalid']}|{s['length']}|")
     paired=summary['paired']
-    lines+=['',f"完整有效配对 {paired['validPairs']} 题；配对准确率差 {paired['differenceOnValidPairs']*100:.2f} 个百分点，分层题目 bootstrap 95% 区间 [{paired['ci95ConditionalOnValidPairs'][0]*100:.2f}, {paired['ci95ConditionalOnValidPairs'][1]*100:.2f}]。这只描述本次 API 运行的题目重采样不确定性，不代表重复实验间波动。",
-            '', '**解释限制：** 单次组有 391 题格式无效，其中 356 次长度截断均未形成可解析答案。完整组获得在线金标正误反馈，允许在预算内反复验证选项；高最终分数包含输出格式、工具执行和选项排除的收益，不能直接解释成生物学推理修复。',
-            '',f"同一批完整方法轨迹中，首次候选已知通过 {trajectory['firstCandidatePassed']}/708；{trajectory['multipleEvaluatedLabels']} 题评估过多个不同标签；{trajectory['firstCorrectnessFeedbackFalseThenSubmittedPass']} 条记录首次正确性反馈为否、最终真实提交通过。这些是轨迹统计，没有新增第三个实验组。",
-            '', '|组别|已知实际费用 USD|费用未知请求|全部传输尝试|','|---|---:|---:|---:|']
+    lines+=['',f"There are {paired['validPairs']} fully valid task pairs. Paired accuracy difference: {paired['differenceOnValidPairs']*100:.2f} percentage points; stratified task-bootstrap 95% interval: [{paired['ci95ConditionalOnValidPairs'][0]*100:.2f}, {paired['ci95ConditionalOnValidPairs'][1]*100:.2f}]. This describes task-resampling uncertainty for this API run, not variation across repeated experiments.",
+            '', '**Interpretation limits:** The single-shot arm has 391 invalid-format tasks, including 356 length-truncated responses without parseable answers. The full arm receives online ground-truth correctness feedback and can repeatedly verify choices within budget. Its high final score includes benefits from output formatting, tool execution, and option elimination; it cannot directly be interpreted as repaired biological reasoning.',
+            '',f"Within the same full-method trajectories, first candidates have {trajectory['firstCandidatePassed']}/708 known passes; {trajectory['multipleEvaluatedLabels']} tasks evaluated multiple labels; and {trajectory['firstCorrectnessFeedbackFalseThenSubmittedPass']} records received false as their first correctness feedback but passed on actual final submission. These are trajectory statistics, not a third experimental arm.",
+            '', '|Arm|Known actual cost USD|Unknown-cost requests|All transport attempts|','|---|---:|---:|---:|']
     for arm,c in costs.items():lines.append(f"|{arm}|{c['knownActualCostUsd']:.9f}|{c['unknownCostRequests']}|{c['requests']}|")
-    lines+=[ '',f"已知实际费用合计 ${total_cost:.9f}，另有 {unknown_cost} 笔费用未知；无未结算在途请求。使用 OpenRouter usage.cost；v2 账本已经包含所有 v1 回执，不重复叠加试跑费用。未知费用不作零，也不把预留金额当实际费用。",
-             '',f'预设同文选项题 {DEFECT} 保留在主结果。排除后全题集 707 题的结果见 RESULTS.json；SeqQA 599 题敏感性结果如下：',
-             '', '|组别|有效/599|已知通过|未知|准确率范围|','|---|---:|---:|---:|---|']
+    lines+=[ '',f"Known actual costs total ${total_cost:.9f}, with {unknown_cost} unknown charges and no unsettled in-flight requests. Costs use OpenRouter usage.cost; the v2 ledger already includes every v1 receipt, so pilot charges are not added twice. Unknown costs are not zero, and reservations are not actual costs.",
+             '',f'The prespecified identical-text-option task {DEFECT} remains in the main result. See RESULTS.json for the 707-task result excluding it; SeqQA sensitivity results for 599 tasks follow:',
+             '', '|Arm|Valid/599|Known passes|Unknowns|Accuracy bounds|','|---|---:|---:|---:|---|']
     for arm,s in seq_sensitivity.items():lines.append(f"|{arm}|{s['valid']}|{s['passed']}|{s['unknown']}|{bounds(s)}|")
-    lines+=['','3 条试跑恢复只使用原剩余约 297 秒，首逻辑请求 wire 不变、各累计两次传输。修复停机间隔约 324 秒单独记录，因此不是连续 600 秒墙钟实验。原中断视图、恢复视图和双方排除这 3 题的视图保存在 DELIVERY.json。原试跑全部有效的门槛未通过；用户明确批准保留 3 条未知继续，其余审计要求保持。',
-            '', f"服务器审计 {server_checks} 项、本地核验 {verification['checkCount']} 项通过。归档 SHA256：{delivery['retrieval']['sha256']}。",
-            '',link('完整解压材料目录',root)+'；'+link('完整归档',delivery['retrieval']['archive'])+'。',
-            '',link('逐题 CSV',LOCAL/'FINAL_RESULTS.csv')+'；'+link('完整统计及各子任务',LOCAL/'SUMMARY.json')+'；'+link('候选与反馈轨迹索引',LOCAL/'TRAJECTORY_ANALYSIS.json')+'；'+link('本地核验',LOCAL/'LOCAL_VERIFICATION.json')+'。',
-            '', '完整解压材料包含源数据、私有评分映射、冻结源码与依赖、全部模型请求/响应/generation ID/usage、候选、评分、异常、SQLite/任务树和日志。文件清单位于 full-results/outputs/canonical/file-inventory.json。']
-    if normalization.exists():lines+=['','本地批准记录曾因 Windows CRLF 与归档 LF 换行差异中止核验。只规范本地换行后重新执行原标准，JSON 内容、归档和实验数据不变；原件与转换哈希证据见 '+link('换行规范化记录',normalization)+'。']
+    lines+=['','The 3 pilot recoveries used only the original remaining approximately 297 seconds, unchanged first logical-request wire payloads, and two cumulative transports each. Repair downtime of about 324 seconds is recorded separately, so these were not continuous 600-second wall-clock experiments. Original interrupted, recovered, and paired views excluding these 3 tasks are in DELIVERY.json. The original all-valid pilot gate failed; the user explicitly approved continuing with 3 unknowns preserved, while retaining all other audit requirements.',
+            '', f"Passed {server_checks} server audit checks and {verification['checkCount']} local checks. Archive SHA256: {delivery['retrieval']['sha256']}.",
+            '',link('Complete extracted materials',root)+'; '+link('Complete archive',delivery['retrieval']['archive'])+'.',
+            '',link('Per-task CSV',LOCAL/'FINAL_RESULTS.csv')+'; '+link('Full statistics and subtasks',LOCAL/'SUMMARY.json')+'; '+link('Candidate and feedback trajectory index',LOCAL/'TRAJECTORY_ANALYSIS.json')+'; '+link('Local verification',LOCAL/'LOCAL_VERIFICATION.json')+'.',
+            '', 'Complete extracted materials include source data, private grading mappings, frozen source/dependencies, every model request/response/generation ID/usage record, candidates, grades, anomalies, SQLite/task trees, and logs. File inventory: full-results/outputs/canonical/file-inventory.json.']
+    if normalization.exists():lines+=['','Verification initially stopped because local approval records used Windows CRLF while the archive used LF. After normalizing only local line endings, the original checks were rerun; JSON content, archives, and experiment data remain unchanged. Original files and conversion-hash evidence: '+link('Line-ending normalization record',normalization)+'.']
     (LOCAL/'RESULTS.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
     source=LOCAL/'delivery-analysis-source';source.mkdir(exist_ok=True);(source/Path(__file__).name).write_bytes(Path(__file__).read_bytes())
     manifest={p.name:digest(p.read_bytes()) for p in [LOCAL/'RESULTS.md',LOCAL/'RESULTS.json',source/Path(__file__).name]}

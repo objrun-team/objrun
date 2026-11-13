@@ -140,12 +140,12 @@ def main():
     save(OUT/'SUMMARY.json',summary);save(OUT/'TRAJECTORY_ANALYSIS.json',analyses)
     with (OUT/'FINAL_RESULTS.csv').open('w',newline='',encoding='utf-8-sig') as f:
         writer=csv.DictWriter(f,fieldnames=list(exports[0]));writer.writeheader();writer.writerows(exports)
-    lines=['# LAB-Bench 两组结果','','ProtocolQA 108；SeqQA 600。OpenRouter 固定 DigitalOcean；完整组具有在线金标正误反馈。','',
-           '|组别|有效/总数|通过|准确率范围|','|---|---:|---:|---|']
+    lines=['# LAB-Bench two-arm results','','ProtocolQA 108; SeqQA 600. OpenRouter pinned to DigitalOcean; the full arm receives online ground-truth correctness feedback.','',
+           '|Arm|Valid/total|Passed|Accuracy bounds|','|---|---:|---:|---|']
     for arm,s in summary['arms'].items():lines.append(f"|{arm}|{s['valid']}/708|{s['passed']}|{s['accuracyBounds']}|")
-    lines+=['','费用来自 OpenRouter usage.cost；缺失费用保留未知，不记零。','', '|组别|已知实际美元|未知费用请求|请求数|','|---|---:|---:|---:|']
+    lines+=['','Costs use OpenRouter usage.cost; missing costs remain unknown, not zero.','', '|Arm|Known actual USD|Unknown-cost requests|Requests|','|---|---:|---:|---:|']
     for arm,c in costs['byArm'].items():lines.append(f"|{arm}|{c['knownActualCostUsd']:.9f}|{c['unknownCostRequests']}|{c['requests']}|")
-    lines+=['',f"远端审计通过：{checked['allPassed']}。20题两组试跑已计入全量，没有重新生成。",'完整原始请求、响应、候选、评分、轨迹与数据库随归档交付；高最终分数可能包含选项排除收益。']
+    lines+=['',f"Remote audit passed: {checked['allPassed']}. The 20-task, two-arm pilot counts toward the full set and was not regenerated.",'The archive includes complete original requests, responses, candidates, grades, trajectories, and databases. High final scores may include gains from option elimination.']
     (OUT/'REPORT.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
     print(json.dumps({'auditPassed':checked['allPassed'],'arms':summary['arms'],'failures':checked['failures'][:5]}))
 

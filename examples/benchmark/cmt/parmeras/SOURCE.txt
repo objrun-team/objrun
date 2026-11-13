@@ -1,8 +1,20 @@
-﻿从老仓库搬过来的，原样没改。
+Imported unchanged from the old repository.
 
-来源仓库 : E:/sgu-bzhc/EACN_EX/OS_gui
-分支     : origin/mb/full
-提交     : 5128c0754a608c67a8c2799c19e46ba6afef059f
-导出于   : 2026-08-30T16:54:03+08:00
+Source repository : E:/sgu-bzhc/EACN_EX/OS_gui
+Branch            : origin/mb/full
+Commit            : 5128c0754a608c67a8c2799c19e46ba6afef059f
+Exported at       : 2026-08-30T16:54:03+08:00
 
-原路径   : skills/cmt-pre-symmetry-projection/SKILL.md
+Original path     : skills/cmt-pre-symmetry-projection/SKILL.md
+
+The imported cmt-pre-symmetry-projection.md is retained byte-for-byte because it is
+an injected benchmark skill prompt. Translating its text would change the fixed
+experimental condition. English rendering of its Chinese metadata and framing:
+
+Description: Marginal-situation marker — symmetry projection (CMT). Inject a
+general group-projection method/theorem: restore discrete symmetry using the
+average or product over the full group orbit. Supply methods, not answers.
+
+Banner: Marginal-situation marker + general method (symmetry_projection).
+Introduction: This supplies a general method/theorem, not the answer to any task.
+Footer: This is a domain method; the model applies it to the specific problem.

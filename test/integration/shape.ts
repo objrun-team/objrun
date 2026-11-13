@@ -1,31 +1,33 @@
 /**
- * 例子：**消息列表的形状,在入库那一刻就得站得住。**
+ * Example: **message-list structure must already be valid when stored**.
  *
  * ```
  * bun test/integration/shape.ts
  * ```
  *
- * 库里那张消息表要能当**一份跟内核无关的快照**用：拿着它，就该知道模型看见了
- * 什么。做不到的话，出了事只能靠猜 —— 而这件事真发生过：一次请求被网关拒了，
- * 想查发出去的到底长什么样，查不出来，因为库里存的是「发生了什么事」，发出去的
- * 是内核现拼的另一份东西。
+ * The message table must serve as **a kernel-independent snapshot**: it should reveal
+ * what the model saw without requiring a particular kernel version. Otherwise a failure
+ * can only be guessed at. This happened when a gateway rejected a request: the exact
+ * outbound shape was unrecoverable because the database recorded events while the
+ * kernel assembled a different representation for sending.
  *
- * 两条规矩把这件事钉住：
+ * Two rules establish the invariant:
  *
- * 1. **入库就查形状**（`checkBody`）。站不住的行根本进不来
- * 2. **缺的补上，不摘**（`answerMissing`）。一次没人跑的工具调用，补一条「没跑成」
- *    写回库里；以前是发之前把那一行摘掉
+ * 1. **Validate structure on insertion** (`checkBody`); invalid rows never enter the database.
+ * 2. **Repair omissions instead of removing rows** (`answerMissing`). Store a synthetic
+ *    "not executed" result for an unexecuted tool call. Previously, the call was removed before sending.
  *
- * ## 为什么会有「没人跑的调用」
+ * ## Why can a tool call remain unexecuted?
  *
- * 模型请求工具，落一行 `call`；工具跑完落一行 `tool`，靠 `id` 配对。但**这一站有
- * 没有人真去跑，取决于机制怎么搭** —— 下一站走 `fn:unit.tools` 就有人跑，一条纯
- * 问答的轨就没人跑。而系统工具是无条件挂上去的，所以纯问答的多站机制里，模型
- * 迟早会请求一次没人跑的工具。
+ * A model request creates a `call` row; tool completion creates a `tool` row, paired
+ * by `id`. But **whether a station actually executes it depends on the mechanism**.
+ * A successor using `fn:unit.tools` executes tools; a pure question-answer lane does not.
+ * System tools are exposed unconditionally, so a multi-station question-answer mechanism
+ * will eventually request a tool that nobody executes.
  *
- * 缺了结果，整份上下文就发不出去（模型那边一律要求「有 tool_call 就得有对应的
- * tool result」）。摘掉那一行确实能发出去，代价是模型看到的历史里那次调用**凭空
- * 消失**，而且库和发出去的不是一份东西。
+ * Without a result, providers reject the entire context: every tool_call requires a
+ * corresponding tool result. Removing the call makes sending possible but causes it
+ * to **disappear from the history** seen by the model, and the stored and sent contexts differ.
  */
 
 import { checkBody } from "../../app/src/msg/deliver.ts";
@@ -33,7 +35,7 @@ import { done, machine, ok, outside, part, show, step, until } from "../_lib.ts"
 
 const m = await machine();
 
-/** 这一站只说「我要调工具」，而这个机制里没有人会去跑它。 */
+/** This station only requests a tool; the mechanism contains no executor for it. */
 const out = await outside({
   "/unit": () => ({
     role: "assistant",
@@ -47,7 +49,7 @@ try {
   part("Part one: a shape that cannot stand is refused at the door");
 
   step("1. a tool call with no id");
-  // `id` 是这一对的钥匙。没有它，工具结果永远配不回来，而那份上下文从此发不出去。
+  // `id` is the pairing key. Without it, a tool result can never be matched and the context becomes unsendable.
   let said = "";
   try {
     checkBody("call", JSON.stringify({ text: "", calls: [{ name: "read", input: {} }] }));
@@ -136,9 +138,9 @@ try {
   );
 
   step("7. so the table alone is a faithful snapshot");
-  // 这才是这个例子真正在验的东西：不用同时拿着某一版内核代码，光看这张表就能
-  // 知道模型看见了什么。摘行的做法下，这一条不成立 —— 表里有那次调用，发出去的
-  // 那份里没有。
+  // The actual invariant: this table alone must reveal what the model saw, without requiring a particular
+  // kernel implementation. Removing rows before sending violates it: the table contains the call,
+  // but the outbound request does not.
   const answered = new Set(
     rows.filter((r) => r.kind === "tool").map((r) => (JSON.parse(r.body) as { id?: string }).id),
   );
@@ -171,8 +173,8 @@ try {
   );
 
   step("9. it is keyed by role, because one kind can wear two");
-  // 世界注入的 `inject` 是 user，内核注入的 `inject` 是 system —— 一个进消息流，
-  // 一个进交代。按 kind 查的话这两条只能得到同一个答案，而它们本来就不该一样。
+  // World-originated `inject` has role user; kernel-originated `inject` has role system. One enters the message stream,
+  // the other instructions. Classifying by kind alone would conflate these intentionally different cases.
   const kinds = (
     await m.api<{ rows: { name: string }[] }>("POST", "/query", { sql: "select name from msg_kind" })
   ).rows.map((r) => r.name);

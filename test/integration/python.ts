@@ -1,28 +1,30 @@
 /**
- * 例子：**`python_exec`** —— 模型手上那点算力。
+ * Example: **`python_exec`**, the model's local computation tool.
  *
  * ```
  * bun test/integration/python.ts
  * ```
  *
- * 一道推导题，模型没有算力的时候会**猜**：写一个看起来对的式子，然后没有任何
- * 办法知道它对不对。这个工具就是让它能自己验一下。
+ * Without computation, a model solving a derivation problem may **guess** a plausible
+ * expression without a way to check it. This tool lets the model verify its own work.
  *
- * ## 为什么不是容器
+ * ## Why not a container?
  *
- * 它是**跟安装包一起分发的基础设施**。容器方案在这台机器上要 Docker-in-WSL，
- * 换一台干净的 Windows 就什么都没有 —— 那样这个工具只在开发机上存在。
- * Pyodide 是 CPython 编到 wasm，几个文件跟二进制放一块儿，到哪儿都一样。
+ * This is **infrastructure distributed with the application**. A container solution
+ * requires Docker-in-WSL on this machine and is absent on a clean Windows installation,
+ * making the tool development-machine-only. Pyodide compiles CPython to wasm; shipping
+ * its few files alongside the executable gives the same environment everywhere.
  *
- * ## 这个例子盯的是四件事
+ * ## Four properties under test
  *
- * 1. 它**真的会算** —— sympy 积得出、numpy 解得出特征值
- * 2. 两次调用之间**变量不串** —— 不然换个顺序跑结果就变了，这种事最难查
- * 3. 报错**回给模型**，不是抛给内核 —— 模型看得见回溯才改得动代码
- * 4. **死循环掐得掉**，而且掐完还能接着用
+ * 1. It **really computes**: sympy integrates and numpy computes eigenvalues.
+ * 2. **Variables do not leak between calls**, avoiding hard-to-diagnose order-dependent results.
+ * 3. Errors **return to the model**, not to the kernel, so the traceback can guide a correction.
+ * 4. **Infinite loops can be terminated**, and the tool remains usable afterward.
  *
- * 第 4 条是这一层存在的理由：Pyodide 的 `runPython` 是同步的，跑在主线程里的话
- * 一句 `while True: pass` 就是整个引擎停摆。所以它住在一个 Worker 里。
+ * The fourth property is why this layer exists. Pyodide's `runPython` is synchronous;
+ * running it on the main thread would let `while True: pass` halt the entire engine.
+ * It therefore runs in a Worker.
  */
 
 import { done, ok, part, show, step } from "../_lib.ts";
@@ -55,8 +57,8 @@ try {
   ok("it did not pay for a fresh interpreter", cost < 1000, cost);
 
   step("3. nothing carries over between calls");
-  // **换个顺序跑结果就不一样**是最难查的一类毛病。一道题定义的符号漏到下一道题，
-  // 表现是「单独跑对、连着跑错」，而那时候谁都不会先怀疑这儿。
+  // **Order-dependent results** are especially hard to diagnose. A symbol leaking from one task into the next
+  // appears as "passes alone, fails in sequence", and this layer is unlikely to be the first suspect.
   await run("leaked = 'I should not survive'");
   const fresh = await run("print('leaked' in dir())");
   show("is the old variable still visible:", fresh.stdout.trim());
@@ -75,8 +77,8 @@ try {
   ok("at the wall, not whenever", stuck.stderr.includes(String(PYTHON_WALL_MS)), stuck.stderr);
 
   step("6. and it still works afterwards");
-  // 掐掉的是整个解释器，所以这一条验的是**它会自己重新起一个**。不会的话，
-  // 一个死循环就永久废掉这个工具 —— 后面每道题都拿不到算力。
+  // Termination kills the entire interpreter, so verify **that a replacement starts automatically**.
+  // Otherwise one infinite loop would disable computation for every subsequent task.
   const after = await run("import numpy as np\nprint(np.linalg.eigvalsh(np.array([[2.,1.],[1.,2.]])))");
   show("what came back:", after.stdout.trim());
   ok("the interpreter came back by itself", after.exitCode === 0 && after.stdout.includes("1."), after);

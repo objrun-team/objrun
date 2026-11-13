@@ -1,87 +1,69 @@
-"""DeepSWE 的台子 —— 引擎外面的一个 HTTP 服务。**Apptainer 版**（Sherlock）；docker 版在 `stand.py.bak-docker-0929`。
+r"""DeepSWE service outside the engine. **Apptainer version** for Sherlock; the Docker version is in `stand.py.bak-docker-0929`.
 
     python3 stand.py [--port 7902] [--level 2] [--graders 4] [--selftest [TASK_ID...] [--jobs 4]] [--pull [TASK_ID...]]
 
-引擎那边它是**三条句柄**：
+The engine sees **three handles**:
 
-    http://127.0.0.1:7902/place       在哪儿干：把工具调用转发进那道题的容器
-    http://127.0.0.1:7902/applies     G 的第一格：交出来的补丁打得上吗
-    http://127.0.0.1:7902/resolved    G 的根：官方判据说做成了吗
+    http://127.0.0.1:7902/place       Forward tool calls into the problem's container.
+    http://127.0.0.1:7902/applies     First G node: does the submitted patch apply?
+    http://127.0.0.1:7902/resolved    G root: does the official criterion report success?
 
-另有两条给 U 臂收工用的：
+Two additional endpoints finalize arm U:
 
-    /grade  {place}                   判一次容器里 `git diff --binary <base> HEAD`（官方 collect 命令），不经 G
-    /stop   {place}                   停容器、删 overlay
+    /grade  {place}    Grade `git diff --binary <base> HEAD` in the container (official collect command), without G.
+    /stop   {place}    Stop the container and remove its overlay.
 
-句柄名本身就是地址，内核 POST 一份 JSON 过来，这儿回一份 JSON —— 没有别的协议。
+Handle names are URLs. The kernel POSTs JSON and receives JSON; there is no additional protocol.
 
-## 为什么位置也在这儿
+## Why place routing belongs here
 
-「怎么到那个位置」是 `workplace.identity` 指着的那条句柄（`app/src/place/index.ts`）。
-内核自带的 `fn:place.hops` 读的是 `wsl` / `ssh` / `docker` 那套跳板串；这儿是 Apptainer，
-地址写法是我们自己的（`dsw:<跑名>/<题号>`），容器怎么起、运行时怎么送，全在这个进程里。
-内核一个字不用改。
+The handle referenced by workplace.identity defines how to reach a place (app/src/place/index.ts). Built-in fn:place.hops understands wsl/ssh/docker hop strings; this service uses Apptainer and its own `dsw:<run-name>/<problem-id>` addresses. Container startup and runtime injection stay in this process; the kernel needs no changes.
 
-**转发出去的工具还是内核那一份实现** —— bind 进容器的 `/rt` 是 `dist/tgengin-runtime-linux-x64`，
-一个 MCP server，装的就是 `app/src/tools/` 那一批。
+**Forwarded tools still use the kernel implementation.** `/rt`, bound into the container, is dist/tgengin-runtime-linux-x64: an MCP server containing app/src/tools/.
 
-## Apptainer 怎么替 docker（实测见 $SCRATCH/bench-feas/REPORT-deepswe.md 和 2026-09-29 的自检）
+## Replacing Docker with Apptainer
 
-- 一题一个 sif（`images/<tid>.sif` = `apptainer pull docker://<钉死的镜像>`），一跑一个 instance；
-- 可写层用**目录 overlay**（`--overlay <dir>`，放 /lscratch，作业结束即清），不用 `--writable-tmpfs`（那是内存）；
-- `--fakeroot --containall --no-home`：**不加 `--no-home` 的话 fakeroot 的 HOME=/root 会被空 tmpfs 盖住**，镜像里 /root
-  下的工具链消失；
-- `--no-mount tmp`：`--containall` 默认把 /tmp、/var/tmp 换成内存 tmpfs，**盖掉镜像自带的 /tmp**（goreleaser 把
-  GOMODCACHE/GOCACHE 和 go1.26.1 工具链放在 /tmp/gomodcache，盖掉就要联网下载 → 判 0）；不 mount 的话 /tmp 就是
-  镜像的 + overlay，落在 /lscratch，也不吃作业内存；
-- `--no-mount /etc/localtime`：Apptainer 默认绑宿主的（PDT），docker 用镜像的（UTC）；adaptix 的日期测试差一天；
-- **断网 = `--no-mount /etc/resolv.conf`**：Apptainer 做不了网络命名空间，但不绑宿主 resolv.conf 之后域名解析全失败
-  （gaierror，与 docker `--network none` 的失败形态一致），curl/pip/git/go 下载全断；loopback 照常。
-  之前试过 http_proxy 指向死端口的软墙，它改变异常类型（botocore 的 ProxyConnectionError ≠ EndpointConnectionError），
-  gql 的 5 条测试因此假阴性，弃用。**裸 IP 仍通**（Methods 要写）；
-- fakeroot 往环境里塞 LD_PRELOAD=libfakeroot.so 和 LD_LIBRARY_PATH，Deno 拒绝在带这两个变量的环境里 spawn 子进程
-  （cliffy 13 条快照测试）→ 每条进容器的命令前 unset（仍是 root，那是 user namespace 给的）；
-- `instance start` 不收 `--pwd`，每条 exec 都带 `--pwd /app`（113 道题的仓库都在 /app）；exec 加 `--cleanenv`，台子
-  进程的宿主环境（端口、路径）不进 agent 的 bash；
-- 判卷不 build 判据镜像：`--bind tasks/<tid>/tests:/tests:ro` 直接在题目 sif 上跑 `bash /tests/test.sh`；tests 目录的
-  sha256 记进结果；
-- **没有 PID 命名空间。** Apptainer 的 starter 是 child subreaper：exec 的主进程正常退出时它把所有后代（含 setsid/nohup
-  起的）一起收掉；但 starter 被 SIGKILL 就收不了，后代成孤儿（/rt、faked、测试起的服务）。所以这儿**从不 SIGKILL
-  starter**：/rt 关 stdin 让它自己退；超时先杀后代再等 starter 自然退出（`run()`）；
-- 容器共享宿主 loopback：台子和引擎的端口对容器里的 agent 可达。台子对每个 POST 查连接方进程的 mount namespace，
-  来自容器内的一律拒绝（`from_container`）；U 臂题面里不放句柄 URL（send.ts）。
+See $SCRATCH/bench-feas/REPORT-deepswe.md and the 2026-09-29 self-tests for measured behavior.
 
-### Methods 要如实写的偏差（相对官方 harness 与 docker 版 F 臂）
+- One SIF per problem (`images/<tid>.sif`, pulled from its pinned Docker image), with one instance per run.
+- Use a **directory overlay** on /lscratch, removed at job completion. Do not use --writable-tmpfs, which consumes memory.
+- Use --fakeroot --containall --no-home. **Without --no-home, fakeroot HOME=/root is hidden by empty tmpfs**, removing the image's /root toolchains.
+- Use --no-mount tmp: --containall normally replaces /tmp and /var/tmp with memory tmpfs, **hiding the image's /tmp**. goreleaser stores GOMODCACHE/GOCACHE and Go 1.26.1 under /tmp/gomodcache; hiding them triggers network downloads and verdict 0. Without that mount, /tmp uses the image plus overlay on /lscratch and consumes no job memory.
+- Use --no-mount /etc/localtime: Apptainer otherwise binds host PDT while Docker uses image UTC, shifting adaptix date tests by one day.
+- **Network restriction uses --no-mount /etc/resolv.conf.** Apptainer cannot provide a network namespace here. Omitting the host resolver makes DNS fail with gaierror, matching Docker --network none failure behavior for curl/pip/git/go downloads, while loopback remains available. A prior dead-port HTTP proxy changed botocore errors from EndpointConnectionError to ProxyConnectionError and caused five false-negative gql tests, so it was abandoned. **Literal IPs remain reachable**, which Methods must disclose.
+- fakeroot injects LD_PRELOAD=libfakeroot.so and LD_LIBRARY_PATH. Deno refuses child-process spawning with these variables (13 cliffy snapshot tests). Unset them before every container command; root status still comes from the user namespace.
+- instance start does not accept --pwd. Every exec uses --pwd /app (the repository location for all 113 problems) and --cleanenv to exclude host service ports/paths from agent bash.
+- Do not build grader images. Bind tasks/<tid>/tests to /tests read-only and run bash /tests/test.sh on the problem SIF. Record the tests-directory SHA-256 in results.
+- **There is no PID namespace.** Apptainer starter is a child subreaper: when the main exec process exits normally, it reaps all descendants, including setsid/nohup children. SIGKILLing starter instead leaves /rt, faked, or test services orphaned. **Never SIGKILL starter**: close /rt stdin for graceful exit; on timeout kill descendants first and wait for starter to exit (run()).
+- Containers share host loopback, making grader/engine ports reachable. Every grader POST checks the peer process's mount namespace and rejects container-origin requests (from_container). Arm-U statements omit handle URLs (send.ts).
 
-1. 无网络命名空间：断网靠不绑 resolv.conf，域名解析失败但裸 IP 可达；loopback 与宿主共享（台子有来源检查）。
-2. 无 cgroup 限额（官方 2 核 8 GB）：靠 Slurm 作业整体限额（33 核 256 GB）和 `--graders` 限并发。
-3. 无 PID 命名空间：容器里 `kill -1` 能打到宿主上本人的进程（未发生过；无法防）。
-4. /tmp 在 overlay 上不限大小（官方 storage_mb=20480）。
-5. U 臂在 Sherlock Apptainer、F 臂在 WSL docker；T=7200 对官方 10800（两臂一致）。
-6. 模型服务路径：F 臂（9-02）走 DeepSeek 官方 API，U 臂走 OpenRouter 钉 BaseTen fp8（官方 9-10 已下线 V4 flash）。
+### Deviations to disclose in Methods
 
-## 判卷是官方的，一行不改
+Relative to the official harness and Docker F arm:
+1. No network namespace: DNS is disabled by omitting resolv.conf, but literal IPs and shared host loopback remain reachable; the grader checks request origin.
+2. No per-container cgroup limit (official: 2 CPUs, 8 GB). Use the Slurm job limit (33 CPUs, 256 GB) and --graders concurrency cap.
+3. No PID namespace: kill -1 inside a container can reach the user's host processes. This has not occurred and cannot be prevented here.
+4. /tmp uses an unlimited overlay, unlike official storage_mb=20480.
+5. Arm U runs with Sherlock Apptainer; F uses WSL Docker. Both use T=7200 versus official 10800.
+6. Model service differs: F (9-02) uses the official DeepSeek API; U uses OpenRouter pinned to BaseTen fp8 after the official V4 flash endpoint was removed on 9-10.
 
-`tests/` 里的 `test.sh` + `grader.py` + `config.json` + `test.patch` 是官方判据。这个文件不实现任何判断，
-只做四件事：起容器、取补丁、把官方判据跑起来、读 `reward.json`。
+## Official grading unchanged
 
-判卷跑在**另一个干净容器**里（官方 `environment_mode = "separate"`）：题目 sif + 空 overlay + `/tests` 只读 bind。
-干活那个容器不参与判卷，也不回档 —— 经验留在里头。
+The official criterion is tests/test.sh + grader.py + config.json + test.patch. This file implements no grading decisions: it starts containers, retrieves patches, runs the official criterion, and reads reward.json.
+Grading runs in **a separate clean container** (official environment_mode="separate"): problem SIF, empty overlay, read-only /tests bind. The working container neither participates nor resets, preserving its accumulated work.
 
-## 分级：这一栏说多少
+## Feedback detail
 
-`--level` 定 `note` 那一栏写多细。**每个级别是一次单独的实验**，引擎那边不知道有这回事，G 的形状也不随级别变。
+--level selects note detail. **Each level is a separate experiment**; the engine is unaware of it, and G's structure stays fixed.
 
-    0   只有过没过
-    1   + 哪一段断的 + 计数（44 条新行为过了 12 条；2738 条原有测试没坏）
-    2   + 是哪几条没过（测试名）
-    3   + 失败信息原文
+    0   Pass/fail only.
+    1   Failed stage and counts (e.g. 12/44 new-behavior tests pass; all 2738 existing tests remain intact).
+    2   Also names of failed tests.
+    3   Also verbatim failure messages.
 
-## solution/ 不出这个进程
+## solution/ stays inside this process
 
-`tasks/<id>/solution/solution.patch` 是参考解。它只在自检里用（喂回去该判 1），判卷时官方判据自己也不碰它。
-语料在 `$TGENGIN_DSW_HOME/deep-swe/tasks`，不 bind 进任何容器。
-"""
+The reference patch tasks/<id>/solution/solution.patch is used only in self-tests, where it should pass. The official grader does not read it during grading. The corpus is under $TGENGIN_DSW_HOME/deep-swe/tasks and is never bound into a container."""
 
 from __future__ import annotations
 
@@ -110,14 +92,14 @@ CORPUS = HOME_DIR / "deep-swe" / "tasks"
 IMAGES = HOME_DIR / "images"
 RUNTIME = HOME_DIR / "tgengin-runtime-linux-x64"
 LOGS = HOME_DIR / "logs"
-# 干活容器和判卷容器的可写层。**放 /lscratch**（节点本地盘，作业结束即清）。
+# Writable layers for working and grading containers. **Use /lscratch**, the node-local disk cleared when the job ends.
 OVERLAYS = Path(os.environ.get("TGENGIN_DSW_OVERLAYS", f"/lscratch/{os.environ.get('USER', 'u')}/tgengin-dsw"))
 WORKDIR = "/app"
 
-# 官方判卷上限 1800 s（`verifier.timeout_sec`），照抄。
+# Preserve the official 1800-second grading limit (verifier.timeout_sec).
 VERIFY_SECONDS = 1800
 
-# 断网开关。`TGENGIN_DSW_NETWALL=0` 关掉（容器能解析域名）。
+# Network-restriction switch. TGENGIN_DSW_NETWALL=0 disables it and allows container DNS resolution.
 NETWALL = os.environ.get("TGENGIN_DSW_NETWALL", "1") != "0"
 NO_MOUNT = ("--no-mount", "/etc/localtime,tmp" + (",/etc/resolv.conf" if NETWALL else ""))
 ENV_PRELUDE = "unset LD_PRELOAD LD_LIBRARY_PATH; "
@@ -130,11 +112,11 @@ os.environ.setdefault("APPTAINER_TMPDIR", f"/lscratch/{os.environ.get('USER', 'u
 HOST_MNTNS = os.readlink("/proc/self/ns/mnt")
 
 
-# ── 语料 ────────────────────────────────────────────────────────────────────
+# ── Corpus ──
 
 
 def load_corpus() -> dict[str, dict]:
-    """把 113 道题的元数据读进来。**答案不读** —— `solution/` 只在自检里碰。"""
+    r"""Read metadata for all 113 problems. **Do not read answers**; solution/ is accessed only in self-tests."""
     if not CORPUS.is_dir():
         raise SystemExit(f"the task corpus is missing: {CORPUS}")
     book: dict[str, dict] = {}
@@ -152,7 +134,7 @@ def load_corpus() -> dict[str, dict]:
             "repo": meta.get("repository_url", ""),
             "base_commit": meta.get("base_commit_hash", ""),
             "image": env.get("docker_image", ""),
-            # **官方给了时限就用官方的**（`[agent] timeout_sec`），我们不另编一个数；send.ts 那边封顶。
+            # **Use the official time limit when provided** ([agent] timeout_sec), without inventing a replacement. send.ts applies the run cap.
             "seconds": int(float(agent.get("timeout_sec", 10800))),
             "instruction": (d / "instruction.md").read_text(encoding="utf-8"),
             "dir": str(d),
@@ -162,8 +144,7 @@ def load_corpus() -> dict[str, dict]:
 
 BOOK = load_corpus()
 
-# **这台机器上跑不了的题。发批的时候不发，但成绩单里按 0 算** —— 从分母里拿掉的话，
-# 那个分数就不是「113 道里做成了几道」了。每一条都得写清楚是**量出来的什么**。
+# Problems that cannot run on this machine are not submitted but **count as 0 in the report**. Removing them from the denominator would no longer measure successes among 113 problems. Document the **measured reason** for every exclusion.
 SKIP = {
     "eicrud-keyset-pagination-cursor":
         "needs more than the default 1024 open files: its MongoDB dies with "
@@ -174,18 +155,18 @@ SKIP = {
 
 
 def pick(n: int, seed: int) -> list[str]:
-    """点名哪几道。**确定的**：同一个 (n, seed) 永远是同一批。排除的先拿掉再抽。"""
+    r"""Select problems **deterministically**: identical (n, seed) gives the same batch. Remove excluded problems before sampling."""
     ids = [i for i in sorted(BOOK) if i not in SKIP]
     if n <= 0 or n >= len(ids):
         return ids
     return sorted(random.Random(seed).sample(ids, n))
 
 
-# ── 进程：跑一条命令，超时不留孤儿 ──────────────────────────────────────────
+# ── Processes: run a command without leaving orphans on timeout ──
 
 
 def descendants(pid: int) -> list[int]:
-    """`pid` 的全部后代（深的在前）。走 /proc/<pid>/task/*/children，没有 PID 命名空间所以都是宿主 pid。"""
+    r"""All descendants of pid, deepest first. Traverse /proc/<pid>/task/*/children; without PID namespaces these are host PIDs."""
     out: list[int] = []
     stack = [pid]
     while stack:
@@ -203,7 +184,7 @@ def descendants(pid: int) -> list[int]:
 
 
 def kill_tree(pid: int, sig=signal.SIGKILL) -> int:
-    """杀 `pid` 的后代（不杀 pid 本身：那多半是 apptainer 的 starter，它看到主进程没了会自己收摊退出）。"""
+    r"""Kill pid's descendants, not pid itself: it is usually Apptainer starter, which cleans up and exits after observing its main process terminate."""
     n = 0
     for k in descendants(pid):
         try:
@@ -220,8 +201,7 @@ class Ran:
 
 
 def run(argv: list[str], timeout: float, stdin_text: str | None = None) -> Ran:
-    """`subprocess.run` 的替身。超时时**先杀后代再等 starter 自己退**（`subprocess.run` 是直接 SIGKILL
-    子进程 = starter，容器里的 test.sh 和它起的服务就成了孤儿，事后还会往 /logs 里写 reward）。"""
+    r"""Replacement for subprocess.run. On timeout, **kill descendants first and wait for starter to exit**. subprocess.run SIGKILLs its direct child (starter), leaving test.sh and its services orphaned and able to write reward files to /logs later."""
     p = subprocess.Popen(argv, stdin=subprocess.PIPE if stdin_text is not None else subprocess.DEVNULL,
                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
@@ -241,16 +221,16 @@ def sh(*argv: str, timeout: float = 120) -> Ran:
     return run(list(argv), timeout)
 
 
-# ── apptainer：起、进、收 ─────────────────────────────────────────────────────
+# ── Apptainer: start, execute, stop ──
 
 
 def task_id_of(name: str) -> str:
-    """`<跑名>/<题号>` 里的题号。没有斜杠就是题号本身。"""
+    r"""Extract the problem ID from <run-name>/<problem-id>; without a slash, the whole string is the problem ID."""
     return name.rsplit("/", 1)[-1]
 
 
 def container_of(place: str) -> str:
-    """位置串 → 容器名。`dsw:[<跑名>/]<题号>`，**一跑一个容器**。"""
+    r"""Map place strings to container names: dsw:[<run-name>/]<problem-id>, with **one container per run**."""
     m = re.fullmatch(r"dsw:(?:([A-Za-z0-9._-]+)/)?([A-Za-z0-9._-]+)", place or "")
     if not m:
         raise ValueError(f"unrecognised place for this bench: {place} (expected dsw:[<run>/]<task-id>)")
@@ -276,8 +256,7 @@ def instance_running(name: str) -> bool:
 
 
 def exec_argv(name: str, *cmd: str, env: dict[str, str] | None = None) -> list[str]:
-    """在活容器里执行一条命令的 argv。**每条都带 `--pwd /app`**（instance start 不收 --pwd，不带就回退到 /），
-    `--cleanenv`（宿主环境不进去），前面接 ENV_PRELUDE（剥掉 fakeroot 的 LD_*）。"""
+    r"""Build argv for a command inside a live container. Always include --pwd /app because instance start does not support --pwd and would otherwise default to /. Use --cleanenv to exclude host variables and prepend ENV_PRELUDE to remove fakeroot LD_* variables."""
     e = [x for k, v in {"TGENGIN_DSW_BOX": name, **(env or {})}.items() for x in ("--env", f"{k}={v}")]
     return ["apptainer", "exec", "--cleanenv", "--no-umask", "--pwd", WORKDIR, *e, f"instance://{name}",
             "sh", "-c", ENV_PRELUDE + 'exec "$@"', "sh", *cmd]
@@ -287,7 +266,7 @@ def cexec(name: str, *cmd: str, env: dict[str, str] | None = None, timeout: floa
     return run(exec_argv(name, *cmd, env=env), timeout)
 
 
-START_LOCK = threading.Lock()          # instance start 一次一个
+START_LOCK = threading.Lock()          # Serialize instance start calls.
 NAME_LOCKS: dict[str, threading.Lock] = {}
 NAME_LOCKS_LOCK = threading.Lock()
 
@@ -298,11 +277,9 @@ def name_lock(name: str) -> threading.Lock:
 
 
 def container_up(place: str) -> str:
-    """那道题的容器起着没有，没起就起一个：sif 只读 + 目录 overlay + `/rt` bind。
+    r"""Ensure the problem container is running, starting it if necessary with read-only SIF, directory overlay, and /rt bind.
 
-    overlay 目录已经在的话**接着用**（跑名在路径里，新跑名就是新目录；同一跑里 instance 意外没了，
-    再起来时工作区还在）。`/stop` 才删。
-    """
+    **Reuse an existing overlay directory**. Its path contains the run name, so a new run gets a new directory while accidental instance loss preserves the same run's workspace. Only /stop removes it."""
     name = container_of(place)
     tid = task_id_of(place.split(":", 1)[1])
     if instance_running(name):
@@ -331,14 +308,14 @@ def container_up(place: str) -> str:
 
 
 def settle_git(name: str) -> None:
-    """镜像里没有 git 身份，没有身份 `git commit` 会拒。`/root/.gitconfig` 落在 overlay 上，跨 exec 持久。"""
+    r"""Images lack Git identity, so git commit would fail. /root/.gitconfig resides in the overlay and persists across exec calls."""
     for kv in (("user.email", "agent@tgengin.local"), ("user.name", "agent")):
         cexec(name, "git", "config", "--global", *kv, timeout=60)
     cexec(name, "git", "config", "--global", "--add", "safe.directory", WORKDIR, timeout=60)
 
 
 def remove(name: str) -> None:
-    """断掉运行时连接（让 /rt 自己退，它的 starter 会把 agent 留下的后台进程一起收掉）、停 instance、删 overlay。"""
+    r"""Close the runtime connection so /rt exits gracefully and starter reaps agent background processes, then stop the instance and remove the overlay."""
     with RUNTIMES_LOCK:
         rt = RUNTIMES.pop(name, None)
     if rt is not None:
@@ -347,14 +324,14 @@ def remove(name: str) -> None:
     shutil.rmtree(OVERLAYS / name, ignore_errors=True)
 
 
-# ── 转发：跟容器里那个运行时说 MCP ──────────────────────────────────────────
+# ── Forwarding: speak MCP to the runtime inside the container ──
 
 
 class Runtime:
-    """一个容器里那个运行时的连接。**一条会话是一根线**，所以来回上锁排队。"""
+    r"""A connection to the runtime in one container. **Each session has one stream**, so requests and responses are serialized under a lock."""
 
     INIT_TIMEOUT = 120
-    CALL_TIMEOUT = 1500      # 一次工具调用最多等多久（/rt 的 bash 自己有更短的上限）
+    CALL_TIMEOUT = 1500      # Maximum wait for one tool call (/rt bash has its own shorter limit).
 
     def __init__(self, name: str) -> None:
         self.name = name
@@ -375,7 +352,7 @@ class Runtime:
         return self.proc.poll() is None
 
     def close(self) -> None:
-        """关 stdin，/rt 读到 EOF 自己退出，starter 随之收摊。十秒不退再杀后代。"""
+        r"""Close stdin; /rt exits on EOF and its starter shuts down with it. Kill descendants if it has not exited after ten seconds."""
         try:
             self.proc.stdin.close()
         except Exception:
@@ -417,7 +394,7 @@ class Runtime:
             try:
                 line = self._readline(timeout or self.CALL_TIMEOUT)
             except TimeoutError:
-                # 这条会话废了：回答再来也对不上号。关掉，下一次调用重开。
+                # This session is unusable: any late response can no longer be matched. Close it and reopen on the next call.
                 self.close()
                 raise
             return json.loads(line)
@@ -427,7 +404,7 @@ class Runtime:
         if "error" in out:
             raise RuntimeError(str(out["error"].get("message", out["error"])))
         res = out.get("result", {})
-        # 工具执行错当**结果**回，不当协议错 —— 调用方多半是个模型，它看得见就能自己改。
+        # Return tool execution failures as **results**, not protocol errors: the caller is usually a model and can correct what it sees.
         if res.get("isError"):
             text = "".join(c.get("text", "") for c in res.get("content", []))
             raise RuntimeError(text or "the tool failed")
@@ -445,7 +422,7 @@ RUNTIMES_LOCK = threading.Lock()
 
 
 def runtime_of(place: str) -> Runtime:
-    """开过的留着复用。建连接在**这一题自己的锁**里，别的题不等。"""
+    r"""Reuse existing connections. Create a connection under **this task’s own lock**, without blocking other tasks."""
     name = container_up(place)
     with RUNTIMES_LOCK:
         rt = RUNTIMES.get(name)
@@ -462,11 +439,11 @@ def runtime_of(place: str) -> Runtime:
         return rt
 
 
-# ── 判卷 ────────────────────────────────────────────────────────────────────
+# ── Grading ──
 
 
 def tests_digest(tid: str) -> str:
-    """`tests/` 那几个文件的指纹，记进结果和日志，好核对判的是哪一版隐藏测试。"""
+    r"""Fingerprint the files under `tests/` and record this in results and logs, so the exact hidden-test version can be checked."""
     h = hashlib.sha256()
     d = Path(BOOK[tid]["dir"]) / "tests"
     for f in sorted(d.rglob("*")):
@@ -477,20 +454,19 @@ def tests_digest(tid: str) -> str:
 
 
 def patch_of(place: str, tid: str, ref: str, autocommit: bool = False) -> str:
-    """把它交的那个提交取成一份补丁：**官方那条收集命令**（`[[verifier.collect]]`），只把 `HEAD` 换成它交的 ref。
+    r"""Collect the submitted commit as a patch with **the official collection command** (`[[verifier.collect]]`), replacing only `HEAD` with the submitted ref.
 
-    **不起容器。** 容器没起 = 那道题一次工具都没调过，没有可判的东西（同 docker 版：exec 一个不存在的容器就是失败）。
-    """
+    **Do not start a container.** No container means that no tool was called for this task, so there is nothing to grade (as in the Docker version: exec into a nonexistent container fails)."""
     name = container_of(place)
     if not instance_running(name):
         raise RuntimeError(f"the container {name} is not running - the task never started, nothing to collect")
     base = BOOK[tid]["base_commit"]
     cexec(name, "git", "config", "--global", "--add", "safe.directory", WORKDIR, timeout=60)
     if autocommit:
-        # **U 臂收工：把工作区里没提交的东西先提交掉。** 冒烟里三道题都是在交卷步之前一次都没 commit
-        # （模型发了纯文本 / 预算用完，引擎就进交卷步，那一步不带工具），diff base..HEAD 全空、判 0 ——
-        # 量的是「有没有 commit 习惯」不是代码。F 臂里同样的事会被判据说破然后重试，U 臂没有第二次。
-        # 自动提交是保守方向（抬 U、压 Δ），Methods 里写。
+        # **Finish the U arm by committing any uncommitted workspace changes.** In the smoke test, all three tasks reached submission without a single commit
+        # (the model returned plain text / exhausted its budget, so the engine entered the submission step, which has no tools). The base..HEAD diff was empty and scored 0,
+        # measuring commit habits rather than code. The F arm exposes the same problem through grading feedback and can retry; U gets no second chance.
+        # Automatic commits are conservative (raise U and reduce Δ); disclose this in Methods.
         c = cexec(name, "sh", "-c", "git add -A && git commit -q -m 'tgengin hand-in' && echo COMMITTED || true", timeout=300)
         AUTOCOMMITTED[name] = "COMMITTED" in (c.stdout or "")
     r = cexec(name, "git", "diff", "--binary", base, ref, timeout=300)
@@ -503,15 +479,15 @@ AUTOCOMMITTED: dict[str, bool] = {}
 
 
 def wipe(box: Path) -> None:
-    """上一次同一份候选的日志目录。`/logs` 是 bind，里头文件属主是本人，直接删。"""
+    r"""Log directory for the previous grading of this same candidate. `/logs` is a bind mount and the files belong to this user, so delete them directly."""
     shutil.rmtree(box, ignore_errors=True)
     if box.exists():
         raise RuntimeError(f"cannot clear the previous log directory: {box}")
 
 
 def run_verifier(tid: str, patch: str) -> dict:
-    """判一次：题目 sif + 空 overlay + `/tests` 只读 bind + `/logs` bind，`bash /tests/test.sh`。
-    一次跑出一份 `reward.json` + 一份 `ctrf.json`，两个节点读同一份。"""
+    r"""Grade once: task SIF + empty overlay + read-only `/tests` bind + `/logs` bind, running `bash /tests/test.sh`.
+    One run produces one `reward.json` and one `ctrf.json`, read by both nodes."""
     sif = sif_of(tid)
     tests = Path(BOOK[tid]["dir"]) / "tests"
     key = hashlib.sha256(patch.encode()).hexdigest()[:16]
@@ -544,7 +520,7 @@ def run_verifier(tid: str, patch: str) -> dict:
     reward_file = box / "verifier" / "reward.json"
     base = {"seconds": took, "tests_sha": tests_digest(tid), "f2p_total": 0, "f2p_passed": 0, "p2p_total": 0, "p2p_passed": 0, "_tests": []}
     if timed_out or not reward_file.is_file():
-        # **判不出来的三种原因得分得开**：OOM / 超时 / 判据自己炸了。
+        # **Distinguish three reasons grading cannot finish**: OOM / timeout / grader failure.
         why = f"timed out at {VERIFY_SECONDS}s" if timed_out else ("oom-killed" if code == 137 else f"the verifier exited {code}")
         return {**base, "reward": 0, "crashed": True, "why": why}
     try:
@@ -564,16 +540,16 @@ def run_verifier(tid: str, patch: str) -> dict:
 CACHE: dict[tuple[str, str], dict] = {}
 CACHE_LOCK = threading.Lock()
 
-# **同时最多判几份。** 无 cgroup 限额，这道闸是台子自己的：这台节点扛得住多少。
+# **Maximum concurrent grading jobs.** With no cgroup limits, the service uses this gate to match the node’s capacity.
 GRADERS = int(os.environ.get("TGENGIN_DSW_GRADERS", "4"))
 GATE = threading.Semaphore(GRADERS)
 
-# **同一份补丁只许有一个人在判。** 后来的在这儿等着，判完直接读缓存。
+# **Only one worker may grade a given patch at a time.** Later requests wait here, then read the cached result.
 INFLIGHT: dict[tuple[str, str], threading.Event] = {}
 
 
 def judge(place: str, tid: str, ref: str, autocommit: bool = False) -> dict:
-    """判一份候选。**缓存认的是补丁的内容，不是提交号。**"""
+    r"""Grade a candidate. **The cache key is patch content, not the commit hash.**"""
     try:
         patch = patch_of(place, tid, ref, autocommit=autocommit)
     except Exception as e:
@@ -620,11 +596,11 @@ def judge(place: str, tid: str, ref: str, autocommit: bool = False) -> dict:
     return got
 
 
-# ── note：这一栏说多少，按 --level ──────────────────────────────────────────
+# ── note: feedback detail selected by --level ──
 
 
 def note_of(tid: str, got: dict) -> dict | str:
-    """判 0 的时候多说的那一份。**级别定详略**，形状不随级别变。"""
+    r"""Additional information on verdict 0. **The level controls detail**, while the response structure stays the same."""
     if LEVEL <= 0:
         return ""
     if got.get("no_patch"):
@@ -659,9 +635,9 @@ def note_of(tid: str, got: dict) -> dict | str:
 
 
 def from_container(peer_port: int) -> tuple[bool, str]:
-    """这条连接是不是从容器里发来的。容器共享宿主 loopback，agent 用镜像里的 curl 就能打到这儿；
-    按连接方本地端口查到进程（`ss -p`，本人的进程都查得到），看它的 mount namespace 是不是宿主的。
-    查不到进程 / 读不了 ns 的一律当容器里来的（本人宿主上的进程都读得到）。"""
+    r"""Whether this connection originated inside a container. Containers share the host loopback, so an agent can reach this endpoint with curl from its image.
+    Find the process by the connecting local port (`ss -p` can inspect all of this user’s processes), then check whether its mount namespace is the host’s.
+    If the process cannot be found or its namespace cannot be read, treat it as a container connection (this user’s host processes are readable)."""
     r = sh("ss", "-tnpH", f"( sport = :{peer_port} )", timeout=10)
     m = re.search(r"pid=(\d+)", r.stdout or "")
     if not m:
@@ -681,7 +657,7 @@ def from_container(peer_port: int) -> tuple[bool, str]:
 
 
 def task_of(body: dict) -> tuple[str, str, str]:
-    """从内核送来的那份东西里挖出「哪道题」「在哪个容器」「它交的是哪个提交」。"""
+    r"""Extract the task, container, and submitted commit from the payload sent by the kernel."""
     inp = body.get("input") or {}
     task = inp.get("task") or {}
     tid = task_id_of(str(task.get("id", "")))
@@ -694,13 +670,13 @@ def task_of(body: dict) -> tuple[str, str, str]:
 
 
 def ref_of(said: str) -> str:
-    """它交上来的那一段里挑出提交 ref。**一个 sha 就够**，别的原样递给 git。"""
+    r"""Extract the commit ref from the submission. **A single SHA is enough**; pass other input unchanged to git."""
     m = re.search(r"\b[0-9a-f]{7,40}\b", said)
     return m.group(0) if m else (said.splitlines()[-1].strip() if said else "")
 
 
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, *a):  # 默认那行访问日志太吵
+    def log_message(self, *a):  # Suppress the noisy default access log.
         pass
 
     def _send(self, obj, code=200):
@@ -719,7 +695,7 @@ class Handler(BaseHTTPRequestHandler):
                         "netwall": NETWALL, "no_mount": NO_MOUNT[1], "overlays": str(OVERLAYS)})
             return
         if self.path.startswith("/problems"):
-            # **发题的口：给题面，不给答案。**
+            # **Problem endpoint: provide the problem statement, not the answer.**
             n, seed = 0, 0
             if "?" in self.path:
                 for kv in self.path.split("?", 1)[1].split("&"):
@@ -742,7 +718,7 @@ class Handler(BaseHTTPRequestHandler):
         self._send({"error": f"no {self.path} here"}, 404)
 
     def do_POST(self):
-        # **容器里来的一律拒。** 判据、转发、收摊都只听引擎和 arm 脚本的。
+        # **Reject all container-originated requests.** Grading, forwarding, and cleanup accept only the engine and arm scripts.
         inside, why = from_container(self.client_address[1])
         if inside:
             print(f"[dsw] refused {self.path} from inside a container: {why}", flush=True)
@@ -754,7 +730,7 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             body = {}
 
-        # ── 位置：转发一次工具调用，或者探一次活 ──────────────────────────
+        # ── Place: forward one tool call, or probe liveness ──
         if self.path == "/place":
             place = str(body.get("place", ""))
             try:
@@ -766,7 +742,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._send({"error": str(e)}, 500 if body.get("op") != "ping" else 200)
             return
 
-        # ── U 臂：收工后判一次容器里的 HEAD（官方 collect 命令：diff base..HEAD），不经 G；/stop 收摊 ──
+        # ── U arm: after completion, grade container HEAD once (official collect command: diff base..HEAD), bypassing G; /stop cleans up ──
         if self.path in ("/grade", "/stop"):
             place = str(body.get("place", ""))
             try:
@@ -788,7 +764,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(fault_payload(e), 503)
             return
 
-        # ── G 的两格。**一次判卷，两处读**。 ──────────────────────────────
+        # ── The two nodes of G. **Grade once, read in two places.** ──
         if self.path in ("/applies", "/resolved"):
             tid, place, said = task_of(body)
             if tid not in BOOK:
@@ -816,7 +792,7 @@ class Handler(BaseHTTPRequestHandler):
         self._send({"error": f"no {self.path} here"}, 404)
 
 
-# ── 自检 ────────────────────────────────────────────────────────────────────
+# ── Self-tests ──
 
 
 def selftest_one(tid: str) -> tuple[str, bool, str]:
@@ -837,7 +813,7 @@ def selftest_one(tid: str) -> tuple[str, bool, str]:
 
 
 def selftest(ids: list[str], jobs: int) -> int:
-    """拿参考解喂回去，官方判据该说 1；空补丁该说 0。**装错了在这儿就炸。** 并发 `jobs` 道。"""
+    r"""The reference solution must score 1 with the official grader; an empty patch must score 0. **A faulty installation fails here.** Run `jobs` tasks concurrently."""
     bad: list[str] = []
     t0 = time.time()
     print(f"selftest: {len(ids)} tasks, {jobs} at a time, no_mount={NO_MOUNT[1]}", flush=True)

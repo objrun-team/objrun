@@ -1,33 +1,29 @@
 /**
- * 那几件工具，**真的落在容器里了吗**。
+ * Check that the tools **actually execute inside the container**.
  *
  * ```
- * bun examples/benchmark/deepswe/place-check.ts [题号]
+ * bun examples/benchmark/deepswe/place-check.ts [problem-id]
  * ```
  *
- * 前提：台子起着（`python3 stand.py`）。
+ * Requires a running grader (`python3 stand.py`).
  *
- * ## 为什么要单测这个
+ * ## Why test this separately?
  *
- * 转发错了不报错。`edit` 落在引擎这台机器上而不是容器里的话，它照样返回成功，
- * 改的却是另一个文件系统上的文件；`read` 读到的是宿主机的同名文件。
+ * Incorrect routing can succeed silently: edit may modify the host filesystem instead of the container, and read may return a same-named host file.
  *
- * ## 走的是内核那条真路，不是直接打台子
+ * ## Exercise the real kernel route
  *
  * ```
- *   fn:tool.edit ──→ placeFor(workplace) ──→ reg.get(identity) ──→ 台子 /place ──→ 容器里的运行时
+ * fn:tool.edit -> placeFor(workplace) -> reg.get(identity) -> grader /place -> container runtime
  * ```
  *
- * 直接 POST 台子的话，测的是运行时（那当然在容器里），**跳过了「这一次该不该转发」
- * 那个决定** —— 而那才是会错的地方。所以这儿把内核的工具注册跑起来，调 `fn:tool.*`。
+ * POSTing directly to the grader tests the runtime but skips the **decision to forward this call**, which is where routing can fail. Register kernel tools and invoke fn:tool.* here.
  *
- * ## 判据是「两边不一样」
+ * ## Require differences between the two filesystems
  *
- * 「读到了内容」证明不了在容器里 —— 宿主机上可能正好也有。所以每一条都拿**容器有、
- * 这台机器没有**（或者反过来）的东西去问：
- *
- * - 在容器里写一个文件 → 这台机器上必须**没有**它
- * - 在这台机器上写一个文件 → 容器里必须**读不到**
+ * Reading content does not prove container execution because the host may have the same file. Probe content present on only one side:
+ * - Write a file in the container; it must **not** appear on the host.
+ * - Write a file on the host; it must **not** be readable in the container.
  */
 
 import { mkdtempSync, existsSync, writeFileSync, rmSync } from "node:fs";
@@ -56,7 +52,7 @@ const store = open({ db: { file: join(dir, "h2h.sqlite"), pragmas: { journal_mod
 const db = store.rw;
 install(db);
 
-// 一行位置：转发开着，白名单里那六件都 always，identity 指着台子。
+// A place row with forwarding enabled, all six allowlisted tools set to always, and identity pointing to the grader.
 db.run(
   `insert into workplace (place, identity, runtime, forward, tools, usable) values (?, ?, null, 1, ?, 1)`,
   [
@@ -67,9 +63,9 @@ db.run(
     ),
   ],
 );
-// 本机那一行：拿来做对照 —— 同一件工具，不转发的时候落在这台机器上。
+// Local-place control: without forwarding, the same tool should execute on this machine.
 db.run(`insert into workplace (place, identity, runtime, forward, tools, usable) values ('local', null, null, 0, '[]', 1)`);
-// 句柄得在库里有一行，`sync` 才会给它合成调用器（`http://` 那一档）。
+// The handle needs a database row before `sync` can synthesize its HTTP caller.
 db.run(`insert into handle (name, expect_ms, module) values (?, 300000, null)`, [`${STAND}/place`]);
 
 const reg = new Registry();
@@ -111,11 +107,10 @@ try {
   const gr = await call("grep", { pattern: "edited through", path: "/app" });
   ok("finds it by searching the container", JSON.stringify(gr).includes("tgengin-place-check"), gr);
 
-  // ── 反过来问一遍：这台机器上的东西，容器里必须看不见 ──
+  // ── Reverse check: host-only content must be invisible in the container ──
   //
-  // 上面每一条都可能被「宿主机上恰好也有」蒙混过去。这一条不会：文件只在这台机器上，
-  // 容器里没有。读得到就说明这一次**根本没转发出去**。
-  console.log("\n反向：这台机器上有、容器里没有的文件");
+  // The previous checks could be fooled by a coincidental host file. This one cannot: the file exists only here. Reading it from the supposed container proves that **the call was never forwarded**.
+  console.log("\nReverse check: file present on this host but absent in the container");
   const hostOnly = join(dir, "host-only.txt");
   writeFileSync(hostOnly, "this file lives on the engine machine\n");
   let sawIt = false;
@@ -127,27 +122,26 @@ try {
   }
   ok("the container cannot see it - so the call really left this machine", !sawIt, hostOnly);
 
-  // ── 对照：同一件工具，位置是 local 的时候就该落在这台机器上 ──
-  console.log("\n对照：place = local，同一件工具");
+  // ── Control: with place=local, the same tool must execute on this machine ──
+  console.log("\nControl: place = local, same tool");
   const local = (await call("read", { file_path: hostOnly }, "local")) as Record<string, unknown>;
   ok("not forwarding means it runs right here", JSON.stringify(local).includes("lives on the engine machine"), local);
 
-  console.log("\n收尾");
+  console.log("\nCleanup");
   await call("bash", { command: `rm -f ${MARK}` });
   ok("the probe file is gone from the container", true);
 } finally {
-  // 库还开着的话 Windows 上删不掉（EBUSY）—— 先关。删不掉也不算这一趟失败：
-  // 那是个临时目录，不是这个脚本要验的东西。
+  // Close the database before deletion: Windows otherwise returns EBUSY. Cleanup failure does not fail the check; the temporary directory is not what this script validates.
   try {
     store.rw.close();
     store.ro.close();
   } catch {
-    // 已经关了
+    // Already closed.
   }
   try {
     rmSync(dir, { recursive: true, force: true });
   } catch {
-    console.log(`  (临时目录留下了：${dir})`);
+    console.log(`  (Temporary directory retained: ${dir})`);
   }
 }
 

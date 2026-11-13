@@ -1,28 +1,29 @@
 /**
- * 活库检查 —— 库里的行**互相对得上吗**。
+ * Check whether rows in a live database **agree with one another**.
  *
- * `check.ts` 查的是触发条件写得对不对；这一份查的是**数据之间的一致性**。
- * 两件事都只有一个目的：让「静默不生效」变成看得见的。
+ * `check.ts` validates trigger expressions; this module checks **consistency between stored data**.
+ * Both make silent failures visible.
  *
- * ## 这几条是老代码踩出来的
+ * ## Lessons from the previous implementation
  *
- * 降解那个模块的注释里留着一串「别再犯的」，其中三条根本不是降解专有的：
+ * Three warnings from its degradation module apply more generally:
  *
- * > `task_prefix` 落进 `**kw` 会被基类吞掉，于是**这批任务谁都不接，而且不报错**。
+ * > A `task_prefix` swallowed by the base class's `**kw` leaves **nobody accepting these tasks,
+ * > without an error**.
  *
- * 「谁都不接而且不报错」是这一类问题的通名：任务躺在库里，状态永远是 `open`，
- * 没人知道为什么。所以要有一条检查专门问「这个任务真有人能接吗」。
+ * Tasks then remain `open` indefinitely with no obvious cause. Explicitly check whether any
+ * agent can accept each task.
  *
- * > 建节点一律走带信号的那条路，直接插等于造一条**不发信号的旁路**。
+ * > Create nodes through the signaling path; direct insertion creates a **signal-free bypass**.
  *
- * 我们这边内核每推一行都会喊时刻，所以从外面直接往子表插一行执行单元不会漏掉
- * 钩子 —— 内核挑到它的时候照样喊。但**跳过发布口直接插 `task` 行**会漏掉那道
- * 准入闸（来源、G、readable），所以这儿查一遍。
+ * Our kernel emits lifecycle moments whenever it advances a row, so directly inserted execution
+ * units still trigger hooks when selected. But **inserting `task` directly instead of publishing**
+ * bypasses source, G, and readable admission checks. Detect that inconsistency here.
  *
- * > `result` 只能写在终止节点上。
+ * > Write `result` only on terminal nodes.
  *
- * 对应到我们这儿：`result` 有内容 ⟺ `state` 是 `done` 或 `failed`。半路写 result
- * 的任务，事后没人说得清那个答案是哪一步给的。
+ * Here this means result has content iff state is `done` or `failed`. Writing it mid-task makes
+ * it impossible to determine afterward which execution step produced that answer.
  */
 
 import type { Conn } from "../H2H/db.ts";
@@ -43,17 +44,18 @@ function tables(db: Conn): Set<string> {
 }
 
 /**
- * 把整库过一遍。返回问题列表；空 = 全通。
+ * Check the complete database. Return all problems; an empty list means success.
  *
- * `reg` 给进来就顺带做**句柄的两层核对**：库里登记的 `fn:` 在进程里注册过没有。
- * 不给就跳过那一档 —— 这个函数也该能在没起内核的时候跑。
+ * When `reg` is supplied, also check **both handle-registration layers**: database `fn:` rows
+ * must have process registrations. Omit that check without `reg`, so diagnostics can run
+ * without starting the kernel.
  */
 export function checkData(db: Conn, reg?: Registry): Bad[] {
   const out: Bad[] = [];
   const has = tables(db);
   const say = (what: string, why: string) => out.push({ what, why });
 
-  // ── 任务 ──────────────────────────────────────────────────────────────
+  // ── Tasks ──
   for (const t of all(db, `select id, mode, place, state, result from task`) as {
     id: string; mode: string; place: string; state: string; result: string | null;
   }[]) {
@@ -63,7 +65,7 @@ export function checkData(db: Conn, reg?: Registry): Bad[] {
     if (all(db, `select 1 from workplace where place = ?`, [t.place]).length === 0) {
       say(`task ${t.id}`, `its place ${t.place} is not registered`);
     }
-    // result 只能写在终止的时候。半路写的话，事后没人说得清那个答案是哪一步给的。
+    // Write result only at termination; otherwise the execution step that produced the answer becomes ambiguous.
     const done = t.state === "done" || t.state === "failed";
     if (t.result !== null && !done) say(`task ${t.id}`, `state=${t.state} but result is already set - result should only be written at the terminal moment`);
     if (t.result === null && t.state === "failed") say(`task ${t.id}`, `marked failed but has no result - a failure must say why`);
@@ -74,7 +76,7 @@ export function checkData(db: Conn, reg?: Registry): Bad[] {
       continue;
     }
 
-    // ── 执行单元 ────────────────────────────────────────────────────────
+    // ── Execution units ──
     const units = all(
       db,
       `select cycle, unit, from_cycle, from_unit, agent, instance, status, done from "${sub}" where task = ?`,
@@ -95,14 +97,14 @@ export function checkData(db: Conn, reg?: Registry): Bad[] {
       }
       perCycle.set(u.cycle, (perCycle.get(u.cycle) ?? 0) + 1);
 
-      // 父指的那一行得真在
+      // The referenced parent row must exist.
       if (u.from_cycle !== null && u.from_unit !== null) {
         if (!units.some((x) => x.cycle === u.from_cycle && x.unit === u.from_unit)) {
           say(`${sub} ${t.id} ${u.cycle}#${u.unit}`, `says it came from ${u.from_cycle}#${u.from_unit}, but that row is missing`);
         }
       }
 
-      // 两边对咬：任务这边记「谁在干我」，智能体那边记「我在干谁」
+      // The two sides must agree: the task records its executing agent, and the agent records its task.
       const ctx = tableNameOf("agent_{}_ctx", u.agent);
       if (!has.has(ctx)) {
         say(`${sub} ${t.id} ${u.cycle}#${u.unit}`, `the context table for agent ${u.agent} has not been grown yet`);
@@ -128,7 +130,7 @@ export function checkData(db: Conn, reg?: Registry): Bad[] {
     }
   }
 
-  // ── 智能体接得住吗 ────────────────────────────────────────────────────
+  // ── Can the agent accept the task? ──
   for (const a of all(db, `select name, unit, apis from agent`) as { name: string; unit: string; apis: string }[]) {
     let apis: [string, string][] = [];
     try {
@@ -143,19 +145,19 @@ export function checkData(db: Conn, reg?: Registry): Bad[] {
     }
   }
 
-  // ── 轨对得上吗 ────────────────────────────────────────────────────────
+  // ── Do the API lanes match? ──
   //
-  // 「谁都不接而且不报错」在这一块有三个入口，全是**静默**的：
+  // Three lane problems can silently leave tasks without an executor:
   //
-  // 1. `api.modes` 写错一个字母（`duplx`）→ 那条轨永远挑不中
-  // 2. `cycle.api_mode` 要一种没人支持的 mode → 那个周期的每一行都走不了
-  // 3. 一行的 `modes` 含 `duplex`，`handle` 却是 chat 那条 → **挑中了，
-  //    然后调进另一种适配器**。这条最坏：它不报错，只是那一站的行为
-  //    完全不是你想的那样
-  // 比的是**实现认得什么**，不是 `mode` 表里躺着什么。那张表是灌进去给人查的；
-  // 拿它当判据的话，手插一行 `duplx` 就成了「合法」，而实现照样不认。
+  // 1. A typo in `api.modes`, such as `duplx`, makes the lane unselectable.
+  // 2. An unsupported `cycle.api_mode` blocks every unit in that cycle.
+  // 3. A row lists `duplex` but references a chat handle: it is **selected, then invokes the wrong
+  //    adapter**. This is the worst case because it may run without errors but behave incorrectly.
+  //
+  // Compare against **what implementations support**, not the contents of the descriptive `mode`
+  // table. Otherwise manually inserting `duplx` would make an unsupported value appear valid.
   const modeOK = MODE_NAMES;
-  const served = new Map<string, Set<string>>(); // mode → 哪些句柄接得住
+  const served = new Map<string, Set<string>>(); // Mode → handles that support it.
   for (const a of all(db, `select key_env, model, handle, modes from api`) as {
     key_env: string; model: string; handle: string; modes: string;
   }[]) {
@@ -171,7 +173,7 @@ export function checkData(db: Conn, reg?: Registry): Bad[] {
         say(at, `${m} in modes is not a known api mode (known: ${[...modeOK].join(", ")}) - this lane will never be selected`);
         continue;
       }
-      // 外面注册进来的句柄接得住什么我们不知道，跳过不查。
+      // Supported modes of externally registered handles are unknown here; skip their compatibility check.
       if (can && !can.has(m)) {
         say(at, `modes claims ${m}, but handle=${a.handle} cannot serve it (it serves only ${[...can].join(", ")})`);
       }
@@ -190,10 +192,10 @@ export function checkData(db: Conn, reg?: Registry): Bad[] {
     }
   }
 
-  // ── 句柄两层核对 ──────────────────────────────────────────────────────
+  // ── Two-layer handle validation ──
   //
-  // 库里登记过、进程里没注册的 `fn:` 句柄 —— 不查的话，要等到某个任务真走到
-  // 那一步才炸，而那时候已经在半路上了。
+  // Find `fn:` handles registered in the database but not the process. Without this check,
+  // failure appears only when a task reaches that invocation, already halfway through execution.
   if (reg) {
     for (const h of all(db, `select name from handle`) as { name: string }[]) {
       if (h.name.startsWith("fn:") && !reg.has(h.name)) {
@@ -201,7 +203,7 @@ export function checkData(db: Conn, reg?: Registry): Bad[] {
       }
     }
   }
-  // 反过来：被引用而库里根本没登记的
+  // Also check the reverse: references to handles never registered in the database.
   const known = new Set((all(db, `select name from handle`) as { name: string }[]).map((r) => r.name));
   const refs: [string, string][] = [
     ...(all(db, `select 'api.handle' as at, handle as h from api`) as { at: string; h: string }[]).map(

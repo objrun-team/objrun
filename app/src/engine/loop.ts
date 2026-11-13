@@ -1,28 +1,25 @@
 /**
- * 内核。
+ * The kernel.
  *
- * **一个循环，每一步的依据都在表里。** 这个文件里不许出现任何一个具体的
- * 模式名、周期名、智能体名、工具名、规则名 —— 出现了就说明那件事该在表里
- * 而没在。
+ * **One loop, with every decision grounded in tables.** This file must contain no specific mode, cycle, agent, tool, or rule names. Any such name means something belongs in a table but has not been placed there.
  *
- * 内核自带的只有这几样，其余全靠查表：
+ * The kernel supplies only these mechanisms; everything else comes from table lookups:
  *
- * 1. 循环本身：读 → 组装 → 落库 → 调 → 落库 → 推断 → 写
- * 2. 句柄注册表（在 `registry.ts`）：名字换出真东西
- * 3. 判死：`now - at > expect_ms`
- * 4. 落库顺序：**先落库再发，不许反**
- * 5. 从子表推主表的 `state`
+ * 1. The loop itself: read → assemble → store → call → store → infer → write.
+ * 2. The handle registry (`registry.ts`): resolve names to implementations.
+ * 3. Death detection: `now - at > expect_ms`.
+ * 4. Persistence order: **store before sending, never the reverse**.
+ * 5. Derive the main table's `state` from subtables.
  *
- * ## 一行现在处于哪一步，是从库里**算**出来的，不存在内存里
+ * ## A row's current phase is **computed** from the database, not held in memory
  *
- * | 出站那份落了没 | 返回落了没 | 那它就是 |
+ * | Outbound record stored? | Return stored? | Phase |
  * | --- | --- | --- |
- * | 没有 | —— | 还没开始 → 这一轮该动它 |
- * | 落了 | 没有 | 正在跑 → 不碰它，除非超时 |
- * | 落了 | 落了 | 跑完了 → 推断下一步 |
+ * | No | — | Not started: advance it this cycle |
+ * | Yes | No | Running: leave it alone unless it times out |
+ * | Yes | Yes | Finished: infer the next step |
  *
- * 所以内核**不需要一份内存里的「在跑」名单**。崩了重启，读同一份库，
- * 算出来的还是这三档中的同一档。这就是快照能成立的原因。
+ * The kernel therefore needs **no in-memory list of running work**. After a crash and restart, the same database yields the same one of these three phases. This is what makes snapshots possible.
  */
 
 import type { Conn, Store } from "../H2H/db.ts";
@@ -57,8 +54,8 @@ function one(db: Conn, sql: string, params: unknown[] = []): Row | null {
   return rows.length ? rows[0] : null;
 }
 
-/** 内核挂出来的钩子。**内核不认得钩子里干什么** —— 它只在那一刻喊一声。 */
-/** 这一站之后还能去哪几站。**流转表上的事实**，不是判断。 */
+/** Hooks exposed by the kernel. **The kernel does not know what they do**; it only announces the relevant moment. */
+/** Possible successor stations. **Facts from the transition table**, not a judgment. */
 function nextOf(db: Conn, mode: string, cycle: string): string[] {
   const r = all(db, `select next from cycle where mode = ? and cycle = ?`, [mode, cycle])[0] as
     | { next?: string }
@@ -72,8 +69,8 @@ function nextOf(db: Conn, mode: string, cycle: string): string[] {
 }
 
 export interface Hooks {
-  /** 一个任务的执行单元全干完了。判它成没成是别人的事，内核只报告「跑完了」。 */
-  /** 这道题收工了。`expired` 有值 = 是被时限逼停的，不是自己走完的。 */
+  /** All execution units of a task have finished. Others decide success; the kernel reports only execution completion. */
+  /** The problem has stopped. A populated `expired` means the time limit forced it to stop rather than natural completion. */
   onDone?(task: string, expired?: string): void | Promise<void>;
 }
 
@@ -84,7 +81,7 @@ export class Kernel {
   #hooks: Hooks;
   #timer: ReturnType<typeof setTimeout> | null = null;
   #ticking = false;
-  /** 已经报过的坏行，同一条不重复刷屏。 */
+  /** Bad rows already reported, to avoid repeatedly logging the same one. */
   #cried = new Set<string>();
   #again = false;
   #stopped = true;
@@ -99,11 +96,9 @@ export class Kernel {
   }
 
   /**
-   * 醒一下。
+   * Wake the loop.
    *
-   * **信号里不带数据。** 一旦带上「要处理的是哪一行」，它就成了一份内存队列 ——
-   * 信号丢一次那件事就永远没人做，而库里看不出来。信号可丢，库不可丢：
-   * 丢了最坏是晚一点（被定时器兜住），不是丢活。
+   * **The signal carries no data.** Including the row to process would turn it into an in-memory queue: losing one signal would permanently lose work without any database evidence. Signals may be lost; database records may not. A lost signal at worst delays work until the timer, rather than losing the work itself.
    */
   wake(): void {
     if (this.#stopped) return;
@@ -145,31 +140,23 @@ export class Kernel {
     }
   }
 
-  /** 哪些子表要看：任务周期表里有几个模式就有几张。不去猜表名。 */
+  /** Subtables to inspect: one per mode in the task cycle table. Do not guess table names. */
   #subs(): { mode: string; sub: string }[] {
     const modes = all(this.#store.ro, `select distinct mode from cycle`) as { mode: string }[];
     return modes.map((m) => ({ mode: m.mode, sub: tableNameOf("task_{}", m.mode) }));
   }
 
-  /** 每次从库里现算，不留名单。 */
+  /** Recompute from the database each time; retain no list. */
   #scan(): Pending[] {
     const out: Pending[] = [];
     for (const { mode, sub } of this.#subs()) {
-      // **打完分的题，它的行就不该再被挑走。**
+      // **Do not select rows of already graded problems.**
       //
-      // 判死那一段的原话是「先落一个失败，让它别再被排上」—— 可这儿以前只问
-      // 「这一行做完没有」，从不问「这道题还在不在」。于是超时收工之后，那道题
-      // 底下没做完的行照样被扫出来、照样派给模型：实测一跑有 15 道题在死后又开了
-      // 105 个执行单元，最狠的一道死后还跑了 33 分钟。花的是真钱，换回来的东西
-      // 一分不进成绩单 —— 分是判死那一刻定的。
+      // The death-handling comment says to record failure first so the task is not scheduled again. Previously this query checked only whether a row was finished, never whether its task remained active. After timeout finalization, unfinished rows were still selected and dispatched to models. One measured run opened 105 additional execution units across 15 dead problems; the worst continued for 33 minutes. They cost real money but could not affect the score fixed at death.
       //
-      // 顺带堵掉一串报错：死掉那一刻在飞的调用回来之后，会在上下文尾巴上留一条
-      // 没人应答的工具调用，而收工时的补齐早跑完了。再往下派，模型那边就拒收整份
-      // 上下文（`An assistant message with 'tool_calls' must be followed by...`）。
-      // 不派了，这条路自然就没了。
+      // This also prevents a series of errors: a call in flight at death can return an unanswered tool request after finalization has already completed missing results. Further dispatch would then send invalid context (`An assistant message with 'tool_calls' must be followed by...`). Without further dispatch, that path disappears.
       //
-      // 写成 `not in` 而不是跟 `task` 内联：主表里没有对应行的孤儿行，行为跟以前
-      // 一模一样。内联的话它们会被悄悄丢掉，而「悄悄」是这儿最不该有的东西。
+      // Use `not in`, not an inner join with `task`, to preserve prior behavior for orphan rows without a main-table entry. An inner join would silently discard them, exactly the kind of silence to avoid here.
       const rows = all(
         this.#store.ro,
         `select task, cycle, unit, from_cycle, from_unit, agent, instance, place, at
@@ -183,15 +170,14 @@ export class Kernel {
   }
 
   /**
-   * 这一行该调哪个句柄。
+   * Choose the handle for this row.
    *
-   * **这一站走哪条轨，由周期表上的 `api_mode` 说了算**：
+   * **The cycle table's `api_mode` chooses this station's track**:
    *
-   * - 非空 → 从 `agent.apis` 里挑一个 `modes` 含它的，调那一行的 `api.handle`
-   * - 留空 → 调 `agent.unit`（这一站不用模型，比如把上一步请求的工具跑掉）
+   * - Nonempty: select an `agent.apis` entry whose `modes` includes it, and call that row's `api.handle`.
+   * - Empty: call `agent.unit` (no model at this station, for example executing tools requested in the previous step).
    *
-   * **挑在这儿挑，适配器只管调。** 适配器自己再挑一次的话，「这一站用哪条轨」
-   * 就有两个地方说了算，早晚漂。
+   * **Select here; adapters only call.** If an adapter selects again, track selection has two authorities that will eventually drift.
    */
   #handleOf(p: Pending): { handle: string; api: { key_env: string; model: string; base_url: string; retry_on: string; compress_at: number | null } | null } {
     const agent = one(this.#store.ro, `select unit, apis from agent where name = ?`, [p.agent]);
@@ -224,7 +210,7 @@ export class Kernel {
             model,
             base_url: String(row.base_url),
             retry_on: String(row.retry_on),
-            // 空 = 从不压。**是这一行自己的天花板** —— 换把钥匙换个模型就是另一个数。
+            // Empty = never compress. **This api row owns the threshold**; another credential or model may have a different value.
             compress_at: row.compress_at === null || row.compress_at === undefined ? null : Number(row.compress_at),
           },
         };
@@ -233,23 +219,22 @@ export class Kernel {
     throw new Error(`${p.mode}/${p.cycle} needs a ${want} lane, but none of agent ${p.agent} apis supports it`);
   }
 
-  /** 一行的时限来自它这一站真正要调的那个句柄。 */
+  /** A row's time limit comes from the handle actually called at this station. */
   #expectOf(p: Pending): number {
     return this.#reg.get(this.#handleOf(p).handle).expectMs;
   }
 
   /**
-   * 算不出时限的行（配错了轨、句柄没注册）报出来，别把整圈带停。
+   * Report rows whose time limits cannot be resolved (misconfigured tracks, unregistered handles), without stopping the whole cycle.
    *
-   * **一行坏了只该坏那一行。** 让它往上抛的话，同一圈里别的任务一并不转，
-   * 而日志上只看得见一条错 —— 那才是最难查的：明明别的任务好好的，就是不动。
+   * **One bad row should affect only itself.** Propagating its exception would stall other tasks in the same cycle while logging only one error, making healthy but motionless tasks especially hard to diagnose.
    */
   #expectSafe(p: Pending): number | null {
     try {
       return this.#expectOf(p);
     } catch (e) {
-      // 同一条坏行只喊一次。每圈都喊的话，一个配错的任务能把日志刷成噪音，
-      // 真出事的那条反而看不见。
+      // Report the same bad row only once. Logging it every cycle would let one misconfigured task flood the log,
+      // hiding the real failure among noise.
       const key = `${p.sub}\u0000${p.task}\u0000${p.cycle}\u0000${p.unit}`;
       if (!this.#cried.has(key)) {
         this.#cried.add(key);
@@ -260,13 +245,12 @@ export class Kernel {
   }
 
   /**
-   * 超时的报出来。**不写新列** —— 「死了」是算出来的，不是存着的。
+   * Report timeouts. **Add no new column**: death is computed, not stored separately.
    *
-   * 两层时限，管的不是一件事：
+   * Two limits govern different things:
    *
-   * - **单元级**：`now - at > expect_ms`，这一步卡住了
-   * - **任务级**：`now - created_at > solve_seconds`，整道题超时了 —— 树再怎么长
-   *   也该收工。没有这一层的话，一棵不停开兄弟的树能一直长下去
+   * - **Unit level**: `now - at > expect_ms`; this step is stuck.
+   * - **Task level**: `now - created_at > solve_seconds`; the whole problem is out of time and its tree must stop. Without this limit, a tree continually opening siblings could grow forever.
    */
   #reap(rows: Pending[]): void {
     const now = Date.now();
@@ -277,19 +261,18 @@ export class Kernel {
       if (now - Number(t.created_at) <= Number(t.solve_seconds) * 1000) continue;
       const key = `task expired\u0000${t.id}`;
       if (this.#cried.has(key)) continue;
-      // **一道题出岔子不该带走整轮扫描。** 这个循环还要接着看别的任务和别的
-      // 执行单元；这儿抛出去的话，后面那些一个都轮不到 —— 而且下一圈还会从头
-      // 再抛一次，等于一道坏题把判死这件事整个停掉。
+      // **One faulty problem must not stop the whole scan.** Other tasks and execution units still need checking.
+      // Throwing here would skip every later item and repeat from the start next cycle, letting one bad problem disable all death detection.
       this.#log.warn(`task ${t.id} expired: ran ${Math.round((now - Number(t.created_at)) / 1000)}s, limit ${t.solve_seconds}s`);
       const closing = JSON.stringify({ pass: 0, valid: false, outcome: "task_timeout", why: `over solve_seconds=${t.solve_seconds}s` });
       try {
-        // 先落一个失败，让它别再被排上；有 G 的话下面那一声会按判决改写。
+        // Record failure first to prevent rescheduling; if G exists, the callback below replaces it with the verdict.
         run(this.#store.rw, `update task set state = 'failed', result = ? where id = ?`, [
           closing,
           t.id,
         ]);
-        // **超时也要问 G。** 以前这条路直接写 failed 就完了，于是「时限内交对了、
-        // 只是树没来得及收尾」跟「什么都没做出来」在成绩单上长得一模一样。
+        // **Query G even on timeout.** Previously this path simply wrote failed, making a correct answer submitted before the deadline
+        // but not yet finalized indistinguishable in the report from a problem with no solution.
         this.#finalize(t.id, `over solve_seconds=${t.solve_seconds}s`, closing);
         this.#cried.add(key);
       } catch (e) {
@@ -301,15 +284,11 @@ export class Kernel {
       const cap = this.#expectSafe(r);
       if (cap === null || now - r.at <= cap) continue;
 
-      // **判死得真的把这一行关掉，不能只打一条日志。**
+      // **Marking a row dead must actually close it, not merely log a warning.**
       //
-      // 只打日志的话它永远留在「待办」里：定时器算出「deadline 早就过了」，
-      // 于是 50ms 后醒、再打一条、再排 50ms —— 一条卡住的行能把内核锁进空转。
-      // 实测一跑打了 12732 条同样的警告，而那道题始终收不了尾。
+      // Logging alone leaves it pending forever: the timer sees an expired deadline, wakes after 50ms, logs again, and schedules another 50ms wake-up. One stuck row can trap the kernel in a busy loop. A measured run produced 12732 identical warnings while the problem never finalized.
       //
-      // 关的方式跟正常走完那一路一样（`#infer` 结尾那两行）：盖上终止状态、
-      // 两边的 done 一起落，然后**另起一个节点**：「这一次调用没回来」跟「这道题
-      // 做不出来」是两回事，前者该重来 —— 就像交卷判 0 之后重来一样。
+      // Close it like normal completion (the final two lines of `#infer`): set a terminal state and both done flags, then **open another node**. A call failing to return is not proof the problem is unsolvable; retry it as after a submission verdict of 0.
       this.#log.warn(
         `declared dead: ${r.sub} ${r.task} ${r.cycle}#${r.unit} (${r.agent}/${r.instance}) has been ${now - r.at}ms, over ${cap}ms`,
       );
@@ -322,7 +301,7 @@ export class Kernel {
         r.instance,
         r.unit,
       ]);
-      // 上下文里也留一句 —— 只进日志的话，从接口上看这一行就是「不知为何没了」。
+      // Also leave a context message. Logs alone make the row appear to vanish inexplicably through the API.
       try {
         deliver(this.#store.rw, {
           agent: r.agent,
@@ -332,7 +311,7 @@ export class Kernel {
           body: JSON.stringify({ stuck: `over expect_ms (${cap}ms), the kernel closed this station` }),
         });
       } catch {
-        // 连这一行都落不进去（多半是子表还没长出来），那就只剩日志了
+        // If even this row cannot be stored (usually because its subtable does not exist), only the log remains.
       }
       this.#reopen(r);
       this.#restate(r.task, r.sub);
@@ -340,25 +319,20 @@ export class Kernel {
   }
 
   /**
-   * 一站到点也没回话 —— **判死这个节点，另起一个。**
+   * A station missed its response deadline: **mark this node dead and open another**.
    *
-   * 以前到这儿就没了：这一行标成死的，链路断在这里，任务跟着收工。可「这一次调用
-   * 没回来」跟「这道题做不出来」是两回事 —— 前者该重来，就像交卷判 0 之后重来一样。
-   * 实测一次抖动就能让一道题颗粒无收，而它连第二次机会都没有。
+   * Previously the row was marked dead, the chain ended, and the task finished. But a call failing to return differs from an unsolvable problem: retry it as after a submission verdict of 0. Measurements showed one transient fault could leave a problem with nothing and no second chance.
    *
-   * 新的一格接在死掉那一行后面，落在**入口站**上（`from` 是空的那个）：一次全新的
-   * 尝试从想事情开始，而不是从跑工具开始。节点号自己会往前走一格 —— 规矩是
-   * 「父行有终态就换节点」，而我们刚给它落了 `dead_failed`。
+   * Attach a fresh slot after the dead row at the **entry station** (empty `from`). A new attempt begins with reasoning, not tool execution. The node number increments automatically: a parent with a terminal state starts a new node, and we just assigned `dead_failed`.
    *
-   * **重来的次数由 `max_dead_siblings` 管**，跟交卷判死那条路共用同一个闸：不然一台
-   * 抖得厉害的机器会让一道题无限重开，把时限全耗在重来上。
+   * **`max_dead_siblings` limits retries**, sharing the submission-failure gate. Otherwise an unstable machine could restart a problem indefinitely and spend its entire time allowance restarting.
    */
   #reopen(r: Pending): void {
     const entry = all(this.#store.ro, `select cycle from cycle where mode = ? and "from" = '[]'`, [r.mode]) as {
       cycle: string;
     }[];
     const to = entry[0]?.cycle;
-    if (!to) return; // 这个机制没有入口站的说法，那就没得重开
+    if (!to) return; // This mechanism has no entry-station concept, so it cannot restart.
 
     const task = one(this.#store.ro, `select max_dead_siblings from task where id = ?`, [r.task]) as
       | { max_dead_siblings?: number }
@@ -394,27 +368,20 @@ export class Kernel {
   }
 
   /**
-   * 三档里挑「还没开始」的那一档 —— **出站那一行还没落库**。
+   * Select the not-started phase: **the outbound row has not been stored**.
    *
-   * 判据是内核那条出站行，不是「一条消息都没有」：一个单元可以预先压好要问的话
-   * （那是数据，谁都能往库里放），有话不等于出站过。按「有没有消息」判的话，
-   * 预置了 prompt 的单元会被当成正在跑，永远轮不到它。
+   * Use the kernel's outbound record, not absence of all messages. A unit may have preloaded questions (data anyone can insert); messages do not imply dispatch. A message-existence test would classify units with preset prompts as running and never schedule them.
    */
   #ready(rows: Pending[]): Pending[] {
     return rows.filter((r) => !this.#sentOut(r));
   }
 
   /**
-   * 这个单元出站过没有。
+   * Whether this unit has been dispatched.
    *
-   * **光看 `kind = 'inject'` 不行。** `inject` 是两样东西共用的一个值：内核那条出站
-   * 记账（`by: "kernel"` → role=system），和系统注入的用户侧消息（`by: "world"` →
-   * role=user）。而**非真人发的任务，描述那一条正是后者** —— `source` 不是 `user`
-   * 的时候发布口用 `by: "world"` 投它。于是任务一建出来就带着一条 `inject`，这一站
-   * 被当成「已经出站了」，内核再也不碰它：`agent` / `world` / `eacn` 三种来源的任务
-   * 全部躺在库里不动，不报错，只是永远轮不到。
+   * **`kind = 'inject'` alone is insufficient.** The value covers kernel outbound bookkeeping (`by: "kernel"` → role=system) and system-injected user-side messages (`by: "world"` → role=user). **Descriptions of nonhuman-submitted tasks use the latter**: the publishing endpoint delivers them with `by: "world"` when `source` is not `user`. Such tasks therefore start with an inject row; checking only kind would mark the station as already dispatched and leave all `agent` / `world` / `eacn` tasks silently unscheduled forever.
    *
-   * 所以判据要连 `role` 一起看 —— `inject` + `system` 只有内核那条出站行是。
+   * Inspect `role` too: only the kernel outbound record combines `inject` and `system`.
    */
   #sentOut(r: Pending): boolean {
     const t = this.#msgTable(r.agent);
@@ -440,31 +407,24 @@ export class Kernel {
   }
 
   /**
-   * 推一行。
+   * Advance one row.
    *
-   * 顺序是死的：**塞进去的先落库 → 才发出去 → 回来再落一行**。反过来的话，
-   * 崩在中间就有「已经发出去、库里没有」的调用，那种状态恢复不了。
+   * The order is mandatory: **store injected content → send → store the return**. Reversing it allows a crash to leave a sent call absent from the database, an unrecoverable state.
    */
   async #advance(p: Pending): Promise<void> {
     if (["done", "failed"].includes(String(one(this.#store.ro, "select state from task where id = ?", [p.task])?.state))) return;
-    // **先占位，再干活。**「这一行已经派出去了」这件事必须在**任何 await 之前**
-    // 就写进库 —— 挑活的人（`#ready`）看的就是这一行。
+    // **Reserve the row before working.** Record dispatch **before any await**: `#ready` uses this record to select work.
     //
-    // 不占位的话窗口是这么开的：这一圈挑中它、`void` 掉不等；`#advance` 走到第一个
-    // await 让出控制权，标记还没写；这中间任何一次写库都会 `wake()`，下一圈醒来去库里
-    // 一看「没派过」，于是**又派一次**。同一格里就有了两条模型应答 —— 两条挨着的
-    // 「我要调工具」中间没有结果，模型那边当场拒收整份上下文，这道题从此发不出去，
-    // 只能空转到超时。实测五百多格里中了四格，每中一格废一道题。
+    // Without reservation, a race opens: one cycle selects the row and starts it with `void`; `#advance` yields at its first await before writing the marker. Any database write can call `wake()`, causing the next cycle to see an undispatched row and **dispatch it again**. Two model responses then occupy one slot. Adjacent tool-request messages without intervening results make the model reject the entire context, leaving the problem spinning until timeout. Measurements found four such cases in just over five hundred slots, each losing a problem.
     //
-    // `#ticking` 挡不住这个：它挡的是「两圈同时跑」，而这里是「上一圈的活还在飞」——
-    // 活是 `void` 掉的，一开始就不在那个开关的管辖里。
+    // `#ticking` cannot prevent this: it blocks simultaneous loop cycles, not work still in flight from a previous cycle. Work started with `void` is outside that guard from the outset.
     const mark = deliver(this.#store.rw, {
       agent: p.agent,
       instance: p.instance,
       unit: p.unit,
       by: "kernel",
-      // **带上预计到点。** 这一行是「已经派出去了」的凭据，那它也该说清楚等到什么
-      // 时候算等不到 —— 到点还没回话，内核就判这一站死、另起一个节点（见 `#reap`）。
+      // **Include the expected deadline.** A dispatch receipt must also state when waiting becomes failure.
+      // If no reply arrives, the kernel marks the station dead and starts another node (see `#reap`).
       body: JSON.stringify({ sent: true, deadline: Date.now() + (this.#expectSafe(p) ?? 0) }),
     });
 
@@ -472,12 +432,12 @@ export class Kernel {
       const facts = this.#factsOf(p);
       await this.#atMoment(p, facts, "unit_start");
 
-      // 这一轮该塞的 skill —— 先落库
+      // Skills to inject this round: store them first.
       for (const identity of fire(this.#store.ro, "skill", facts)) {
         const s = one(this.#store.ro, `select body, role, usable from skill where identity = ?`, [identity]);
         if (!s || !Number(s.usable)) continue;
         const body = s.body ?? (await this.#reg.get(identity).call({ facts }));
-        // **走那条唯一的投递管道** —— kind 和 role 都是推出来的，不在这儿填。
+        // **Use the sole delivery pipeline**: infer kind and role there, not here.
         deliver(this.#store.rw, {
           agent: p.agent,
           instance: p.instance,
@@ -488,10 +448,9 @@ export class Kernel {
         });
       }
 
-      // 这一轮挂上的工具 = **系统工具 ∪ trigger 命中的**。
-      // 系统工具（读写那一组）谁一上来都有，不看条件 —— 不这么分的话，
-      // 按「一条条件都没有 = 从不触发」那条语义，它们谁也拿不到。
-      // 两边都是查出来的，内核仍然不认得任何一个工具名。
+      // Tools attached this round = **system tools ∪ trigger matches**.
+      // Everyone receives system tools (the read/write group) unconditionally; otherwise the rule that no conditions means never triggered would make them unavailable to all agents.
+      // Both sets come from queries; the kernel still knows no specific tool names.
       const tools = new Map<string, Row>();
       for (const t of all(this.#store.ro, `select * from tool where system = 1 and usable = 1`)) {
         tools.set(String(t.name), t);
@@ -504,18 +463,14 @@ export class Kernel {
       const kit = [...tools.values()];
       const rules = fire(this.#store.ro, "rule", facts);
 
-      // 出站那份：**沿着链路把上下文拼齐** + 这一轮的家当。**先落库，再发**
+      // Outbound payload: **assemble context along the chain** plus this round's resources. **Store before sending.**
       const context = this.#contextOf(p);
-      // 出站这一行是**快照里那次调用的凭据**：模型当时被告知有哪些工具、
-      // 每个工具的用法约定是什么。不记的话，回头看这一步就说不清它为什么那么做。
-      // 占位那一行现在补全 —— 它是**快照里那次调用的凭据**：模型当时被告知有哪些
-      // 工具、每个工具的用法约定是什么。不记的话，回头看这一步就说不清它为什么那么做。
+      // The outbound row is **the snapshot's receipt for this call**: which tools and usage conventions the model received.
+      // Without it, later inspection cannot explain its choices. Complete the reservation row now: it is **the snapshot's call receipt**, recording those tools and conventions so the step can be understood afterward.
       //
-      // 补的是同一行，不是再落一行：那一行的身份（`kind` / `role` / `seq`）是投递管道
-      // 定的，这儿只把内容填进去。
+      // Update the same row rather than inserting another. The delivery pipeline assigned its identity (`kind` / `role` / `seq`); only fill its content here.
       //
-      // 键名一律 ASCII：这一行**客户端读得到**（`/tasks/:id/messages` 会把它解开），
-      // 中文键名等于逼着客户端写 `data["出站"]`，而且每过一层编码都可能烂。
+      // Use ASCII keys throughout: **clients can read this row** (`/tasks/:id/messages` decodes it). Chinese keys would force Chinese-literal property access and risk corruption at encoding boundaries.
       run(
         this.#store.rw,
         `update "${this.#msgTable(p.agent)}" set body = ? where instance = ? and unit = ? and seq = ?`,
@@ -532,9 +487,8 @@ export class Kernel {
         ],
       );
 
-      // 出站那一行落了 = 这一站真的动起来了，主表那个大状态这时候就该是 `claimed`。
-      // 只在一步走完之后才推的话，模型这一次调用有多慢，`state` 就有多久还写着
-      // `open`（待领取）—— 客户端照着它轮询，看到的是「没人接」，而它其实正在跑。
+      // A stored outbound row means this station is active, so the main-table state should now be `claimed`.
+      // Deriving state only after step completion would leave it `open` for the entire model-call duration. Polling clients would see an unclaimed task that is actually running.
       this.#restate(p.task, p.sub);
 
       await this.#atMoment(p, facts, "pre_send");
@@ -545,23 +499,23 @@ export class Kernel {
         place: p.place,
         instance: p.instance,
         unit: p.unit,
-        // 这一站挑好的那条轨。适配器直接用，不用自己再挑一遍。
+        // The selected track for this station. The adapter uses it directly without selecting again.
         api: pickd.api,
         context,
-        // 哪种 role 去消息流、哪种去交代 —— **表说了算**，适配器不再自己留一份。
+        // Which roles enter messages versus instructions: **the table is authoritative**, without an adapter-local copy.
         sentAs: sentAsIn(this.#store.ro),
-        // 这一站非调不可的那个工具（`cycle.must_call`）。空 = 它自己挑。
+        // The required tool for this station (`cycle.must_call`). Empty = the model chooses.
         mustCall: String(facts.cycle.must_call ?? "") || null,
-        // 这一轮的任务视图。**每轮现算**，不是库里存着的一条消息 ——
-        // 存成消息的话，兄弟分支爬不到它（见 `#viewOf`）。
+        // This round's task view, **computed afresh each round** rather than stored as a message.
+        // Sibling branches cannot reach a view stored as a message (see `#viewOf`).
         view: this.#viewOf(p, facts.task),
         tools: kit,
         rules,
       });
 
-      // 回来再落一行
-      // 模型自己说的那条**不走投递管道** —— 那是它自己的轨迹，直接落库；
-      // 而且 kind 得由适配器说（prompt 还是 call），推不出来。
+      // Store the return as another row.
+      // The model's own message **bypasses the delivery pipeline**: its trajectory is stored directly,
+      // and the adapter must provide kind (prompt or call), which cannot be inferred here.
       const r = (back ?? {}) as { role?: string; kind?: string; body?: unknown } & Partial<Said>;
       this.#push(p, r.role ?? "assistant", r.kind ?? "prompt", text(r.body ?? back), r);
 
@@ -589,9 +543,9 @@ export class Kernel {
 
       await this.#atMoment(p, facts, "post_send");
       await this.#infer(p, facts, back);
-      // 成功推完才醒下一圈。**失败不醒** —— 醒了就是原地热循环：
-      // 这一行还是「该动」的那一档，下一圈又挑到它，再失败，再醒。
-      // 失败的那条留给下面那个 deadline 定时器，超时了按判死处理。
+      // Wake the next cycle only after successful advancement. **Do not wake on failure**: that would create a hot loop,
+      // reselecting the same runnable row, failing, and waking again.
+      // Leave the failed row to the deadline timer below, which marks it dead on timeout.
       this.wake();
     } catch (e) {
       const why = msg(e);
@@ -602,11 +556,10 @@ export class Kernel {
         return;
       }
       this.#log.error(`${p.sub} ${p.task} ${p.cycle}#${p.unit} is stuck: ${why}`);
-      // **也落进库。** 只进日志的话，从接口上看这一行就是「不知为何不动」——
-      // 而客户端手里只有接口。日志在服务器上，看日志的人和被卡住的人不是同一个。
+      // **Store the error too.** Logs alone make the row look inexplicably stuck through the API, the only interface clients have.
+      // Server-log readers and blocked users are different people.
       //
-      // 同一行的同一句只落一次：走不下去的行多半每一圈都会再试一次，
-      // 每次都落的话，一个配错的任务能把上下文表撑满。
+      // Store the same message for a row only once. A blocked row may be retried every cycle; inserting every time would let one misconfigured task fill the context table.
       const key = `stuck ${p.sub} ${p.task} ${p.cycle} ${p.unit} ${why}`;
       if (!this.#cried.has(key)) {
         this.#cried.add(key);
@@ -619,7 +572,7 @@ export class Kernel {
             body: JSON.stringify({ stuck: why }),
           });
         } catch {
-          // 连这一行都落不进去（多半是子表还没长出来），那就只剩日志了
+          // If even this row cannot be stored (usually because its subtable does not exist), only the log remains.
         }
       }
     }
@@ -676,14 +629,11 @@ export class Kernel {
   }
 
   /**
-   * 到某个时刻了，喊一声：命中的规则跑一遍。**这就是钩子。**
+   * Announce a moment and run matching rules. **That is a hook.**
    *
-   * 内核不认得任何一条规则叫什么 —— 它只报「现在是哪一刻」，谁挂在这一刻上由
-   * `trigger` 说了算（`dim=moment`）。老代码那边钩子是一个目录一个时刻；
-   * 我们这儿时刻是数据里的一个值，不另开表。
+   * The kernel knows no rule names; it reports the current moment, and `trigger` (`dim=moment`) determines attachments. The old implementation used one directory per hook moment; here a moment is a data value, not a separate table.
    *
-   * **一条规则炸了只炸它自己。** 钩子挂在主路上，让它把整步带停的话，
-   * 一条写坏的规则能让所有任务都不动。
+   * **One failed rule affects only itself.** Hooks run on the main path; allowing one to stop a step would let a malformed rule stall every task.
    */
   async #atMoment(p: Pending, facts: Facts, moment: string): Promise<void> {
     const at = { ...facts, moment };
@@ -697,42 +647,31 @@ export class Kernel {
   }
 
   /**
-   * 这一站看得见的上下文：**从根一路到自己那一串执行单元的消息，按顺序接起来。**
+   * Context visible to this station: **messages from all execution units along the path from root to itself, in order**.
    *
-   * 不是只看自己那一格。只看自己的话，第二个执行单元开口时手上什么都没有 ——
-   * 原来的问题、上一站请求的工具、工具跑出来的结果，一样都看不到，于是它对着
-   * 空气说话。整棵树的多站流程都建立在这条上。
+   * Do not inspect only the current slot. Otherwise the second unit would start with nothing: no original problem, previous tool requests, or tool results. It would speak into a vacuum. Multi-station tree execution depends on this inheritance.
    *
-   * 走的是 `from_unit` 指针，跟链路串同一条血缘：
+   * Follow `from_unit` pointers, the same ancestry used by chain strings:
    *
-   * - **看得见祖先，看不见兄弟。** 开兄弟正是为了换一条路走，让它看见另一条
-   *   分支上的话，等于把两次尝试搅在一起
-   * - 带环的话当场炸 —— 顺着 from 走回自己，那是数据坏了，静静转下去只会挂死
+   * - **Ancestors are visible; siblings are not.** A sibling is a different attempt; injecting another branch's speech would mix the attempts.
+   * - Fail immediately on a cycle. Following from pointers back to the same row means corrupted data; continuing silently would hang.
    */
   /**
-   * 这一轮的**任务视图**：这道题是什么、我在树的哪儿、别的路试过没有。
+   * This round's **task view**: the problem, the current tree position, and other attempted paths.
    *
-   * ## 为什么必须有这么一份
+   * ## Why this view is necessary
    *
-   * 上下文是**沿着单链往上爬**拼的（祖先看得见，兄弟看不见 —— 那是故意的）。
-   * 而任务描述是发布那一刻**当成一条消息**投给第一站的。两条合起来的后果：
-   * 判死之后在根上开的兄弟**没有祖先**，于是它看不到题目 —— 上下文里只剩这一站
-   * 自己的 skill 和记账。实测就是这样：模型拿着一段方法注入，回了句「我已理解
-   * 这个通用方法」，然后开始反问「请把本题的具体选项发出来」。它是真没看见题。
+   * Context is assembled **up one chain**: ancestors are visible and siblings deliberately are not. The task description is delivered **as a message to the first station** at publication. Together these rules mean a root-level sibling opened after failure has **no ancestors and cannot see the problem**; only its own skills and bookkeeping remain. In practice the model received a methodology injection, acknowledged understanding the general method, and asked for the question's specific options. It really had never seen the problem.
    *
-   * 根子在于**任务的事实被当成了某一站的一条消息**。事实该是每一轮现算的一份视图，
-   * 跟成绩单一样「数出来的，不是存着的」—— 存成消息就会跟着链路走丢。
+   * The root cause is treating **task facts as one station's message**. Facts should be a freshly computed view each round, like the score report: derived, not stored separately. Storing them as messages lets ancestry hide them.
    *
-   * ## 只给事实，不替它拼话
+   * ## Supply facts, not phrasing
    *
-   * 这儿回的是结构化的一份，怎么念给模型听是适配器的事（`llm/index.ts`）。
-   * 内核不认得「提示词」长什么样。
+   * Return structured data; rendering it to the model belongs to the adapter (`llm/index.ts`). The kernel does not know prompt wording.
    *
-   * ## 树只给梗概
+   * ## Provide only a tree outline
    *
-   * 别的分支**默认不接入**（老仓库那条：「进度共享是能看、不是直接继承」）。
-   * 所以这儿只报「试过哪几条、死没死」，要看详情、要把别人的上下文接进来，
-   * 那是工具的事。
+   * Other branches are **excluded by default**: shared progress means visibility, not direct inheritance. Report which paths were tried and whether they died. Detailed inspection and retrieval of another branch's context belong to tools.
    */
   #viewOf(p: Pending, task: Row): Row {
     const rows = all(
@@ -741,9 +680,8 @@ export class Kernel {
       [p.task],
     ) as { cycle: string; unit: number; node: number; status: string | null; done: number }[];
 
-    // **按节点报，不按行。** `task_tree` / `node_load` 说的都是节点，视图却报行号的话，
-    // 模型会把行号当节点号喂给 `node_load` —— 实测就这么白花过一次调用
-    // （`node_load(8)` 拿到 "there is no such node in this task"）。
+    // **Report nodes, not rows.** `task_tree` and `node_load` use nodes. A view reporting row ids would lead the model to pass them as node ids,
+    // wasting calls as observed with `node_load(8)` returning "there is no such node in this task".
     const byNode = new Map<number, typeof rows>();
     for (const r of rows) {
       const k = Number(r.node);
@@ -761,11 +699,9 @@ export class Kernel {
         workdir: task.workdir,
         objective: task.objective !== null,
       },
-      // **你在哪一站、这一站之后还有没有下一站。** 都是流转表上的事实。
+      // **Current station and whether a successor exists**: facts from the transition table.
       //
-      // 不给的话，模型不知道自己站在终点站上 —— 实测它在交卷站上调了 `bash`，
-      // 那一站之后没有跑工具的站，于是那次调用永远不会被执行，而它也就没说出
-      // 任何一句能交的话。它不是不听话，是**看不见自己在哪儿**。
+      // Without them, the model does not know it is at a terminal station. In practice it called `bash` at submission without a following tool-execution station, so the call never ran and no answer was submitted. It was not disobedient; **it could not see where it was**.
       here: {
         cycle: p.cycle,
         unit: p.unit,
@@ -786,16 +722,11 @@ export class Kernel {
   }
 
   /**
-   * **还剩多少额度。** 摆进视图里，不让它自己猜。
+   * **Remaining allowance**: include it in the view instead of making the model guess.
    *
-   * 以前不给，后果是实测出来的：模型把额度全花在探环境上（`cmt-0`：12 个执行
-   * 单元查了一圈 python/node，一个字答案都没写），到收尾那一刻手上什么都没有。
-   * 它不是不会安排，是**看不见还剩多少**。
+   * Previously it was absent, with measured consequences: the model spent its entire budget exploring the environment (`cmt-0`: 12 execution units checking Python/Node, no answer text), leaving nothing at finalization. The issue was **invisible remaining budget**, not inability to plan.
    *
-   * **只报事实，不报口径。** 每一站用了几个、还剩几个、还剩多少秒 —— 这些是内核
-   * 手上的账。至于「该在哪一站交卷、交卷用哪个工具」，那是**声明层**说的事：
-   * 流转表上摆着有哪几站，skill / 任务描述里写着规矩。内核往上下文里塞策略文案
-   * 就是越位 —— 换一套模式那段话就成了谎话，而且没人改得着它。
+   * **Report facts, not policy wording**: station usage, remaining slots, and remaining seconds are kernel bookkeeping. Which station and tool perform submission belongs to the **declaration layer**, through the transition table, skills, and task description. Kernel-injected strategy text would exceed its role, become false under another mode, and be impossible to fix through declarations.
    */
   #budgetOf(p: Pending, task: Row): Row {
     const caps = all(this.#store.ro, `select cycle, max_units from cycle where mode = ?`, [p.mode]) as {
@@ -804,7 +735,7 @@ export class Kernel {
     }[];
     const used = new Map(
       (
-        // 报的是**这一个节点**的额度 —— 那才是它现在花得起多少。
+        // Report the allowance for **this node**, the resources it can currently spend.
         all(
           this.#store.ro,
           `select cycle, count(*) as n from "${p.sub}"
@@ -835,7 +766,7 @@ export class Kernel {
     };
   }
 
-  /** 这一份要发出去的东西有多大，按 token 估。**内核没有分词器**，数字节再除 4 —— 量过一道题：4234989 字节对模型报的 1033906 token。 */
+  /** Estimate outbound size in tokens. **The kernel has no tokenizer**: count bytes and divide by 4. One measured problem used 4234989 bytes versus the model's reported 1033906 tokens. */
   #tokensOf(rows: Row[]): number {
     let n = 0;
     for (const r of rows) {
@@ -845,21 +776,16 @@ export class Kernel {
   }
 
   /**
-   * 把**已经收口的那些节点**换成它们压过的那一份。当前节点原样不动 —— 它的话正被用着。
+   * Replace **closed nodes** with their compressed versions. Leave the active node unchanged; its messages remain in use.
    *
-   * 按**节点**换，不按格换：一次调用和它的结果可能落在相邻两格上，只换其中一格的话，
-   * 上下文里会留下一个没有调用的结果，而模型那边直接拒收整份。
+   * Replace by **node**, not slot. A call and result may occupy adjacent slots; replacing only one leaves an orphaned result that makes the model reject the whole context.
    *
-   * 没压过的节点（`press` 是空的）照原文发。压是收口那一刻做的，做不成不该让这一发
-   * 也跟着完蛋。
+   * Send original text for uncompressed nodes (empty `press`). Compression occurs at closure; its failure must not also break this request.
    */
   /**
-   * 按阈值降级，降到装得下为止。**默认一级都不降。**
+   * Increase compression until the context fits the threshold. **No compression by default.**
    *
-   * 阈值是 `api.compress_at`（这把钥匙这个模型的天花板），空 = 从不压。装不下就降一级，
-   * 还装不下再降 —— 降到**设好了的**最后一级为止（`readyLevels`：`msg_part` 里那一列
-   * 每行都填了才算设好。`l4` 现在还空着，所以现在就是三级）。最后一级还超就把它发出去，
-   * 让模型那边拒 —— 到那一步已经没有更狠的了，而在这儿假装没事更糟。
+   * The threshold is `api.compress_at`, the limit for this credential and model; empty means never compress. If the payload does not fit, try progressively stronger levels through the last **fully configured** level (`readyLevels`: every `msg_part` row must fill that column; `l4` is currently empty, so there are three). If it still exceeds the threshold, send it and let the provider reject it. No stronger level exists, and pretending otherwise would be worse.
    */
   #fit(p: Pending, rows: Row[], line: number[]): Row[] {
     const api = this.#handleOf(p).api;
@@ -902,31 +828,23 @@ export class Kernel {
 
     const t = this.#msgTable(p.agent);
     const holes = line.map(() => "?").join(", ");
-    // 按 unit 的先后、再按 seq 排 —— unit 编号在一个任务里单调递增，所以它就是时间序。
+    // Order by unit, then seq. Unit ids increase monotonically within a task, so this is chronological order.
     let rows = all(
       this.#store.ro,
       `select unit, seq, role, kind, body, thought from "${t}"
         where instance = ? and unit in (${holes}) order by unit, seq`,
       [p.instance, ...line],
     );
-    // **缺的补上，不摘** —— 但只在这一站不可能是答题的那个人的时候补。
+    // **Complete missing results instead of removing calls**, but only when this station cannot be the one responsible for answering.
     //
-    // 谁答，表里写着：`api_mode` 为空的站调 `agent.unit`，那才是跑工具、写结果的
-    // 那个；有 `api_mode` 的站是去问模型的，轮不到它答。给前者拼上下文时工具**还
-    // 没开始跑**，那时候的「没人答」是「还没轮到」，不是「永远没有」—— 在那儿补
-    // 一条，等它真跑完就成了同一个 id 两条结果，模型那边一样拒收（反过来的那句：
-    // `Messages with role 'tool' must be a response to a preceding message with
-    // 'tool_calls'`）。实测五道题全卡在第三站上。
+    // The table identifies the responder: an empty `api_mode` invokes `agent.unit`, which executes tools and writes results. A nonempty api_mode calls a model, which cannot answer them. While assembling context for the former, tools **have not run yet**: unanswered means not yet, not never. Adding a placeholder then would produce two results for the same id after actual execution, also rejected (`Messages with role 'tool' must be a response to a preceding message with 'tool_calls'`). Five observed problems stalled at their third station this way.
     //
-    // 剩下的那一笔归收工时那次补齐（见 `#answerAll`）：真到最后还没人答，那才是
-    // 永远没人答。
+    // Finalization handles the remaining cases (see `#answerAll`). Only at the end does an unanswered call definitively mean it will never be answered.
     const cyc = one(this.#store.ro, `select api_mode from cycle where mode = ? and cycle = ?`, [p.mode, p.cycle]);
     if (String(cyc?.api_mode ?? "").trim() === "") return rows;
 
-    // **先补齐，再压。** 顺序反过来会出事，撞过：补齐靠 `kind='tool'` 认「这个调用
-    // 答过了」，而压过的那份里，收口节点的调用和结果都已经是一段文字 —— 它一个都
-    // 认不出来，该补的漏掉。漏掉之后原文里那个悬空的调用还在，一路发到那一端，
-    // SDK 本地就拒：`Tool result is missing for tool call …`。八站栽在这儿，全是交卷站。
+    // **Complete results before compressing.** The reverse order caused failures: completion identifies answered calls by `kind='tool'`,
+    // but compressed closed nodes already represent calls and results as prose, hiding all matches and missing required completions. Orphaned original calls then reached the provider path and were rejected locally by the SDK: `Tool result is missing for tool call …`. Eight stations failed this way, all submission stations.
     const typed = rows as unknown as { unit: number; seq: number; kind: string; body: string }[];
     if (answerMissing(this.#store.rw, p.agent, p.instance, typed) > 0) {
       rows = all(
@@ -940,11 +858,9 @@ export class Kernel {
   }
 
   /**
-   * 发出去之前最后看一眼：调用和结果还配得上吗。配不上就摘掉那一小段，**不回退**。
+   * Final pre-send check: do calls still match results? Remove only unmatched fragments; **do not revert compression**.
    *
-   * 正常情况下这儿什么都不会做 —— 真动了手就说明前面漏了一条结果，所以动手必留一条
-   * warn，带上是哪一格哪个调用。悄悄摘掉的话，这个洞下次还在，而表现只是「模型好像
-   * 少看见了点什么」。
+   * Normally this does nothing. Any removal means an earlier stage lost a result, so always warn with the slot and call identity. Silent removal would leave the defect for next time, visible only as the model seeming to miss something.
    */
   #mend(p: Pending, rows: Row[]): Row[] {
     const got = mendPairs(rows as unknown as Pair[]);
@@ -955,16 +871,15 @@ export class Kernel {
     return got.rows as unknown as Row[];
   }
 
-  /** 往上下文里压一条。`seq` 在这个单元里连着排。 */
+  /** Append a context row. `seq` is consecutive within this unit. */
   #push(p: Pending, role: string, kind: string, body: string, said?: Said): void {
-    // **这一行也得过同一道校验。** 它绕开 `deliver()` 直接 insert，而形状约束要是
-    // 只有一条路上有，另一条路就是坏行漏进来的那个口子。
+    // **Apply the same validation to this row.** It inserts directly instead of using `deliver()`.
+    // If shape constraints existed on only one path, the other would admit malformed rows.
     checkBody(kind, body);
     const t = this.#msgTable(p.agent);
     const seq = this.#seqMax(p) + 1;
-    // 账目跟着这一行走 —— **不另开一张表**：它说的就是这一行是怎么来的，
-    // 拆出去就得靠三个键接回来，而接错了没人报错。适配器没报的那几家，
-    // 这几列是 null，看得出来是「没报」，不是「零」。
+    // Keep usage and provenance with this row, **not in another table**. They explain how this row arose;
+    // separating them would require joining three keys, with silent errors for wrong joins. Providers whose adapters omit metrics leave nulls, visibly meaning unreported rather than zero.
     run(
       this.#store.rw,
       `insert into "${t}" (instance, unit, seq, role, kind, body, at,
@@ -987,7 +902,7 @@ export class Kernel {
     );
   }
 
-  /** 比条件时手上的东西。链路串按 `chain.ts` 那个拼法 —— 那是协议。 */
+  /** Facts available for condition matching. Build the chain string as in `chain.ts`: that is the protocol. */
   #factsOf(p: Pending): Facts {
     const agent = one(this.#store.ro, `select * from agent where name = ?`, [p.agent]);
     const task = one(this.#store.ro, `select * from task where id = ?`, [p.task]);
@@ -999,39 +914,33 @@ export class Kernel {
   }
 
   /**
-   * 推断下一个周期，然后落新行。
+   * Infer the next cycle and write a new row.
    *
-   * **候选（第 4、5 列）决定了用哪个推断函数**，推断函数只在候选里挑一个。
-   * 挑出候选之外的东西 → 当场炸，不许它自由发挥。
+   * **Candidates (columns 4 and 5) determine the inference function**, which chooses one candidate. Reject any selection outside the candidates immediately; do not allow arbitrary choices.
    *
-   * 推断函数可以回三种形状：
+   * The inference function may return three shapes:
    *
-   * | 回什么 | 意思 |
+   * | Return | Meaning |
    * | --- | --- |
-   * | `null` | 到此为止 |
-   * | `"周期名"` | 走那个周期，**从当前这一行接** |
-   * | `{to, from_cycle, from_unit, status}` | 走那个周期，**从指定那一行接**；顺带给当前这一行盖个终止状态 |
+   * | `null` | Stop here |
+   * | `"cycleName"` | Enter that cycle, **continuing from the current row** |
+   * | `{to, from_cycle, from_unit, status}` | Enter that cycle, **continuing from the specified row**, and optionally assign the current row a terminal state |
    *
-   * 第三种是给树用的：判死之后要在**同一个父**底下开兄弟，回退时要接到**祖先**上 ——
-   * 都不是「从当前行接」。内核只认这个形状，不认得「兄弟」「回退」是什么意思。
+   * The third supports trees: opening a sibling after death attaches to **the same parent**, while backtracking attaches to **an ancestor**, neither to the current row. The kernel recognizes the shape, not the meaning of siblings or backtracking.
    */
   async #infer(p: Pending, facts: Facts, result: unknown): Promise<void> {
     const cyc = facts.cycle as { next: string; infer: string };
     const next = JSON.parse(String(cyc.next)) as string[];
 
-    // 递给推断函数的除了 facts，还有「我是哪一行」—— 开兄弟和回退都要照着树走。
-    // **终点站也要问。** `next` 为空只说明「没有下一站可去」，不说明「不用问这一站
-    // 算成了没有」—— 终止状态（reached / dead_*）正是推断函数说的那一栏。
-    // 以前这儿短路成 null，于是任何终点站的 status 永远是空：树上看不出它是走到了
-    // 还是被判死了。交卷站就是终点站，短路的话它那一次判决根本不会发生。
+    // Pass both facts and the current row's identity to inference: siblings and backtracking need the tree position.
+    // **Consult inference even at terminal stations.** Empty `next` means no successor, not that success need not be judged. Inference supplies terminal states (reached / dead_*). Previously short-circuiting to null left every terminal station's status empty, hiding whether it succeeded or died. Submission is terminal; short-circuiting it would prevent grading entirely.
     const picked = await this.#reg
       .get(String(cyc.infer))
       .call({ ...facts, next, result, sub: p.sub, unit: p.unit });
     const said = picked !== null && typeof picked === "object" ? (picked as Record<string, unknown>) : null;
     const to = picked == null ? null : said ? (said.to == null ? null : String(said.to)) : String(picked);
-    // **「没说」和「说了是根」是两回事**：没说 = 从当前这一行接；
-    // 说了 `null` = 挂在根上（那一行没有父）。混成一个的话，根节点的兄弟会
-    // 挂到根自己身上 —— 树看着长了，形状是错的，而且不报错。
+    // **Omitted differs from explicitly root**: omit the parent to continue from the current row;
+    // `null` attaches at the root with no parent. Conflating them would attach a root sibling under the root itself, silently creating the wrong tree shape.
     const saidFrom = said !== null && "from_cycle" in said;
     const fromCycle = saidFrom ? (said!.from_cycle == null ? null : String(said!.from_cycle)) : p.cycle;
     const fromUnit = saidFrom ? (said!.from_unit == null ? null : Number(said!.from_unit)) : p.unit;
@@ -1043,11 +952,10 @@ export class Kernel {
       p.cycle,
       p.unit,
     ]);
-    // **节点收口了，就把它压好。** 收口 = 这一站拿到了终止状态（`status` 非空）。
-    // 压的是已经出完的那个节点：还在出的节点不压，它的话正被用着。
+    // **Compress a node when it closes**, meaning this station acquires a nonempty terminal `status`.
+    // Compress the completed node, never one still producing messages that remain in use.
     //
-    // 压不成不该带走这一站 —— 那一站是真做完了。压不成的表现是这个节点的 `press`
-    // 还是空的，而拼上下文那边见到空的就照原文发（见 `#contextOf`）。
+    // Compression failure must not undo a genuinely completed station. Its `press` stays empty, and context assembly sends original text for it (see `#contextOf`).
     if (status !== null) {
       const node = one(this.#store.ro, `select node from "${p.sub}" where task = ? and cycle = ? and unit = ?`, [
         p.task,
@@ -1073,31 +981,24 @@ export class Kernel {
     run(this.#store.rw, `update "${ctx}" set done = 1 where instance = ? and unit = ?`, [p.instance, p.unit]);
 
     if (to !== null) {
-      // **`next` 白名单只管「往下走」那一种。**
+      // **The `next` allowlist applies only to forward transitions.**
       //
-      // 开兄弟和回退回的是第三种形状（带 `from_cycle`：接到指定那一行上），它们的
-      // `to` 是**当前这个周期**（兄弟）或**祖先的周期**（回退）—— 本来就不在
-      // `next` 里。一律拿 next 卡的话，判死之后一个兄弟都开不出来：
-      // 「fn:infer.dfs 推出来的 ask 不在候选里（候选是 act）」。
+      // Sibling creation and backtracking return the third shape with `from_cycle`, attaching to a specified row. Their `to` is **the current cycle** for siblings or **an ancestor's cycle** for backtracking, naturally outside `next`. Applying next universally would prevent all siblings after failure, reporting that fn:infer.dfs selected ask when the candidate was act.
       //
-      // 这条以前撞不上，是因为模型每一站都先请求工具，`ask` 那站从不算「到终点」，
-      // 也就从来没judge过、没判死过。换个直接给答案的模型就炸。
+      // This was previously hidden because the model always requested tools at each station, so ask never claimed arrival and was never judged or killed. A model answering directly exposed it.
       //
-      // 不查白名单不等于不查：下面那句 `no row in cycle for ${p.mode}/${to}` 仍然拦着
-      // 推断函数瞎编一个周期名出来。
+      // Skipping the allowlist does not skip validation: the later `no row in cycle for ${p.mode}/${to}` check still rejects invented cycle names.
       if (!saidFrom && !next.includes(to)) {
         throw new Error(`${cyc.infer} returned ${to}, which is not among the candidates (${next.join(", ")})`);
       }
-      // **这一行属于哪个节点。**
+      // **Which node this row belongs to.**
       //
-      // 一个节点是一次完整的尝试：好几个执行单元拼起来，由拿到终止状态的那一行
-      // 收口（`status` 非空 = reached / dead_*，出生即定不回改）。所以：
+      // A node is one complete attempt spanning several execution units, closed by the row with a terminal state (`status` is reached / dead_*, fixed when assigned). Therefore:
       //
-      //   父亲还没收口 → 跟父亲同一个节点
-      //   父亲收口了   → 从这一行起是下一个节点
+      //   Parent still open → share the parent's node.
+      //   Parent closed → this row starts the next node.
       //
-      // **记下来，不要每次去推。** 推的话得走一遍父链，还得知道「哪一个周期收口
-      // 一个节点」—— 那件事一旦写进代码，换套机制就全读错，而且不报错。
+      // **Store this rather than repeatedly inferring it.** Inference would traverse the parent chain and need to know which cycle closes a node. Hard-coding that knowledge would silently misread another mechanism.
       const parent =
         fromCycle === null || fromUnit === null
           ? undefined
@@ -1111,13 +1012,11 @@ export class Kernel {
       const cap = one(this.#store.ro, `select max_units from cycle where mode = ? and cycle = ?`, [p.mode, to]);
       if (!cap) throw new Error(`no row in cycle for ${p.mode}/${to}`);
 
-      // **额度在【这一个节点】里数，不是整道题。**
+      // **Count allowances within this node, not the entire problem.**
       //
-      // 一个节点是一次完整的尝试，它自己有一份预算：花完了就该交卷，交完判死就换
-      // 下一个节点，那个节点又有自己的一份。按整道题数的话，第一个节点就把预算吃
-      // 光了 —— 于是一道题只可能有一次提交，「判死 → 换条路」永远跑不起来。
+      // A node is one complete attempt with its own budget. Exhaust it, submit, and if judged dead move to a new node with a fresh allowance. Counting per problem would let the first node consume everything, allowing only one submission and preventing retry on another path.
       //
-      // 「一道题能试几个节点」是另一根轴，由 `max_dead_siblings` 和 `solve_seconds` 管。
+      // The number of nodes a problem may try is a separate dimension, controlled by `max_dead_siblings` and `solve_seconds`.
       const used = Number(
         one(this.#store.ro, `select count(*) as c from "${p.sub}" where task = ? and cycle = ? and node = ?`, [
           p.task,
@@ -1130,10 +1029,9 @@ export class Kernel {
           `${p.task}: ${p.mode}/${to} has used all ${cap.max_units} units of node ${node}, not opening more`,
         );
       } else {
-        // **编号在一个任务里单调递增，不按周期重新数。** 智能体那边的
-        // ctx 表主键是 (instance, unit)，不带周期 —— 每个周期重数的话，
-        // think#1 和 act#1 会在那张表里撞成一行。
-        // max_units 限的是「这个周期名下有几行」，跟编号无关。
+        // **Ids increase monotonically across the task, without restarting per cycle.** The agent ctx table's key is (instance, unit),
+        // without cycle; restarting would collide think#1 and act#1 in one row.
+        // max_units limits row count under a cycle, independently of ids.
         const unit =
           Number(one(this.#store.ro, `select coalesce(max(unit), 0) as m from "${p.sub}" where task = ?`, [p.task])!.m) +
           1;
@@ -1143,7 +1041,7 @@ export class Kernel {
            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
           [p.task, to, unit, node, fromCycle, fromUnit, p.agent, p.instance, p.place, Date.now()],
         );
-        // 智能体那边同一件事的另一半，跟着开 —— 两边要能对咬
+        // Create the matching agent-side half at the same time; both sides must align.
         run(
           this.#store.rw,
           `insert into "${ctx}" (instance, task, unit, place, done) values (?, ?, ?, ?, 0)`,
@@ -1152,34 +1050,29 @@ export class Kernel {
       }
     }
 
-    // 这一下把任务推到「全干完了」→ 喊 `task_done` 那一刻。
+    // If this step makes all task work complete, announce `task_done`.
     //
-    // **`MOMENTS` 里列了它，就必须真喊。** 列着不喊的话，挂在这一刻上的规则永远
-    // 不跑，而 `check` 看不出问题（条件合法）、日志上也没有一个字 —— 正是这台机器
-    // 最不该有的那种失败。
+    // **Every moment listed in `MOMENTS` must actually be emitted.** Otherwise attached rules never run, while `check` sees valid conditions and logs reveal nothing, exactly the silent failure this engine must avoid.
     if (this.#restate(p.task, p.sub)) await this.#atMoment(p, facts, "task_done");
   }
 
   /**
-   * 主表那个大状态从子表推出来，不单独维护。取值是那四态：
+   * Derive the main-table state from subtables instead of maintaining it independently. Its four-state domain includes:
    *
-   * | 子表长什么样 | 那就是 |
+   * | Subtable state | Task state |
    * | --- | --- |
-   * | 一个执行单位都没有 | `open` —— 待领取 |
-   * | 有没干完的 | `claimed` —— 有人在干 |
-   * | 全干完了 | `done` |
+   * | No execution units | `open`: awaiting claim |
+   * | Some unfinished units | `claimed`: work in progress |
+   * | All units finished | `done` |
    *
-   * `failed` 推不出来 —— 它是**判定**的结果，不是数出来的。等验证函数那一块
-   * 落地了由它显式写。现在硬凑一个的话，那一列就开始说谎。
+   * `failed` cannot be derived by counting: it is a **judgment**. The verifier layer must write it explicitly when implemented. Inventing it here would make the column untruthful.
    *
-   * 回「这一下是不是刚好推到了 `done`」—— 上面那层据它喊 `task_done` 那一刻。
-   * 由这儿说而不是让上面自己再数一遍：数两遍就会漂，而漂了的表现是那一刻
-   * 要么不喊、要么喊两回。
+   * Return whether this operation just transitioned to `done`, letting the upper layer announce `task_done`. Compute that here instead of recounting above: two counts could drift and omit or duplicate the event.
    */
   /**
-   * 这道题所有实例里没人答的调用，一次补完。
+   * Complete all unanswered calls across this problem's instances in one pass.
    *
-   * 一个任务可能有好几个实例（每个智能体一份上下文），所以先问执行单元表都有谁。
+   * A task may have several instances (one context per agent), so first discover them through the execution-unit table.
    */
   #answerAll(task: string, sub: string): void {
     const who = all(this.#store.ro, `select distinct agent, instance from "${sub}" where task = ?`, [task]) as {
@@ -1197,7 +1090,7 @@ export class Kernel {
         const put = answerMissing(this.#store.rw, w.agent, w.instance, rows);
         if (put > 0) this.#log.info(`${w.instance}: answered ${put} call(s) that nobody ever ran`);
       } catch (e) {
-        // 补不上不该拦着任务收工 —— 那只是这张表少了几行，不是这道题没做完。
+        // Failure to complete missing results must not block task finalization: missing rows do not mean the problem is unfinished.
         this.#log.warn(`${w.instance}: could not answer the calls left open: ${msg(e)}`);
       }
     }
@@ -1210,15 +1103,14 @@ export class Kernel {
     const d = Number(got.d);
     const now = one(this.#store.ro, `select state from task where id = ?`, [task]);
     const was = String(now?.state ?? "");
-    if (was === "failed") return false; // 判过失败的不许被数回去
+    if (was === "failed") return false; // Do not derive a previously failed task back into another state.
     const next = n === 0 ? "open" : d === n ? "done" : "claimed";
     run(this.#store.rw, `update task set state = ? where id = ?`, [next, task]);
     const justDone = next === "done" && was !== "done";
-    // **收工前把没人答的调用补齐。** 补齐平时是在拼上下文那一刻做的，可最后一站
-    // 之后再没有人来读上下文了 —— 那一站要是请求了工具而没人跑，那笔账就永远
-    // 挂在表里，这张表也就当不成一份完整的快照。
+    // **Complete unanswered calls before finalization.** Normally completion runs while assembling context, but nobody reads context after the final station.
+    // If it requests a tool that nobody executes, the unmatched call would remain forever, preventing the table from being a complete snapshot.
     if (justDone) this.#answerAll(task, sub);
-    // 跑完了喊一声。**内核不知道那边会干什么** —— 判成没成不是它的事。
+    // Announce completion. **The kernel does not know what the recipient does**; judging success is not its responsibility.
     if (justDone) {
       this.#finalize(task);
     }
@@ -1226,10 +1118,9 @@ export class Kernel {
   }
 
   /**
-   * 定时器设到**库里最近的那个 deadline**，不按固定间隔扫。
+   * Schedule the timer for **the nearest database deadline**, not a fixed polling interval.
    *
-   * 超时的本质是「没有人写」—— 没有写就没有信号，只能靠时钟发现。但也不用一直扫：
-   * 没有新写就正好在该判死的那一刻醒，有新写就重算一次。
+   * A timeout means nobody wrote anything: no write means no signal, so only a clock can detect it. Continuous scans are unnecessary. Without new writes, wake precisely when death is due; after a new write, recompute.
    */
   #arm(rows: Pending[]): void {
     if (this.#timer) clearTimeout(this.#timer);
@@ -1237,7 +1128,7 @@ export class Kernel {
     if (this.#stopped) return;
     const now = Date.now();
 
-    // 执行单元那一层：这一步卡住了没有。
+    // Execution-unit level: whether this step is stuck.
     const deadlines = rows
       .map((r) => {
         const cap = this.#expectSafe(r);
@@ -1245,12 +1136,10 @@ export class Kernel {
       })
       .filter((d): d is number => d !== null);
 
-    // **任务那一层也得算进来。** 只按执行单元的 deadline 设表的话，一道题可以
-    // 无限期超过它自己的 `solve_seconds`：两边的时限差着量级（一步 15 分钟、
-    // 整道题 5 分钟），而没有新写入就没有别的信号能把内核叫醒。
+    // **Include task-level deadlines too.** Scheduling only unit deadlines could let a problem exceed `solve_seconds` indefinitely:
+    // the limits differ substantially (15 minutes per step versus 5 minutes for the whole problem), and without database writes nothing else wakes the kernel.
     //
-    // 实测：两道 `solve_seconds=300` 的题跑到 1306 秒还挂在 claimed —— 它们
-    // 卡在长模型调用里，没人写库，于是没人去看它们超没超时。
+    // Observed: two problems with `solve_seconds=300` remained claimed after 1306 seconds. They were stuck in long model calls; no writes meant no timeout checks.
     for (const t of all(
       this.#store.ro,
       `select created_at, solve_seconds from task where state not in ('done','failed')`,
@@ -1273,16 +1162,11 @@ function text(v: unknown): string {
 }
 
 /**
- * 一个错误变成一行话。**连 `cause` 一起说。**
+ * Render an error as one line, **including its `cause`**.
  *
- * 只打最外面那一句是不够的，撞过：AI SDK 收到 200 之后把返回体映射成自己的结构，
- * 那一步失败就包一句 `Failed to process successful response`，**真正的原因挂在
- * `cause` 上**（`@ai-sdk/provider-utils` 的 `postToApi`）。日志里只有外面那句的话，
- * 「body 收到一半断了」「某个字段的形状对不上」「回了个空壳」这三种分不开 ——
- * 而分不开就查不下去，一整趟只留下十几条一模一样的话。
+ * The outer message alone is insufficient, as observed with AI SDK: after HTTP 200, it maps the response into its own structure. Mapping failure wraps the error as `Failed to process successful response`, while **the actual reason lives in `cause`** (`postToApi` in `@ai-sdk/provider-utils`). Without it, partial-body disconnection, a mismatched field shape, and an empty response look identical. Diagnosis stalls, leaving a run with a dozen identical messages.
  *
- * 顺带把那一端说了什么也带上（`statusCode` / `responseBody`）：400 的时候那句话
- * 就是答案本身（`Thinking mode does not support this tool_choice` 就是这么找到的）。
+ * Also include the endpoint's response (`statusCode` / `responseBody`). For HTTP 400, that text often gives the diagnosis directly; this exposed `Thinking mode does not support this tool_choice`.
  */
 export function msg(e: unknown): string {
   const out: string[] = [];
@@ -1295,7 +1179,7 @@ export function msg(e: unknown): string {
     if (typeof x.responseBody === "string" && x.responseBody) extra.push(`body ${x.responseBody.slice(0, 300)}`);
     out.push(one + (extra.length ? ` (${extra.join(", ")})` : ""));
     cur = x.cause;
-    // 同一句重复挂两层的时候不重复说 —— 有的包装层原样透传 message。
+    // Do not repeat identical messages across wrapper layers; some wrappers forward message unchanged.
     if (typeof (cur as { message?: unknown } | null)?.message === "string" && (cur as { message: string }).message === one) {
       cur = (cur as { cause?: unknown }).cause;
     }

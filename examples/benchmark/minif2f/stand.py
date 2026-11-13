@@ -1,53 +1,41 @@
-"""miniF2F（Lean 4）的判卷台 —— 引擎外面的一个 HTTP 服务，手上有 Lean + Mathlib。
+r"""miniF2F (Lean 4) grading service: an HTTP service outside the engine, with Lean + Mathlib.
 
     python3 stand.py [--port 7903] [--level 1] [--backend repl|kimina] [--selftest [ID...]]
 
-引擎那边它是**三条句柄**：
+The engine sees **three handles**:
 
-    http://127.0.0.1:7903/stated      前置：theorem 声明没被动过（跟原始陈述逐字比）
-    http://127.0.0.1:7903/compiles    G 的第一格：Lean 编译没有 error
-    http://127.0.0.1:7903/sound       G 的根：没有 sorry、公理只在允许的集合里
+    http://127.0.0.1:7903/stated      Prerequisite: theorem declaration unchanged (verbatim comparison).
+    http://127.0.0.1:7903/compiles    First node of G: Lean compilation has no errors.
+    http://127.0.0.1:7903/sound       Root of G: no sorry; axioms belong to the allowed set.
 
-句柄名本身就是地址，内核 POST 一份 JSON 过来，这儿回一份 JSON —— 没有别的协议。
+Each handle is its own address. The kernel POSTs JSON and receives JSON; there is no additional protocol.
 
-## 判据是 Lean 编译器，一行不改
+## The grader is the unchanged Lean compiler
 
-这个文件**不解析 Lean、不判断证明**。它做四件事：把候选切成「声明 | 证明体」、
-把官方 header + 官方声明 + 候选证明体送进 Lean REPL、拿回 REPL 的 JSON、
-用 Kimina 官方那两个函数（`kimina_client.models.is_error / has_sorry`）读它。
+This file **does not parse Lean or judge proofs**. It splits the candidate into declaration and proof body, sends official header + official declaration + candidate proof body to the Lean REPL, retrieves its JSON, and reads it with the two official Kimina functions (`kimina_client.models.is_error / has_sorry`).
 
-「声明没被动过」不是靠信任，是靠**构造**：送去编译的永远是官方 header + 官方声明 +
-候选的证明体。`/stated` 只是告诉它「你交的前缀跟官方不一样」——照 DeepSeek-Prover-V1.5
-的协议（`prover/lean/verifier.py`：header + formal_statement + 模型补全拼起来编译）。
+An unchanged declaration is guaranteed **by construction**, not trust: compilation always uses the official header + official declaration + candidate proof body. `/stated` merely reports a prefix mismatch, following DeepSeek-Prover-V1.5’s protocol (`prover/lean/verifier.py` concatenates header + formal_statement + model completion for compilation).
 
-公理那一格是 Kimina `is_valid` 之外**多加的一道**：`#print axioms <name>` 跟着证明一起送，
-`sorryAx` / 自定义 axiom 都在这儿现形。`native_decide` 留下 `Lean.ofReduceBool`，榜上各家
-都认它，默认也认；`TGENGIN_MF2F_STRICT_AXIOMS=1` 关掉。
+The axiom node adds **one check beyond** Kimina `is_valid`: send `#print axioms <name>` with the proof to expose `sorryAx` / custom axioms. `native_decide` leaves `Lean.ofReduceBool`, accepted by leaderboard participants and allowed here by default; disable it with `TGENGIN_MF2F_STRICT_AXIOMS=1`.
 
-## 分级：这一栏说多少
+## Feedback levels: how much this field reveals
 
-`--level` 定 `note` 那一栏写多细。**每个级别是一次单独的实验**，G 的形状不随级别变。
+`--level` determines the detail in `note`. **Each level is a separate experiment**; the shape of G does not change.
 
-    0   只有过没过
-    1   + 哪一格断的 + 哪些 goal 没闭合（⊢ 那一行）+ 公理列表
-    2   + 每条 error 的位置（相对 theorem 那一行）和第一行
-    3   + Lean 报错原文
+    0   Pass/fail only.
+    1   + Failed node + unclosed goals (the ⊢ line) + axiom list.
+    2   + Each error’s location (relative to the theorem line) and first line.
+    3   + Raw Lean error messages.
 
-## 后端
+## Backends
 
-`repl`（默认）：这个进程自己起 `lake env repl`（leanprover-community/repl，钉 v4.15.0），
-常驻一池，header（`import Mathlib …`）跑一次拿到 env 0，每份证明用 `env: 0` 跑，
-用满 N 次就换一个进程（官方 v4.15.0 的 REPL 没有 `gc`，内存只涨不落）。
+`repl` (default): this process maintains a pool of `lake env repl` processes (leanprover-community/repl, pinned to v4.15.0). Run the header (`import Mathlib …`) once to obtain env 0, then each proof with `env: 0`. Replace a process after N uses (the official v4.15.0 REPL has no `gc`, so memory only grows).
 
-`kimina`：转发到一个跑着的 Kimina Lean Server（`/verify`）。同一份判据、同一个 REPL，
-只是池子归它管。Sherlock 上 prisma/node 装不上（glibc 2.17），所以默认不用它。
+`kimina`: forward to a running Kimina Lean Server (`/verify`). The grader and REPL are identical; Kimina manages the pool. prisma/node cannot be installed on Sherlock (glibc 2.17), so this is not the default.
 
-## 答案不在这儿
+## Answers are not here
 
-Lean 判卷没有「标准答案」—— 证明就是答案，判的是编译。Kimina 公开的那 226 份证明
-（golden/）只在自检里用，`/problems` 不发它，题面里也没有它。**但网上有**（GitHub 的
-zip），求解侧关掉 web_search、`noSearch` 写上仓库名，是 send 那一侧的事。
-"""
+Lean grading has no reference answer: the proof is the answer, and compilation is the criterion. Kimina’s 226 published proofs (golden/) are used only for self-tests, never sent by `/problems` or included in problem statements. **They are online**, however, in a GitHub zip. Disabling web_search and listing repository names in `noSearch` is the send side’s responsibility."""
 
 from __future__ import annotations
 
@@ -68,7 +56,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-# **题库、Lean、Mathlib、官方代码都在判卷台这一侧**，不进仓库。setup.sh 装的。
+# **The dataset, Lean, Mathlib, and official code all live on the grading-service side**, outside the repository; setup.sh installs them.
 HOME_DIR = Path(os.environ.get("TGENGIN_MF2F_HOME", Path.home() / ".cache" / "tgengin-minif2f"))
 VENDOR = HOME_DIR / "vendor"
 KIMINA_CLIENT = VENDOR / "kimina-lean-server" / "client"
@@ -78,8 +66,8 @@ DATA = HOME_DIR / "problems.jsonl"
 GOLDEN = HOME_DIR / "golden"
 
 LEVEL = int(os.environ.get("TGENGIN_MF2F_LEVEL", "1"))
-# header 里 `set_option maxHeartbeats 0` —— Lean 自己不设上限，**墙上时间是唯一的闸**。
-# 300 s 照抄 DeepSeek-Prover-V1.5 verifier 和 Kimina VerifyRequestBody 的默认值。
+# The header sets `set_option maxHeartbeats 0`: Lean has no internal limit, so **wall time is the only gate**.
+# The 300 s limit matches the defaults in DeepSeek-Prover-V1.5’s verifier and Kimina VerifyRequestBody.
 TIMEOUT = int(os.environ.get("TGENGIN_MF2F_TIMEOUT", "300"))
 REPLS = int(os.environ.get("TGENGIN_MF2F_REPLS", "2"))
 MAX_USES = int(os.environ.get("TGENGIN_MF2F_MAX_USES", "16"))
@@ -87,22 +75,19 @@ MEM_GB = int(os.environ.get("TGENGIN_MF2F_MEM_GB", "12"))
 KIMINA_URL = os.environ.get("TGENGIN_MF2F_KIMINA", "http://127.0.0.1:8000")
 BACKEND = os.environ.get("TGENGIN_MF2F_BACKEND", "repl")
 
-# Lean 核心那三条 + native_decide 那一条。多一条都是 0。
+# Lean’s three core axioms + the native_decide axiom. Any additional axiom means 0.
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
 if os.environ.get("TGENGIN_MF2F_STRICT_AXIOMS", "0") != "1":
     ALLOWED_AXIOMS.add("Lean.ofReduceBool")
 
 
-# ── 官方代码 ────────────────────────────────────────────────────────────────
+# ── Official code ──
 
 
 def load_official():
-    """只加载 `kimina_client.models`，**不碰 `__init__.py`**。
+    r"""Load only `kimina_client.models`, **without executing `__init__.py`**.
 
-    `__init__` 会把 sync/async client 一起拉进来（httpx / tenacity / datasets……），
-    判卷只用 `is_error` / `has_sorry` 两个函数，装那一堆没意义。跟 cmt 那边绕
-    `cmtbench/__init__.py` 是同一招。
-    """
+    `__init__` imports sync/async clients too (httpx / tenacity / datasets…); grading uses only `is_error` / `has_sorry`, so installing the rest serves no purpose. This is the same technique used to bypass `cmtbench/__init__.py` in CMT."""
     if not (KIMINA_CLIENT / "kimina_client" / "models.py").exists():
         raise SystemExit(f"the official grading code is missing: {KIMINA_CLIENT} (run setup.sh first)")
     sys.path.insert(0, str(KIMINA_CLIENT))
@@ -117,11 +102,11 @@ def load_official():
 KM = load_official()
 
 
-# ── 题库 ────────────────────────────────────────────────────────────────────
+# ── Problem corpus ──
 
 
 def load_book() -> dict[str, dict]:
-    """488 道：`test/<name>` 244（AI-MO 修正版）+ `valid/<name>` 244（DeepSeek-Prover-V1.5 版）。"""
+    r"""488 tasks: 244 `test/<name>` (AI-MO corrected version) + 244 `valid/<name>` (DeepSeek-Prover-V1.5 version)."""
     if not DATA.exists():
         raise SystemExit(f"the problem set is missing: {DATA} (run setup.sh first)")
     book: dict[str, dict] = {}
@@ -135,7 +120,7 @@ def load_book() -> dict[str, dict]:
 BOOK = load_book()
 
 
-# ── 候选切分：声明 | 证明体 ─────────────────────────────────────────────────
+# ── Split candidate: declaration | proof body ──
 
 BLOCK_COMMENT = re.compile(r"/-.*?-/", re.S)
 LINE_COMMENT = re.compile(r"--[^\n]*")
@@ -143,7 +128,7 @@ MARK = ":= by"
 
 
 def norm(s: str) -> str:
-    """去注释、压空白。**只做这两件事** —— 声明里没有 tactic 块，空白和注释都不改语义。"""
+    r"""Strip comments and collapse whitespace. **Do only these two things**: declarations contain no tactic blocks, so comments and whitespace do not change semantics."""
     s = BLOCK_COMMENT.sub(" ", s)
     s = LINE_COMMENT.sub(" ", s)
     return re.sub(r"\s+", " ", s).strip()
@@ -164,8 +149,8 @@ COMMAND_KW = {
 
 
 def starts_command(ln: str) -> bool:
-    """这一行开一条新命令吗：顶格，且第一个词是 Lean 的命令关键字（或 `@[attr]`、`#cmd`）。
-    顶格但不是关键字的行（多行签名的续行，Kimina 就这么排版）归上一条。"""
+    r"""Does this line start a command? It must be unindented and start with a Lean command keyword (or `@[attr]`, `#cmd`).
+    An unindented non-keyword line (a multiline signature continuation, as used by Kimina) belongs to the previous command."""
     if not ln or ln[0].isspace():
         return False
     tok = ln.split(None, 1)[0]
@@ -173,7 +158,7 @@ def starts_command(ln: str) -> bool:
 
 
 def commands(plain: str) -> list[str]:
-    """把去掉注释的候选切成命令：命令关键字的顶格行开一条，其余行归它。"""
+    r"""Split the comment-free candidate into commands: an unindented command keyword starts one; subsequent lines belong to it."""
     out: list[str] = []
     for ln in plain.splitlines():
         if starts_command(ln):
@@ -181,20 +166,14 @@ def commands(plain: str) -> list[str]:
         elif out:
             out[-1] += "\n" + ln
         elif ln.strip():
-            out.append(ln)  # 第一行就不是关键字：让后面的检查去拒
+            out.append(ln)  # The first line is not a keyword; let the later checks reject it.
     return out
 
 
 def split_cand(cand: str, item: dict) -> tuple[bool, str, str, str]:
-    """回 `(声明没被动过, 前置, 证明体, 为什么不是)`。
+    r"""Return `(declaration_unchanged, prelude, proof_body, rejection_reason)`.
 
-    候选 = 若干**顶格命令**。认的只有四种：`import Mathlib` / `import Aesop`（丢掉，官方 header 里有）、
-    `set_option maxHeartbeats N`（同上）、`open …`（保留，只改名字解析，改不了真假）、
-    `lemma` / `theorem`（辅助引理，保留 —— Kimina 公开的 225 份里 8 份、Seed-Prover 整个范式都是先写引理再证主定理）。
-    最后一条命令必须是**官方声明逐字 + `:= by` + 缩进的证明体**。其余顶格的东西（`def`、`axiom`、别的
-    `set_option`、`namespace`、`macro`……）一律拒 —— 那些能改语义或绕内核。辅助引理里的 `sorry` 和公理逃不掉：
-    主定理用了它们，`#print axioms` 就现形；没用也有 `sorries` 非空。
-    """
+    A candidate is a sequence of **top-level commands**. Accept only four kinds: `import Mathlib` / `import Aesop` (discard; present in the official header), `set_option maxHeartbeats N` (likewise), `open …` (keep; changes name resolution, not truth), and `lemma` / `theorem` (keep auxiliary lemmas: 8 of Kimina’s 225 published proofs and Seed-Prover’s entire approach prove lemmas before the main theorem). The final command must be **the verbatim official declaration + `:= by` + an indented proof body**. Reject all other top-level constructs (`def`, `axiom`, other `set_option`, `namespace`, `macro`…): they can alter semantics or bypass the kernel. Auxiliary-lemma `sorry` and axioms cannot escape: if the main theorem uses them, `#print axioms` exposes them; otherwise `sorries` is still nonempty."""
     plain = LINE_COMMENT.sub(" ", BLOCK_COMMENT.sub(" ", cand))
     cmds = commands(plain)
     if not cmds:
@@ -249,7 +228,7 @@ def split_cand(cand: str, item: dict) -> tuple[bool, str, str, str]:
     return True, "\n".join(prelude), body, ""
 
 
-# ── Lean 后端：把一段代码送去编译，拿回 REPL 的 JSON ────────────────────────
+# ── Lean backend: submit code for compilation and retrieve REPL JSON ──
 
 
 class ReplDied(Exception):
@@ -257,7 +236,7 @@ class ReplDied(Exception):
 
 
 class Repl:
-    """一个常驻的 `lake env repl`，header 已经跑过（env 0）。**不解释输出**，原样回。"""
+    r"""A persistent `lake env repl` with the header already evaluated (env 0). **Do not interpret output**; return it unchanged."""
 
     def __init__(self, header: str):
         self.header = header
@@ -267,7 +246,7 @@ class Repl:
         mem = MEM_GB * 1024 ** 3
 
         def preexec():
-            # 内存上限 + 自己一个进程组（超时的时候整组杀）。Kimina 那边同样的两条。
+            # Memory limit + a separate process group (kill the whole group on timeout). Kimina uses the same two measures.
             resource.setrlimit(resource.RLIMIT_AS, (mem, mem))
             os.setsid()
 
@@ -280,7 +259,7 @@ class Repl:
             preexec_fn=preexec,
         )
         threading.Thread(target=self._pump, daemon=True).start()
-        # header 单独一条命令，不带 env —— 只有这种命令能 import。回来的 env 该是 0。
+        # Send the header as a separate command without env: only such commands can import. The returned env should be 0.
         r = self.run({"cmd": header}, timeout=max(TIMEOUT, 600))
         if r.get("env") != 0 or KM.is_error(r):
             self.kill()
@@ -293,7 +272,7 @@ class Repl:
         self.lines.put(None)
 
     def run(self, cmd: dict, timeout: int) -> dict:
-        """一问一答。REPL 的回复是一段 JSON 后跟一个空行（Kimina `_read_response` 同一约定）。"""
+        r"""One request, one response. A REPL response is JSON followed by a blank line (the same convention as Kimina `_read_response`)."""
         if self.dead or self.proc.poll() is not None:
             raise ReplDied("repl process is gone")
         assert self.proc.stdin is not None
@@ -339,7 +318,7 @@ class Repl:
 
 
 class ReplPool:
-    """按 header 分池。这套题 488 道只有一个 header，池子实际上就一个。"""
+    r"""Pool by header. All 488 tasks share one header, so there is effectively one pool."""
 
     def __init__(self, size: int):
         self.size = size
@@ -355,17 +334,17 @@ class ReplPool:
                     self.idle.remove(r)
                     break
                 if self.busy + len(self.idle) < self.size:
-                    break  # 还有位子，起一个新的
+                    break  # Capacity remains; start a new process.
                 if self.idle:
-                    self.idle.pop(0).kill()  # 池满，闲着的都是别的 header：淘汰一个
+                    self.idle.pop(0).kill()  # Pool full, with idle processes for other headers: evict one.
                     break
-                self.cv.wait()  # 全忙着：等一个回来
+                self.cv.wait()  # All busy: wait for one to return.
             self.busy += 1
         try:
             if r is None:
                 try:
-                    r = Repl(header)  # 起进程 + import Mathlib，十几秒
-                except Exception as e:  # lake 不在 PATH、header 装不进去……都是台子的事，不是候选的
+                    r = Repl(header)  # Process startup + import Mathlib takes over ten seconds.
+                except Exception as e:  # lake missing from PATH, header import failure… these are service problems, not candidate problems.
                     return {"error": f"repl failed to start: {e}"}
             try:
                 got = r.run({"cmd": body, "env": 0}, timeout=TIMEOUT)
@@ -375,7 +354,7 @@ class ReplPool:
             except ReplDied as e:
                 r = None
                 return {"error": f"repl died: {e}"}
-            if r.uses >= MAX_USES:  # 没有 gc 的 REPL 只会越吃越多
+            if r.uses >= MAX_USES:  # Without gc, the REPL only consumes more memory over time.
                 r.kill()
                 r = None
             return got
@@ -388,7 +367,7 @@ class ReplPool:
 
 
 class Kimina:
-    """转发给 Kimina Lean Server `/verify`。回来的 `response` 就是 REPL 的 CommandResponse。"""
+    r"""Forward to Kimina Lean Server `/verify`. The returned `response` is the REPL CommandResponse."""
 
     def check(self, header: str, body: str) -> dict:
         req = {"codes": [{"custom_id": "x", "proof": header + body}], "timeout": TIMEOUT}
@@ -405,10 +384,10 @@ class Kimina:
         if r.get("error"):
             return {"error": str(r["error"])}
         got = r.get("response") or {}
-        if "message" in got:  # REPL 级错误（Error 形状），不是 Lean 消息
+        if "message" in got:  # REPL-level error (Error shape), not a Lean message.
             return {"error": str(got["message"])}
-        # Kimina 把行号按它切出来的 header（只有 import 行）平移过了，我们要的是相对
-        # theorem 那一行 —— 减掉整个 header 的行数。
+        # Kimina already shifts line numbers by its extracted header (import lines only). We need locations relative to
+        # the theorem line, so subtract the full header’s line count.
         off = header.count("\n")
         for m in got.get("messages") or []:
             for k in ("pos", "endPos"):
@@ -424,27 +403,27 @@ class Kimina:
 LEAN: ReplPool | Kimina = Kimina() if BACKEND == "kimina" else ReplPool(REPLS)
 
 
-# ── 判卷 ────────────────────────────────────────────────────────────────────
+# ── Grading ──
 
 AXIOMS_RE = re.compile(r"'([^']+)' (?:does not depend on any axioms|depends on axioms: \[(.*)\])", re.S)
 
 
 def judge(item: dict, cand: str) -> dict:
-    """跑一遍。回一份字典：三格的值 + REPL 原样的消息，note 那一栏按级别从里面挑。"""
+    r"""Run once. Return a dictionary containing three node values and raw REPL messages; select `note` content by feedback level."""
     got: dict = {"stated": False, "compiles": False, "sound": False, "messages": [], "sorries": [], "axioms": None}
     ok, prelude, body, why = split_cand(cand, item)
     got["why"] = why
     if not ok:
         return got
     got["stated"] = True
-    # **送去编译的是 官方 header + 候选的 open/辅助引理 + 官方声明 + 它的证明体**，声明不可能被改。
-    # 行号相对候选自己的第一条命令（有前置时 theorem 不在行 1）。
+    # **Compile official header + candidate open/auxiliary lemmas + official declaration + candidate proof body**; the declaration cannot change.
+    # Line numbers are relative to the candidate’s first command (with a prelude, theorem is not on line 1).
     name = item["name"]
     code = ((prelude.rstrip() + "\n\n") if prelude.strip() else "") + item["statement"].rstrip() + "\n" + body.rstrip() + "\n\n#print axioms " + name + "\n"
     t0 = time.monotonic()
     resp = LEAN.check(item["header"], code)
-    # REPL 进程死掉（多半是 RLIMIT_AS 撞顶或用满 MAX_USES 后的回收撞上）是台子的事，不是候选的：换一个新进程再判一次。
-    # 实测 2026-09-25：amc12_2000_p1 第一轮 123 s 判 1，第二轮 48.8 s 「repl closed stdout」。只重试一次，仍死就记 backend_error。
+    # A dead REPL process (usually RLIMIT_AS exhaustion or a race with recycling after MAX_USES) is a service issue, not a candidate issue: retry once in a fresh process.
+    # Observed 2026-09-25: amc12_2000_p1 scored 1 in 123 s on the first pass; the second failed after 48.8 s with “repl closed stdout”. Retry only once; another failure is backend_error.
     if "error" in resp and "repl died" in resp["error"]:
         resp = LEAN.check(item["header"], code)
     got["seconds"] = round(time.monotonic() - t0, 1)
@@ -453,7 +432,7 @@ def judge(item: dict, cand: str) -> dict:
         return got
     got["messages"] = resp.get("messages") or []
     got["sorries"] = resp.get("sorries") or []
-    # 官方那两个函数。`is_error`：有 severity=error 的消息；`has_sorry`：sorries 非空。
+    # The two official functions: `is_error` checks for severity=error messages; `has_sorry` checks for nonempty sorries.
     got["compiles"] = not KM.is_error(resp)
     for m in got["messages"]:
         mm = AXIOMS_RE.search(m.get("data", "")) if m.get("severity") == "info" else None
@@ -488,11 +467,11 @@ def verdict(tid: str, cand: str) -> dict:
     return got
 
 
-# ── note：这一栏说多少，按 --level ──────────────────────────────────────────
+# ── note: feedback detail selected by --level ──
 
 
 def goals_of(got: dict) -> list[str]:
-    """没闭合的 goal：`unsolved goals` 那些 error 里的 `⊢` 行 + sorries 里的 goal。"""
+    r"""Unclosed goals: `⊢` lines in `unsolved goals` errors, plus goals in sorries."""
     out: list[str] = []
     for m in got["messages"]:
         if m.get("severity") == "error" and m.get("data", "").startswith("unsolved goals"):
@@ -503,7 +482,7 @@ def goals_of(got: dict) -> list[str]:
 
 
 def note_of(got: dict) -> dict | str:
-    """判 0 的时候多说的那一份。**级别定详略**，形状不随级别变。"""
+    r"""Additional information on verdict 0. **The level controls detail**, while the response structure stays the same."""
     if LEVEL <= 0:
         return ""
     if not got["stated"]:
@@ -540,12 +519,9 @@ def note_of(got: dict) -> dict | str:
 
 
 def task_of(body: dict) -> tuple[str, str]:
-    """从内核送来的那份东西里挖出「哪道题」和「它交了什么」。
+    r"""Extract the task and submission from the kernel payload.
 
-    内核送的是 `{node, moment, domain, feed, input}`，`input` 是 `{task, chain, result}`
-    （树那条路）或 `{task, result}`（收尾那一路）。题号取 `task.id` 的最后两段
-    （`<跑名>/test/<name>` 也认）。
-    """
+    The kernel sends `{node, moment, domain, feed, input}`; `input` is `{task, chain, result}` on the tree path or `{task, result}` during finalization. Use the final two segments of `task.id` as the task ID (also accepting `<run-name>/test/<name>`)."""
     inp = body.get("input") or {}
     task = inp.get("task") or {}
     parts = str(task.get("id", "")).split("/")
@@ -558,13 +534,13 @@ def task_of(body: dict) -> tuple[str, str]:
 
 
 def cand_of(said: str) -> str:
-    """交上来的东西里挑出 Lean 代码。裹在 ```lean 围栏里的就取围栏里那段，否则原样。"""
+    r"""Extract Lean code from the submission. Use the contents of a ```lean fence if present; otherwise return it unchanged."""
     m = re.search(r"```(?:lean4?|lean 4)?\s*\n(.*?)```", said, re.S)
     return m.group(1) if m else said
 
 
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, *a):  # 默认那行访问日志太吵
+    def log_message(self, *a):  # Suppress the noisy default access log.
         pass
 
     def _send(self, obj, code=200):
@@ -581,8 +557,8 @@ class Handler(BaseHTTPRequestHandler):
                         "allowed_axioms": sorted(ALLOWED_AXIOMS), "timeout": TIMEOUT})
             return
         if self.path.startswith("/problems"):
-            # **发题的口：题面、header、声明。** 没有证明可发 —— Lean 题的答案就是证明，
-            # 这儿本来就没有。Kimina 那 226 份 golden 只在自检里用，不走这条路。
+            # **Problem endpoint: problem statement, header, declaration.** There is no proof to send: a Lean task’s answer is its proof,
+            # and none is stored here. Kimina’s 226 golden proofs are used only in self-tests, never through this endpoint.
             n, split = 0, "test"
             if "?" in self.path:
                 for kv in self.path.split("?", 1)[1].split("&"):
@@ -617,22 +593,22 @@ class Handler(BaseHTTPRequestHandler):
         if not said.strip():
             self._send({"value": False, "note": {"stage": "collect", "detail": "nothing was handed in - hand in the full Lean 4 proof"}})
             return
-        # **上游判 0 的话不必再说一遍** —— 那句话已经在上一格里了。
+        # **Do not repeat an upstream failure**: that explanation is already in the preceding node.
         feed = body.get("feed") or []
         if self.path != "/stated" and feed and feed[0].get("value") is not True:
             self._send({"value": False})
             return
         got = verdict(tid, cand_of(said))
         ok = got[self.path[1:]]
-        # **回一个裸 bool 或 {value, note}。** G 的值域是封闭的，回别的内核当违约归 0。
+        # **Return a bare bool or {value, note}.** G has a closed value domain; any other response violates the contract and the kernel maps it to 0.
         self._send({"value": True} if ok else {"value": False, "note": note_of(got)})
 
 
-# ── 自检 ────────────────────────────────────────────────────────────────────
+# ── Self-tests ──
 
 
 def golden_ids() -> list[str]:
-    """有 golden 证明、而且 golden 里的声明跟现在的题库一致的那些（Kimina 的 zip 早于几处修订）。"""
+    r"""Tasks with golden proofs whose declarations match the current dataset (Kimina’s zip predates several corrections)."""
     out = []
     for f in sorted(GOLDEN.glob("*.lean")):
         tid = f"test/{f.stem}"
@@ -642,7 +618,7 @@ def golden_ids() -> list[str]:
 
 
 def selftest(ids: list[str]) -> int:
-    """Kimina 公开的证明喂回去，三格都该是 1；换成 `sorry`，compiles 1 而 sound 0。**装错了在这儿就炸。**"""
+    r"""Replay Kimina’s published proofs: all three nodes should be 1. Replace the proof with `sorry`: compiles should be 1 and sound 0. **A faulty installation fails here.**"""
     if not GOLDEN.is_dir():
         raise SystemExit(f"no golden proofs at {GOLDEN} (run setup.sh first)")
     bad = 0

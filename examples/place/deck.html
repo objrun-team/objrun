@@ -15,11 +15,11 @@
 </div>
 <div class="foot"><span id="p">1</span> / <span id="total">12</span></div>
 <script>
-  // 这一页对外只认这一个对象。工具那边靠 Runtime.evaluate 调它 ——
-  // 页面的操作面是页面自己定的，不是外面猜出来的。
+  // This is the only object the page exposes. Tools call it through Runtime.evaluate;
+  // the page defines its own operations rather than leaving callers to guess.
   const TITLES = [
-    "开场", "这一季干了什么", "收入", "成本", "毛利", "用户",
-    "留存", "渠道", "出了什么问题", "下一季的赌注", "要多少钱", "问答",
+    "Opening", "What we did this quarter", "Revenue", "Costs", "Gross profit", "Users",
+    "Retention", "Channels", "What went wrong", "Next quarter bets", "Funding needs", "Q&A",
   ];
   const deck = {
     page: 1,

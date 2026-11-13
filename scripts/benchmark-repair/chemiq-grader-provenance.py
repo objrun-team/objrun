@@ -147,27 +147,27 @@ def main(container, port):
     path = OUT / "chemiq-nextwave-grader-provenance.json"
     path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     packages = ", ".join(r["name"] + "=" + r["version"] for r in runtime["distributions"])
-    (OUT / "chemiq-nextwave-grader-provenance.md").write_text(f'''# ChemIQ 下一波评分来源补充
+    (OUT / "chemiq-nextwave-grader-provenance.md").write_text(f'''# Supplemental ChemIQ next-wave grader provenance
 
-观察时刻：{manifest["observed_at_utc"]}。实际服务 {container}，image ID `{inspect["Image"]}`，local OPSIN 2.8.0 + raw-input-length，REST 回退禁用。
+Observed at: {manifest["observed_at_utc"]}. Actual service {container}, image ID `{inspect["Image"]}`, local OPSIN 2.8.0 + raw-input-length, with REST fallback disabled.
 
-不能只用主runner归档的 stand.py 声称全部评分代码已保存。本次另保存实际宿主 bridge、固定官方 JAR、公开官方 parser 与完整 answer_verifier 源码，含原子映射 `_check_list_of_tuples` 和 RDKit 规范化比较；运行容器实测导入路径/版本/文件摘要与宿主源文件一致。
+The stand.py archived by the main runner alone cannot support a claim that all grading code is saved. This supplement also saves the actual host bridge, pinned official JAR, public official parser, and complete answer_verifier source, including atom-mapping `_check_list_of_tuples` and RDKit canonicalization comparisons. Import paths, versions, and file digests measured in the running container match the host source files.
 
-宿主 bridge PID {status["pid"]}，Python executable `{process["ExecutablePath"]}`，脚本在其启动后未修改：{bridge_mtime <= bridge_created}。Java 版本与桥接启动记录一致：{manifest["host_bridge"]["java_version_agrees_with_bridge"]}。JAR SHA `{EXPECTED_JAR}`。
+Host bridge PID {status["pid"]}, Python executable `{process["ExecutablePath"]}`; script unchanged since process startup: {bridge_mtime <= bridge_created}. Java version agrees with the bridge startup record: {manifest["host_bridge"]["java_version_agrees_with_bridge"]}. JAR SHA `{EXPECTED_JAR}`.
 
-实测 Python 依赖：{packages}。manifest记录每个相关distribution文件的 SHA/字节数，并读取实际 daemon /proc/1 的 executable、cmdline、mapped native 文件，记录容器image ID与只读挂载。单独检查进程用相同 vendor 路径解析公开 Python 模块，未给运行daemon注入代码。
+Measured Python dependencies: {packages}. The manifest records SHA/byte counts for every relevant distribution file, reads executable, cmdline, and mapped native files from the actual daemon /proc/1, and records the container image ID and read-only mounts. A separate inspection process resolves public Python modules through the same vendor paths; no code was injected into the running daemon.
 
-公开来源包：[chemiq-nextwave-public-grader-source.zip](chemiq-nextwave-public-grader-source.zip)，{archive_path.stat().st_size} 字节；[独立manifest](chemiq-nextwave-grader-provenance.json)记录所有摘要。白名单仅公开评分源码、JAR、LICENSE、来源元数据与helper；没有GT文件、opsin_cache、控制答案、桥接候选payload、API原件或key。
+Public source package: [chemiq-nextwave-public-grader-source.zip](chemiq-nextwave-public-grader-source.zip), {archive_path.stat().st_size} bytes; the [independent manifest](chemiq-nextwave-grader-provenance.json) records all digests. The allowlist includes only public grading sources, JAR, LICENSE, provenance metadata, and helper; it excludes GT files, opsin_cache, control answers, bridge candidate payloads, original API records, and keys.
 
-这是评分代码及依赖provenance，不是完整OS/JRE/Python环境打包。Python mounted依赖以实际文件清单和摘要固定，OS/image与Java executable另记身份；数据版本仅记来源commit及SHA，不归档答案。每个新campaign应在自己的manifest中引用此独立manifest和公开来源ZIP的SHA，并在执行前复核这些摘要。
+This is provenance for grading code and dependencies, not a complete OS/JRE/Python environment package. Mounted Python dependencies are pinned through actual file lists and digests; OS/image and Java executable identities are recorded separately. Data versions record only source commit and SHA, without archiving answers. Each new campaign should reference the SHA of this independent manifest and public source ZIP in its own manifest and recheck those digests before execution.
 
-可复跑只读核对，在项目目录执行：
+To repeat the read-only verification, run from the project directory:
 
 ```powershell
 & '.phase1-data/venv/Scripts/python.exe' -B -X utf8 'scripts/benchmark-repair/chemiq-grader-provenance.py'
 ```
 
-helper只执行现有容器的读取/公开模块导入和本机health，不pull、不调用LLM或grader，不读取任何候选/控制内容；只写本补充manifest和公开白名单archive。宿主process metadata来自已保存的单PID只读检查，若桥接重启，应先更新该PID记录再复跑。
+The helper only reads the existing container, imports public modules, and checks local health. It does not pull, call an LLM or grader, or read candidate/control contents; it writes only this supplemental manifest and the public allowlisted archive. Host process metadata comes from the saved read-only check of one PID; if the bridge restarts, update that PID record before rerunning.
 ''', encoding="utf-8")
     print(json.dumps({"container_id": inspect["Id"], "image_id": inspect["Image"], "official_source_matches": official_match,
         "public_archive_bytes": archive_path.stat().st_size, "dependency_distribution_count": len(runtime["distributions"]),

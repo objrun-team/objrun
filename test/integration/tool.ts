@@ -1,29 +1,29 @@
 /**
- * 例子：**从外面加一个工具**。
+ * Example: **add a tool externally**.
  *
  * ```
  * bun test/integration/tool.ts
  * ```
  *
- * 全程只打 HTTP，一行内核代码没改，也没重启 —— 工具的实现跑在例子自己那台小
- * 服务器上，注册进来的是一条 `http://` 句柄。
+ * Every interaction uses HTTP, with no kernel edits or restart. The tool runs on
+ * the example's own small server and is registered through an `http://` handle.
  *
- * ## 要害在第二部分
+ * ## The second part is essential
  *
- * 注册成功和**真的生效**是两件事。这台机器最典型的毛病就是「写进去了，但永远
- * 不触发」：工具躺在 `tool` 表里，条件写错一个字母，于是谁都拿不到它，而
- * **没有任何一处报错**。所以第二部分要真发两个任务：一个该命中，一个不该，
- * 然后去看那一轮到底把哪些工具挂给了智能体。
+ * Registration and **actual effect** are distinct. A typical failure is a stored
+ * tool that never triggers: one typo in a condition can leave a `tool` row unavailable
+ * to every agent **without any error**. The second part submits two actual tasks,
+ * one that should match and one that should not, then checks the tools exposed in each round.
  */
 
 import { done, machine, ok, outside, part, show, step, until } from "../_lib.ts";
 
 const m = await machine();
 const out = await outside({
-  // 这一站不用模型：内核直接调 agent.unit，也就是这条外部句柄。
-  // 它收到的那份东西里带着**这一轮挂了哪些工具** —— 第二部分就查它。
+  // This station does not use a model: the kernel calls agent.unit, this external handle.
+  // Its payload includes **the tools exposed this round**, which the second part inspects.
   "/unit": (u) => ({ role: "assistant", kind: "prompt", body: `tools I got this round: ${names(u)}` }),
-  // 工具本身。这个例子里没人真去调它（调它是模型的事），注册通不通才是重点。
+  // The tool itself is not invoked in this example; choosing it would be the model's job. Registration is the focus.
   "/weather": (a) => ({ city: a.city ?? "?", tempC: 21 }),
 });
 
@@ -32,7 +32,7 @@ function names(u: Record<string, unknown>): string {
 }
 
 try {
-  // ═══════════════ 第一部分：注册 ═══════════════
+  // =============== Part 1: registration ===============
   part("Part one: registration");
 
   step("1. the tool points at a handle that does not exist");
@@ -83,12 +83,12 @@ try {
         params: { type: "object", properties: { city: { type: "string" } }, required: ["city"] },
         output: { type: "object", properties: { tempC: { type: "number" } } },
         prompt: "Call weather when asked about the weather; do not invent a temperature.",
-        // 任务描述里提到 weather 才把它挂上。
+        // Expose the tool only when the task description mentions weather.
         when: [[{ dim: "task", key: "description", op: "contains", value: "weather" }]],
       },
     ],
     places: [{ place: "local" }],
-    // apiMode 留空 = 这一站不用模型，走 agent.unit（也就是那条外部句柄）。
+    // Empty apiMode means no model call; use agent.unit, the external handle.
     modes: [{ mode: "demo", cycles: [{ cycle: "ask", from: [], next: [], infer: out.url("/unit") }] }],
     agents: [{ name: "bot", apis: [], unit: out.url("/unit") }],
   });
@@ -104,7 +104,7 @@ try {
   ok("it is not a never-fires tool", w.neverFires === false, w.neverFires);
   ok("the whole-database check is clean", ((await m.api<{ data: unknown[] }>("GET", "/check")).data).length === 0);
 
-  // ═══════════════ 第二部分：使用层次的校验 ═══════════════
+  // =============== Part 2: actual-use validation ===============
   part("Part two: checks at the level of use");
   console.log("  Registered is not the same as in effect. Publish two real tasks and see which tools got attached.");
 
@@ -117,8 +117,8 @@ try {
     const d = await m.api<{ state: string }>("GET", "/tasks/t-hit");
     return d.state === "done" || d.state === "failed" ? d : null;
   });
-  // 这个例子把同一条句柄同时当 unit 和 infer 用，而终点站也会问一次 infer ——
-  // 那一次不带工具。取**带工具的那一次**，也就是真正调执行单元的那一次。
+  // The example uses one handle for both unit and infer. The terminal station also invokes infer,
+  // without tools. Select **the invocation carrying tools**, which is the actual execution-unit call.
   const attached = out.calls["/unit"].filter((c) => c.tools !== undefined).at(-1)!;
   show("tools attached this round:", ((attached.tools ?? []) as { name: string }[]).map((t) => t.name));
   ok("the task finished", (hit as { state: string }).state === "done", hit);

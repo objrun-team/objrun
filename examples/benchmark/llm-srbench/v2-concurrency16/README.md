@@ -1,9 +1,9 @@
-# 独立16/16/16控制
+# Independent 16/16/16 control
 
-用户2026-10-19明确批准求解、训练反馈调度、参数拟合评分各16并发及必要受控切换。模型、方法、拟合算法、单题/候选/重试限制、全流程$78及唯一未知费用例外保持原协议，不增付费试跑。
+On 2026-10-19, the user explicitly approved concurrency 16 for solving, training-feedback scheduling, and parameter fitting/grading, plus the necessary controlled transition. Preserve the original model, methods, fitting algorithm, per-task/candidate/retry limits, full-workflow $78 cap, and sole approved unknown-cost exception; add no paid pilot.
 
-旧429控制器无排空接口。经免费验证后，在独立控制目录原plan的remainingCells临时原子替换为空，拒绝下次领取；不设HALT，不打断当前模型、训练反馈及评分。原线程池等待所有消费者结束后才退出并关闭评分器。退出后原plan字节恢复，所有旧源码哈希再次核验。临时清单及原字节、变更时间、退出/费用/请求证据单独保存，原v1/v2 package不变。
+The old 429-unit controller has no drain interface. After free verification, atomically replace remainingCells in the independent control directory’s original plan with an empty list to prevent the next claim. Do not set HALT or interrupt current model calls, training feedback, or grading. The original thread pool waits for every consumer to finish before exiting and closing the grader. Restore original plan bytes after exit and recheck all old source hashes. Save the temporary manifest, original bytes, change time, and exit/cost/request evidence separately; original v1/v2 packages remain unchanged.
 
-只有旧控制器及评分器身份核验退出、所有已启动单元有result、无新增未知或迟派发，才冻结剩余未启动清单及全部前序单元文件哈希。新控制器使用文件锁与前序退出双重围栏，只领取新清单，支持stop-claims.json无损排空，禁止自动再次启动。
+Only after verified exit of the old controller and grader, results for every started unit, and no new unknown or late dispatches may the remaining unstarted manifest and all preceding-unit file hashes be frozen. The new controller uses both a file lock and predecessor-exit fencing, claims only the new manifest, supports lossless draining through stop-claims.json, and prohibits automatic relaunch.
 
-参数拟合16线程池直接调用原grader.fit和原fit_worker；训练反馈16线程池调用原Gateway.feedback；求解16消费者调用原execute。并发指标记录容量、活跃数和峰值，峰值随负载变化。原54及此前续跑记录、所有已知异常和原版失败审计完整保留；仅独立例外审计可通过。全483冻结后统一在analysis副本计算费用截点和ID/OOD，最终960映射958完成加2中断，整体部分有效。
+The 16-thread fitting pool calls original grader.fit and fit_worker; the 16-thread training-feedback pool calls original Gateway.feedback; the 16 solving consumers call original execute. Concurrency metrics record capacity, active count, and observed peak, which varies with load. Preserve all original 54 records, previous continuation records, known anomalies, and failed original audits; only the independent exception audit may pass. After all 483 candidates freeze, calculate cost checkpoints and ID/OOD in an analysis copy. The final 960 mappings comprise 958 completions and 2 interruptions, so the overall result is partially valid.

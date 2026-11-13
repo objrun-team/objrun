@@ -2,6 +2,7 @@ import {test,expect} from 'bun:test';
 import {cfg,binaryFeedback,fullFeedback,wireBody} from './common.ts';
 test('authorized count-bounded protocol uses 32 workers, full request size, and no task dollar ceiling',()=>{
  expect(cfg.initialConcurrency).toBe(32);expect(cfg.independentSamples).toBe(5);expect(cfg.binaryMaxChecks).toBe(5);expect(cfg.perQuestionDollarCap).toBeNull();
+ // Retain the Chinese fixture to cover non-English schema text and its token-budget behavior.
  for(const messages of [[{role:'user',content:'small'}],[{role:'user',content:'中文 schema '.repeat(5000)}]])expect(wireBody({messages}).max_tokens).toBe(16384);
 });
 test('binary feedback discloses only correctness for all error classes',()=>{

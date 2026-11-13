@@ -1,8 +1,8 @@
 /**
- * 会里的那两样。**只有进会之后才存在** —— 这个 server 是 `meet_join` 拉起来的。
+ * The two in-meeting tools. **They exist only after joining**: `meet_join` starts this server.
  *
  * ```
- * bun examples/meet-join/meet-live.ts <会议号>
+ * bun examples/meet-join/meet-live.ts <meeting-id>
  * ```
  */
 

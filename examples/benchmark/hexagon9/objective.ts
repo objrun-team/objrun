@@ -1,19 +1,19 @@
 /**
- * 九圈六边形振幅（平面 N=4 SYM，六胶子 MHV）的 G。草稿，未跑。
+ * G for the nine-loop hexagon amplitude (planar N=4 SYM, six-gluon MHV). Draft, not run.
  *
  *   parsed ──→ hexagon ──→ physical ──→ antipodal
  *
- *   parsed   ：格式 —— 9 字母、权 18、余积坐标维数对得上、系数域是 ℚ ⊕ ℚ·MZV
- *   hexagon  ：定义 —— 可积、首项 ∈ {u,v,w}、(扩展) Steinmann；即"它是一个六边形函数"
- *   physical ：理论 —— 二面体对称、末项、共线归一、MRK 消失 + 全阶 BFKL、OPE 领头阶 = 通量管
- *   antipodal：独立路线 —— 反足映射后满足三点形状因子那套约束（根）
+ *   parsed: format — 9 letters, weight 18, correct coproduct-coordinate dimensions, coefficient field ℚ ⊕ ℚ·MZV
+ *   hexagon: definition — integrability, first entry ∈ {u,v,w}, (extended) Steinmann; i.e. it is a hexagon function
+ *   physical: theory — dihedral symmetry, final entry, collinear normalization, MRK vanishing + all-order BFKL, leading OPE = flux tube
+ *   antipodal: independent route — satisfy the three-point form-factor constraints after the antipodal map (root)
  *
- * 四格都是线性代数与极限展开，没有 LLM 判卷；也没有 gold —— 唯一解即答案。
- * 根建立在两条未证明的对偶/原理（反足对偶、扩展 Steinmann）上，record 必须写明。
- * 与 minif2f 的根本差别：一次判卷是小时到天，判卷成本 ≈ 求解成本。
+ * All four nodes use linear algebra and limit expansions, with no LLM grading and no gold answer: the unique solution is the answer.
+ * The root relies on two unproven dualities/principles (antipodal duality and extended Steinmann); record must state this.
+ * The fundamental difference from miniF2F: one grading run takes hours to days, so grading cost ≈ solving cost.
  */
 
-/** 一轮里能问几次。一次判卷小时级起步，候选不是"试一下"能改的，给 3。 */
+/** Queries allowed per round. Grading takes at least hours, and candidates cannot be revised by simply trying something; allow 3. */
 export const CHECKS = Number(process.env.TGENGIN_HEX9_CHECKS ?? 3);
 
 export interface Objective {

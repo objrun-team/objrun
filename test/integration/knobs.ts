@@ -1,19 +1,21 @@
 /**
- * 例子：**一个智能体可以固定自己那几个模型参数。**
+ * Example: **an agent can pin its own model parameters**.
  *
  * ```
  * bun test/integration/knobs.ts
  * ```
  *
- * 整跑的配置（`config.yaml` 里的 `llm.*`）是打底的那一份。可有些参数**是智能体自己
- * 的性质，不是这一跑的性质**：一个「去查、把查到的说清楚」的智能体不需要思考，而它
- * 服务的那个求解者要想得越多越好 —— 一个旋钮当不了两件事。
+ * Run-wide `llm.*` values in `config.yaml` provide defaults. Some parameters are
+ * **properties of the agent rather than the run**: a retrieval-and-explanation
+ * agent needs no reasoning, while its solver benefits from more. One setting
+ * cannot serve both purposes.
  *
- * 差别不是小数：同一个问题，`reasoning_effort` 给 `none` 是 14.5 秒，给 `low` 是
- * 113 秒，多出来的 98 秒买的是一万个 token 的推理。没有这一列的话，**把求解那边的
- * 思考调高一档，会顺手把检索也拖慢八倍，而且没有任何地方说得出为什么。**
+ * The difference is substantial: for the same problem, `reasoning_effort` of
+ * `none` took 14.5 seconds, versus 113 seconds for `low`. The extra 98 seconds
+ * purchased ten thousand reasoning tokens. Without this column, **raising solver
+ * reasoning also slows retrieval eightfold, with no clear explanation**.
  *
- * 所以 `agent.knobs`：给了的盖过整跑的，没给的落回去。
+ * `agent.knobs` therefore overrides only specified run-wide values and inherits the rest.
  */
 
 import { done, machine, ok, outside, part, show, step, until } from "../_lib.ts";
@@ -22,7 +24,7 @@ process.env.DEEPSEEK_API_KEY ??= "sk-not-a-real-key";
 
 const m = await machine({ reasoningEffort: "high", temperature: 0.7 });
 
-/** 每一发请求收到了什么，记下来 —— 这个例子查的就是它。 */
+/** Record every received request; these payloads are what the test checks. */
 const seen: Record<string, unknown>[] = [];
 
 const out = await outside({
@@ -56,9 +58,9 @@ try {
       { mode: "one", cycles: [{ cycle: "ask", apiMode: "chat", maxUnits: 1, from: [], next: [], infer: out.url("/infer") }] },
     ],
     agents: [
-      // **不给** —— 整跑那份是什么就是什么。
+      // **No overrides**: use the run-wide configuration unchanged.
       { name: "asis", apis: [["DEEPSEEK_API_KEY", "deepseek-v4-flash"]], unit: out.url("/infer") },
-      // **钉死不思考。** 它的活是查和转述，想一遍是把最贵的东西买两份。
+      // **Pin reasoning off.** This agent retrieves and relays information; reasoning again buys the most expensive work twice.
       {
         name: "pinned",
         apis: [["DEEPSEEK_API_KEY", "deepseek-v4-flash"]],
@@ -90,12 +92,12 @@ try {
   const pinned = await runOne("pinned", "t-pinned");
   show("what the pinned agent sent:", { reasoning_effort: pinned.reasoning_effort, temperature: pinned.temperature });
   ok("its own reasoning effort wins", pinned.reasoning_effort === "none", pinned.reasoning_effort);
-  // **只盖它点名的那几个。** 不然「固定一个参数」会连带把别的悄悄改回默认值，
-  // 而那种改动看不出来。
+  // **Override only explicitly named settings**. Otherwise pinning one parameter could silently reset unrelated settings
+  // to defaults, making the change difficult to detect.
   ok("everything it did not name still falls back", pinned.temperature === 0.7, pinned.temperature);
 
   step("5. turning the run-wide dial does not move the pinned one");
-  // 这才是这一列存在的理由：调求解那边的思考强度，不该顺手把检索拖慢八倍。
+  // This is why the column exists: changing solver reasoning must not also slow retrieval eightfold.
   await m.api("POST", "/exec", { sql: "update agent set state = state" });
   ok("the two disagree, which is the whole point", asis.reasoning_effort !== pinned.reasoning_effort, {
     asis: asis.reasoning_effort,

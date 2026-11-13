@@ -1,34 +1,34 @@
-# 当前 Bench 覆盖
+# Current benchmark coverage
 
-| Bench | 覆盖状态 | 保留外层文件 | 来源运行范围 | 分摊压缩 MB | 真实样例恢复 |
+| Bench | Coverage status | Retained outer files | Source run scopes | Allocated compressed MB | Real-sample recovery |
 | --- | --- | ---: | ---: | ---: | --- |
-| aime | 已覆盖找到的可读记录 | 1,607 | 38 | 3.461 | 通过 |
-| astrovisbench | 未找到可用详细记录 | 1 | 1 | 0.000 | 不适用：仅元数据 |
-| atmossci | 已覆盖找到的可读记录 | 35 | 6 | 0.083 | 通过 |
-| atomworld | 已覆盖找到的可读记录 | 7 | 3 | 0.492 | 通过 |
-| biocoder | 已覆盖找到的可读记录 | 29 | 5 | 0.053 | 通过 |
-| bird | 已覆盖找到的可读记录 | 157,184 | 18 | 146.799 | 通过（复用旧证明） |
-| chembench | 已覆盖找到的可读记录 | 14,056 | 324 | 57.059 | 通过 |
-| chemiq | 已覆盖找到的可读记录 | 47,755 | 408 | 199.585 | 通过 |
-| classeval | 已覆盖找到的可读记录 | 6,764 | 8 | 10.433 | 通过（复用旧证明） |
-| cmt | 已覆盖找到的可读记录 | 165 | 40 | 22.745 | 通过 |
-| deepswe | 已覆盖找到的可读记录 | 53 | 16 | 13.663 | 通过 |
-| frontierscience | 已覆盖找到的可读记录 | 11,470 | 329 | 12.114 | 通过 |
-| gpqa | 已覆盖找到的可读记录 | 7,127 | 39 | 27.096 | 通过 |
-| humaneval-plus | 已覆盖找到的可读记录 | 16,807 | 16 | 8.820 | 通过 |
-| labbench | 已覆盖找到的可读记录 | 46,263 | 3,644 | 91.079 | 通过 |
-| llm-srbench | 已覆盖找到的可读记录 | 31,886 | 18 | 82.187 | 通过 |
-| mbpp-plus | 已覆盖找到的可读记录 | 11,906 | 7 | 4.209 | 通过 |
-| minif2f | 已覆盖找到的可读记录 | 39,749 | 107 | 74.529 | 通过 |
-| olympiadbench | 已覆盖找到的可读记录 | 26,125 | 2,228 | 44.483 | 通过（复用旧证明） |
-| scibench | 已覆盖找到的可读记录 | 66,415 | 48 | 48.140 | 通过（复用旧证明） |
-| scicode | 已覆盖找到的可读记录 | 56,917 | 19 | 114.531 | 通过 |
-| scienceworld | 仍有不可读来源 | 33 | 6 | 0.278 | 通过 |
-| shared-or-unassigned | 共享或未归属证据 | 360,730 | 1,952 | 435.249 | 见关联 Bench |
-| skillsbench | 部分保留，原始缺失或损坏 | 293,727 | 5,791 | 1231.027 | 通过 |
-| terminal-bench | 部分保留，原始缺失或损坏 | 1,168,597 | 2,403 | 1013.352 | 通过 |
-| theophyseval | 已覆盖找到的可读记录 | 47,842 | 614 | 54.621 | 通过（复用旧证明） |
+| aime | All discovered readable records covered | 1,607 | 38 | 3.461 | Passed |
+| astrovisbench | No usable detailed records found | 1 | 1 | 0.000 | Not applicable: metadata only |
+| atmossci | All discovered readable records covered | 35 | 6 | 0.083 | Passed |
+| atomworld | All discovered readable records covered | 7 | 3 | 0.492 | Passed |
+| biocoder | All discovered readable records covered | 29 | 5 | 0.053 | Passed |
+| bird | All discovered readable records covered | 157,184 | 18 | 146.799 | Passed (prior evidence reused) |
+| chembench | All discovered readable records covered | 14,056 | 324 | 57.059 | Passed |
+| chemiq | All discovered readable records covered | 47,755 | 408 | 199.585 | Passed |
+| classeval | All discovered readable records covered | 6,764 | 8 | 10.433 | Passed (prior evidence reused) |
+| cmt | All discovered readable records covered | 165 | 40 | 22.745 | Passed |
+| deepswe | All discovered readable records covered | 53 | 16 | 13.663 | Passed |
+| frontierscience | All discovered readable records covered | 11,470 | 329 | 12.114 | Passed |
+| gpqa | All discovered readable records covered | 7,127 | 39 | 27.096 | Passed |
+| humaneval-plus | All discovered readable records covered | 16,807 | 16 | 8.820 | Passed |
+| labbench | All discovered readable records covered | 46,263 | 3,644 | 91.079 | Passed |
+| llm-srbench | All discovered readable records covered | 31,886 | 18 | 82.187 | Passed |
+| mbpp-plus | All discovered readable records covered | 11,906 | 7 | 4.209 | Passed |
+| minif2f | All discovered readable records covered | 39,749 | 107 | 74.529 | Passed |
+| olympiadbench | All discovered readable records covered | 26,125 | 2,228 | 44.483 | Passed (prior evidence reused) |
+| scibench | All discovered readable records covered | 66,415 | 48 | 48.140 | Passed (prior evidence reused) |
+| scicode | All discovered readable records covered | 56,917 | 19 | 114.531 | Passed |
+| scienceworld | Unreadable sources remain | 33 | 6 | 0.278 | Passed |
+| shared-or-unassigned | Shared or unassigned evidence | 360,730 | 1,952 | 435.249 | See related benchmarks |
+| skillsbench | Partially retained; originals missing or damaged | 293,727 | 5,791 | 1231.027 | Passed |
+| terminal-bench | Partially retained; originals missing or damaged | 1,168,597 | 2,403 | 1013.352 | Passed |
+| theophyseval | All discovered readable records covered | 47,842 | 614 | 54.621 | Passed (prior evidence reused) |
 
-来源运行范围、文件引用、消息行引用及数据库状态都不是独立实验或独有轨迹数。体积按共享分片的内容归属分摊，有舍入差；实际物理分片总大小另列。样例恢复通过不代表全部历史尝试都有完整证据。
+Source run scopes, file references, message-row references, and database states are not counts of independent experiments or unique trajectories. Sizes are allocated according to content ownership within shared shards and may differ due to rounding; the total physical shard size is listed separately. Successful sample recovery does not imply complete evidence for every historical attempt.
 
-逐项来源、排除、缺损和未读取目录见 `../reports/current-bench-coverage.json` 与 `../reports/bench-coverage.csv`。
+For item-level sources, exclusions, gaps, and unread directories, see `../reports/current-bench-coverage.json` and `../reports/bench-coverage.csv`.

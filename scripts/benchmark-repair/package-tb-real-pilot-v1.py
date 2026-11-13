@@ -107,33 +107,33 @@ def add_file(out,source,target,expected=None):
 
 def README(plan):
     facts=plan['facts']
-    return f'''# Terminal-Bench nginx 真实 U/F 试跑日志包
+    return f'''# Terminal-Bench nginx live U/F pilot log package
 
-run: {RUN}；开始 UTC {facts['createdAt']}；2026-10-08 的真实模型请求，不是 local mock。
-仅 nginx-request-logging，一冷候选/臂，U→F 串行，原任务来源 89、支持 1、其他 88 未运行；不外推旧 94.4% 或全量成绩。
+run: {RUN}; start UTC {facts['createdAt']}; actual model requests on 2026-10-08, not a local mock.
+Only nginx-request-logging, one cold candidate per arm, U then F serially. Original task source: 89, supported: 1, other 88 not run; no extrapolation to the old 94.4% or full-set results.
 
-| 臂 | 真实 API | 显式 verify | runtime 自动判卷 | 独立终判 | 有效官方测试 | 最终 |
+| Arm | Actual API calls | Explicit verify | Automatic runtime grading | Independent final grading | Valid official tests | Final |
 |---|---:|---:|---:|---:|---:|---|
 | U | 13 | 0 | 0 | 1 | 8/8 | passed |
-| F | 14 | 0 | 2 | 1 | 8/8，每次4份中属于该臂的3份 | passed |
+| F | 14 | 0 | 2 | 1 | 8/8, for the 3 of 4 records belonging to this arm | passed |
 
-模型别名 deepseek-flash，provider https://api.deepseek.com，temperature0、seed42、reasoning none、max_tokens8192；别名/seed不固定 provider checkpoint。每臂agent900s，官方verifier900s，CHECKS4 是 ObjRun 配置，F 本次没有显式 verify。manifest 模板 independentRReplicas5 不代表本次运行 R：实际只有 U/F 两臂。
+Model alias deepseek-flash, provider https://api.deepseek.com, temperature0, seed42, reasoning none, max_tokens8192; neither alias nor seed pins the provider checkpoint. Each arm has agent900s and official verifier900s; CHECKS4 is an ObjRun setting, and F did not explicitly call verify in this run. The manifest template independentRReplicas5 is not this run's R: there are only the U/F arms.
 
-全部27回执 reported usage：prompt119887 / completion5392 / cache-hit78080 / uncached41807。原冻结USD峰价 input0.3/cache0.006/output1.2 perM；U $0.009403188，F $0.010077792，合计$0.019480980，为估算，不是发票/CNY汇率。保留54份原request/response gzip、API ledger及其pending/reserve闭合。
+Reported usage across all 27 receipts: prompt119887 / completion5392 / cache-hit78080 / uncached41807. Original frozen USD peak rates: input0.3/cache0.006/output1.2 perM; U $0.009403188, F $0.010077792, total $0.019480980. These are estimates, not invoices or a CNY exchange conversion. All 54 original request/response gzip files, API ledger, and its pending/reserve closure are retained.
 
-30份工具回执中4份HTTP500（每臂2）完整保留；U/F各在首次submit后还有1次模型请求，最终candidate选择/原trace与seal/drain时间都在task与quiescence证据中。API封口不证明容器后台服务不再写；本任务保留live nginx服务。private grader有独立PID/mount、固定原镜像解释器、无候选测试注入；仅本nginx协议的证据，不是通用隔离认证。
+All 4 HTTP500 responses among 30 tool receipts (2 per arm) are preserved. U/F each made 1 additional model request after the first submit; final candidate selection, original traces, and seal/drain times are in task and quiescence evidence. API sealing does not prove container background services stopped writing; this task retains a live nginx service. The private grader has independent PID/mount namespaces and the original image's pinned interpreter, with no candidate test injection. This is evidence for this nginx protocol only, not general isolation certification.
 
-运行image与registry digest、Node22.22.2 executor image、实际Linux node/libgcc/libstdc++/runtime.mjs SHA都在metadata/manifest.json和source/selected-source-index.json。固定private Python3.13.7来自原image，uv0.9.5、pytest8.4.1、requests2.32.4、ctrf0.3.5及完整wheels/manifest在source/tb-frozen-source.zip。官方task/test原文和oracle仅此nginx任务在official-task/。此前cold curl失败属于较早基础设施无效，不是本次模型0分；本次v2 preseed的真实8测试输出放在raw/stand/logs。
+Runtime image and registry digest, Node22.22.2 executor image, and actual Linux node/libgcc/libstdc++/runtime.mjs SHAs are in metadata/manifest.json and source/selected-source-index.json. Pinned private Python3.13.7 comes from the original image; uv0.9.5, pytest8.4.1, requests2.32.4, ctrf0.3.5, and complete wheels/manifest are in source/tb-frozen-source.zip. official-task/ contains official task/test text and the oracle for this nginx task only. The earlier cold curl failure was an infrastructure-invalid result, not a model score of 0 in this run. Actual output from the 8 tests of this run's v2 preseed is in raw/stand/logs.
 
-目录：metadata/含两任务的完整answer/units/trace、预算/结果/API与工具账；raw/provider-*.json.gz、raw/tool-receipts/、raw/stand/logs/；audit/为原49项独立报告的完整字节引用；source/为此TB所需原ZIP成员的导出；official-task/只含nginx。原source.json/full frozen ZIP含其他benchmark修复源码，故不直接混装；本filtered ZIP为显式派生，不冒充原archive SHA或原完整sourceExecutionDigest。
+Directories: metadata/ contains complete answer/units/trace records for both tasks, budgets/results, and API/tool ledgers; raw/provider-*.json.gz, raw/tool-receipts/, raw/stand/logs/; audit/ references the complete original bytes of the independent 49-check report; source/ exports original ZIP members needed by this TB run; official-task/ contains nginx only. Original source.json/full frozen ZIP also contain repair sources for other benchmarks, so they are not included wholesale. This filtered ZIP is explicitly derived and does not pose as the original archive SHA or complete original sourceExecutionDigest.
 
-隐私：不复制任何.env、worker/config.yaml、SQLite/WAL/SHM或真实凭据。原49报告精确验证4个当时仍可读的host控制值，0命中；stand/gateway header、broker和provider API key当时未可重扫，不能扩大为六值证书。新打包器仅对公开wire/log检查疑似长Bearer/sk字段；它不读取凭据。保留该边界，若敏感格式命中则停止并留owned partial。
+Privacy: no .env, worker/config.yaml, SQLite/WAL/SHM, or actual credentials are copied. The original 49-check report verified 4 host control values still readable at the time, with 0 hits. The stand/gateway header, broker, and provider API keys could not be rescanned then; this must not be expanded into a six-value certificate. The new packager only checks public wire/log data for suspected long Bearer/sk fields; it does not read credentials. This boundary is retained; a sensitive-format match stops packaging and leaves the owned partial output.
 
-离线复核：在本包根用 `python verification/verify-package.py`。只读本包文件SHA、selected ZIP逐member SHA/CRC；不会联网、评分、创建容器或调用模型。原49报告包含原SQLite验证的结果引用，但数据库因为私密字段未交付，离线脚本不重复其SQL部分。
+Offline review: run `python verification/verify-package.py` at the package root. It reads only package file SHAs and selected ZIP member SHAs/CRCs; it does not access the network, grade, create containers, or call models. The original 49-check report references original SQLite validation results, but databases were not delivered because of private fields; the offline script does not repeat the SQL portion.
 
-复现一次新实验需独立新准入与冻结：从source/tb-frozen-source.zip取原core/runner/TB grader与公开依赖；按selected-source-index中的artifact映射还原runtime/.verifier-deps/官方文件，使用manifest固定镜像ID/registry digest、fresh token与冷候选，六工具经过鉴权gateway，seal/drain后原官方8条终判。原运行可写512MiB/stream1MiB，与官方10GiB storage不同，必须同行说明；不能直接在旧run目录续跑，也不能把旧fee guard或本日志包当新付费授权。本包不含镜像本体，不自动pull/build，默认只有离线复核。
+Reproducing a new experiment requires independent new admission and freezing: extract original core/runner/TB grader and public dependencies from source/tb-frozen-source.zip; restore runtime/.verifier-deps/official files using artifact mappings in selected-source-index; use the manifest-pinned image ID/registry digest, fresh tokens, and cold candidates; route six tools through the authenticated gateway, then run the original official 8-test final grading after seal/drain. The original run allowed 512MiB writable storage / 1MiB streams, unlike official 10GiB storage; this difference must accompany the results. Do not resume directly in the old run directory or treat an old fee guard or this log package as new paid authorization. This package excludes image binaries, does not automatically pull/build, and defaults to offline verification only.
 
-独立成绩范围：U/F各1个真实任务通过；未声明等预算因果效应、全89完整或泛化隔离。原基准94.4%旧数据来源问题不由本试跑修复为同一个分数。
+Independent result scope: one actual task passed in each U/F arm. No claim is made of a causal effect under equal budgets, completeness across all 89 tasks, or generalized isolation. This pilot does not repair the provenance problem of the old 94.4% benchmark data into the same score.
 '''
 
 VERIFIER = '''"""Offline SHA/ZIP CRC verifier. No model/network/SQLite/Docker."""

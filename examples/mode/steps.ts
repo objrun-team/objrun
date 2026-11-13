@@ -1,22 +1,22 @@
 /**
- * 一个推断函数：**这一站走完之后去哪儿。**
+ * An inference function: **where to go after this execution unit finishes.**
  *
- * 内核只认三种回答：
+ * The kernel accepts only three answers:
  *
- * | 回什么 | 意思 |
+ * | Return | Meaning |
  * | --- | --- |
- * | `null` | 到此为止 |
- * | `"周期名"` | 走那个周期，**从当前这一行接** |
- * | `{to, from_cycle, from_unit, status}` | 走那个周期，**从指定那一行接**，顺带给当前这一行盖个终止状态 |
+ * | `null` | Stop here |
+ * | `"cycle-name"` | Enter that cycle, **continuing from the current row** |
+ * | `{to, from_cycle, from_unit, status}` | Enter that cycle, **continuing from the specified row**, and assign a terminal status to the current row |
  *
- * 挑出候选（`next`）之外的东西当场炸 —— 内核不许它自由发挥。
+ * Selecting anything outside the `next` candidates fails immediately; the kernel forbids arbitrary destinations.
  *
- * 这个例子里的图：
+ * This example’s graph:
  *
  * ```
  *   plan ──→ work ──→ wrap
  *              ↑         │
- *              └─────────┘        work 觉得没干完就自己转自己，够了才去 wrap
+ *              └─────────┘        work loops while unfinished, then proceeds to wrap
  * ```
  */
 
@@ -28,7 +28,7 @@ interface At {
   unit?: number;
 }
 
-/** 模型这一站说的话里有没有这个词。 */
+/** Whether the model’s message in this execution unit contains the word. */
 function said(r: At["result"], word: string): boolean {
   return String((r ?? {}).body ?? "").includes(word);
 }
@@ -38,16 +38,16 @@ export async function infer(arg: unknown): Promise<unknown> {
   const here = a.cycle?.cycle;
   const next = a.next ?? [];
 
-  // plan 走完只有一条路
+  // Only one path follows plan.
   if (here === "plan") return pick("work", a);
 
   if (here === "work") {
-    // 模型自己说「收尾」了才往下走，否则在 work 上再转一圈。
-    // `max_units` 是兜底：转不动了内核会拦，不用在这儿数。
+    // Proceed only when the model itself says the finish keyword; otherwise loop through work again.
+    // `max_units` is the fallback: the kernel stops further cycles when exhausted, so no local counter is needed.
     return pick(said(a.result, "wrap up") ? "wrap" : "work", a);
   }
 
-  // wrap 是终点
+  // wrap is the endpoint.
   return pick(null, a);
 
   function pick(to: string | null, at: At): unknown {
@@ -56,7 +56,7 @@ export async function infer(arg: unknown): Promise<unknown> {
   }
 }
 
-/** 故意推一个候选之外的周期出来，看内核拦不拦。 */
+/** Deliberately infer a cycle outside the candidate set to check whether the kernel blocks it. */
 export async function wild(arg: unknown): Promise<unknown> {
   const a = (arg ?? {}) as At;
   console.log(`[steps] ${a.task?.id} ${a.cycle?.cycle}#${a.unit} -> something wild (candidates are ${(a.next ?? []).join(", ")})`);

@@ -53,6 +53,7 @@ async function grade(tid:string,code:string,feedback=false){
  }
 }
 async function model(dir:string,body:any,samplingMax?:number):Promise<{raw:string,status:number,receipt:any}>{
+ // Original approval retained verbatim: retry interface failures, continue other tasks, and do not let interface errors block the entire benchmark.
  return withOneInterfaceRetry(dir,path=>modelOnce(path,body,samplingMax),{receipt:path=>existsSync(join(path,'receipt.json'))?read(join(path,'receipt.json')):undefined,event:value=>save(join(dir,'interface-retry-policy.json'),{...value,atUtc:new Date().toISOString(),authorizedBy:'User: 可以重试接口异常的题，其他题目也继续跑，接口异常不要阻塞整个Bench的进度。',oldFailureAndUnknownCostsRetained:true}),wait:()=>Bun.sleep(1000)});
 }
 async function modelOnce(dir:string,body:any,samplingMax?:number):Promise<{raw:string,status:number,receipt:any}>{

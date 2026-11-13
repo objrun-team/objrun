@@ -1,15 +1,20 @@
 /**
- * 落位 —— 过了闸的候选拼成一份 `POST /declare` 能收的声明。**只拼，不写库。**
+ * Turn accepted candidates into a declaration supported by `POST /declare`.
+ * **Construct the declaration only; do not write the database.**
  *
- * 写库的口只有 `/declare`，一份不过整份不写（见 `declare/index.ts`）。这儿产出的是
- * 一个 JSON 文件，由跑臂的脚本在声明完机器之后再 POST 一次。默认不往任何活库里灌 ——
- * agentos 那边的纪律是「降解物进 live 之前先问用户」，我们这儿把「问」做成了
- * 「留出题上的 U 臂先涨了再说」。
+ * `/declare` is the sole write path and rejects the entire declaration if any part is invalid
+ * (see `declare/index.ts`). This module produces a JSON file for the arm runner to POST after
+ * configuring the machine. It does not inject anything into a live database by default.
+ * The agentos rule required user approval before generated skills entered a live system;
+ * here, the prerequisite is an improvement in the U arm on held-out tasks.
  *
- * 触发条件：同 `domain`、只在**根站**（链路串里没有 `>`；分隔符是 ` > `，声明口不收带空格的值）、题面里至少共现 `minMatch` 个触发词
- * —— 拼成 OR 组，每组是 `minMatch` 个词的 AND（`when` 的语义：组间 or、组内 and）。
- * 只在根站投是因为 chat 每个单元都重发一遍 instructions，而 skill 那一行落在祖先链上
- * 之后每一站都还看得见 —— 每站都投等于每站都重复一遍。
+ * Trigger conditions require the same `domain`, a **root station** (no `>` in the chain string;
+ * the separator is ` > `, and declaration values cannot contain spaces), and at least `minMatch`
+ * literal trigger terms in the statement. Build OR groups, each an AND of `minMatch` terms,
+ * consistent with `when`: OR between groups, AND within a group.
+ * Inject only at the root because chat resends instructions for every execution unit, while
+ * a skill row on the ancestor chain remains visible thereafter. Injecting at every station
+ * would repeat the same content each time.
  */
 
 import { combos, matches, type Candidate, type GateReport } from "./gate.ts";
@@ -39,7 +44,7 @@ export function declarationOf(cands: Landed[], domain: string, mountSingle = fal
   return { skills };
 }
 
-/** 一份声明会在哪些题面上触发 —— 跟引擎 `contains` 同一个字面比较，不跑引擎。 */
+/** Which statements a declaration matches. Use the engine's literal `contains` semantics without running the engine. */
 export function probe(decl: { skills: { identity: string; when: { dim: string; key: string; op: string; value: string }[][] }[] }, tasks: { id: string; statement: string }[]): Map<string, string[]> {
   const out = new Map<string, string[]>();
   for (const s of decl.skills) {

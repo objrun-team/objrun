@@ -91,13 +91,13 @@ def main():
     save(OUT/'SUMMARY.json',summary);save(OUT/'AUDIT.json',{'allPassed':all(x['passed'] for x in checks),'checks':checks,'failures':[x for x in checks if not x['passed']]})
     with (OUT/'FINAL_RESULTS.csv').open('w',newline='',encoding='utf-8-sig') as f:
         writer=csv.DictWriter(f,fieldnames=list(exports[0]));writer.writeheader();writer.writerows(exports)
-    lines=['# OlympiadBench 两组正式实验','',f"固定英文纯文本物理236题；DeepSeek官方deepseek-flash（观察映射{CFG['expectedModelMapping']}，滚动别名）。",'',
-        '|组别|有效/总数|通过|全体成功率范围|','|---|---:|---:|---|']
+    lines=['# OlympiadBench Two-Arm Formal Experiment','',f"Fixed set of 236 English text-only physics problems; official DeepSeek deepseek-flash (observed mapping {CFG['expectedModelMapping']}, a rolling alias).",'',
+        '|Arm|Valid / total|Passed|Overall success-rate range|','|---|---:|---:|---|']
     for a,s in summary['arms'].items():lines.append(f"|{a}|{s['valid']}/236|{s['passed']}|{s['accuracyBounds']}|")
-    lines+=['',f"配对有效题 {n}；ObjRun减单次差值 {summary['paired']['difference']}；95%区间 {summary['paired']['ci95']}。",f"仅ObjRun通过{len(wins)}题；仅单次通过{len(losses)}题；真实修复候选{len(repairs)}题（内容需独立审查）。",'',
-        '费用为官方token费率估算，逐请求实际账单不可获得；缺失usage及未结算请求单列，不计零。','', '|组别|估算费用USD范围|请求数|未知费用请求|','|---|---:|---:|---:|']
+    lines+=['',f"Paired valid problems: {n}; ObjRun minus single-attempt difference: {summary['paired']['difference']}; 95% interval: {summary['paired']['ci95']}.",f"Only ObjRun passed {len(wins)} problems; only the single attempt passed {len(losses)}; {len(repairs)} are actual repair candidates (content requires independent review).",'',
+        'Costs are estimated using official token rates; actual per-request bills are unavailable. Missing usage and unsettled requests are listed separately, not counted as zero.','', '|Arm|Estimated cost range (USD)|Requests|Requests with unknown cost|','|---|---:|---:|---:|']
     for a,c in costs['byArm'].items():lines.append(f"|{a}|{c['estimateLowerUsd']:.9f}—{c['estimateUpperUsd']:.9f}|{c['requests']}|{c['unknownCostRequests']}|")
-    lines+=['','8题两组canary沿同一冻结协议纳入正式236题，无重复生成。','本比较包含更多尝试和在线评分访问，不单独证明机制贡献或同费用效率。',f"审计通过：{all(x['passed'] for x in checks)}。完整逐题结果、日志、调用回执、源码和依赖随归档交付。"]
+    lines+=['','The 8-problem, two-arm canary is included in the formal 236-problem set under the same frozen protocol, without duplicate generation.','This comparison includes more attempts and online grader access; it does not independently establish a mechanism contribution or equal-cost efficiency.',f"Audit passed: {all(x['passed'] for x in checks)}. Complete per-problem results, logs, call receipts, source, and dependencies are delivered in the archive."]
     (OUT/'REPORT.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
     print(json.dumps({'auditPassed':all(x['passed'] for x in checks),'arms':summary['arms'],'failures':[x for x in checks if not x['passed']][:5]}))
 
