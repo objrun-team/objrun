@@ -85,6 +85,8 @@ curl http://127.0.0.1:7801/api/health
 
 这些结果并非等算力比较。全部 20 项结果、预算和评测口径见[论文附录](https://objrun-team.github.io/paper.pdf)。
 
+实验日志已公开，可在 Hugging Face 数据集仓库 [imontlaji/objrun-records](https://huggingface.co/datasets/imontlaji/objrun-records/tree/main) 获取。下载与读取方法见[实验记录指南](experiments/records/README.md)。
+
 ### 科学案例
 
 论文另选了四个近期论文中的科学问题，每个限时 5 小时，结果由宿主机上的检查器独立验证。四项的模型调用费用合计 5.62 美元。

@@ -85,6 +85,8 @@ The headline runs use DeepSeek V4.1 Flash. **U** is the single-attempt baseline;
 
 These are not equal-compute comparisons. See the [paper's appendix](https://objrun-team.github.io/paper.pdf) for all 20 results, budgets, and evaluation protocols.
 
+Experiment logs are publicly available in the Hugging Face dataset [imontlaji/objrun-records](https://huggingface.co/datasets/imontlaji/objrun-records/tree/main). See the [record guide](experiments/records/README.md) for download and reading instructions.
+
 ### Scientific Case Studies
 
 The paper also examines four scientific problems from recent papers. Each had a five-hour time limit, and the results were independently verified by checkers on the host machine. Model calls across the four cases cost a total of $5.62.

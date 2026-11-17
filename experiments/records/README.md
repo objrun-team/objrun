@@ -1,6 +1,6 @@
 # Experiment record index and external content
 
-The code repository retains run indexes, summaries, current coverage reports, and SHA-256 manifests. Complete content shards, per-file mappings, and historical curation reports were moved outside the repository on 2026-11-04 and removed from the published Git history. On the same day, the complete candidate collection was uploaded to the private Hugging Face Dataset [imontlaji/objrun-records](https://huggingface.co/datasets/imontlaji/objrun-records) for subsequent selection and editing. Cloning the code repository alone does not provide complete trajectories.
+The code repository retains run indexes, summaries, current coverage reports, and SHA-256 manifests. Complete content shards, per-file mappings, and historical curation reports were moved outside the repository on 2026-11-04 and removed from the published Git history. On the same day, the complete candidate collection was uploaded to the Hugging Face dataset [imontlaji/objrun-records](https://huggingface.co/datasets/imontlaji/objrun-records), which was made public on 2026-11-17. Cloning the code repository alone does not provide complete trajectories.
 
 Complete local record directory:
 
@@ -12,7 +12,7 @@ Both the local backup and the HF dataset include `catalog.json`, `packs/`, `mani
 
 The pinned revision is [`5c00daab7319c87fa89ede743f07873d3114ef45`](https://huggingface.co/datasets/imontlaji/objrun-records/tree/5c00daab7319c87fa89ede743f07873d3114ef45); its address and revision are also recorded in [external-storage.json](external-storage.json). The dataset's `main` branch may continue to change. Use this pinned revision to read the candidate collection described here. Historical reports describe only the state when they were generated.
 
-After signing in with an authorized HF account, download the complete directory with `huggingface_hub`; downloading only the packs is insufficient:
+The dataset is public and requires no HF account or access token. Download the complete directory with `huggingface_hub`; downloading only the packs is insufficient:
 
 ```powershell
 python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='imontlaji/objrun-records', repo_type='dataset', revision='5c00daab7319c87fa89ede743f07873d3114ef45', local_dir='F:/objrun-records')"
